@@ -81,8 +81,19 @@ export interface Inspection {
   cards?: readonly { id: string; name: string; text: string }[];
 }
 
+/** A container that has been opened: what it is called and what is still in it. */
+export interface OpenContainer {
+  id: string;
+  name: string;
+  lines: readonly { item: string; name: string; count: number }[];
+  onTake: (item: string) => void;
+  onClose: () => void;
+}
+
 export interface PlayPanelProps {
   log: readonly LogLine[];
+  /** A container whose contents are showing, until it is closed or walked away from. */
+  container?: OpenContainer | null;
   /** What was right-clicked, until closed. */
   inspecting: Inspection | null;
   onCloseInspect: () => void;
@@ -247,6 +258,32 @@ export function PlayPanel(props: PlayPanelProps): preact.JSX.Element | null {
               ))}
             </div>
           ) : null}
+        </div>
+      ) : null}
+
+      {props.container ? (
+        <div className="play-box panel-box is-fixed" data-testid="container" data-container={props.container.id}>
+          <div className="panel-head">
+            <span className="play-name">{props.container.name}</span>
+            <button type="button" className="play-btn is-ghost panel-x" title="Close" data-testid="container-close" onClick={props.container.onClose}>
+              ✕
+            </button>
+          </div>
+          {props.container.lines.length === 0 ? (
+            <div className="panel-prose" data-testid="container-empty">Nothing left in it.</div>
+          ) : (
+            props.container.lines.map((line) => (
+              <div key={line.item} className="panel-row" data-item={line.item}>
+                <span>{line.name}</span>
+                <span className="panel-detail">
+                  {line.count > 1 ? `×${line.count}` : ''}
+                  <button className="play-btn is-primary" data-testid="container-take" onClick={() => props.container!.onTake(line.item)}>
+                    Take
+                  </button>
+                </span>
+              </div>
+            ))
+          )}
         </div>
       ) : null}
 

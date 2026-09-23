@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { OBJECT_KINDS, creatureTabs, filterLibrary, tilesTab, objectsTab, propsTab, titleCase } from './library';
+import { creatureTabs, filterLibrary, tilesTab, propsTab, titleCase } from './library';
 
 const CREATURES = [
   { id: 'jagged-knife-bandit', name: 'Jagged Knife Bandit', tier: 1 as const, role: 'standard' as const },
@@ -63,11 +63,6 @@ describe('the library', () => {
     const tab = propsTab(['barrel', 'deadTree'], ['duck']);
     expect(tab.items.map((i) => i.label)).toEqual(['Barrel', 'Dead Tree', 'Duck']);
     expect(tab.items[2]!.detail).toBe('imported');
-  });
-
-  it('offers every kind of object', () => {
-    expect(objectsTab().items.map((i) => i.id)).toEqual([...OBJECT_KINDS]);
-    expect(OBJECT_KINDS).toEqual(['chest', 'door', 'pillar', 'portal', 'scripted']);
   });
 
   it('files creatures by tier, by name, with their role', () => {

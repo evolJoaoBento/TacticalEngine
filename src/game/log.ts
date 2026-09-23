@@ -40,6 +40,8 @@ export interface Motion {
   struck?: true;
   /** They swung at this tile; the token lunges that way. */
   lunge?: { at: number };
+  /** Through a portal: put down where they are now, not walked there from where they were. */
+  teleport?: true;
 }
 
 /** One number over one head, in the tone the matching log line has. */

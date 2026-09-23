@@ -11,6 +11,7 @@ import { gridFromScene, paletteForProject } from '../engine/scene/grid-from-scen
 import { buildDemoScene, type DemoScene } from './demo-scene';
 import { planJump } from './leap';
 import { takeGround } from './room';
+import { interactablesOf } from '../engine/scene/prop-functions';
 
 /** The demo with an editor over its document, holding a platform. */
 function table(): { demo: DemoScene; session: EditorSession; lay: (x: number, y: number) => boolean } {
@@ -79,13 +80,13 @@ describe('the room growing under the party', () => {
 
   it('keeps a door where it was and as it was left', () => {
     const { demo, lay } = table();
-    const door = demo.scene.interactables.find((thing) => thing.kind === 'door' && thing.blocksMovement)!;
+    const door = interactablesOf(demo.scene).find((thing) => thing.kind === 'door' && thing.blocksMovement)!;
     const at = { ...door.position };
     expect(demo.grid.isTile(demo.grid.indexOf(at.x, at.y))).toBe(true);
     const shut = demo.state.blockedFor('kara', ['party']);
     expect(shut(demo.grid.indexOf(at.x, at.y))).toBe(true);
     lay(-1, -1);
-    const moved = demo.scene.interactables.find((thing) => thing.id === door.id)!.position;
+    const moved = interactablesOf(demo.scene).find((thing) => thing.id === door.id)!.position;
     expect(moved).toMatchObject({ x: at.x + 1, y: at.y + 1 });
     const still = demo.state.blockedFor('kara', ['party']);
     expect(still(demo.grid.indexOf(moved.x, moved.y))).toBe(true);

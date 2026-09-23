@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { hollowVaultMap } from './demo-map';
 import { buildDemoScene } from './demo-scene';
 import { inspection } from './inspect';
+import { interactablesOf } from '../engine/scene/prop-functions';
 
 describe('what a right-click shows', () => {
   const demo = buildDemoScene(hollowVaultMap(), 'demo');
@@ -26,7 +27,7 @@ describe('what a right-click shows', () => {
   });
 
   it('reads an object by its name and kind, and finds nothing on bare ground', () => {
-    const object = demo.scene.interactables[0]!;
+    const object = interactablesOf(demo.scene)[0]!;
     expect(inspection(demo, null, object.id)).toMatchObject({ kind: 'object', id: object.id, line: object.kind });
     expect(inspection(demo, null, null)).toBeNull();
   });

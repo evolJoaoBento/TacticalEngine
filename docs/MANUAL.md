@@ -43,7 +43,7 @@ switches between play and edit at any time.
 
 | Input | Play mode | Edit mode |
 |---|---|---|
-| Left click | Party member: select. Adversary: attack with the selected character. Object: use it. Ground: walk there. | Apply the current tool to the tile |
+| Left click | Party member: select, and the camera slides over them. Adversary: attack with the selected character. Object: use it, walking up to it first when it is out of reach. Ground: walk there. | Apply the current tool to the tile |
 | Left drag | Walk the selected character towards the pointer in play; orbit the camera in the editor. Turning the view in play is the **middle** drag | Drag with the current tool — erase, raise and lower follow the pointer; the placer puts one piece where it is clicked |
 | Middle drag | Orbit the camera | Orbit the camera |
 | Right drag | Pan the camera | Pan the camera |
@@ -54,10 +54,15 @@ switches between play and edit at any time.
 | `Q` / `E` | Turn the camera | — |
 | `F` | Frame the selected character | — |
 | `Home` | Frame the whole room | — |
-| `Tab` | Select the next party member (wraps) | — |
+| `Tab` | Select the next party member (wraps); the camera slides over them | — |
 | `Space` / `Enter` | End the party's turn: the GM acts | — |
 | `Ctrl+Z` / `Ctrl+Shift+Z` | — | Undo / redo |
 | `Ctrl+E` | Switch to edit | Switch to play |
+
+Selecting a character - their card in the party column, `Tab`, or a click on them - slides the
+camera over them, keeping its angle and distance; so does coming out of a portal, once any walk up
+to it has finished. An ordinary click to walk leaves the camera where it is; hold the button to have
+it follow.
 
 A press that moves less than six pixels counts as a click; anything longer is a drag. The tile
 under the pointer is marked so a click has a visible target. The camera keys (WASD, arrows,
@@ -106,7 +111,11 @@ and nowhere else: a click walks somebody and leaves the view exactly where you a
 camera that slides on every click is one nobody can aim. Holding is what says "come along": that is how the woods are crossed, rather than by clicking along the
 trail. Steering follows the pointer wherever it goes, even off the room's edge. In a fight it keeps
 inside the circle and stops at its edge, because leaving the circle is an Agility Roll and a roll is
-something you decide on with a click. A press that does not linger is still a click. Walking onto a trigger cell
+something you decide on with a click. A press that does not linger is still a click. **A click
+during a walk interrupts it**: the character stops on the ground they have actually reached and
+sets off again from there, rather than finishing the first walk or sliding back to join a line
+drawn from where they were headed. The others stop with them, so the party keeps its order.
+Walking onto a trigger cell
 starts that cell's encounter and the mover stops on the trigger rather than running past the
 ambush.
 
@@ -153,8 +162,17 @@ Far there is no further push. The fainter ring outside the circle is the ground 
 A click on the ground is a spot, not a square: the character walks
 there in a straight line where nothing is in the way, stops where you clicked (or as near as
 their body fits, clear of walls and of everyone else), and the others fall in a pace behind along
-the line, round the same corners. Hovering the ground draws the line a click would walk - in a
-fight, the part past the circle in amber where a push could open it, or red where nothing could.
+the line, round the same corners. Hovering the ground draws the line a click would walk, and the
+line is **coloured by range**: green for Melee, cyan for Very Close, indigo for Close, magenta for
+Far and near-white for Very Far, changing colour at each step so the line says how far as well as
+where. The distance is measured along the line walked, not across the gap - a way round a corner
+breaks colour later than a straight one to the same place, because that is what the walk costs.
+Mid-walk the line starts at the figure rather than where it was sent, which is where a click will
+start it from - and it keeps up with them: hold the mouse still while somebody walks and the line
+shortens under it as they close on the spot, because it is redrawn from wherever they have got to
+rather than from wherever they were when the pointer last moved. In a fight the part past the circle is drawn in amber where a push could open it,
+or red where nothing could - those two are verdicts rather than distances, so they ignore the
+bands.
 Out of a fight a click beyond reach is not refused: it walks up to the nearest reachable spot (the
 shut door, the edge of the chasm). A click on an enemy across the room walks
 up to where the weapon reaches from and swings, the move being part of the action; with nowhere
@@ -214,6 +232,10 @@ you halfway up it.
 - **The roll**: a jump across level ground asks for nothing. One that climbs more than a step
   asks for **an Agility Roll, Difficulty 12**. They land either way; on a failure they land
   **Prone** - rolls against them have advantage until they next move, which is them getting up.
+- **A jump is made alone.** Whoever was walking with the jumper follows the run-up to where the
+  jump is made from, and stops there: the jumper lands in a group of their own ("Quim goes on
+  alone: the others stay where they are."), so walking them on afterwards walks them alone rather
+  than bringing everybody round the long way. Drag a card back onto the chain to walk together again.
 - **Down** is never refused. A drop of 1 + Agility blocks (1 at Agility 0 or less) asks for
   nothing. Past that the fall is rolled for: Difficulty 12, one harder for every two blocks past
   safe, and a d6 of direct physical damage for each block past safe - halved on a success, all of
@@ -350,11 +372,26 @@ them; a domain filter puts them away, since none of them has a domain.
 ### Using things
 
 Stand next to the object (one tile, diagonals count) and either click it or press **Use what
-is in reach**. Out of reach reads "It is out of reach." Using something in a fight spends that
+is in reach**. Clicking one that is further off walks the selected character up to the nearest tile
+it is in reach from, and uses it from there - out of a fight anywhere the floor goes, in a fight
+only as far as the turn's move, the same as a click on an adversary walks up to swing. When nowhere
+they could walk is in reach of it, nobody moves and it reads "It is out of reach." Using something in a fight spends that
 character's action ("There is no time — you have acted."). An object that needs a key the party
 lacks prints its locked text. Otherwise its roll-free effects run, then its check, if any, asks
 for a roll. An object that starts a conversation opens it here. A used pillar or opened chest
 refuses a second use.
+
+What a prop does decides what using it is (see *What a prop does*, §3). A **container** opens a
+window over the play panel listing what is in it, each line with a **Take** that moves one into the
+pack; what is taken stays taken, in a save as in the room, and the window closes when the one who
+opened it walks away. A **door** swings open on its front-left edge and stops blocking; used
+again, it swings shut - unless somebody is standing in it ("It will not shut with somebody in the
+way."). A **trapped** prop asks for its roll, then does whatever its success or its failure does.
+A **portal** sends you to the other portal with the same pair id: out of a fight the whole group
+steps out beside it, in a fight only the one who used it. Nobody walks the room between: each one
+spins down to nothing where they stood and spins back up beside the other end, and a click on a
+portal out of reach walks up to it first and goes through once there; if the other end is in another room,
+the party travels there and arrives beside it.
 
 ### Conversations
 
@@ -482,18 +519,18 @@ selection.
 
 | Mode | Around the board | What a click or drag does |
 |---|---|---|
-| **Inspector** (1) | The selected object's properties, on the right | Click an object to select it. Press on anything placed, a creature, a prop, an object or a party start, and drag to move it: it lifts off the ground, hangs under the pointer with its bottom swinging behind the way it goes, and drops with a bump where you let go, at the height it stood. It never lands on another of its kind (props stack), and a party start stays in the room; one undo puts it back. The editor draws a party start as a blue pawn in a ring and an object with no model as a gold ring with a gem |
-| **Terrain** (2) | Tools on the left rail; **Tiles**, **Props** and **Objects** in the strip along the bottom; the tool's options on the right | Build stacked tiles anywhere (brush 1×1, 3×3, 5×5); erase tiles at a chosen level; raise/lower ground; place props and objects; **Select** picks up a placed tile - the topmost on the cell - and carries it: the Z ladder goes to its level, the wheel lifts it while held, Alt turns it, and it lands where you let go, on top of whatever is there. One undo puts it back |
+| **Inspector** (1) | The selected thing's properties, on the right | Click a prop to see what it is drawn with, what it does and whether it is solid (an object from an older project is shown as it always was). Press on anything placed, a creature, a prop, an object or a party start, and drag to move it: it lifts off the ground, hangs under the pointer with its bottom swinging behind the way it goes, and drops with a bump where you let go, at the height it stood. It never lands on another of its kind (props stack), and a party start stays in the room; one undo puts it back. The editor draws a party start as a blue pawn in a ring and an object with no model as a gold ring with a gem |
+| **Terrain** (2) | Tools on the left rail; **Tiles** and **Props** in the strip along the bottom; the tool's options on the right | Build stacked tiles anywhere (brush 1×1, 3×3, 5×5); erase tiles at a chosen level; raise/lower ground; place props; **Select** picks up a placed tile - the topmost on the cell - and carries it: the Z ladder goes to its level, the wheel lifts it while held, Alt turns it, and it lands where you let go, on top of whatever is there. One undo puts it back |
 | **Combat** (3) | Tools on the left rail; the SRD's creatures by tier in the strip, with a search; the encounter on the right | Place the picked creature in the encounter; press on a placed creature and drag to move it, as in the Inspector (Select carries party starts too); toggle trigger cells that start it; toggle party start tiles; erase a creature, then a trigger cell, then a party start (never the last one) |
 | **Interaction** (4) | The conversations, on the left | Click one to open its graph |
 
-Opening a Terrain library tab chooses the placement action automatically: Tiles builds, Props
-places props and Objects places objects. Picks are remembered when switching
+Opening a Terrain library tab chooses the placement action automatically: Tiles builds and Props
+places props. There is no Objects tab any more: a door, a chest or a portal is a prop with a
+function (see *What a prop does*). Picks are remembered when switching
 tabs. The rail only offers the applicable erase or raise/lower actions; there is no separate
 placement-type selector. Clicking the tab or an item returns from erase to placement. Every card
 shows what it puts down: a picture of the model for a prop or a creature (one with no model of its
-own shows the husk that stands in for it on the board, marked **stand-in**), a drawn icon for a tile
-or an object, and the colour a kind of tile declares. The Tiles tab offers only kinds that are
+own shows the husk that stands in for it on the board, marked **stand-in**), a drawn icon for a tile, and the colour a kind of tile declares. The Tiles tab offers only kinds that are
 structures: ground is the substrate every cell already holds, edited in the Tiles workspace, and is
 not something the placer puts down. A name too long for its card wraps to a second line. A tab with nothing in it
 is dimmed and says so ("Nothing in Tier 3 yet."); "Nothing matches." is only ever a search's answer.
@@ -525,7 +562,89 @@ at a quarter-tile thickness. **Hold Alt and drag toward a tile edge** to point t
 in that cardinal direction. The camera angle is accounted for, so dragging along the visible
 grid chooses the matching north, west, south or east edge. While Alt is held, the tile preview stays in place and
 mouse gestures do not stamp pieces or pan the camera. Release Alt, then click to place with
-the chosen facing. **R** and **Rotate** also turn tiles and props; the four **Wall edge** buttons
+the chosen facing.
+
+**While the Props tool is held, the prop under the pointer is drawn where it would go**, half
+see-through, at the size and facing it would be placed with. It is the same model seated the same
+way, so what is previewed is what lands; it disappears when the pointer leaves the board or the
+tool changes.
+
+A prop can also be placed across **more than one tile**. With Props open, the **Size** buttons -
+1×1, 2×2, 3×3, 4×4, 5×5, 6×6, 8×8 - choose how many tiles across the next prop is drawn, and the
+same model is then drawn at that size: one boulder covering nine tiles rather than nine boulders.
+The tile you click is the block's **north-west corner**, and after that a click anywhere in the
+block turns or erases the whole of it, so a 3×3 is picked up by its middle as readily as by its
+anchor. It is scenery at any size: a walk goes straight through a prop, and what the ground under
+it costs is still the Tiles workspace's to say. A prop of the ordinary size writes nothing about
+its size into the project, so a room full of one-tile props reads exactly as it always did.
+
+**Placing a prop takes hold of it**, and so does clicking one that is already down, and so does
+picking one up with **Select** - the panel
+then says which prop it is showing, and **Size** and **Rotate** change *that* prop as well as
+setting what the next one will be placed like. A second click on a prop already being shown turns
+it, which is the old behaviour; the first click no longer does, so reaching for a prop's settings
+cannot spin it by accident. Picking anything from the Props strip lets go again, because reaching
+into the strip means placing something new. Erasing a prop lets go too. A prop of any size can be
+dragged like any other, and it is carried at the size it is drawn at: the lift's stretch is a
+factor of whatever it already was.
+
+**Solid** says whether the prop stops a walk. Off by default, which is what a prop has always
+been: scenery a walk goes straight through, with the ground under it saying what it costs. On, the
+whole block it covers is barred - nothing walks through it and nothing sees through it - so a
+boulder drawn across three tiles is an obstacle three tiles across. The floor under it is left
+where it is, so the prop goes on standing on the ground rather than on top of its own block. Like
+Size, it applies to the prop being shown as well as to the next one placed. One caution: nothing
+can find a way *off* a barred tile, so making a prop solid while somebody is standing in it walls
+them in where they stand - mark it solid before the party walks through, or move them out first.
+
+**Save as remix** keeps the settings in hand - the model, the block, the facing and whether it is
+solid - under a name
+like *Crate Prop 2×2* (or *Rock 3×3 · solid*, since whether a prop is an obstacle is the one setting
+that cannot be seen on the board), and the remix appears in the Props strip beside the models, drawn with its own
+model's picture. Picking it sets all three at once, so another six-tile boulder facing north is
+one click rather than three. What a remix places is an ordinary prop: **Remove remix** forgets the
+settings and leaves everything ever placed from it exactly where it is. Remixes belong to the
+project, not to the editor, so they travel with the file to whoever opens it next.
+
+### What a prop does
+
+Any prop can **do something**. The Props panel's **Function** select, under Size and Solid, offers
+**None** - chosen until something else is, and what a prop has always been - and then:
+
+- **Container** — used, it opens a window of what it holds. Add things one at a time from the
+  project's items: the same item added again is one more of it, and **−** takes one away.
+- **Door** — stands in the way until it is used, then swings open on its front-left edge and
+  lets the party through; used again, it swings shut.
+- **Trapped** — asks for a roll: a trait and a Difficulty (1 to 40, 12 to start), and
+  **Repeatable** if it should ask again every time rather than once. Below them are two more
+  Function selects, **On a success** and **On a failure**, both None to start; each can be any
+  function, a trapped one included, with settings of its own.
+- **Portal** — one of a pair. Give it a **pair id**; the portal given the same id is its other
+  end, in this room or any other. A pair is two: an id two other portals already hold is refused as
+  it is typed ("… already pairs A and B. A pair is two - choose another id."), and a portal with
+  nobody holding its id says it is waiting for its other end.
+- **Script** — everything an object could be told: name, flavour, a key it needs, effects with no
+  roll, a check with its five outcomes. The demo's quest things - the lever that starts a quest,
+  the pillar that ends one - are Script props.
+
+A prop that does something gets an **id** when it is placed (its model and its tile, *crate-prop-3-9*),
+which is how a portal names its partner, how an effect names what to open, and what a save
+remembers its state by. Like Size and Solid, the function applies to the prop being shown and to
+the next one placed, so the second portal put down after the first takes the same pair id and the
+two are a pair at once; a third comes down with no pair id rather than a refused one. A remix
+keeps the function too.
+
+A function prop blocks by what it is, not by **Solid**: a door blocks until it is open whatever
+Solid says, and a container blocks only if Solid is on. A prop drawn across several tiles is used,
+reached and blocked across all of them - a 2×2 door is one door two tiles wide. In the Inspector,
+clicking a prop shows the same Function select, the model it is **Drawn with** (any model the
+project has), and **Solid**.
+
+A project from before the merge loads as it always did: each object becomes a prop drawn with the
+body its kind always had, holding a Script function with everything the object was told, and
+keeps its id. An object with no body at all (an invisible trigger) stays an object.
+
+**R** and **Rotate** also turn tiles and props; the four **Wall edge** buttons
 put walls along the north, west, south or east edge, meeting at the corners.
 Four walls and a floor can occupy the same tile. **Erase building
 tiles** removes the most recently placed piece at the selected X/Y/Z; repeat to peel away
@@ -603,7 +722,10 @@ trait could jump at all, and when every drop past a step would be a fall that hu
 
 ### Objects and the inspector
 
-In Inspector mode, click an object. The inspector edits:
+New things are props with a function (*What a prop does*, above), and clicking one in Inspector
+mode shows its model, its function and Solid. A Script prop's settings are what an object's were.
+An object left over in an older project that has no body is still edited as an object; in
+Inspector mode, click it. The inspector edits:
 
 - **What it is** — Name; Flavour (read when used); Kind (chest, door, pillar, portal,
   scripted — only a door stops blocking its tile when opened); Drawn with — any model the
@@ -700,6 +822,18 @@ it and opens anywhere. The id comes from the file name, made unique if it is alr
 row reports the file by weight (`embedded · 2.4 MB`) rather than printing megabytes of encoded data.
 **✕** removes one. A model already sitting beside the app is still referenced by its path, and the
 row shows that path instead.
+
+Ten of the built-in props have been **retired** for models in that folder: the pine is `tree-prop`,
+the dead tree `withering-tree-prop`, the barrel `barrel-prop`, the crate `crate-prop`, the brazier
+`standing-torch-prop`, the cart `cart-prop`, the training dummy `training-dummy-prop`, and the door,
+chest and portal `door-prop`, `chest-prop` and `portal-prop`. A project that still names an old one
+is renamed as it opens, so nothing it placed turns into a placeholder; the next save writes the new
+names. Of the built-in props, the rock, the banner, the campfire and the pillar remain.
+
+The other way in is the folder: a `.glb` dropped into `public/models` is a model of every project
+the page opens - the built-in demo, the default project and any file loaded - named after the file
+(`door-prop.glb` is `door-prop`). The dev server reads the folder when it starts, so restart it
+after adding one. A project that already lists a model of that id keeps its own settings for it.
 
 Each model carries three settings: **Scale** (a tile is one unit — most sample files are in metres,
 so 0.01 is a common answer), **Ground offset** to sit its feet on the tile, and **Rotation °** to
@@ -835,8 +969,27 @@ quest nothing starts; an objective nothing completes.
 
 ### Saving and loading a project
 
-**Save JSON** downloads `<project-id>.json` (the whole document, pretty-printed) and clears the
-"unsaved" mark. **Load** opens a file picker; the file is parsed through the project schema, and
+**The project that opens is a file: `projects/default.json`.** The page loads it every time it
+opens, and while it is the project open, **Save JSON** (or `Ctrl+S`) writes it straight back - no
+dialog - so whatever you changed and saved is what opens next time. Commit the file and your room
+is in the repository like anything else.
+
+- **No file yet** (deleted, or never made): the demo built from code opens instead, and the next
+  save creates the file from it. This is also how to start over: delete the file, reload, save.
+- **A file that will not load:** the demo opens instead and the reason is recorded in
+  `__engine.errors`, and saving does **not** write over the file - it may be a great deal of work
+  with one bad field in it. Fix the file, or move it aside, and reload.
+- **`?boot=builtin`** on the address opens the demo from code and never touches the file, however
+  often you save; `?boot=file` asks for the file on a server that would otherwise not.
+- Writing the file back needs the dev server (`npm run dev`): it is the server, not the page, that
+  writes to disk. A built site opens on the same file but cannot save into it, and a save there
+  downloads the project as it always did.
+- The file is not updated when the demo's code changes. It is your copy now; to pick up a newer
+  demo, delete it and save, which replaces your edits with the demo from code.
+
+With any other project open - one you loaded with **Load** - **Save JSON** saves to that project's
+own file (asking where the first time, where the browser allows it; otherwise downloading
+`<project-id>.json`) and never over the default. Either way it clears the "unsaved" mark. **Load** opens a file picker; the file is parsed through the project schema, and
 if it is playable, replaces the document the *editor* holds, redraws the view, and restarts the
 game on it — the same round trip described under **Playing what you authored** above. A file that
 carries code the current project does not already run asks first, as Import pack does: it names each
@@ -933,7 +1086,7 @@ defaulted, so a project written before it existed still parses.
 
 A **scene**: `id`, `name`, `intro` (logged on arrival), `width`, `height` (≤ 512), `terrain[]`
 (terrain ids, row-major), `heights[]`, `tints[]?` (per-tile CSS colour, presentation only),
-`spawns[]` (≥ 1), `interactables[]`, `encounters[]`, `decos[]`, `fogBand?`, `buildingTiles?`.
+`spawns[]` (≥ 1), `interactables[]` (only bodiless objects, since format 6), `encounters[]`, `decos[]`, `fogBand?`, `buildingTiles?`.
 `buildingTiles` is a sparse record keyed by `x,y,level` with optional `#instance` suffixes for
 overlapping pieces. X/Y are integers; `level` stores vertical Z in quarter-tile increments, and
 optional `height` scales the piece vertically. Each piece has a `shape` (block/floor/wall/stairs),
@@ -947,7 +1100,13 @@ An **interactable**: `id`, `kind` (chest | door | pillar | portal | scripted), `
 
 An **encounter**: `id`, `name`, `adversaries[]` (`id`, `adversary` = SRD adversary id,
 `position`, `name?`, `hitPoints?`), `triggerCells[]`, `startsOnTrigger`. A **deco**: `model`,
-`position`, `rotation` (radians), `id?`.
+`position`, `rotation` (radians), `id?`, `span?` (tiles across, from the north-west corner),
+`solid?`, and `function?` - one of `{kind:'container', items:[{item, count}]}`, `{kind:'door'}`,
+`{kind:'trapped', trait, difficulty, repeatable, success?, failure?}` (success and failure are
+functions themselves), `{kind:'portal', pair}` or `{kind:'script', object, name, flavor,
+blocksMovement, effects, check?, repeatable, requiresKey?, lockedText, goto?, tags, data}`. A deco
+with a function must have an id, unique in its room. Format version 6 moves every object with a
+body into `decos` this way.
 
 Log tones: `narration` (default text), `system`, `good`, `bad`, `combat`, `success`.
 Traits: agility, strength, finesse, instinct, presence, knowledge.
@@ -1000,6 +1159,9 @@ leaves the chosen target out — "all other targets within range").
 | `setVar` | `name`, `value` | sets a scenario variable (string, number, boolean or null) |
 | `addVar` | `name`, `by` | adds to a numeric variable |
 | `open` / `remove` / `markUsed` | `interactable?` | changes that object's state; default is the object the script ran from. An opened door stops blocking |
+| `close` / `toggleOpen` | `interactable?` | shuts it, or opens it if shut and shuts it if open; a shut door blocks again. Nothing shuts on somebody standing in it |
+| `openContainer` | `interactable?` | opens the container window over what that prop holds |
+| `teleport` | `pair` | sends whoever used it to the other portal holding `pair` |
 | `loot` | `table?` | draws from the table into the pack and logs the drops; no table finds nothing |
 | `damage` | `amount` **or** `dice` ("d8+2"; `weapon` for the actor's own weapon; `same` to reuse the damage already rolled in this script), `type?`, `using?` (proficiency \| spellcast), `direct?`, `half?`, `target?`, `source?` | `amount` marks that many Hit Points outright (default target: the actor). `dice` rolls damage once and takes it through thresholds, resistances, Armor Slots and reactions on each target (default: `hit`), scaled by Proficiency or the Spellcast trait, with a critical's maximum dice. `same` rolls nothing: it hands on the last damage this script rolled — the total off an `attack` or an earlier `damage` — which is how Whirlwind gives the rest of the room half of the swing it already made rather than a second roll |
 | `heal` | `amount` **or** `dice` ("1d4"), `target?` | clears Hit Points; brings a fallen character back up. `dice` is rolled once and the same number clears for every target |

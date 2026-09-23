@@ -69,6 +69,16 @@ export class CarryMotion {
   private elapsed = 0;
   /** Where the held thing stands when it is put down, and which way it faces. */
   private readonly rest = new Vector3();
+  /**
+   * The size the held thing already was.
+   *
+   * The lift stretches what it carries and the drop squashes it, and both used to write a scale
+   * outright, which assumed everything on the board was drawn at its natural size. A prop placed
+   * across a block of tiles is not: picking up a four-tile boulder shrank it to one tile the
+   * instant it left the ground, and putting it down left it there. The stretch is a factor of
+   * whatever it was, not a size of its own.
+   */
+  private readonly base = new Vector3(1, 1, 1);
   private turn = 0;
   /** How far above its feet it is held from: its top. */
   private reach = 0.5;
@@ -97,6 +107,7 @@ export class CarryMotion {
     this.settle();
     this.held = object;
     this.rest.copy(object.position);
+    this.base.copy(object.scale);
     this.turn = object.rotation.y;
     const bounds = new Box3().setFromObject(object);
     this.reach = bounds.isEmpty() ? 0.5 : Math.max(0.3, bounds.max.y - object.position.y);
@@ -230,7 +241,7 @@ export class CarryMotion {
     object.rotation.set(0, this.turn, 0);
     object.rotation.order = 'XYZ';
     object.position.copy(this.rest);
-    object.scale.set(1, 1, 1);
+    object.scale.copy(this.base);
   }
 
   /** Lean the held thing, stretch it by `stretch` about its feet, and hang its top from the grip. */
@@ -238,7 +249,7 @@ export class CarryMotion {
     const held = this.held!;
     held.rotation.set(this.lean.x, this.turn, this.lean.z);
     const wide = 1 / Math.sqrt(stretch);
-    held.scale.set(wide, stretch, wide);
+    held.scale.set(this.base.x * wide, this.base.y * stretch, this.base.z * wide);
     this.offset.set(0, this.reach * stretch, 0).applyEuler(held.rotation);
     held.position.copy(this.grip).sub(this.offset);
   }

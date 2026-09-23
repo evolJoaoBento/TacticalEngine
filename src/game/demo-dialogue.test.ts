@@ -4,6 +4,7 @@ import { tileOf } from '../engine/scene/grid-from-scene';
 import { answerPending, buildDemoScene, useSelectedOn, type DemoScene } from './demo-scene';
 import { scriptPending } from './moment';
 import { KNOWS_THE_NAME, PILLAR_DIALOGUE_ID } from './demo-dialogue';
+import { interactablesOf } from '../engine/scene/prop-functions';
 
 /**
  * Talking to the pillar.
@@ -16,7 +17,7 @@ import { KNOWS_THE_NAME, PILLAR_DIALOGUE_ID } from './demo-dialogue';
 const PILLAR = 'pillar-14-7';
 
 function stand(demo: DemoScene, id: string): void {
-  const object = demo.scene.interactables.find((i) => i.id === id)!;
+  const object = interactablesOf(demo.scene).find((i) => i.id === id)!;
   demo.state.moveEntity(
     demo.party.selected!,
     tileOf(demo.grid, { x: object.position.x - 1, y: object.position.y }),

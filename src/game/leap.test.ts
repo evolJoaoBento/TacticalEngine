@@ -160,7 +160,8 @@ describe('the Jump button: aimed from where they stand', () => {
     // Nothing was rolled, so there is nothing to wait for.
     expect(own[0]!.wait).toBeUndefined();
     expect(own[0]!.route).toHaveLength(2);
-    expect(demo.log.at(-1)!.text).toBe('Quim jumps 4 tiles.');
+    expect(demo.log.at(-2)!.text).toBe('Quim jumps 4 tiles.');
+    expect(demo.log.at(-1)!.text).toBe('Quim goes on alone: the others stay where they are.');
   });
 
   it('is rolled for across level ground when the project says so', () => {
@@ -293,6 +294,47 @@ describe('the Jump button: aimed from where they stand', () => {
     expect(jumpOffered(off)).toBe(false);
     expect(jumpAim(off)).toBeNull();
     expect(leapTargets(off, 'kara')).toEqual([]);
+  });
+});
+
+describe('the ones walking with a jumper', () => {
+  it('are left where they stand: the jumper lands in a group of their own', () => {
+    const { demo } = inTheOpen('alone');
+    const others = demo.party.members().filter((id) => id !== 'kara');
+    expect(demo.party.groupOf('kara')).toHaveLength(others.length + 1);
+    const stood = new Map(others.map((id) => [id, demo.state.entity(id)!.tile]));
+
+    jumpTo(demo, 'kara', demo.grid.indexOf(8, 9));
+    expect(demo.party.groupOf('kara')).toEqual(['kara']);
+    // The rest still walk together, only not with her.
+    expect(demo.party.groupOf(others[0]!)).toEqual(others);
+
+    // Walking her on afterwards walks her alone: nobody comes round the long way to where she landed.
+    demo.motions.length = 0;
+    expect(moveSelectedTo(demo, demo.grid.indexOf(10, 9)).moved).toBe(true);
+    for (const id of others) expect(demo.state.entity(id)!.tile, id).toBe(stood.get(id));
+    expect(demo.motions.map((motion) => motion.id)).toEqual(['kara']);
+  });
+
+  it('follow the run-up to where the jump is made from, and no further', () => {
+    const { demo } = inTheOpen('run-up');
+    const others = demo.party.members().filter((id) => id !== 'kara');
+    const beyond = demo.grid.indexOf(11, 9);
+    const from = planRunningJump(demo, 'kara', beyond)!.from;
+    jumpTo(demo, 'kara', beyond);
+    expect(demo.state.entity('kara')!.tile).toBe(beyond);
+    expect(demo.party.groupOf('kara')).toEqual(['kara']);
+    // Behind her along the run-up, and none of them past the spot she jumped from.
+    const fromX = demo.grid.xOf(from);
+    for (const id of others) expect(demo.grid.xOf(demo.state.entity(id)!.tile), id).toBeLessThanOrEqual(fromX);
+  });
+
+  it('says nothing about it when the jumper was already walking alone', () => {
+    const { demo } = inTheOpen('lone');
+    demo.party.unlink('kara');
+    jumpTo(demo, 'kara', demo.grid.indexOf(8, 9));
+    expect(demo.party.groupOf('kara')).toEqual(['kara']);
+    expect(demo.log.at(-1)!.text).toBe('Quim jumps 4 tiles.');
   });
 });
 

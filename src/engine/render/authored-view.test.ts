@@ -118,6 +118,22 @@ it('finds the authored thing drawn under a ray, by the tile it stands on', () =>
   view.dispose();
 });
 
+it('points at a door that is a prop by the tile it stands on, though it hangs from its hinge', () => {
+  const scene = blankScene('room', 4, 4);
+  scene.decos = [{ model: 'stone-block', position: { x: 2, y: 1 }, rotation: 0, id: 'gate', function: { kind: 'door' } }];
+  const grid = gridFromScene(scene).grid;
+  const view = new SceneView(grid);
+  view.setDecos(scene.decos);
+  view.scene.updateMatrixWorld(true);
+  const down = new Vector3(0, -1, 0);
+  // Its hinge is on its edge, off the tile; a press must still take the door where it stands.
+  expect(view.authoredUnder(new Raycaster(new Vector3(0.5, 10, -0.5), down))).toEqual({ x: 2, y: 1 });
+  // And play lights it as the thing it is, as it lit the door it was before it was a prop.
+  expect(view.objectUnder(new Raycaster(new Vector3(0.5, 10, -0.5), down))).toBe('gate');
+  expect(view.objectUnder(new Raycaster(new Vector3(-1.5, 10, 1.5), down))).toBeNull();
+  view.dispose();
+});
+
 it('hands the board back without showing a token whose creature stands nowhere', () => {
   const scene = blankScene('room', 4, 4);
   const grid = gridFromScene(scene).grid;

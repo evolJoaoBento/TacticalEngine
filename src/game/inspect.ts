@@ -9,6 +9,7 @@ import { statBlockCards } from './demo-abilities';
 import { gearOf } from './equip';
 import { characterContentFor } from './room';
 import type { Inspection } from './ui/PlayPanel';
+import { interactablesOf } from '../engine/scene/prop-functions';
 
 /** Facts about the living creature `occupant`, else the object `objectId`, else nothing. */
 export function inspection(demo: DemoScene, occupant: string | null, objectId: string | null): Inspection | null {
@@ -59,7 +60,7 @@ export function inspection(demo: DemoScene, occupant: string | null, objectId: s
     };
   }
   if (objectId !== null) {
-    const object = demo.scene.interactables.find((i) => i.id === objectId)!;
+    const object = interactablesOf(demo.scene).find((i) => i.id === objectId)!;
     const state = demo.state.interactable(objectId);
     const facts: string[] = [];
     if (state.removed) facts.push('Gone');

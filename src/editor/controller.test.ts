@@ -6,6 +6,7 @@ import { DEFAULT_TOOL_STATE, EditorController, type EditorTool } from './control
 import { EditorSession, addScene, removeInteractable } from './session';
 import { TERRAIN_RAIL } from './modes';
 import type { Point } from '../engine/scene/schema';
+import { addInteractable } from './session';
 
 function setup(width = 8, height = 6): { session: EditorSession; editor: EditorController; changes: string[] } {
   const project = projectSchema.parse({
@@ -362,6 +363,243 @@ describe('props', () => {
     expect(session.requireScene('room').decos[0]!.rotation).toBeCloseTo(Math.PI / 2, 10);
   });
 
+  it('places one across a block, and the whole block is then that one prop', () => {
+    const { editor, session } = setup();
+    editor.setTool('prop');
+    editor.set('propModel', 'crate');
+    editor.set('propSpan', 3);
+    editor.begin({ x: 1, y: 1 });
+    editor.end();
+
+    const decos = () => session.requireScene('room').decos;
+    expect(decos()).toHaveLength(1);
+    expect(decos()[0]!.span).toBe(3);
+    expect(decos()[0]!.position).toEqual({ x: 1, y: 1 });
+
+    // A click on the far corner of the block is a click on the prop, so it turns rather than
+    // dropping a second one on top of the first.
+    editor.begin({ x: 3, y: 3 });
+    editor.end();
+    expect(decos()).toHaveLength(1);
+    expect(decos()[0]!.rotation).toBeCloseTo(Math.PI / 2, 10);
+
+    // And a click one tile past the block is bare ground again.
+    editor.begin({ x: 4, y: 3 });
+    editor.end();
+    expect(decos()).toHaveLength(2);
+  });
+
+  it('erases a block from anywhere inside it', () => {
+    const { editor, session } = setup();
+    editor.setTool('prop');
+    editor.set('propModel', 'crate');
+    editor.set('propSpan', 4);
+    editor.begin({ x: 0, y: 0 });
+    editor.end();
+
+    editor.setTool('erase');
+    editor.begin({ x: 2, y: 3 });
+    editor.end();
+    expect(session.requireScene('room').decos).toHaveLength(0);
+  });
+
+  it('says nothing about size for a prop of the ordinary size', () => {
+    const { editor, session } = setup();
+    editor.setTool('prop');
+    editor.set('propModel', 'crate');
+    editor.begin({ x: 1, y: 1 });
+    editor.end();
+    // Absent, not one: a document should not carry a field for every prop that is normal.
+    expect(Object.hasOwn(session.requireScene('room').decos[0]!, 'span')).toBe(false);
+  });
+
+  it('takes hold of a prop when it is placed, and turns it on the click after', () => {
+    const { editor, session } = setup();
+    editor.setTool('prop');
+    editor.set('propModel', 'crate');
+    editor.begin({ x: 1, y: 1 });
+    editor.end();
+    // Placing takes hold of it, so the panel is aimed at what was just put down.
+    expect(editor.selectedProp).toBe(0);
+    expect(editor.selectedDeco?.model).toBe('crate');
+
+    // A click on somebody else's prop takes hold rather than spinning it before it is looked at.
+    editor.selectedProp = null;
+    editor.begin({ x: 1, y: 1 });
+    editor.end();
+    expect(editor.selectedProp).toBe(0);
+    expect(session.requireScene('room').decos[0]!.rotation).toBeCloseTo(0, 10);
+
+    // The one after turns it, which is the rhythm the legacy editor had.
+    editor.begin({ x: 1, y: 1 });
+    editor.end();
+    expect(session.requireScene('room').decos[0]!.rotation).toBeCloseTo(Math.PI / 2, 10);
+  });
+
+  it('changes the prop it is holding, and lets go when that prop is erased', () => {
+    const { editor, session } = setup();
+    editor.setTool('prop');
+    editor.set('propModel', 'crate');
+    editor.begin({ x: 1, y: 1 });
+    editor.end();
+
+    expect(editor.resizeSelected(4)).toBe(true);
+    expect(session.requireScene('room').decos[0]!.span).toBe(4);
+    // Undoable like any other edit, and back to saying nothing rather than to saying one.
+    session.undo();
+    expect(Object.hasOwn(session.requireScene('room').decos[0]!, 'span')).toBe(false);
+
+    editor.setTool('erase');
+    editor.begin({ x: 1, y: 1 });
+    editor.end();
+    expect(editor.selectedProp).toBeNull();
+    expect(editor.selectedDeco).toBeNull();
+    // And nothing to change, so changing it is refused rather than throwing.
+    expect(editor.resizeSelected(2)).toBe(false);
+  });
+
+  it('tells the board when the prop it is holding changes, so the room redraws at once', () => {
+    const { editor, session, changes } = setup();
+    editor.setTool('prop');
+    editor.set('propModel', 'crate');
+    editor.begin({ x: 1, y: 1 });
+    editor.end();
+    changes.length = 0;
+
+    // Running an edit off the session alone notifies the session's own subscribers, which redraw
+    // the panels and nothing else: the prop went on being drawn at its old size until something
+    // else happened to redraw the room, which in practice meant placing another prop.
+    expect(editor.resizeSelected(3)).toBe(true);
+    expect(session.requireScene('room').decos[0]!.span).toBe(3);
+    expect(changes, 'the viewport was never told the prop changed').toContain('content');
+
+    changes.length = 0;
+    expect(editor.faceSelected(Math.PI)).toBe(true);
+    expect(changes).toContain('content');
+
+    // Nothing selected changes nothing, and says nothing.
+    changes.length = 0;
+    editor.selectedProp = null;
+    expect(editor.resizeSelected(5)).toBe(false);
+    expect(changes).toEqual([]);
+  });
+
+  it('saves the settings in hand as a remix, and takes it up again with them', () => {
+    const { editor, session } = setup();
+    editor.setTool('prop');
+    editor.set('propModel', 'barrel');
+    editor.set('propSpan', 3);
+    editor.set('buildRotation', 1);
+
+    const id = editor.saveRemix()!;
+    expect(id).not.toBeNull();
+    expect(editor.propPresets).toHaveLength(1);
+    expect(editor.propPresets[0]).toMatchObject({ id, model: 'barrel', span: 3 });
+    expect(editor.propPresets[0]!.label).toBe('Barrel 3×3');
+
+    // Set something else by hand, then take the remix up: the settings come back together.
+    editor.set('propModel', 'crate');
+    editor.set('propSpan', 1);
+    editor.set('buildRotation', 0);
+    editor.pickProp(id);
+    expect(editor.state.propModel).toBe('barrel');
+    expect(editor.state.propSpan).toBe(3);
+    expect(editor.state.buildRotation).toBe(1);
+    expect(editor.pickedPreset).toBe(id);
+
+    // What it places is an ordinary prop: nothing on it remembers the remix.
+    editor.begin({ x: 2, y: 1 });
+    editor.end();
+    const placed = session.requireScene('room').decos.at(-1)!;
+    expect(placed).toEqual({ model: 'barrel', position: { x: 2, y: 1 }, rotation: Math.PI / 2, span: 3 });
+
+    // Saving the same settings twice does not stack up duplicates.
+    expect(editor.saveRemix()).toBe(id);
+    expect(editor.propPresets).toHaveLength(1);
+
+    // And forgetting it leaves what was placed from it alone.
+    expect(editor.removeRemix(id)).toBe(true);
+    expect(editor.propPresets).toHaveLength(0);
+    expect(editor.pickedPreset).toBeNull();
+    expect(session.requireScene('room').decos.at(-1)!.span).toBe(3);
+  });
+
+  it('marks a prop solid, keeps it out of the document when it is not, and undoes', () => {
+    const { editor, session, changes } = setup();
+    editor.setTool('prop');
+    editor.set('propModel', 'crate');
+    editor.begin({ x: 1, y: 1 });
+    editor.end();
+    const deco = () => session.requireScene('room').decos[0]!;
+    // Scenery is what a prop has always been, so nothing is written for it.
+    expect(Object.hasOwn(deco(), 'solid')).toBe(false);
+
+    changes.length = 0;
+    expect(editor.solidifySelected(true)).toBe(true);
+    expect(deco().solid).toBe(true);
+    // Not 'content': a solid prop bars the tiles it covers, the bars live on the grid, and only
+    // a terrain change rebuilds the grid. Reported as content, the prop would look like an
+    // obstacle and a walk would stroll straight through it until something else rebuilt the room.
+    expect(changes, 'a prop that stops a walk is a change to the ground').toContain('terrain');
+
+    session.undo();
+    expect(Object.hasOwn(deco(), 'solid')).toBe(false);
+
+    // And placed solid from the off when the tool is holding it - which is a ground change too.
+    changes.length = 0;
+    editor.set('propSolid', true);
+    editor.begin({ x: 4, y: 1 });
+    editor.end();
+    expect(session.requireScene('room').decos.at(-1)!.solid).toBe(true);
+    expect(changes).toContain('terrain');
+
+    // Erasing one takes its bars away, so that is a ground change as well; erasing scenery is not.
+    changes.length = 0;
+    editor.setTool('erase');
+    editor.begin({ x: 4, y: 1 });
+    editor.end();
+    expect(changes).toContain('terrain');
+  });
+
+  it('saves whether a prop is an obstacle in the remix, and says so in its name', () => {
+    const { editor, session } = setup();
+    editor.setTool('prop');
+    editor.set('propModel', 'rock');
+    editor.set('propSpan', 3);
+    editor.set('propSolid', true);
+    const id = editor.saveRemix()!;
+    expect(editor.propPresets[0]).toMatchObject({ model: 'rock', span: 3, solid: true });
+    // Named apart from the scenery version, which is otherwise the same card twice.
+    expect(editor.propPresets[0]!.label).toBe('Rock 3×3 · solid');
+
+    editor.set('propSolid', false);
+    editor.set('propSpan', 1);
+    editor.pickProp(id);
+    expect(editor.state.propSolid).toBe(true);
+    expect(editor.state.propSpan).toBe(3);
+
+    editor.begin({ x: 2, y: 2 });
+    editor.end();
+    expect(session.requireScene('room').decos.at(-1)).toMatchObject({ model: 'rock', span: 3, solid: true });
+
+    // The scenery version of the same model and size is a remix of its own, not a clash.
+    editor.set('propSolid', false);
+    const plain = editor.saveRemix()!;
+    expect(plain).not.toBe(id);
+    expect(editor.propPresets).toHaveLength(2);
+  });
+
+  it('picks a bare model as a bare model, leaving the size alone', () => {
+    const { editor } = setup();
+    editor.setTool('prop');
+    editor.set('propSpan', 5);
+    editor.pickProp('rock');
+    expect(editor.state.propModel).toBe('rock');
+    // Not a remix, so it says nothing about size: what is in hand stays in hand.
+    expect(editor.state.propSpan).toBe(5);
+    expect(editor.pickedPreset).toBeNull();
+  });
+
   it('stacks a different prop rather than turning the first', () => {
     const { editor, session } = setup();
     editor.setTool('prop');
@@ -405,34 +643,93 @@ describe('spawns', () => {
   });
 });
 
-describe('interactables', () => {
-  it('places one with a positional id, and removes it on a second click', () => {
+/**
+ * An object, as a document from before objects became props may still hold one. There is no tool to
+ * place one any more, so a test that needs one puts it in the document.
+ */
+function anObject(id: string, at: { x: number; y: number }): Parameters<typeof addInteractable>[1] {
+  return { id, kind: 'chest', position: at, name: '', flavor: '', model: null, rotation: 0, blocksMovement: true, repeatable: false, effects: [], lockedText: '', tags: [], data: {} };
+}
+
+describe('props that do something', () => {
+  it('places one with a function under a positional id, the way objects were always named', () => {
     const { editor, session } = setup();
-    editor.setTool('interactable');
-    editor.set('interactableKind', 'door');
-
+    editor.setTool('prop');
+    editor.set('propModel', 'door');
+    editor.set('propFunction', { kind: 'door' });
     editor.begin({ x: 2, y: 3 });
     editor.end();
-    const scene = session.requireScene('room');
-    expect(scene.interactables).toHaveLength(1);
-    expect(scene.interactables[0]).toMatchObject({ id: 'door-2-3', kind: 'door' });
-
-    editor.begin({ x: 2, y: 3 });
-    editor.end();
+    const placed = session.requireScene('room').decos.at(-1)!;
+    expect(placed).toMatchObject({ id: 'door-2-3', model: 'door', function: { kind: 'door' } });
+    // Nothing is placed as an object any more.
     expect(session.requireScene('room').interactables).toHaveLength(0);
   });
 
-  it('gives two of a kind on different tiles different ids', () => {
+  it('gives two on different tiles different ids, and never reuses one', () => {
     const { editor, session } = setup();
-    editor.setTool('interactable');
+    editor.setTool('prop');
+    editor.set('propModel', 'chest');
+    editor.set('propFunction', { kind: 'container', items: [] });
+    for (const at of [{ x: 1, y: 1 }, { x: 2, y: 1 }]) {
+      editor.begin(at);
+      editor.end();
+    }
+    expect(session.requireScene('room').decos.map((deco) => deco.id)).toEqual(['chest-1-1', 'chest-2-1']);
+  });
+
+  it('places plain scenery with no id and no function, as it always did', () => {
+    const { editor, session } = setup();
+    editor.setTool('prop');
     editor.begin({ x: 1, y: 1 });
     editor.end();
-    editor.begin({ x: 2, y: 1 });
+    const placed = session.requireScene('room').decos.at(-1)!;
+    expect(Object.hasOwn(placed, 'id')).toBe(false);
+    expect(Object.hasOwn(placed, 'function')).toBe(false);
+  });
+
+  it('gives a prop already down a function, and an id to be found by, and undoes both', () => {
+    const { editor, session } = setup();
+    editor.setTool('prop');
+    editor.set('propModel', 'barrel');
+    editor.begin({ x: 3, y: 2 });
     editor.end();
-    expect(session.requireScene('room').interactables.map((i) => i.id)).toEqual([
-      'chest-1-1',
-      'chest-2-1',
-    ]);
+    expect(editor.setSelectedFunction({ kind: 'trapped', trait: 'agility', difficulty: 11, repeatable: true, success: { kind: 'door' } })).toBe(true);
+    const deco = () => session.requireScene('room').decos.at(-1)!;
+    expect(deco()).toMatchObject({ id: 'barrel-3-2', function: { kind: 'trapped', success: { kind: 'door' } } });
+    session.undo();
+    expect(Object.hasOwn(deco(), 'function')).toBe(false);
+    expect(Object.hasOwn(deco(), 'id')).toBe(false);
+  });
+
+  it('will not hand a third prop a pair two portals already hold, and empties it for choosing again', () => {
+    const { editor, session } = setup();
+    editor.setTool('prop');
+    editor.set('propModel', 'portal');
+    editor.set('propFunction', { kind: 'portal', pair: 'gate' });
+    for (const at of [{ x: 1, y: 1 }, { x: 4, y: 1 }, { x: 1, y: 4 }]) {
+      editor.begin(at);
+      editor.end();
+    }
+    const pairs = session.requireScene('room').decos.map((deco) => (deco.function?.kind === 'portal' ? deco.function.pair : null));
+    expect(pairs).toEqual(['gate', 'gate', '']);
+    expect(editor.pairTakenBy('gate', 'someone-else')).toEqual(['portal-1-1', 'portal-4-1']);
+  });
+
+  it('remembers a function in a remix, and places it again from there', () => {
+    const { editor, session } = setup();
+    editor.setTool('prop');
+    editor.set('propModel', 'chest');
+    editor.set('propFunction', { kind: 'container', items: [{ item: 'gold', count: 3 }] });
+    const id = editor.saveRemix()!;
+    expect(editor.propPresets[0]!.label).toBe('Chest · Container');
+    editor.set('propFunction', undefined);
+    editor.pickProp(id);
+    editor.begin({ x: 5, y: 2 });
+    editor.end();
+    expect(session.requireScene('room').decos.at(-1)!.function).toEqual({ kind: 'container', items: [{ item: 'gold', count: 3 }] });
+    // A different container is a different remix, not the same one saved twice.
+    editor.set('propFunction', { kind: 'container', items: [{ item: 'gold', count: 1 }] });
+    expect(editor.saveRemix()).not.toBe(id);
   });
 });
 
@@ -486,9 +783,7 @@ describe('encounters', () => {
 describe('the eraser', () => {
   it('takes the prop first, then the interactable underneath', () => {
     const { editor, session } = setup();
-    editor.setTool('interactable');
-    editor.begin({ x: 1, y: 1 });
-    editor.end();
+    session.run(addInteractable('room', anObject('chest-1-1', { x: 1, y: 1 })));
     editor.setTool('prop');
     editor.begin({ x: 1, y: 1 });
     editor.end();
@@ -538,7 +833,7 @@ describe('select and inspect', () => {
     const found = editor.inspect({ x: 2, y: 2 });
     expect(found.terrain).toBe('floor');
     expect(found.height).toBe(1);
-    expect(found.deco?.model).toBe('crate');
+    expect(found.deco?.model).toBe('crate-prop');
     expect(found.encounters).toHaveLength(1);
     expect(found.isSpawn).toBe(false);
     expect(editor.inspect({ x: 0, y: 0 }).isSpawn).toBe(true);
@@ -585,7 +880,6 @@ describe('every tool is safe to use on an empty scene', () => {
       'lower',
       'prop',
       'spawn',
-      'interactable',
       'adversary',
       'trigger',
       'erase',
@@ -648,9 +942,7 @@ describe('selecting an object to edit', () => {
       }),
     );
     const controller = new EditorController({ session: s, sceneId: 'room' });
-    controller.setTool('interactable');
-    controller.begin({ x: 2, y: 2 });
-    controller.end();
+    s.run(addInteractable('room', anObject('chest-2-2', { x: 2, y: 2 })));
     return controller;
   };
 
@@ -720,7 +1012,7 @@ describe('modes', () => {
     const { editor } = setup();
     editor.setTool('adversary');
     expect(editor.mode).toBe('combat');
-    editor.setTool('interactable');
+    editor.setTool('prop');
     expect(editor.mode).toBe('terrain');
   });
 
@@ -848,16 +1140,11 @@ describe("terrain's open tab", () => {
     expect(editor.state.tool).toBe('placeTile');
     expect(TERRAIN_RAIL[editor.terrainTab]).toEqual(['eraseTile', 'raise', 'lower', 'select']);
 
-    // Erase belongs to Props and Objects, never to Tiles: picking it from the
+    // Erase belongs to Props, never to Tiles: picking it from the
     // Tiles tab must move the strip rather than leave the tool off the rail.
     editor.setTool('erase');
     expect(editor.terrainTab).toBe('props');
     expect(TERRAIN_RAIL[editor.terrainTab]).toContain('erase');
-
-    editor.openTerrainTab('objects');
-    expect(editor.state.tool).toBe('interactable');
-    editor.setTool('erase');
-    expect(editor.terrainTab).toBe('objects');
   });
 
   it('re-syncs when Terrain is entered holding one of its own tools', () => {
@@ -1008,11 +1295,13 @@ describe('carrying things in the Inspector', () => {
   /** A prop at 1,1, an object at 2,2 and a creature at 3,3, beside the room's party start at 0,0; the Inspector's Select in hand. */
   function furnished(): { editor: EditorController; session: EditorSession; scene: () => ReturnType<EditorSession['requireScene']> } {
     const { editor, session } = setup();
-    for (const [tool, at] of [['prop', { x: 1, y: 1 }], ['interactable', { x: 2, y: 2 }], ['adversary', { x: 3, y: 3 }]] as const) {
+    for (const [tool, at] of [['prop', { x: 1, y: 1 }], ['adversary', { x: 3, y: 3 }]] as const) {
       editor.setTool(tool);
       editor.begin(at);
       editor.end();
     }
+    // An object, as a document from before objects became props may still hold: there is no tool to place one now.
+    session.run(addInteractable('room', anObject('chest-2-2', { x: 2, y: 2 })));
     editor.setMode('inspect');
     return { editor, session, scene: () => session.requireScene('room') };
   }
@@ -1092,9 +1381,7 @@ describe('carrying things in the Inspector', () => {
 
   it('never puts an object on another, nor a party start on another or outside the room', () => {
     const { editor, session, scene } = furnished();
-    editor.setTool('interactable');
-    editor.begin({ x: 5, y: 2 });
-    editor.end();
+    session.run(addInteractable('room', anObject('chest-5-2', { x: 5, y: 2 })));
     editor.setTool('spawn');
     editor.begin({ x: 0, y: 2 });
     editor.end();

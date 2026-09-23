@@ -160,3 +160,58 @@ describe('carrying a thing', () => {
     expect(motion.holding).toBeNull();
   });
 });
+
+describe('carrying something that is not drawn at its natural size', () => {
+  /** A prop placed across a block of tiles: the same model, drawn four times the size. */
+  function big(): Group {
+    const group = standing();
+    group.scale.setScalar(4);
+    return group;
+  }
+
+  it('lifts it at the size it already was, and puts it back down at that size', () => {
+    const held = big();
+    const motion = new CarryMotion();
+    motion.lift(held);
+    // Through the whole of the lift: the stretch is a factor of what it was, never a size of
+    // its own. A four-tile boulder shrank to one tile the instant it left the ground.
+    let smallest = Infinity;
+    for (let t = 0; t < 1; t += 1 / 60) {
+      motion.tick(1 / 60);
+      smallest = Math.min(smallest, held.scale.x, held.scale.y, held.scale.z);
+    }
+    expect(smallest).toBeGreaterThan(1.5);
+
+    motion.moveTo(5, 0, 5);
+    run(motion, 1);
+    motion.drop(null);
+    run(motion, 2);
+    expect(held.scale.x).toBeCloseTo(4, 3);
+    expect(held.scale.y).toBeCloseTo(4, 3);
+    expect(held.scale.z).toBeCloseTo(4, 3);
+  });
+
+  it('still squashes and stretches it, in proportion', () => {
+    const held = big();
+    const motion = new CarryMotion();
+    motion.lift(held);
+    let tallest = 0;
+    for (let t = 0; t < 1; t += 1 / 60) {
+      motion.tick(1 / 60);
+      tallest = Math.max(tallest, held.scale.y);
+      // However it is stretched, its footprint narrows as it lengthens, about its own size.
+      expect(held.scale.x).toBeCloseTo(held.scale.z, 9);
+    }
+    expect(tallest).toBeGreaterThan(4);
+  });
+
+  it('leaves an ordinary thing exactly as it was', () => {
+    const held = standing();
+    const motion = new CarryMotion();
+    motion.lift(held);
+    run(motion, 1);
+    motion.drop(null);
+    run(motion, 2);
+    expect(held.scale.x).toBeCloseTo(1, 6);
+  });
+});

@@ -41,7 +41,14 @@ import { TrajectoryLine, type AimedArc } from './trajectory-line';
 import { ReachRing } from './reach-ring';
 import type { Deco, SceneDoc } from '../scene/schema';
 import type { EntityState, SceneState } from '../scene/state';
-import { DEFAULT_LAYOUT, mapExtent, placementCentre, spotToWorld, standHeight, tileCenter, type TileLayout } from './layout';
+import { DEFAULT_LAYOUT, mapExtent, placementCentre, spotToWorld, standHeight, tileCenter, worldToSpot, type TileLayout } from './layout';
+import { bandedLine, type PathPoint } from './path-bands';
+import { spanOf } from '../scene/deco-span';
+import { outlineTiles } from './tile-outline';
+import { PropGhost } from './prop-ghost';
+import { buildOverlays, type OverlayParts } from './overlays';
+import { DoorSwings } from './door-swing';
+import { OBJECT_BODIES, definitionOf } from '../scene/prop-functions';
 import { ModelResources, buildModel, type BuildOptions, type BuiltModel } from './procedural/build';
 import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { type AssetLibrary, seatOnTile } from './assets';
@@ -52,10 +59,9 @@ import { placeholder as placeholderSpec } from './procedural/registry';
 /** Points the hover path has room for: a long walk cut at half a tile. */
 const PATH_CAPACITY = 1024;
 /** The walk's own blue, and the red of the way a fight's move does not cover. */
-const PATH_WALK = new Color('#69d2ff');
-const PATH_BEYOND = new Color('#ff6a5c');
+const PATH_BEYOND = '#ff6a5c';
 /** The part past one move that a run would cover: Movement Under Pressure, an Agility Roll away. */
-const PATH_RUN = new Color('#ffc14d');
+const PATH_RUN = '#ffc14d';
 
 /** What plays on a creature's imported model: the state each clip belongs to. */
 type ClipState = 'idle' | 'walk' | 'hit' | 'fallen';
@@ -70,19 +76,6 @@ interface ClipSet {
   playing: string | null;
 }
 
-/** A token taking a blow, going down, getting up, or lunging at somebody. */
-interface Reaction {
-  token: BuiltModel;
-  kind: 'flinch' | 'fall' | 'rise' | 'lunge';
-  elapsed: number;
-  duration: number;
-  /** A lunge: the way to the target, unit length, and how far along it the token is right now. */
-  toward?: { x: number; z: number };
-  offset?: number;
-  /** A flinch: what puts the line round them back to the colour it was. */
-  undo?: () => void;
-}
-
 import { ModelRegistry } from './procedural/registry';
 import { OBJECT_MARK, PARTY_START_MARK } from './authoring-marks';
 import type { Interactable } from '../scene/schema';
@@ -94,12 +87,11 @@ import type { Interactable } from '../scene/schema';
  * nothing at all. Naming a model overrides this; the editor's gold mark is only
  * for a `scripted` object, which has no shape anybody could guess.
  */
-const OBJECT_BODIES: Readonly<Record<string, string>> = { door: 'door', chest: 'chest', pillar: 'pillar', portal: 'portal' };
 import { Spotlight } from './spotlight';
 import { CarryMotion } from './carry';
 export { OUTLINE_LAYER } from './toon';
-import { DEFAULT_FACTION_COLORS, dim, flashOutline, forgetOutline, litOutlines, outline } from './faction-outline';
-import { HURT_RIM, HURT_SECONDS, poseHurt, restFromHurt } from './hurt-reaction';
+import { DEFAULT_FACTION_COLORS, dim, forgetOutline, litOutlines, outline } from './faction-outline';
+import { Reactions } from './reactions';
 import { buildTerrainMesh, type TerrainMesh, type TerrainMeshOptions } from './terrain-mesh';
 import { drawsTileModel, redrawTileModels } from './tile-models';
 
@@ -150,7 +142,7 @@ export function hueOf(word: string): string {
 const FALLBACK_MODEL: Readonly<Record<string, string>> = {
   party: 'knight',
   adversary: 'husk',
-  neutral: 'dummy',
+  neutral: 'husk',
 };
 
 /**
@@ -196,8 +188,19 @@ export class SceneView {
   /** Whether each token was last drawn standing, so a fall is a change to animate. */
   private readonly tokenStanding = new Map<string, boolean>();
   /** Flinches and falls in progress, by entity. */
-  private readonly reactions = new Map<string, Reaction>();
+  private readonly reactions = new Reactions({
+    play: (group, state) => this.playState(group, state),
+    walking: (token) => [...this.glides.values()].some((glide) => glide.token === token && !glide.thrown),
+    tileSize: () => this.layout.tileSize,
+  });
+  /** Stepping through a portal on the next sync (`teleport`); and, once a walk up to it arrives, then. */
+  private readonly pendingBlinks = new Set<string>();
+  private readonly lateBlinks = new Set<string>();
   private readonly decos: Group[] = [];
+  /** Doors hung on their hinges, and which of them are open. */
+  private readonly swings = new DoorSwings();
+  /** The half-solid prop under the pointer. Made on the first preview and kept after that. */
+  private ghost: PropGhost | null = null;
   /** One model per tile whose terrain names one (`tile-models.ts`), rebuilt with the ground. */
   private tileModels: Group[] = [];
   /** Objects with a body of their own, drawn in both modes. */
@@ -282,7 +285,7 @@ export class SceneView {
       ((entity) =>
         this.registry.has(entity.definition)
           ? entity.definition
-          : (FALLBACK_MODEL[entity.faction] ?? 'dummy'));
+          : (FALLBACK_MODEL[entity.faction] ?? 'husk'));
     // Nothing stands in by default: a caller that wants a body rather than the
     // placeholder says so, and takes the honest `missing()` entry with it.
     this.fallbackFor = options.fallbackFor ?? ((): string | null => null);
@@ -322,7 +325,7 @@ export class SceneView {
       zoneLayer: this.zoneLayer,
       zoneEdges: this.zoneEdges,
       zoneEdgeGeometry: this.zoneEdgeGeometry,
-    } = this.buildOverlays(this.maxHighlights));
+    } = buildOverlays(this.root, this.maxHighlights, this.overlayParts()));
 
     // The hover path: room for a long walk cut at half a tile, drawn once and
     // rewritten in place. Two colours along one line - the walk, then the
@@ -350,55 +353,6 @@ export class SceneView {
    * when a bigger room arrives; the materials and the quad geometry are the
    * view's own and outlive them.
    */
-  private buildOverlays(capacity: number): {
-    highlight: InstancedMesh;
-    highlightEdges: LineSegments;
-    highlightEdgeGeometry: BufferGeometry;
-    zoneLayer: InstancedMesh;
-    zoneEdges: LineSegments;
-    zoneEdgeGeometry: BufferGeometry;
-  } {
-    const room = Math.max(1, capacity);
-    const highlight = new InstancedMesh(this.highlightGeometry, this.highlightMaterial, room);
-    highlight.name = 'highlights';
-    highlight.count = 0;
-    highlight.frustumCulled = false;
-
-    const zoneLayer = new InstancedMesh(this.highlightGeometry, this.zoneMaterial, room);
-    zoneLayer.name = 'zones';
-    zoneLayer.count = 0;
-    zoneLayer.frustumCulled = false;
-
-    // Room for four edges on every tile, allocated once; the painters write
-    // into it and set the draw range, the way the instanced layers do.
-    const edgeGeometry = (): BufferGeometry => {
-      const edgeCapacity = room * 4 * 2;
-      const geometry = new BufferGeometry();
-      geometry.setAttribute('position', new BufferAttribute(new Float32Array(edgeCapacity * 3), 3));
-      geometry.setAttribute('color', new BufferAttribute(new Float32Array(edgeCapacity * 3), 3));
-      geometry.setDrawRange(0, 0);
-      return geometry;
-    };
-    const zoneEdgeGeometry = edgeGeometry();
-    const zoneEdges = new LineSegments(zoneEdgeGeometry, this.zoneEdgeMaterial);
-    zoneEdges.name = 'zone-edges';
-    zoneEdges.frustumCulled = false;
-    const highlightEdgeGeometry = edgeGeometry();
-    const highlightEdges = new LineSegments(highlightEdgeGeometry, this.highlightEdgeMaterial);
-    highlightEdges.name = 'highlight-edges';
-    highlightEdges.frustumCulled = false;
-
-    // The overlays are all transparent and none writes depth, so their order
-    // is decided here rather than by whichever happens to be nearer the
-    // camera: ground first, the edge over it, then the walk and its edge,
-    // the pointer, and the ring round the selected on top of everything.
-    zoneLayer.renderOrder = 1;
-    zoneEdges.renderOrder = 2;
-    highlight.renderOrder = 3;
-    highlightEdges.renderOrder = 4;
-    this.root.add(zoneLayer, zoneEdges, highlight, highlightEdges);
-    return { highlight, highlightEdges, highlightEdgeGeometry, zoneLayer, zoneEdges, zoneEdgeGeometry };
-  }
 
   /**
    * Draw the border of a set of tiles into an edge geometry, from segment
@@ -407,33 +361,7 @@ export class SceneView {
    * read as a shape rather than as loose squares.
    */
   private outline(held: ReadonlySet<number>, color: Color, geometry: BufferGeometry, from: number): number {
-    const positions = geometry.getAttribute('position') as BufferAttribute;
-    const colors = geometry.getAttribute('color') as BufferAttribute;
-    const half = this.layout.tileSize / 2;
-    let edges = from;
-    for (const tile of held) {
-      const centre = tileCenter(this.grid, tile, this.layout);
-      const top = standHeight(this.grid, tile, this.layout);
-      const x = this.grid.xOf(tile);
-      const y = this.grid.yOf(tile);
-      const sides: [number, number, [number, number], [number, number]][] = [
-        [x, y - 1, [-half, -half], [half, -half]],
-        [x + 1, y, [half, -half], [half, half]],
-        [x, y + 1, [half, half], [-half, half]],
-        [x - 1, y, [-half, half], [-half, -half]],
-      ];
-      for (const [nx, ny, a, b] of sides) {
-        if (this.grid.inBounds(nx, ny) && held.has(this.grid.indexOf(nx, ny))) continue;
-        if (edges * 2 + 1 >= positions.count) return edges;
-        const v = edges * 2;
-        positions.setXYZ(v, centre.x + a[0], top + 0.03, centre.z + a[1]);
-        positions.setXYZ(v + 1, centre.x + b[0], top + 0.03, centre.z + b[1]);
-        colors.setXYZ(v, color.r, color.g, color.b);
-        colors.setXYZ(v + 1, color.r, color.g, color.b);
-        edges++;
-      }
-    }
-    return edges;
+    return outlineTiles(this.grid, this.layout, held, color, geometry, from);
   }
 
   /**
@@ -468,7 +396,7 @@ export class SceneView {
         zoneLayer: this.zoneLayer,
         zoneEdges: this.zoneEdges,
         zoneEdgeGeometry: this.zoneEdgeGeometry,
-      } = this.buildOverlays(this.maxHighlights));
+      } = buildOverlays(this.root, this.maxHighlights, this.overlayParts()));
       this.highlightCount = 0;
       this.highlightEdgeCount = 0;
       this.zoneCount = 0;
@@ -602,12 +530,15 @@ export class SceneView {
         this.grid.isTile(this.grid.tileAtSpot(was.x, was.y)) &&
         this.grid.isTile(entity.tile) &&
         (Math.abs(was.x - here.x) > 1e-9 || Math.abs(was.y - here.y) > 1e-9);
-      if (moved && options.snap !== true) {
+      const blink = this.pendingBlinks.delete(entity.id) && moved && options.snap !== true;
+      if (blink && route !== undefined) this.lateBlinks.add(entity.id); // walked up to the portal first: through it on arrival
+      if (moved && options.snap !== true && (!blink || route !== undefined)) {
         this.poseToken(token, entity);
         this.startGlide(entity.id, token, was, here, path, route, thrown, leap);
-      } else if (options.snap === true || !this.glides.has(entity.id)) {
+      } else if (options.snap === true || blink || !this.glides.has(entity.id)) {
         this.glides.delete(entity.id);
-        this.placeToken(token, entity);
+        if (blink) this.blinkThrough(entity.id, token, entity);
+        else this.placeToken(token, entity);
       }
       // Else it is already on its way, and this sync has nothing new to say. `tokenSpots` is
       // set to `here` at the end of every sync, so a sync landing mid-walk reads as "not
@@ -620,7 +551,7 @@ export class SceneView {
       const stood = this.tokenStanding.get(entity.id);
       if (stood !== undefined && stood !== entity.alive) {
         if (options.snap !== true && this.grid.isTile(entity.tile)) {
-          this.startReaction(entity.id, token, entity.alive ? 'rise' : 'fall');
+          this.reactions.start(entity.id, token, entity.alive ? 'rise' : 'fall');
         } else {
           this.reactions.delete(entity.id);
           token.group.rotation.x = entity.alive ? 0 : -Math.PI / 2;
@@ -650,7 +581,7 @@ export class SceneView {
     if (token === undefined || !token.group.visible) return;
     // Hurt by where they are going - a fall - they flinch when they get there, not while they wait or fly.
     if (this.waiting.has(id) || this.pendingRoutes.has(id) || this.glides.has(id)) return void this.lateFlinch.add(id);
-    this.startReaction(id, token, 'flinch');
+    this.reactions.start(id, token, 'flinch');
   }
 
   /** This creature swung at that tile: its token lunges that way and back. */
@@ -662,74 +593,12 @@ export class SceneView {
     const dz = there.z - token.group.position.z;
     const length = Math.hypot(dx, dz);
     if (length < 1e-6) return;
-    this.startReaction(id, token, 'lunge', { x: dx / length, z: dz / length });
+    this.reactions.start(id, token, 'lunge', { x: dx / length, z: dz / length });
   }
 
   /** How many tokens are flinching, falling, getting up or lunging. */
   get reactingCount(): number {
     return this.reactions.size;
-  }
-
-  private startReaction(id: string, token: BuiltModel, kind: Reaction['kind'], toward?: { x: number; z: number }): void {
-    // A fall or a rise replaces anything, and nothing replaces it: the body
-    // going down is the thing to see.
-    const current = this.reactions.get(id);
-    if (current !== undefined) {
-      if ((current.kind === 'fall' || current.kind === 'rise') && kind !== 'fall' && kind !== 'rise') return;
-      this.finishReaction(current);
-    }
-    const duration = kind === 'flinch' ? HURT_SECONDS : kind === 'lunge' ? 0.3 : 0.45;
-    this.reactions.get(id)?.undo?.(); // a blow on top of a blow: the first flash is put right before the second
-    this.reactions.set(id, { token, kind, elapsed: 0, duration, ...(toward === undefined ? {} : { toward, offset: 0 }), ...(kind === 'flinch' ? { undo: flashOutline(token.group, HURT_RIM) } : {}) });
-    if (kind === 'flinch') this.playState(token.group, 'hit');
-    else if (kind === 'fall') this.playState(token.group, 'fallen');
-    else if (kind === 'rise') this.playState(token.group, 'idle');
-  }
-
-  /** Move every reaction on by `dt` seconds. */
-  private advanceReactions(dt: number): void {
-    for (const [id, reaction] of this.reactions) {
-      reaction.elapsed += dt;
-      const t = Math.min(1, reaction.elapsed / reaction.duration);
-      const group = reaction.token.group;
-      if (reaction.kind === 'flinch') {
-        poseHurt(group, t); // knocked, shuddering, and the line round them burning red
-      } else if (reaction.kind === 'lunge') {
-        // Out fast, back slower, a third of a tile at the furthest. Applied as
-        // the change since last tick, so a walk under it is left alone.
-        const reach = this.layout.tileSize * 0.35 * Math.sin(Math.PI * Math.pow(t, 0.7));
-        const delta = reach - (reaction.offset ?? 0);
-        group.position.x += reaction.toward!.x * delta;
-        group.position.z += reaction.toward!.z * delta;
-        reaction.offset = reach;
-      } else {
-        // A body drops: slow to start, quick to land. Getting up is the reverse.
-        const eased = t * t;
-        group.rotation.x = reaction.kind === 'fall' ? -eased * (Math.PI / 2) : -(1 - eased) * (Math.PI / 2);
-      }
-      if (t >= 1) {
-        this.finishReaction(reaction);
-        this.reactions.delete(id);
-      }
-    }
-  }
-
-  private finishReaction(reaction: Reaction): void {
-    const group = reaction.token.group;
-    if (reaction.kind === 'flinch') {
-      restFromHurt(group);
-      reaction.undo?.();
-      // Back to the idle, or to the walk if one is still under way.
-      const walking = [...this.glides.values()].some((glide) => glide.token === reaction.token && !glide.thrown);
-      this.playState(group, walking ? 'walk' : 'idle');
-    } else if (reaction.kind === 'lunge') {
-      // Whatever is still leaned out comes back.
-      group.position.x -= reaction.toward!.x * (reaction.offset ?? 0);
-      group.position.z -= reaction.toward!.z * (reaction.offset ?? 0);
-      reaction.offset = 0;
-    } else {
-      group.rotation.x = reaction.kind === 'fall' ? -Math.PI / 2 : 0;
-    }
   }
 
   /**
@@ -748,6 +617,11 @@ export class SceneView {
     if (leap !== undefined) this.pendingLeaps.set(id, leap); // the last leg is a jump, arcing this many blocks
   }
 
+  /** The entity is about to be found through a portal: blinked there, not walked (`render/blink.ts`). */
+  teleport(id: string): void {
+    this.pendingBlinks.add(id);
+  }
+
   /** The entity is about to be found somewhere it was thrown, not somewhere it went. */
   throwBack(id: string): void {
     this.pendingThrows.add(id);
@@ -761,10 +635,13 @@ export class SceneView {
       this.glides.delete(id);
       this.playState(glide.token.group, 'idle');
     }
-    for (const [id, reaction] of this.reactions) {
-      this.finishReaction(reaction);
-      this.reactions.delete(id);
-    }
+    this.reactions.settle();
+    this.lateBlinks.clear(); // the next sync puts them where they came out
+  }
+
+  /** Whether this creature's token is walking, or has a walk handed to it that the next sync will start. */
+  hasWalk(id: string): boolean {
+    return this.glides.has(id) || this.pendingRoutes.has(id) || this.pendingPaths.has(id);
   }
 
   /** How many tokens are on their way somewhere. */
@@ -804,7 +681,16 @@ export class SceneView {
       this.glides.delete(id);
       this.playState(glide.token.group, 'idle');
       if (this.lateFlinch.delete(id)) this.flinch(id);
+      const entity = this.lateBlinks.delete(id) ? this.lastState?.entity(id) : undefined;
+      if (entity !== undefined) this.blinkThrough(id, glide.token, entity);
     }
+  }
+
+  /** Put a token where its creature came out of a portal, blinking there from wherever it is drawn now. */
+  private blinkThrough(id: string, token: BuiltModel, entity: EntityState): void {
+    const from = { x: token.group.position.x, y: token.group.position.y, z: token.group.position.z };
+    this.placeToken(token, entity);
+    this.reactions.start(id, token, 'blink', undefined, from);
   }
 
   /**
@@ -971,8 +857,9 @@ export class SceneView {
   /** Advance every playing clip and every moving token. `dt` in seconds. */
   tick(dt: number): void {
     this.advanceGlides(dt);
-    this.advanceReactions(dt);
+    this.reactions.advance(dt);
     this.carry.tick(dt);
+    this.swings.tick(dt);
     for (const [object, mixer] of this.mixers) {
       // A clone whose group left the scene stops being driven.
       if (object.parent === null || object.parent.parent === null) {
@@ -1054,23 +941,94 @@ export class SceneView {
    * calling it again replaces what was there.
    */
   setDecos(decos: readonly Deco[]): void {
-    for (const group of this.decos) {
-      this.root.remove(group);
-      // Same as `setAuthoring`: the group is gone, so its clips go with it.
-      this.clipSets.delete(group);
-    }
-    this.decos.length = 0;
-
+    this.takeDown(this.decos);
+    this.swings.clear();
     this.lastDecos = decos;
     for (const deco of decos) {
-      const model = this.build(deco.model);
-      const centre = placementCentre(this.grid, this.layout, deco.position);
-      const lift = model.spec.groundOffset ?? 0;
-      model.group.position.set(centre.x, centre.y + lift, centre.z);
-      model.group.rotation.y = deco.rotation;
-      this.root.add(model.group);
-      this.decos.push(model.group);
+      const model = this.standAt(deco.model, deco.position, deco.rotation, spanOf(deco));
+      // A prop that opens is hung on its hinge, and the hinge is what goes in the room (`render/door-swing.ts`).
+      const drawn = deco.id !== undefined && deco.function !== undefined && definitionOf(deco.function).opens(deco.function) ? this.swings.hang(deco.id, model.group) : model.group;
+      // A prop that does something is a thing to point at, named as an object is, so the rim finds it.
+      if (deco.id !== undefined && deco.function !== undefined) drawn.name = `object:${deco.id}`;
+      this.root.add(drawn);
+      this.decos.push(drawn);
     }
+  }
+
+  /** Which doors are open, so the ones that changed swing (`render/door-swing.ts`). */
+  setOpenings(ids: ReadonlySet<string>): void {
+    this.swings.setOpen(ids);
+  }
+
+  /** How far a door is swung from its facing, in radians; null for a prop that is not a door. */
+  doorAngle(id: string): number | null {
+    return this.swings.angleOf(id);
+  }
+
+  /**
+   * Take drawn things off the board and empty the lists that held them. The clip set is keyed by
+   * the group and the group is going, and `setAuthoring` runs on every content edit, so a group
+   * left in it would grow a map for the life of the session.
+   */
+  private takeDown(...sets: Group[][]): void {
+    for (const set of sets) {
+      for (const group of set) {
+        this.root.remove(group);
+        group.traverse((part) => this.clipSets.delete(part as Group));
+      }
+      set.length = 0;
+    }
+  }
+
+  /**
+   * Stand a model on the board: over its tile, facing where it was turned to, feet on the ground.
+   * `span` tiles across means grown by the span and moved half a block south-east, so the middle
+   * of the model sits over the middle of the block rather than over its north-west tile
+   * (`scene/deco-span.ts`). What a model sinks or floats by is part of it, so that grows too.
+   */
+  private standAt(modelId: string, position: Deco['position'], rotation: number, span = 1): BuiltModel {
+    const model = this.build(modelId);
+    this.seat(model, position, rotation, span);
+    return model;
+  }
+
+  /** Put an already-built model where a placement says, at the size a span says. */
+  private seat(model: BuiltModel, position: Deco['position'], rotation: number, span: number): void {
+    const centre = placementCentre(this.grid, this.layout, position);
+    const off = ((span - 1) / 2) * this.layout.tileSize;
+    model.group.scale.setScalar(span);
+    model.group.position.set(centre.x + off, centre.y + (model.spec.groundOffset ?? 0) * span, centre.z + off);
+    model.group.rotation.y = rotation;
+  }
+
+  /** What the overlay layers are made of. Private fields, so they are handed over by name. */
+  private overlayParts(): OverlayParts {
+    return {
+      highlightGeometry: this.highlightGeometry,
+      highlightMaterial: this.highlightMaterial,
+      zoneMaterial: this.zoneMaterial,
+      zoneEdgeMaterial: this.zoneEdgeMaterial,
+      highlightEdgeMaterial: this.highlightEdgeMaterial,
+    };
+  }
+
+  /** The prop that would be placed, where it would go, half see-through (`render/prop-ghost.ts`). */
+  showPropGhost(modelId: string, position: Deco['position'], rotation: number, span = 1): void {
+    this.ghosts().show(modelId, (model) => this.seat(model, position, rotation, span));
+  }
+
+  hidePropGhost(): void {
+    this.ghost?.hide();
+  }
+
+  /** What the preview is showing, and how big: how a test sees it. */
+  get propGhost(): { id: string; span: number } | null {
+    return this.ghost?.shown ?? null;
+  }
+
+  /** Made on the first preview, so a view nobody is authoring in never builds one. */
+  private ghosts(): PropGhost {
+    return (this.ghost ??= new PropGhost(this.root, (id) => this.build(id), (group) => this.clipSets.delete(group)));
   }
 
   /**
@@ -1084,19 +1042,12 @@ export class SceneView {
    */
   setObjects(objects: readonly Interactable[]): void {
     this.spot.hide();
-    for (const group of this.objects) {
-      this.root.remove(group);
-      this.clipSets.delete(group);
-    }
-    this.objects.length = 0;
+    this.takeDown(this.objects);
     this.lastObjects = objects;
     for (const object of objects) {
       const wears = object.model ?? OBJECT_BODIES[object.kind] ?? null;
       if (wears === null) continue;
-      const model = this.build(wears);
-      const centre = placementCentre(this.grid, this.layout, object.position);
-      model.group.position.set(centre.x, centre.y + (model.spec.groundOffset ?? 0), centre.z);
-      model.group.rotation.y = object.rotation;
+      const model = this.standAt(wears, object.position, object.rotation);
       model.group.name = `object:${object.id}`;
       this.root.add(model.group);
       this.objects.push(model.group);
@@ -1111,15 +1062,7 @@ export class SceneView {
 
   /** Editor creatures come from authored placements, including ones outside the play grid. */
   setAuthoring(scene: SceneDoc | null, models: Readonly<Record<string, string>> = {}): void {
-    for (const group of [...this.authoredCreatures, ...this.marks]) {
-      this.root.remove(group);
-      // The clip set is keyed by the group, and the group is being thrown away;
-      // `setAuthoring` runs on every content edit, so leaving them would grow a
-      // map for the life of the session.
-      this.clipSets.delete(group);
-    }
-    this.authoredCreatures.length = 0;
-    this.marks.length = 0;
+    this.takeDown(this.authoredCreatures, this.marks);
     this.authoring = scene !== null;
     // The editor's viewport wears Blender's grey, like the panels round it; play keeps its dark ground.
     (this.scene.background as Color).set(this.authoring ? '#393939' : '#1b1520');
@@ -1202,7 +1145,8 @@ export class SceneView {
    * would reach.
    */
   objectUnder(ray: Raycaster): string | null {
-    const hit = ray.intersectObjects(this.objects, true).find((h) => h.object.visible);
+    // Scenery too: a tree in front of a chest is pointed at, not the chest.
+    const hit = ray.intersectObjects([...this.objects, ...this.decos], true).find((h) => h.object.visible);
     if (hit === undefined) return null;
     const ground = ray.intersectObjects(this.terrain.drawn, false)[0];
     if (ground !== undefined && ground.distance < hit.distance) return null;
@@ -1244,7 +1188,8 @@ export class SceneView {
     let drawn: Object3D = hit.object;
     while (drawn.parent !== null && drawn.parent !== this.root) drawn = drawn.parent;
     const size = this.layout.tileSize;
-    return { x: Math.round(drawn.position.x / size + (this.grid.width - 1) / 2), y: Math.round(drawn.position.z / size + (this.grid.height - 1) / 2) };
+    const at = (drawn.userData.stands as { x: number; z: number } | undefined) ?? drawn.position; // a door's hinge is off its tile
+    return { x: Math.round(at.x / size + (this.grid.width - 1) / 2), y: Math.round(at.z / size + (this.grid.height - 1) / 2) };
   }
 
   /** The group drawn for an authored thing: a prop by its place in the list, the rest by name. */
@@ -1358,43 +1303,55 @@ export class SceneView {
   }
 
   /**
-   * Draw the line a click would walk: `route` in the walk's blue, `beyond`
-   * - the rest of the way a fight's move does not cover - in red. Legs are
-   * cut at half a tile so the line lies on the ground it crosses. An empty
-   * route clears it.
+   * Draw the line a click would walk: `route` in range bands, a colour a band, so the line says
+   * how far as well as where (`render/path-bands.ts`); `beyond` - the rest of the way a fight's
+   * move does not cover - in amber where a run would reach it and red where nothing would. Legs
+   * are cut at half a tile so the line lies on the ground it crosses. An empty route clears it.
    */
   showPath(route: readonly Spot[], beyond: readonly Spot[] = [], run = false): void {
     const positions = this.pathGeometry.getAttribute('position') as BufferAttribute;
     const colors = this.pathGeometry.getAttribute('color') as BufferAttribute;
     let n = 0;
-    const put = (spot: Spot, color: Color): void => {
+    const put = (point: PathPoint): void => {
       if (n >= PATH_CAPACITY) return;
-      const w = spotToWorld(this.grid, spot, this.layout);
+      const w = spotToWorld(this.grid, point.spot, this.layout);
       positions.setXYZ(n, w.x, w.y + 0.04, w.z);
-      colors.setXYZ(n, color.r, color.g, color.b);
+      colors.setXYZ(n, point.r, point.g, point.b);
       n++;
     };
-    const lay = (line: readonly Spot[], color: Color, fromStart: boolean): void => {
-      for (let i = 0; i + 1 < line.length; i++) {
-        const a = line[i]!;
-        const b = line[i + 1]!;
-        const pieces = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) / 0.5));
-        for (let k = i === 0 && fromStart ? 0 : 1; k <= pieces; k++) {
-          const t = k / pieces;
-          put({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t }, color);
-        }
-      }
-    };
     if (route.length >= 2) {
-      lay(route, PATH_WALK, true);
-      // Amber where a run would get there on an Agility Roll; red where nothing one move does would.
-      if (beyond.length >= 2) lay(beyond, run ? PATH_RUN : PATH_BEYOND, false);
+      // The bands keep counting into `beyond`, but its colour is what it means, not how far it is.
+      const walk = bandedLine(route);
+      walk.points.forEach(put);
+      if (beyond.length >= 2) bandedLine(beyond, { from: walk.walked, colour: run ? PATH_RUN : PATH_BEYOND, skipFirst: true }).points.forEach(put);
     }
     this.pathPoints = n;
     this.pathGeometry.setDrawRange(0, n);
     positions.needsUpdate = true;
     colors.needsUpdate = true;
     this.pathLine.visible = n >= 2;
+  }
+
+  /**
+   * Stop a token where it stands: the walk it was on is over, and its character is here now.
+   *
+   * `tokenSpots` has to move with it. It holds where each token was last synced to, and a sync
+   * that found the character somewhere the token had not been sent would start a second glide -
+   * backwards, from the place the interrupted walk was aiming at.
+   */
+  land(id: string, at: Spot): boolean {
+    if (!this.glides.delete(id)) return false;
+    this.tokenSpots.set(id, { x: at.x, y: at.y });
+    const token = this.tokens.get(id);
+    if (token !== undefined) this.playState(token.group, 'idle');
+    return true;
+  }
+
+  /** Where a token actually stands, which part-way through a walk is not where its character is. */
+  spotOf(id: string): Spot | null {
+    const token = this.tokens.get(id);
+    if (token === undefined) return null;
+    return worldToSpot(this.grid, token.group.position.x, token.group.position.z, this.layout);
   }
 
   clearPath(): void {

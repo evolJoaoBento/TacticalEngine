@@ -24,13 +24,14 @@ import { gridFromScene, paletteForProject, tileOf } from '../engine/scene/grid-f
 import { Party } from '../engine/scene/party';
 import type { Trait } from '../engine/scene/primitives';
 import type { CodeDef, ProjectDoc, SceneDoc } from '../engine/scene/schema';
-import { createAdversaryEntity, createPartyEntity, sceneStateFromScene, type SceneState, type SceneStateSnapshot } from '../engine/scene/state';
+import { createAdversaryEntity, createPartyEntity, placementsOf, sceneStateFromScene, type SceneState, type SceneStateSnapshot } from '../engine/scene/state';
 import { TriggerIndex } from '../engine/scene/triggers';
 import { compileHooks, type HookMap } from '../engine/script/hooks';
 import { SceneScriptWorld, type SceneScriptWorldOptions, type ScenarioState } from '../engine/script/world';
 import { DEMO_ADVERSARIES, DEMO_BAND_TILES, DEMO_CHARACTERS, movementFor } from './demo-rules';
 import type { DemoScene, UseOutcome } from './demo-scene';
 import { note, type LogLine } from './log';
+import { arriveByPortal } from './prop-use';
 
 /** Everything that belongs to one room rather than to the campaign. */
 interface SceneRuntime {
@@ -335,6 +336,7 @@ export function travelTo(demo: DemoScene, sceneId: string): boolean {
   // A marked spot is a tile, and a tile means nothing in another room.
   demo.world.forgetSpots();
   install(demo, runtime, selected);
+  arriveByPortal(demo);
   // `SceneDoc.intro` has been an authored field nothing ever read.
   if (target.intro !== '') note(demo, target.intro, 'narration');
   return true;
@@ -395,6 +397,8 @@ export function playablePlacements(scene: SceneDoc, grid: TileGrid): Set<string>
  * immediately and an old one does not come back to life.
  */
 export function syncAuthoredEncounters(demo: Pick<DemoScene, 'scene' | 'grid' | 'state' | 'party' | 'triggers' | 'project' | 'syncedPlacements'>): void {
+  // The room's things too: a door placed in the editor stands in the way, one erased does not.
+  demo.state.replaceInteractables(placementsOf(demo.scene, demo.grid));
   // Back from the editor: a step is as high as the project says now, which may not be what it said.
   demo.party.setRules(movementFor(demo.project));
   const known = demo.syncedPlacements.get(demo.scene.id);

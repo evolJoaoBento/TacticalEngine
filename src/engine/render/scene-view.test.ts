@@ -12,6 +12,7 @@ import { InstancedMesh as InstancedMeshValue, MeshBasicMaterial, Object3D } from
 import { TerrainPalette, terrain } from '../grid/terrain';
 import { AssetLibrary, modelAssetSchema } from './assets';
 import { TileGrid } from '../grid/grid';
+import { BAND_COLOURS } from './path-bands';
 import { SceneState, createAdversaryEntity, createPartyEntity } from '../scene/state';
 import { DEFAULT_LAYOUT, mapExtent, spotToWorld, surfaceHeight, tileCenter } from './layout';
 import { WALK_HOP, WALK_PER_TILE } from './glide';
@@ -153,6 +154,40 @@ describe('SceneView', () => {
     );
     return { grid, state, view: new SceneView(grid) };
   };
+
+  it("draws a prop across the block it covers, as one prop and not a tile's worth repeated", () => {
+    const { view } = setup();
+    view.setDecos([
+      { model: 'rock', position: { x: 0, y: 0 }, rotation: 0 },
+      { model: 'rock', position: { x: 1, y: 1 }, rotation: 0, span: 3 },
+    ]);
+    const props = view.root.children.filter((child) => child.name === 'model:rock');
+    // Two props, not one plus nine: a block is one thing drawn big, not a tile repeated over it.
+    expect(props.length).toBe(2);
+    const [one, big] = props as [typeof props[0], typeof props[0]];
+    expect(one.scale.x).toBeCloseTo(1, 6);
+    expect(big.scale.x).toBeCloseTo(3, 6);
+    expect(big.scale.y).toBeCloseTo(3, 6);
+
+    // And it stands over the middle of its block rather than over the tile it is anchored to: a
+    // 3x3 at (1,1) covers (1,1)-(3,3), whose middle is (2,2), one tile south-east of the anchor.
+    const tile = view.layout.tileSize;
+    expect(big.position.x - one.position.x).toBeCloseTo(2 * tile, 5);
+    expect(big.position.z - one.position.z).toBeCloseTo(2 * tile, 5);
+  });
+
+  it('draws an even block centred where its tiles meet, not on a tile', () => {
+    const { view } = setup();
+    view.setDecos([
+      { model: 'rock', position: { x: 0, y: 0 }, rotation: 0 },
+      { model: 'rock', position: { x: 0, y: 0 }, rotation: 0, span: 2 },
+    ]);
+    const [one, pair] = view.root.children.filter((child) => child.name === 'model:rock');
+    const tile = view.layout.tileSize;
+    // Half a tile south-east of the anchor's middle: the corner its four tiles share.
+    expect(pair!.position.x - one!.position.x).toBeCloseTo(0.5 * tile, 5);
+    expect(pair!.position.z - one!.position.z).toBeCloseTo(0.5 * tile, 5);
+  });
 
   it('adds the terrain and a light rig to the scene', () => {
     const { view } = setup();
@@ -1001,7 +1036,8 @@ describe('SceneView', () => {
       true,
     );
     const colors = line.geometry.getAttribute('color');
-    expect(colors.getY(0)).toBeCloseTo(new Color('#69d2ff').g, 5);
+    // The walk is in its band's colour; the part past one move is not a distance, it is a verdict.
+    expect(colors.getY(0)).toBeCloseTo(new Color(BAND_COLOURS.melee).g, 5);
     // Green tells amber from red: both are all red.
     expect(colors.getY(6)).toBeCloseTo(new Color('#ffc14d').g, 5);
     view.dispose();
@@ -1026,7 +1062,17 @@ describe('SceneView', () => {
     expect(line.visible).toBe(true);
     expect(line.geometry.drawRange.count).toBe(7);
     const colors = line.geometry.getAttribute('color');
-    expect(colors.getX(0)).toBeCloseTo(new Color('#69d2ff').r, 5);
+    // Banded by how far along the walk each point is: the first tile is Melee, the second Very
+    // Close, so the line changes colour on the way without anything being said about it.
+    // Close, not equal: the buffer is float32 and a colour is not, so the last bits differ.
+    const at = (i: number) => [colors.getX(i), colors.getY(i), colors.getZ(i)];
+    const band = (i: number, hex: string) => {
+      const want = new Color(hex);
+      [want.r, want.g, want.b].forEach((channel, c) => expect(at(i)[c]).toBeCloseTo(channel, 5));
+    };
+    band(0, BAND_COLOURS.melee);
+    band(4, BAND_COLOURS.veryClose);
+    expect(at(0)).not.toEqual(at(4));
     expect(colors.getX(6)).toBeCloseTo(new Color('#ff6a5c').r, 5);
     const positions = line.geometry.getAttribute('position');
     expect(positions.getY(0)).toBeGreaterThan(0);

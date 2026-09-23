@@ -50,10 +50,8 @@ test('every creature, prop and object card shows what it puts down, and no card 
   // Every built-in prop is its own model, so none is a stand-in.
   await expect(terrain.locator('.ph-stand-in')).toHaveCount(0);
 
-  await terrain.locator('[data-tab="objects"]').click();
-  const objects = terrain.locator('[data-item]');
-  await expect(objects).toHaveCount(5);
-  await expect(terrain.locator('.ph-thumb svg.ph-object-icon')).toHaveCount(5);
+  // No Objects tab: a door or a chest is a prop with a function, and its card is its model's picture.
+  await expect(terrain.locator('[data-tab="objects"]')).toHaveCount(0);
   await expect(terrain.locator('.ph-glyph')).toHaveCount(0);
 
   expect(errors).toEqual([]);

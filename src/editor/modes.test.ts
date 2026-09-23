@@ -21,7 +21,6 @@ const ALL_TOOLS: readonly EditorTool[] = [
   'lower',
   'prop',
   'spawn',
-  'interactable',
   'adversary',
   'trigger',
   'erase',
@@ -100,7 +99,6 @@ describe("terrain's tabs", () => {
 
   it('keep Erase in the tab that already offers it', () => {
     expect(terrainTabOf('erase', 'tiles')).toBe('props');
-    expect(terrainTabOf('erase', 'objects')).toBe('objects');
     expect(terrainTabOf('erase', 'props')).toBe('props');
   });
 
@@ -112,7 +110,8 @@ describe("terrain's tabs", () => {
     // There were two: Structures stamped pieces a walk ignored, Tiles painted the ground a
     // walk was costed on. A kind of tile carries its own structure now, so the choice
     // between the tabs became a choice between kinds of tile within one.
-    expect(TERRAIN_TABS).toEqual(['tiles', 'props', 'objects']);
+    // And objects went the same way: a door is a prop with a function, so there is no Objects tab.
+    expect(TERRAIN_TABS).toEqual(['tiles', 'props']);
     expect(TERRAIN_TAB_TOOL.tiles).toBe('placeTile');
     // Raise and Lower came with the ground they move; there is no second tab for them now.
     // Select is last and on every tab, so it is not one of this tab's own verbs.

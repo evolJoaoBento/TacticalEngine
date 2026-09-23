@@ -262,3 +262,273 @@ test('a creature clicked onto raised ground lands on the tile under the cursor',
   expect(added[0]!.position).toMatchObject({ x: plateau % 44, y: Math.floor(plateau / 44) });
   expect(errors).toEqual([]);
 });
+
+test('a prop can be placed across a block of tiles, chosen in the panel', async ({ page }) => {
+  test.setTimeout(240_000);
+  await page.goto('/');
+  await page.waitForFunction(() => (window.__engine?.frames ?? 0) > 5);
+  await page.evaluate(() => {
+    window.__engine!.setMode('edit');
+    window.__engine!.setTool('prop');
+  });
+
+  // The sizes are offered in the prop panel, and one of them is on to begin with.
+  const sizes = page.getByTestId('prop-spans');
+  await expect(sizes).toBeVisible();
+  await expect(sizes.locator('button')).toHaveCount(7);
+  await expect(sizes.locator('[data-span="1"]')).toHaveClass(/ph-on/);
+
+  await sizes.locator('[data-span="3"]').click();
+  await expect(sizes.locator('[data-span="3"]')).toHaveClass(/ph-on/);
+
+  const before = await page.evaluate(() => window.__engine!.propCount());
+  const at = await page.evaluate(() => window.__engine!.buildScreenAt(10, 10));
+  await page.mouse.move(at.x, at.y);
+  await page.mouse.down();
+  await page.mouse.up();
+  expect(await page.evaluate(() => window.__engine!.propCount())).toBe(before + 1);
+
+  // One prop in the document, carrying the size, anchored at the tile that was clicked.
+  const placed = JSON.parse(await page.evaluate(() => window.__engine!.exportProject())).scenes[0].decos.at(-1);
+  expect(placed.span).toBe(3);
+  expect(placed.position).toEqual({ x: 10, y: 10 });
+
+  // A click elsewhere in the block is a click on that prop: it turns rather than putting a second
+  // one down, which is the whole of what covering a block has to mean. Aimed at the middle of the
+  // block rather than its far corner: (12, 12) is the vault's west wall, four blocks tall, and a
+  // pointer there hits the top of the wall and reads as the tile behind it.
+  const inside = await page.evaluate(() => window.__engine!.buildScreenAt(11, 11));
+  await page.mouse.move(inside.x, inside.y);
+  await page.mouse.down();
+  await page.mouse.up();
+  expect(await page.evaluate(() => window.__engine!.propCount())).toBe(before + 1);
+  const turned = JSON.parse(await page.evaluate(() => window.__engine!.exportProject())).scenes[0].decos.at(-1);
+  expect(turned.rotation).toBeGreaterThan(0);
+  // The same prop, still anchored and sized as it was: turned, not replaced.
+  expect(turned.position).toEqual({ x: 10, y: 10 });
+  expect(turned.span).toBe(3);
+
+  // Back to one tile, and the document says nothing about the size of an ordinary prop.
+  await sizes.locator('[data-span="1"]').click();
+  const plain = await page.evaluate(() => window.__engine!.buildScreenAt(20, 20));
+  await page.mouse.move(plain.x, plain.y);
+  await page.mouse.down();
+  await page.mouse.up();
+  const ordinary = JSON.parse(await page.evaluate(() => window.__engine!.exportProject())).scenes[0].decos.at(-1);
+  expect(ordinary.position).toEqual({ x: 20, y: 20 });
+  expect(Object.hasOwn(ordinary, 'span')).toBe(false);
+  await page.screenshot({ path: 'test-results/prop-span.png' });
+});
+
+test('a prop previews before it is placed, is edited after, and its settings can be saved as a remix', async ({ page }) => {
+  test.setTimeout(240_000);
+  await page.goto('/');
+  await page.waitForFunction(() => (window.__engine?.frames ?? 0) > 5);
+  await page.evaluate(() => {
+    window.__engine!.setMode('edit');
+    window.__engine!.setTool('prop');
+  });
+  const sizes = page.getByTestId('prop-spans');
+  await sizes.locator('[data-span="4"]').click();
+
+  // Hovering shows the prop that would go down, at the size it would go down at, before any
+  // click: half see-through, so the ground it would cover can still be read under it.
+  const at = await page.evaluate(() => window.__engine!.buildScreenAt(6, 20));
+  await page.mouse.move(at.x, at.y, { steps: 6 });
+  await expect.poll(async () => page.evaluate(() => window.__engine!.propGhost()?.span ?? 0), { timeout: 15_000 }).toBe(4);
+  expect(await page.evaluate(() => window.__engine!.propGhost()!.id)).toBe('crate-prop');
+
+  await page.mouse.down();
+  await page.mouse.up();
+  const placed = JSON.parse(await page.evaluate(() => window.__engine!.exportProject())).scenes[0].decos.at(-1);
+  expect(placed.span).toBe(4);
+
+  // Placing took hold of it, so the panel is aimed at that prop: the size buttons now change it.
+  await expect(page.getByTestId('prop-chosen')).toContainText('you placed or clicked');
+  await sizes.locator('[data-span="2"]').click();
+  const resized = JSON.parse(await page.evaluate(() => window.__engine!.exportProject())).scenes[0].decos.at(-1);
+  expect(resized.span).toBe(2);
+  expect(resized.position).toEqual(placed.position);
+
+  // Select takes hold of a prop too, and a prop held that way has the same settings to change:
+  // picking one up with Select and finding no way to resize it is what made this a bug.
+  await page.evaluate(() => window.__engine!.setTool('select'));
+  const on = await page.evaluate(() => window.__engine!.buildScreenAt(6, 20));
+  await page.mouse.move(on.x, on.y);
+  await page.mouse.down();
+  await page.mouse.up();
+  await expect(sizes).toBeVisible();
+  await expect(sizes.locator('[data-span="2"]')).toHaveClass(/ph-on/);
+  await expect(page.getByTestId('prop-chosen')).toContainText('you placed or clicked');
+
+  // And carrying it does not shrink it: the lift stretches what it holds about the size it
+  // already is, which for a prop drawn across a block is not one tile.
+  const away = await page.evaluate(() => window.__engine!.buildScreenAt(9, 22));
+  await page.mouse.move(on.x, on.y);
+  await page.mouse.down();
+  await page.mouse.move(away.x, away.y, { steps: 10 });
+  await page.mouse.up();
+  await page.waitForTimeout(400);
+  const carried = JSON.parse(await page.evaluate(() => window.__engine!.exportProject())).scenes[0].decos.at(-1);
+  expect(carried.span, 'the prop shrank when it was picked up').toBe(2);
+  await page.evaluate(() => window.__engine!.setTool('prop'));
+
+  // Saved as a remix, it joins the Props strip with its settings on it.
+  await page.getByTestId('prop-save-remix').click();
+  const strip = page.getByTestId('terrain-library');
+  const remix = strip.locator('.ph-card', { hasText: 'remix' }).first();
+  await expect(remix).toBeVisible();
+  await expect(remix).toContainText('Crate Prop 2×2');
+
+  // Set something else by hand, then take the remix up: it brings its size back with it.
+  await sizes.locator('[data-span="5"]').click();
+  await remix.click();
+  await expect(sizes.locator('[data-span="2"]')).toHaveClass(/ph-on/);
+  const far = await page.evaluate(() => window.__engine!.buildScreenAt(14, 24));
+  await page.mouse.move(far.x, far.y, { steps: 6 });
+  await page.mouse.down();
+  await page.mouse.up();
+  const fromRemix = JSON.parse(await page.evaluate(() => window.__engine!.exportProject())).scenes[0].decos.at(-1);
+  expect(fromRemix).toMatchObject({ model: 'crate-prop', span: 2, position: { x: 14, y: 24 } });
+
+  // Forgetting the remix leaves what was placed from it exactly where it is.
+  await page.getByTestId('prop-remove-remix').click();
+  await expect(strip.locator('.ph-card', { hasText: 'remix' })).toHaveCount(0);
+  const after = JSON.parse(await page.evaluate(() => window.__engine!.exportProject()));
+  expect(after.scenes[0].decos.at(-1)).toMatchObject({ model: 'crate-prop', span: 2 });
+  expect(after.propPresets).toBeUndefined();
+
+  // And back in play there is no ghost left standing on the board.
+  await page.evaluate(() => window.__engine!.setMode('play'));
+  await expect.poll(async () => page.evaluate(() => window.__engine!.propGhost())).toBeNull();
+});
+
+test('a prop marked solid stops a walk across the whole block it covers', async ({ page }) => {
+  test.setTimeout(240_000);
+  await page.goto('/');
+  await page.waitForFunction(() => (window.__engine?.frames ?? 0) > 5);
+  await page.evaluate(() => {
+    const api = window.__engine!;
+    api.setDiceSpeed(0);
+    api.select('kara');
+  });
+  const from = (await page.evaluate(() => window.__engine!.standingAt('kara')))!;
+  // Open ground a few tiles off, well clear of the party, inside the block a prop will cover.
+  const block = { x: Math.round(from.x) + 3, y: Math.round(from.y) + 2 };
+  const middle = { x: block.x + 1, y: block.y + 1 };
+
+  await page.evaluate(() => {
+    window.__engine!.setMode('edit');
+    window.__engine!.setTool('prop');
+  });
+  const sizes = page.getByTestId('prop-spans');
+  await sizes.locator('[data-span="3"]').click();
+  const at = await page.evaluate((to) => window.__engine!.buildScreenAt(to.x, to.y), block);
+  await page.mouse.move(at.x, at.y);
+  await page.mouse.down();
+  await page.mouse.up();
+  const scenery = JSON.parse(await page.evaluate(() => window.__engine!.exportProject())).scenes[0].decos.at(-1);
+  expect(scenery.span).toBe(3);
+  expect(Object.hasOwn(scenery, 'solid'), 'a prop is scenery until somebody says otherwise').toBe(false);
+
+  // Scenery: the party walks over it as if it were painted on the floor.
+  await page.evaluate(() => window.__engine!.setMode('play'));
+  const walked = await page.evaluate((to) => {
+    const api = window.__engine!;
+    api.select('kara');
+    api.walkTo(to.x, to.y);
+    return api.standingAt('kara')!;
+  }, middle);
+  expect(Math.hypot(walked.x - middle.x, walked.y - middle.y), 'scenery should not stop a walk').toBeLessThan(0.75);
+
+  // Off it again before it becomes an obstacle. Nothing can find a way off a barred tile, so a
+  // character standing where a prop is made solid is walled in where they stand - an authoring
+  // foot-gun rather than a rule, but it is what would be being measured here otherwise.
+  await page.evaluate((home) => window.__engine!.walkTo(home.x, home.y), from);
+
+  // Now say it is an obstacle. The same tile is no longer somewhere anybody can stand.
+  await page.evaluate(() => window.__engine!.setMode('edit'));
+  await page.getByTestId('prop-solid').click();
+  await expect(page.getByTestId('prop-solid')).toHaveClass(/ph-on/);
+  const solid = JSON.parse(await page.evaluate(() => window.__engine!.exportProject())).scenes[0].decos.at(-1);
+  expect(solid.solid).toBe(true);
+
+  await page.evaluate(() => window.__engine!.setMode('play'));
+  const stopped = await page.evaluate((to) => {
+    const api = window.__engine!;
+    api.select('kara');
+    api.walkTo(to.x, to.y);
+    return api.standingAt('kara')!;
+  }, middle);
+  const inside = stopped.x >= solid.position.x - 0.5 && stopped.x <= solid.position.x + 2.5
+    && stopped.y >= solid.position.y - 0.5 && stopped.y <= solid.position.y + 2.5;
+  expect(inside, `walked onto a solid prop at ${stopped.x},${stopped.y}`).toBe(false);
+
+  // Every corner of the block, not only its middle: the whole thing is the obstacle.
+  for (const corner of [{ x: solid.position.x, y: solid.position.y }, { x: solid.position.x + 2, y: solid.position.y + 2 }]) {
+    const ended = await page.evaluate((to) => {
+      const api = window.__engine!;
+      api.walkTo(to.x, to.y);
+      return api.standingAt('kara')!;
+    }, corner);
+    expect(Math.hypot(ended.x - corner.x, ended.y - corner.y), `stood on ${corner.x},${corner.y}`).toBeGreaterThan(0.6);
+  }
+});
+
+test('a prop keeps its size, its solidity and its remixes when the project is saved and opened again', async ({ page }) => {
+  test.setTimeout(240_000);
+  await page.goto('/');
+  await page.waitForFunction(() => (window.__engine?.frames ?? 0) > 5);
+  await page.evaluate(() => {
+    window.__engine!.setMode('edit');
+    window.__engine!.setTool('prop');
+  });
+
+  // A prop with every setting turned away from its default, and the settings kept as a remix.
+  await page.getByTestId('prop-spans').locator('[data-span="3"]').click();
+  await page.getByTestId('prop-solid').click();
+  await page.getByTestId('prop-rotate').click();
+  const at = await page.evaluate(() => window.__engine!.buildScreenAt(6, 20));
+  await page.mouse.move(at.x, at.y);
+  await page.mouse.down();
+  await page.mouse.up();
+  await page.getByTestId('prop-save-remix').click();
+
+  const saved = await page.evaluate(() => window.__engine!.exportProject());
+  const before = JSON.parse(saved);
+  const placed = before.scenes[0].decos.at(-1);
+  expect(placed).toMatchObject({ model: 'crate-prop', span: 3, solid: true, position: { x: 6, y: 20 } });
+  expect(placed.rotation).toBeGreaterThan(0);
+  expect(before.propPresets).toHaveLength(1);
+  expect(before.propPresets[0]).toMatchObject({ model: 'crate-prop', span: 3, solid: true });
+
+  // Opened again, exactly as opening the file would: the document is not a lossy round trip.
+  // Every one of these is an optional field, and an optional field is the kind a serialiser
+  // quietly drops - so what is asserted is the whole of what was written, not that it parsed.
+  expect(await page.evaluate((text) => window.__engine!.loadProjectText(text), saved)).toBe('');
+  const after = JSON.parse(await page.evaluate(() => window.__engine!.exportProject()));
+  expect(after.scenes[0].decos.at(-1)).toEqual(placed);
+  expect(after.propPresets).toEqual(before.propPresets);
+
+  // The remix is offered in the strip again, and still brings its settings with it.
+  const strip = page.getByTestId('terrain-library');
+  await page.evaluate(() => window.__engine!.setTool('prop'));
+  const remix = strip.locator('.ph-card', { hasText: 'remix' }).first();
+  await expect(remix).toContainText('Crate Prop 3×3 · solid');
+  await remix.click();
+  await expect(page.getByTestId('prop-spans').locator('[data-span="3"]')).toHaveClass(/ph-on/);
+  await expect(page.getByTestId('prop-solid')).toHaveClass(/ph-on/);
+
+  // And the reloaded prop is still an obstacle, which is the part a document could carry and
+  // the room could still get wrong: the bars are built from the document when the room is.
+  await page.evaluate(() => window.__engine!.setMode('play'));
+  const stopped = await page.evaluate(() => {
+    const api = window.__engine!;
+    api.setDiceSpeed(0);
+    api.select('kara');
+    api.walkTo(7, 21);
+    return api.standingAt('kara')!;
+  });
+  const inside = stopped.x >= 5.5 && stopped.x <= 8.5 && stopped.y >= 19.5 && stopped.y <= 22.5;
+  expect(inside, `walked into a reloaded solid prop at ${stopped.x},${stopped.y}`).toBe(false);
+});

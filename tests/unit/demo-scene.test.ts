@@ -44,6 +44,7 @@ import {
   DEMO_ADVERSARIES,
   DEMO_CHARACTERS,
 } from '../../src/game/demo-rules';
+import { interactablesOf } from '../../src/engine/scene/prop-functions';
 
 const build = (seed = 'demo'): DemoScene => buildDemoScene(hollowVaultMap(), seed);
 
@@ -86,7 +87,7 @@ describe('a project plays the content it carries', () => {
 
 /** The vault door starts shut; these tests are about what is behind it. */
 function openTheDoor(demo: DemoScene): void {
-  const door = demo.scene.interactables.find((i) => i.kind === 'door')!;
+  const door = interactablesOf(demo.scene).find((i) => i.kind === 'door')!;
   demo.world.openInteractable(door.id);
 }
 
@@ -752,9 +753,12 @@ describe('the demo renders', () => {
     expect(view.terrain.meshes.length).toBeLessThanOrEqual(4);
     expect(view.decoCount).toBe(demo.scene.decos.length);
     for (const entity of demo.state.allEntities()) expect(view.tokenFor(entity.id)).toBeDefined();
-    // The ground is laid from shipped files, which are imports: a view handed no asset library
-    // has none of them, and everything else the room names is in the procedural one.
-    expect(view.registry.missing()).toEqual(['grass-ground', 'stone-block', 'stone-stairs', 'tree-prop', 'withering-tree-prop']);
+    // The ground and most of the dressing are shipped files, which are imports: a view handed no
+    // asset library has none of them, and everything else the room names is in the procedural one.
+    expect(view.registry.missing()).toEqual([
+      'barrel-prop', 'cart-prop', 'chest-prop', 'crate-prop', 'door-prop', 'grass-ground', 'portal-prop',
+      'standing-torch-prop', 'stone-block', 'stone-stairs', 'training-dummy-prop', 'tree-prop', 'withering-tree-prop',
+    ]);
     view.dispose();
   });
 

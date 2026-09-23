@@ -12,6 +12,7 @@ import {
   WARDENS_WORD_QUEST,
 } from './demo-quests';
 import { loadGameText, saveGame } from './save';
+import { interactablesOf } from '../engine/scene/prop-functions';
 
 /**
  * The demo's quest, played through.
@@ -25,7 +26,7 @@ const PILLAR = 'pillar-14-7';
 const scene = (seed = 'demo'): DemoScene => buildDemoScene(hollowVaultMap(), seed);
 
 function stand(demo: DemoScene, id: string): void {
-  const object = demo.scene.interactables.find((i) => i.id === id)!;
+  const object = interactablesOf(demo.scene).find((i) => i.id === id)!;
   demo.state.moveEntity(
     demo.party.selected!,
     tileOf(demo.grid, { x: object.position.x - 1, y: object.position.y }),

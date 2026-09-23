@@ -4,6 +4,93 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## Ten built-in props are retired for imported models — done
+
+The pine, dead tree, barrel, crate, brazier, cart, training dummy, door, chest and portal were
+procedural models ported from the legacy prototype. The author made a model for each in
+`public/models`, and the ten are gone from the procedural library. `RETIRED_MODELS`
+(`src/engine/scene/retired-models.ts`) names each one's replacement, and `openProject` renames them
+in every project as it opens, so an old file, an old save or a legacy map loses nothing. The
+built-in demo names the new ones directly, the object bodies are the new door, chest and portal,
+the editor's first prop is `crate-prop`, and a neutral creature with no model stands in as the husk
+rather than the dummy.
+
+**Working rules this leaves:**
+
+- **The demo built from code now needs the files.** Its dressing is ten `.glb` files in
+  `public/models`, not code, so they must be committed with it: a clone without them draws every
+  one as the placeholder. They arrived at 7 to 9 MB each - lighten them (`tools/lighten-model.py`)
+  before they go in.
+- **A test that needs a prop the procedural library draws** uses `rock`, `banner`, `campfire` or
+  `pillar`: a node test has no asset library, so an imported model is only ever `missing()` there.
+
+## Objects are props that do something — done
+
+There were two kinds of thing in a room: props, which were scenery, and objects, which did
+something and were placed from a tab of their own. Now there is one. Any prop can be given a
+**function** from a select - None to start, then Container, Door, Trapped, Portal and Script - and
+the Objects tab, the `interactable` tool and its kind picker are gone. Format 6 moves every object
+with a body into `decos`, as a prop drawn with the body its kind had and holding a Script function
+with everything the object was told; a bodiless one (an invisible trigger) stays an object.
+
+The user asked for four functions. **Script** is the fifth, added so the demo's quest things - the
+lever that starts a quest, the pillar that ends one - could come across with nothing lost; it is
+the object editor as it was, under a function's name.
+
+**Working rules this leaves:**
+
+- **The runtime still speaks `Interactable`.** A function compiles to one (`PROP_FUNCTIONS[kind].object`),
+  so the script runner, the state, a save and the inspector's use of a thing did not change shape.
+  Read `interactablesOf(scene)`; `scene.interactables` is the leftovers only.
+- **A new function is a schema variant and a registry row** (DEVELOPING recipe (e)). Build it from
+  `parts`, so a trap can nest it as its success or failure for nothing.
+- **Things the editor puts down now block in play at once.** `syncAuthoredEncounters` calls
+  `replaceInteractables(placementsOf(...))` on every return from the editor. Before, an object
+  placed in the editor stood in nobody's way until the room was entered again.
+- **Portal pairs are project-wide.** The other end may be in another room: the party travels there
+  and arrives beside it. Two holders of one pair id is a pair; a third is a validation error and
+  the editor refuses it as it is typed.
+- **The container window closes when its opener walks out of reach**, and what was taken is counted
+  in the thing's saved `data` (`taken:<item>`), so it stays taken across a save.
+- **`projects/default.json` is still format 5.** It loads through the migration; the first
+  `Ctrl+S` writes it back as 6.
+- **A door's top group is its hinge, not the prop.** Anything that reads a drawn prop's place off
+  its group reads the hinge's edge instead, half a tile off - which is how the editor briefly could
+  not pick a door up. The hinge carries `userData.stands`; read that. A function prop's group is
+  named `object:<id>`, as an object's was, which is what play's white rim looks for.
+- **The models folder is every project's.** Only the demo built from code was ever handed
+  `public/models`, so a `.glb` dropped in after the default project was saved never reached it.
+  `openProject` (`src/game/project-open.ts`) adds each shipped model a project does not list, by id,
+  whenever one is built; a project's own settings for a model it lists win.
+- **`projects/default.json` can be enormous.** An imported model is kept in it as a data URL (the
+  author's file reached 83 MB with four of them). A test that hands it to the page through
+  `page.route` overruns the devtools pipe at 100 MB and the page simply closes; serve it less its
+  `data:` assets, as `default-project.spec.ts` does.
+
+## The project that opens is a file, and saving writes it back — done
+
+The demo was built from code on every load, so nothing done to it in the editor outlived a
+refresh. The page now opens on `projects/default.json`, and while that is the project open,
+`Ctrl+S` writes it back through the dev server (`tools/default-project.ts`), so what was saved is
+what opens next time. The demo from code still stands in when the file is missing, will not load,
+or is not wanted.
+
+**Working rules this leaves:**
+
+- **Tests never see the file.** Playwright starts its server with `TACTICAL_BOOT=builtin`, which
+  opens the demo from code and turns the save route off. A test that needs the file asks for
+  `?boot=file` and serves it itself with `page.route`; `tests/e2e/default-project.spec.ts` shows how.
+- **The file does not follow the code.** It was exported from `buildDemoScene(hollowVaultMap())`
+  once, and a change to `demo-*.ts` does not reach it. That is deliberate - it is the author's copy
+  now - but it means an engine change that the demo is meant to show has to be written into the
+  file too, or it is invisible to anybody running `npm run dev`. To take the demo from code again,
+  delete the file and save; that replaces whatever was edited.
+- **Never let a save write over a file that would not load.** `savesToDefault` is false for
+  `invalid`, and it has a test. The demo that stood in is not what the author was working on.
+- **A long-running dev server may not pick up a new plugin's routes on its own restart.** The one
+  running when this landed restarted on the config change and still answered the save route with
+  a bare 404; a fresh `npm run dev` had it. Restart the server before concluding a route is broken.
+
 ## Ground is the substrate, not something the placer puts down — done
 
 Painting ground is gone, at the user's word: "please remove painted ground entirely." The

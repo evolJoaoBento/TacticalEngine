@@ -77,7 +77,8 @@ const blocks = (n: number): string => `${n} block${n === 1 ? '' : 's'}`;
  * when the landing was past their range, and only then -
  * then the landing - which happens whatever the dice said.
  *
- * They always land. A failed roll lands them Prone, and a fall past a safe drop is damage
+ * They always land, and land alone: whoever was walking with them stays behind (`Party.unlink`).
+ * A failed roll lands them Prone, and a fall past a safe drop is damage
  * either way, halved by a success; it is direct, since no armour is between a body and the
  * ground. In a fight the roll is the action, as a run's is, and a drop that asks for no roll
  * is a move like any other and spends it the same.
@@ -118,6 +119,11 @@ function leapTo(demo: DemoScene, id: string, leap: Leap, read = true): MoveResul
     const approach = walk < 0 ? { path: [leap.from], route: [stood] } : demo.motions.splice(walk, 1)[0]!;
     demo.motions.push({ id, path: [...(approach.path ?? [leap.from]), leap.to], route: [...(approach.route ?? [stood]), { ...leap.at }], leap: leap.lift, ...(success !== null && read ? { wait: true as const } : {}) });
     note(demo, `${name} ${what}.`, fighting ? 'combat' : 'system');
+    // A jump is not followed. The ones walking with them cannot make it, and left linked they would
+    // walk round to wherever the jumper went next as if the gap were floor. So the jumper goes on
+    // alone, and the rest stay where they stood; the cards' chain shows the split, and dragging a
+    // card back links them again.
+    if (demo.party.unlink(id)) note(demo, `${name} goes on alone: the others stay where they are.`, fighting ? 'combat' : 'system');
     // Landed on a trigger: what a walk onto it would have woken, a jump onto it wakes. Over the
     // wall is a way into the vault, and the husks are no less there for it.
     const woke = demo.triggers.firstAlong([leap.to], demo.state);

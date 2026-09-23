@@ -58,8 +58,8 @@ export function useInteractable(
   if (state.removed) {
     return { status: 'refused', reason: 'removed', text: 'There is nothing there any more.' };
   }
-  if (state.open) {
-    // A door picked open stays open; a repeatable one is not re-rolled.
+  if (state.open && interactable.toggles !== true) {
+    // A door picked open stays open; a repeatable one is not re-rolled. One that toggles is shut by the next use.
     return { status: 'refused', reason: 'alreadyOpen', text: 'It is already open.' };
   }
   if (state.used && options.repeatable !== true) {

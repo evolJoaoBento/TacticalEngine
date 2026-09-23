@@ -427,3 +427,53 @@ describe('a migrated document satisfies the schema that will load it', () => {
     expect(refusals(projectSchema.safeParse(fixture('project')))).not.toEqual([]);
   });
 });
+
+describe('version 5 to 6: objects are props with a function', () => {
+  const room = (interactables: unknown[], decos: unknown[] = []) => ({
+    formatVersion: 5,
+    id: 'p',
+    scenes: [{ id: 'room', width: 6, height: 6, terrain: Array(36).fill('floor'), heights: Array(36).fill(0), spawns: [{ x: 0, y: 0 }], interactables, decos }],
+    startScene: 'room',
+    party: [],
+  });
+  const door = { id: 'door-2-3', kind: 'door', position: { x: 2, y: 3 }, rotation: 1.5, name: 'Iron door', check: { trait: 'finesse', difficulty: 13 }, repeatable: true };
+
+  it('moves each object into the props, keeping its id, place and facing, and everything it said', () => {
+    const after = migrateDocument(room([door], [{ model: 'rock', position: { x: 0, y: 5 }, rotation: 0 }])) as { scenes: { decos: Record<string, unknown>[]; interactables: unknown[] }[] };
+    const scene = after.scenes[0]!;
+    expect(scene.interactables).toEqual([]);
+    // Added after what was there, so the props the room already had keep their places in the list.
+    expect(scene.decos[0]).toMatchObject({ model: 'rock' });
+    expect(scene.decos[1]).toEqual({
+      id: 'door-2-3',
+      model: 'door-prop',
+      position: { x: 2, y: 3 },
+      rotation: 1.5,
+      function: { kind: 'script', object: 'door', name: 'Iron door', check: { trait: 'finesse', difficulty: 13 }, repeatable: true },
+    });
+  });
+
+  it('is drawn with its own model when it named one, and with its kind body when it did not', () => {
+    const after = migrateDocument(room([{ id: 'c', kind: 'chest', position: { x: 1, y: 1 }, model: 'barrel' }, { id: 'p', kind: 'pillar', position: { x: 2, y: 2 } }])) as { scenes: { decos: { model: string }[] }[] };
+    expect(after.scenes[0]!.decos.map((deco) => deco.model)).toEqual(['barrel', 'pillar']);
+  });
+
+  it('leaves an object with nothing to draw it alone, because a prop is drawn and it never was', () => {
+    const hidden = { id: 'whisper', kind: 'scripted', position: { x: 4, y: 4 }, model: null };
+    const after = migrateDocument(room([hidden])) as { scenes: { decos: unknown[]; interactables: unknown[] }[] };
+    expect(after.scenes[0]!.interactables).toEqual([hidden]);
+    expect(after.scenes[0]!.decos).toEqual([]);
+  });
+
+  it('produces a document the schema accepts, which plays the object as it was', () => {
+    const parsed = projectSchema.safeParse(migrateDocument(room([door])));
+    expect(parsed.success, parsed.success ? '' : JSON.stringify(parsed.error.issues[0])).toBe(true);
+    const prop = parsed.data!.scenes[0]!.decos[0]!;
+    expect(prop.function).toMatchObject({ kind: 'script', object: 'door', blocksMovement: true, lockedText: '' });
+  });
+
+  it('leaves a document already at version 6 exactly as it is', () => {
+    const current = { ...room([]), formatVersion: 6 };
+    expect(migrateDocument(current)).toEqual(current);
+  });
+});

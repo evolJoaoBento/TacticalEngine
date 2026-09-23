@@ -63,8 +63,8 @@ export const PIT_SCENE: SceneDoc = sceneSchema.parse({
     { x: 4, y: 6 },
   ],
   decos: [
-    { model: 'crate', position: { x: 7, y: 5 }, rotation: 0 },
-    { model: 'barrel', position: { x: 8, y: 5 }, rotation: 0 },
+    { model: 'crate-prop', position: { x: 7, y: 5 }, rotation: 0 },
+    { model: 'barrel-prop', position: { x: 8, y: 5 }, rotation: 0 },
     { model: 'campfire', position: { x: 5, y: 3 }, rotation: 0 },
   ],
   interactables: [

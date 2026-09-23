@@ -2,7 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 
 /**
  * The Inspector's Select carries anything placed in a room - a prop, an object, a creature, a party
- * start - with the mouse: a press lifts it and the cursor grips, the drag carries it, letting go
+ * start - with the mouse (an object being a prop that does something, since they merged): a press lifts it and the cursor grips, the drag carries it, letting go
  * drops it on the tile under the pointer, and one undo each puts them all back.
  */
 
@@ -11,8 +11,7 @@ type Room = {
   width: number;
   height: number;
   heights: number[];
-  decos: { position: Pos }[];
-  interactables: { position: Pos }[];
+  decos: { position: Pos; function?: unknown }[];
   spawns: Pos[];
   encounters: { adversaries: { position: Pos }[] }[];
 };
@@ -24,8 +23,8 @@ async function room(page: Page): Promise<Room> {
 
 function placed(scene: Room): Record<Kind, Pos[]> {
   return {
-    prop: scene.decos.map((d) => d.position),
-    object: scene.interactables.map((i) => i.position),
+    prop: scene.decos.filter((d) => d.function === undefined).map((d) => d.position),
+    object: scene.decos.filter((d) => d.function !== undefined).map((d) => d.position),
     creature: scene.encounters.flatMap((e) => e.adversaries.map((a) => a.position)),
     spawn: scene.spawns,
   };

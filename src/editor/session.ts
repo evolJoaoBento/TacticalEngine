@@ -21,6 +21,7 @@ import type { QuestDef, QuestObjective } from '../engine/content/quests';
 import type { ItemDef, LootTable } from '../engine/content/items';
 import type { ModelAsset } from '../engine/render/assets';
 import { PACK_LISTS, type PackDocument, type PackList } from '../engine/content/pack/document';
+import { decoCovers } from '../engine/scene/deco-span';
 
 /** One reversible change. `undo` must restore exactly what `apply` replaced. */
 export interface Edit {
@@ -394,7 +395,7 @@ export function removeDecoAt(sceneId: string, point: Point): Edit {
       // Topmost first: the last placed is the one a click means.
       for (let i = decos.length - 1; i >= 0; i--) {
         const deco = decos[i]!;
-        if (deco.position.x === point.x && deco.position.y === point.y) {
+        if (decoCovers(deco, point)) {
           removed = { deco, index: i };
           decos.splice(i, 1);
           return;
@@ -416,8 +417,7 @@ export function rotateDeco(sceneId: string, point: Point, byRadians: number): Ed
     label: 'Rotate prop',
     apply(project) {
       const decos = requireScene(project, sceneId).decos;
-      target =
-        [...decos].reverse().find((d) => d.position.x === point.x && d.position.y === point.y) ?? null;
+      target = [...decos].reverse().find((deco) => decoCovers(deco, point)) ?? null;
       if (target !== null) target.rotation += byRadians;
     },
     undo() {

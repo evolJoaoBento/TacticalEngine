@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { hollowVaultMap } from './demo-map';
 import { tileOf } from '../engine/scene/grid-from-scene';
 import { answerPending, buildDemoScene, useSelectedOn, type DemoScene } from './demo-scene';
+import { interactablesOf } from '../engine/scene/prop-functions';
 
 /**
  * What a scripted roll does to the pools.
@@ -15,7 +16,7 @@ const CHEST = 'chest-19-13';
 const scene = (seed: string): DemoScene => buildDemoScene(hollowVaultMap(), seed);
 
 function openTheChest(demo: DemoScene): string {
-  const chest = demo.scene.interactables.find((i) => i.id === CHEST)!;
+  const chest = interactablesOf(demo.scene).find((i) => i.id === CHEST)!;
   demo.state.moveEntity(demo.party.selected!, tileOf(demo.grid, { x: chest.position.x - 1, y: chest.position.y }));
   useSelectedOn(demo, CHEST);
   answerPending(demo, { kind: 'roll' });

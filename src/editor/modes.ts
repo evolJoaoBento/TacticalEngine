@@ -45,7 +45,7 @@ export const MODE_LABELS: Readonly<Record<EditorMode, string>> = {
  */
 export const MODE_TOOLS: Readonly<Record<EditorMode, readonly EditorTool[]>> = {
   inspect: ['select'],
-  terrain: ['placeTile', 'eraseTile', 'raise', 'lower', 'prop', 'interactable', 'erase', 'select'],
+  terrain: ['placeTile', 'eraseTile', 'raise', 'lower', 'prop', 'erase', 'select'],
   // Select comes last deliberately: it is how a creature's panel is opened, but
   // entering Combat should still hand over creature placement, and `defaultTool`
   // takes the first tool in the list.
@@ -67,16 +67,19 @@ export const MODE_TOOLS: Readonly<Record<EditorMode, readonly EditorTool[]>> = {
  * is decided by the kind of tile in hand: one that names a structure is stamped as a
  * piece, one that does not is painted as ground.
  */
-export type TerrainTab = 'tiles' | 'props' | 'objects';
+export type TerrainTab = 'tiles' | 'props';
 
-/** The strip's order, left to right. */
-export const TERRAIN_TABS: readonly TerrainTab[] = ['tiles', 'props', 'objects'];
+/**
+ * The strip's order, left to right. There was an Objects tab, placing doors and chests as a thing
+ * apart from props; they are props with a function now (`scene/prop-functions.ts`), chosen in the
+ * prop's own settings, so there is nothing left for a third tab to put down.
+ */
+export const TERRAIN_TABS: readonly TerrainTab[] = ['tiles', 'props'];
 
 /** The tool opening a tab puts in hand: what a plain click on the board then does. */
 export const TERRAIN_TAB_TOOL: Readonly<Record<TerrainTab, EditorTool>> = {
   tiles: 'placeTile',
   props: 'prop',
-  objects: 'interactable',
 };
 
 /**
@@ -91,7 +94,6 @@ export const TERRAIN_RAIL: Readonly<Record<TerrainTab, readonly EditorTool[]>> =
   // are one subject now, and there is no second tab left for them to belong to.
   tiles: ['eraseTile', 'raise', 'lower', 'select'],
   props: ['erase', 'select'],
-  objects: ['erase', 'select'],
 };
 
 /** Whether a strip's tab id is one of Terrain's, so a view can narrow without a cast. */

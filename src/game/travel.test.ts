@@ -10,6 +10,7 @@ import {
 import { DEMO_STAIR_ID } from './demo-rules';
 import { travelTo } from './room';
 import { PIT_SCENE_ID } from './demo-scenes';
+import { interactablesOf } from '../engine/scene/prop-functions';
 
 /**
  * Leaving a room and coming back.
@@ -24,7 +25,7 @@ const scene = (seed = 'demo'): DemoScene => buildDemoScene(hollowVaultMap(), see
 const vaultId = (demo: DemoScene): string => demo.project.scenes[0]!.id;
 
 function stand(demo: DemoScene, id: string): void {
-  const object = demo.scene.interactables.find((i) => i.id === id)!;
+  const object = interactablesOf(demo.scene).find((i) => i.id === id)!;
   demo.state.moveEntity(
     demo.party.selected!,
     tileOf(demo.grid, { x: object.position.x - 1, y: object.position.y }),
@@ -33,7 +34,7 @@ function stand(demo: DemoScene, id: string): void {
 
 /** The vault's door, and the tile it stands on. */
 function doorTile(demo: DemoScene): number {
-  const door = demo.scene.interactables.find((i) => i.kind === 'door')!;
+  const door = interactablesOf(demo.scene).find((i) => i.kind === 'door')!;
   return tileOf(demo.grid, door.position);
 }
 
@@ -129,7 +130,7 @@ describe('travelling between scenes', () => {
     const tile = doorTile(demo);
     const mover = demo.party.selected!;
     const vault = demo.scene.id;
-    demo.world.openInteractable(demo.scene.interactables.find((i) => i.kind === 'door')!.id);
+    demo.world.openInteractable(interactablesOf(demo.scene).find((i) => i.kind === 'door')!.id);
     expect(demo.state.blockedFor(mover)(tile)).toBe(false);
 
     travelTo(demo, PIT_SCENE_ID);

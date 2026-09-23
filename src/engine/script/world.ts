@@ -1727,18 +1727,17 @@ export class SceneScriptWorld implements ScriptWorld {
     this.scenario.variables[name] = value;
   }
 
+  /** All three through the state, never the flag: a door stops blocking when it opens and blocks again when it shuts. */
   openInteractable(id: string): void {
-    // Through the method, not the flag: an opened door has to stop blocking its
-    // tile, or unlocking one leaves the party standing in front of it.
     this.state.openInteractable(id);
   }
 
+  closeInteractable(id: string): void {
+    this.state.closeInteractable(id);
+  }
+
   removeInteractable(id: string): void {
-    const s = this.state.interactable(id);
-    s.removed = true;
-    // A removed interactable stops blocking the tile it stood on.
-    const tile = this.state.interactableTile(id);
-    if (tile >= 0) this.state.setInteractableBlocking(tile, false);
+    this.state.removeInteractable(id);
   }
 
   markInteractableUsed(id: string): void {

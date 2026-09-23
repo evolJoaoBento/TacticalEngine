@@ -18,8 +18,9 @@ npm install
 npm run dev        # http://127.0.0.1:8420
 ```
 
-That opens the demo project: six characters, woods leading into a vault, and adversaries waiting
-past the door. Click the board to walk, hold the button to steer, click a card to play it.
+That opens the default project, `projects/default.json`: six characters, woods leading into a
+vault, and adversaries waiting past the door. Change it in the editor and press `Ctrl+S` and the
+file itself is written, so what you saved is what opens next time. Click the board to walk, hold the button to steer, click a card to play it.
 `docs/MANUAL.md` is the player's manual and covers the rest.
 
 ## Build a scenario

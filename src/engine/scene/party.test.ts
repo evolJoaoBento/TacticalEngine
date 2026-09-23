@@ -435,3 +435,80 @@ describe('groups', () => {
     expect(party.groupOf('mira')).toEqual(['finn', 'mira']); // the group is who they are, alive or not
   });
 });
+
+describe('a walk interrupted part-way through', () => {
+  it('stands the character on the ground they had got to, not where they were going', () => {
+    const { state, grid, party } = setup();
+    party.select('kara');
+    party.walkTo('kara', grid.indexOf(8, 1));
+    // The document is already at the end of it: the walk resolved when it was ordered, and the
+    // gliding is only the drawing of it. This is the state a second click arrives in.
+    expect(state.entity('kara')!.at.x).toBeCloseTo(8, 6);
+
+    expect(party.landAt('kara', { x: 3.4, y: 1 })).toBe(true);
+    expect(state.entity('kara')!.at).toEqual({ x: 3.4, y: 1 });
+    expect(state.entity('kara')!.tile).toBe(grid.indexOf(3, 1));
+  });
+
+  it('refuses ground nobody can stand on, so a landing cannot put somebody inside a wall', () => {
+    const { party } = setup(['..........', '..###.....', '..........']);
+    expect(party.landAt('kara', { x: 3, y: 1 })).toBe(false);
+    expect(party.landAt('nobody', { x: 1, y: 1 })).toBe(false);
+  });
+
+  it('cuts the trail back, so the others do not queue along ground nobody walked', () => {
+    const { grid, party } = setup();
+    party.select('kara');
+    const walk = party.walkTo('kara', grid.indexOf(9, 1))!;
+    for (const [follower, walked] of party.followAlong('kara', walk.path, walk.route)) {
+      const end = walked.route[walked.route.length - 1]!;
+      party.landAt(follower, end);
+    }
+    // Everybody is put down where they had got to, which is what the app does on a second click.
+    party.landAt('kara', { x: 4, y: 1 });
+
+    // The trail is the leader's own history, and its head is where they are now. Anything ahead
+    // of it was handed over when the first walk was ordered and never actually crossed, so no
+    // follower may be seated out there: they all end up behind the leader, not in front.
+    const next = party.walkTo('kara', grid.indexOf(6, 1))!;
+    const behind = party.followAlong('kara', next.path, next.route);
+    expect(behind.size).toBeGreaterThan(0);
+    for (const [, walked] of behind) {
+      expect(walked.route[walked.route.length - 1]!.x).toBeLessThanOrEqual(6.001);
+    }
+  });
+});
+
+describe('a walk planned from somewhere other than the document', () => {
+  it('starts the line where the body is, not where the last walk was sent', () => {
+    const { state, grid, party } = setup();
+    party.select('kara');
+    party.walkTo('kara', grid.indexOf(9, 1));
+    expect(state.entity('kara')!.at.x).toBeCloseTo(9, 6);
+
+    const plain = party.planWalk('kara', grid.indexOf(9, 2))!;
+    const live = party.planWalk('kara', grid.indexOf(9, 2), { from: { x: 2, y: 1 } })!;
+    expect(plain.route[0]!.x).toBeCloseTo(9, 6);
+    expect(live.route[0]!).toEqual({ x: 2, y: 1 });
+    // And it is a longer line, because it is drawn from further away - which is the whole point.
+    expect(live.route.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('reads a click on the tile they are standing on as a step, not a journey', () => {
+    const { grid, party } = setup();
+    party.select('kara');
+    party.walkTo('kara', grid.indexOf(9, 1));
+    // From (2,1), the tile at (2,1) is under their feet: that is a shuffle within the tile.
+    const walk = party.planWalk('kara', grid.indexOf(2, 1), { from: { x: 2.2, y: 1 }, at: { x: 2.4, y: 1.2 } })!;
+    expect(walk).not.toBeNull();
+    expect(walk.path.length).toBeLessThanOrEqual(2);
+  });
+
+  it('searches the ground from there too, so reach is measured from the body', () => {
+    const { grid, party } = setup();
+    party.select('kara');
+    const far = party.reachable('kara', { inCombat: true, from: { x: 8, y: 1 } });
+    expect(far.canReach(grid.indexOf(8, 1))).toBe(true);
+    expect(far.canReach(grid.indexOf(0, 1))).toBe(false);
+  });
+});

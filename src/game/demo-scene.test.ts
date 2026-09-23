@@ -13,6 +13,7 @@ import {
 } from './demo-scene';
 import { scriptPending } from './moment';
 import { worldOptions } from './room';
+import { interactablesOf } from '../engine/scene/prop-functions';
 
 /**
  * Using the vault's own furniture.
@@ -29,7 +30,7 @@ const CHEST = 'chest-19-13';
 
 /** Put the selected member next to something, so reach is not what is under test. */
 function stand(demo: DemoScene, interactableId: string): void {
-  const object = demo.scene.interactables.find((i) => i.id === interactableId)!;
+  const object = interactablesOf(demo.scene).find((i) => i.id === interactableId)!;
   const beside = { x: object.position.x - 1, y: object.position.y };
   demo.state.moveEntity(demo.party.selected!, tileOf(demo.grid, beside));
 }
@@ -39,7 +40,7 @@ const scene = (): DemoScene => buildDemoScene(hollowVaultMap());
 describe('using the demo vault', () => {
   it('imported the authored checks that used to go nowhere', () => {
     const demo = scene();
-    const chest = demo.scene.interactables.find((i) => i.id === CHEST)!;
+    const chest = interactablesOf(demo.scene).find((i) => i.id === CHEST)!;
     expect(chest.check?.trait).toBe('finesse');
     expect(chest.check?.difficulty).toBe(12);
     // Both halves of the roll were written by the original author.

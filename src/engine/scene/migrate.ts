@@ -30,6 +30,7 @@
 export { CURRENT_FORMAT_VERSION } from './schema';
 import { CURRENT_FORMAT_VERSION } from './schema';
 import { toContentId } from '../content/types';
+import { OBJECT_BODIES } from './prop-functions';
 
 /** A raw document, before any schema has looked at it. */
 type Raw = Record<string, unknown>;
@@ -279,6 +280,37 @@ function toVersion5(doc: Raw): void {
   vault['room'] = { width: HUSK_VAULT_WIDTH, x: 0, y: 0 };
 }
 
+/**
+ * Version 6: objects are props with a function.
+ *
+ * Each object moves into its room's props, keeping its id, its place and its facing, and every
+ * other thing it said goes into a Script function, whose fields are the ones an object had. It is
+ * the raw form of `objectsToProps` in `prop-functions.ts`, done before the schema so an older
+ * document is a current one by the time anything reads it - and, like that, it leaves an object
+ * with nothing to draw it alone, since a prop is drawn and that object never was.
+ *
+ * A save that remembers a door opened remembers it by the door's id, which this keeps, so a game
+ * saved before still finds its doors open.
+ */
+function toVersion6(doc: Raw): void {
+  for (const scene of objects(doc['scenes'])) {
+    const kept: unknown[] = [];
+    const props: unknown[] = Array.isArray(scene['decos']) ? (scene['decos'] as unknown[]) : [];
+    for (const object of objects(scene['interactables'])) {
+      const kind = typeof object['kind'] === 'string' ? object['kind'] : 'scripted';
+      const model = typeof object['model'] === 'string' ? object['model'] : OBJECT_BODIES[kind];
+      if (model === undefined) {
+        kept.push(object);
+        continue;
+      }
+      const { id, position, rotation, model: _drawn, kind: _kind, ...said } = object;
+      props.push({ id, model, position, rotation: typeof rotation === 'number' ? rotation : 0, function: { kind: 'script', object: kind, ...said } });
+    }
+    scene['decos'] = props;
+    scene['interactables'] = kept;
+  }
+}
+
 /** The demo scene a version-4 save measured its tiles in, and how wide it was then. */
 const HUSK_VAULT_SCENE = 'the-husk-vault';
 const HUSK_VAULT_WIDTH = 22;
@@ -365,6 +397,7 @@ const STEPS: readonly { to: number; migrate: (doc: Raw) => void }[] = [
   { to: 3, migrate: toVersion3 },
   { to: 4, migrate: toVersion4 },
   { to: 5, migrate: toVersion5 },
+  { to: 6, migrate: toVersion6 },
 ];
 
 /**

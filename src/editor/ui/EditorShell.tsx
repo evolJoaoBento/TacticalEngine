@@ -25,7 +25,7 @@ import type { Interactable } from '../../engine/scene/schema';
 import type { EditorController, EditorTool } from '../controller';
 import type { EditorSession } from '../session';
 import { EDITOR_MODES, MODE_TOOLS, TERRAIN_RAIL, isTerrainTab, type EditorMode } from '../modes';
-import { creatureTabs, objectsTab, propsTab, tilesTab, type GroundType, type LibraryItem } from '../library';
+import { creatureTabs, propsTab, tilesTab, type GroundType, type LibraryItem } from '../library';
 import { validateProject, type Problem } from '../validate';
 import { TopBar, type Menu, type Workspace } from './TopBar';
 import { FrameRate } from './FrameRate';
@@ -257,10 +257,8 @@ export function EditorShell(props: EditorShellProps): preact.JSX.Element {
       controller.set('tileId', item.id);
     } else if (item.tab === 'props') {
       controller.setTool('prop');
-      controller.set('propModel', item.id);
-    } else {
-      controller.setTool('interactable');
-      controller.set('interactableKind', item.id as Interactable['kind']);
+      // A remix carries its settings with it; a bare model is just the model.
+      controller.pickProp(item.id);
     }
     bump();
   };
@@ -271,12 +269,10 @@ export function EditorShell(props: EditorShellProps): preact.JSX.Element {
   };
   const terrainPicked =
     tool === 'prop'
-      ? controller.state.propModel
-      : tool === 'interactable'
-        ? controller.state.interactableKind
-        : tool === 'placeTile' || tool === 'eraseTile'
-          ? controller.state.tileId
-          : '';
+      ? controller.pickedPreset ?? controller.state.propModel
+      : tool === 'placeTile' || tool === 'eraseTile'
+        ? controller.state.tileId
+        : '';
 
   const openGraph = graph === null ? null : (session.project.dialogues.find((d) => d.id === graph) ?? null);
   // Undo, redo or a Load can drop the conversation whose graph was open (the
@@ -305,8 +301,7 @@ export function EditorShell(props: EditorShellProps): preact.JSX.Element {
           }}
           tabs={[
             tilesTab(props.terrainTypes),
-            propsTab(props.propModels, session.project.assets.map((a) => a.id)),
-            objectsTab(),
+            propsTab(props.propModels, session.project.assets.map((a) => a.id), controller.propPresets),
           ]}
           picked={terrainPicked}
           onPick={pickForTerrain}

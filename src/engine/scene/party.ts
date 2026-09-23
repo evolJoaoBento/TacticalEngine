@@ -60,6 +60,16 @@ export interface WalkOptions {
   budget?: number;
   at?: Spot;
   /**
+   * Where the walk begins, when that is not where the character's document says they are.
+   *
+   * A figure part-way through a walk is between two tiles: the document has already put them at
+   * the end of it, because the walk resolved the moment it was ordered and the gliding is only
+   * the drawing of it. A new walk ordered before the old one finishes starts from the ground the
+   * figure is actually standing on, and so does the line drawn for it, or the two disagree and
+   * the preview is a promise the walk does not keep.
+   */
+  from?: Spot;
+  /**
    * A circle the whole walk must stay inside - the ground a fighter moves freely in this
    * spotlight. A walk that would leave it is refused, or with `short` cut where it crosses the
    * edge. The budget still applies as well, where a project counts one.
@@ -263,9 +273,9 @@ export class Party {
    * Close-range disc round them; out of one, everywhere the floor goes. An
    * explicit `budget` bounds either by steps, for a rule that counts them.
    */
-  reachable(id: string, options: { inCombat?: boolean; budget?: number } = {}) {
+  reachable(id: string, options: { inCombat?: boolean; budget?: number; from?: Spot } = {}) {
     const entity = this.state.entity(id);
-    const from = entity?.tile ?? NO_TILE;
+    const from = options.from === undefined ? entity?.tile ?? NO_TILE : this.grid.tileAtSpot(options.from.x, options.from.y);
     const fighting = options.inCombat === true;
     return this.pathfinder.reachable(from, this.allowance(options), this.movementFor(id, fighting));
   }
@@ -357,16 +367,19 @@ export class Party {
     const entity = this.state.entity(id)!;
     const fighting = options.inCombat === true;
     const allowance = this.allowance(options);
+    // Where they are standing, which mid-walk is not where the document has already put them.
+    const stood = options.from ?? entity.at;
+    const stoodOn = options.from === undefined ? entity.tile : this.grid.tileAtSpot(stood.x, stood.y);
     // Movement is spent along the line walked, which is never longer than the squares under
     // it and often shorter: so the way is found without counting, and the line is what is
     // measured. A way the count of squares covers is covered - the line only ever adds.
-    if (destination === entity.tile) return this.shuffle(id, options.at, fighting, options.within);
+    if (destination === stoodOn) return this.shuffle(id, options.at, fighting, options.within, options.from);
     const field = this.reachable(id, { ...options, budget: Infinity });
     if (!field.canReach(destination)) return null;
     const counted = field.costTo(destination);
     const path = tracePath(field, destination);
     if (path === null || path.length < 2) return null;
-    const start = { ...entity.at };
+    const start = { ...stood };
     const end = this.settle(id, destination, options.at, fighting);
     const route = this.lineAlong(id, path, start, end, fighting);
     const covered = counted <= allowance || lineCost(this.grid, route) <= allowance + 1e-9;
@@ -383,15 +396,17 @@ export class Party {
    * somebody's way. Straight there when a body can cross it and stand at the end clear of
    * everybody; null for no spot aimed at, one under their feet already, or nowhere to stand.
    */
-  private shuffle(id: string, aimed: Spot | undefined, fighting: boolean, within?: Circle): Walk | null {
+  private shuffle(id: string, aimed: Spot | undefined, fighting: boolean, within?: Circle, stood?: Spot): Walk | null {
     const entity = this.state.entity(id)!;
-    if (aimed === undefined || this.grid.tileAtSpot(aimed.x, aimed.y) !== entity.tile) return null;
-    const start = { ...entity.at };
-    const end = this.settle(id, entity.tile, aimed, fighting);
+    // Where they are standing, and the tile that is: mid-walk neither is what the document holds.
+    const start = { ...(stood ?? entity.at) };
+    const on = stood === undefined ? entity.tile : this.grid.tileAtSpot(stood.x, stood.y);
+    if (aimed === undefined || this.grid.tileAtSpot(aimed.x, aimed.y) !== on) return null;
+    const end = this.settle(id, on, aimed, fighting);
     if (within !== undefined && !insideCircle(end, within)) return null;
     if (Math.hypot(end.x - start.x, end.y - start.y) < LEAST_STEP) return null;
     if (!segmentClear(this.grid, start, end, this.blockedForWalk(id, fighting), this.walkRules())) return null;
-    return { path: [entity.tile], route: [start, end] };
+    return { path: [on], route: [start, end] };
   }
 
   /**
@@ -543,6 +558,39 @@ export class Party {
       walks.set(id, { path, route: line });
     }
     return walks;
+  }
+
+  /**
+   * Stop a walk where the figure has actually got to: the character stands here now.
+   *
+   * A walk resolves the instant it is ordered - the document is moved, and the gliding that
+   * follows is only the drawing of it - so interrupting one means moving the character back from
+   * where they were going to where they had reached. The trail has to come back with them: it was
+   * given the whole route at the moment the walk was ordered, and the part past here is ground
+   * nobody has crossed, which the followers would otherwise queue up along.
+   */
+  landAt(id: string, at: Spot): boolean {
+    const entity = this.state.entity(id);
+    if (entity === undefined) return false;
+    const tile = this.grid.tileAtSpot(at.x, at.y);
+    if (!this.grid.isTile(tile) || !this.grid.isPassable(tile)) return false;
+    this.state.placeEntity(id, at.x, at.y);
+    const trail = this.trails.get(id);
+    if (trail !== undefined && trail.length > 0) {
+      // Newest first, so the ground never walked is at the head: drop it, and stand here instead.
+      let nearest = 0;
+      let away = Infinity;
+      trail.forEach((spot, i) => {
+        const gap = Math.hypot(spot.x - at.x, spot.y - at.y);
+        if (gap < away) {
+          away = gap;
+          nearest = i;
+        }
+      });
+      trail.splice(0, nearest);
+      if (trail.length === 0 || Math.hypot(trail[0]!.x - at.x, trail[0]!.y - at.y) > 1e-6) trail.unshift({ x: at.x, y: at.y });
+    }
+    return true;
   }
 
   /**

@@ -33,6 +33,7 @@ import { cardOf, isStatBlockFeature, type AbilityDef } from '../engine/content/a
 import { parseDice } from '../engine/rules/dice';
 import { compileHooks } from '../engine/script/hooks';
 import { projectSchema, type ProjectDoc, type SceneDoc } from '../engine/scene/schema';
+import { containerItems, findFunction, interactablesOf, pairsOf, portalsWith } from '../engine/scene/prop-functions';
 
 export type ProblemSeverity =
   /** The project will not run, or something is unreachable at runtime. */
@@ -817,7 +818,8 @@ function checkQuests(
     if (effect.kind === 'revealObjective') started.add(effect.quest);
   };
   for (const scene of project.scenes) {
-    for (const interactable of scene.interactables) {
+    // Props with a function included: a quest step completed by a strongbox is completed.
+    for (const interactable of interactablesOf(scene)) {
       walkEffects(interactable.effects, visit);
       if (interactable.check !== undefined) walkCheck(interactable.check, visit);
     }
@@ -885,7 +887,7 @@ function validateScene(scene: SceneDoc, context: Context, problems: Problem[]): 
 
   // --- interactables ------------------------------------------------------
   const occupied = new Map<number, string>();
-  for (const interactable of scene.interactables) {
+  for (const interactable of interactablesOf(scene)) {
     const tile = tileOf(grid, interactable.position);
     if (offBoard(interactable.position)) {
       add('warning', `"${interactable.id}" ${OUTSIDE}`, interactable.id);
@@ -913,6 +915,22 @@ function validateScene(scene: SceneDoc, context: Context, problems: Problem[]): 
       }
     }
     validateEffects(interactable, context, add);
+  }
+
+  // --- what props do --------------------------------------------------------
+  const itemIds = new Set(context.project.items.map((item) => item.id));
+  for (const deco of scene.decos) {
+    if (deco.function === undefined) continue;
+    const name = deco.id ?? deco.model;
+    for (const line of containerItems(deco.function)) {
+      if (!itemIds.has(line.item)) add('error', `"${name}" holds item "${line.item}", which the project does not have.`, deco.id);
+    }
+    for (const pair of pairsOf(deco.function)) {
+      const holders = portalsWith(context.project, pair);
+      if (holders.length > 2) add('error', `Portal pair "${pair}" is held by ${holders.length} portals (${holders.map((h) => h.prop.id).join(', ')}); a pair is two.`, deco.id);
+      else if (holders.length < 2) add('warning', `Portal "${name}" has no other end: no other portal has the pair id "${pair}".`, deco.id);
+    }
+    if (findFunction(deco.function, 'portal')?.pair === '') add('warning', `Portal "${name}" has no pair id, so it leads nowhere.`, deco.id);
   }
 
   // --- decos --------------------------------------------------------------
@@ -1001,7 +1019,7 @@ function validateScene(scene: SceneDoc, context: Context, problems: Problem[]): 
     // blocking one is *itself* unreachable, so its neighbours are what matter.
     const pathfinder = new Pathfinder(grid);
     const reach = pathfinder.reachable(start, Infinity);
-    for (const interactable of scene.interactables) {
+    for (const interactable of interactablesOf(scene)) {
       const tile = tileOf(grid, interactable.position);
       if (!grid.isPassable(tile)) continue;
       const approachable =

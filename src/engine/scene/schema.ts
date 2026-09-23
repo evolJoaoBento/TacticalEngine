@@ -16,6 +16,8 @@
 
 import { z } from 'zod';
 import { BUILD_LIMIT, buildingTilesSchema, structureTypeSchema } from './building';
+import { DECO_SPAN_MAX } from './deco-span';
+import { propFunctionSchema } from './prop-function-schema';
 import { itemSchema, lootTableSchema } from '../content/items';
 import { abilitySchema } from '../content/abilities';
 import { characterSheetSchema } from '../character/sheet-schema';
@@ -81,6 +83,12 @@ export const interactableSchema = z.object({
   rotation: z.number().default(0),
   /** Whether a creature can walk through this tile. */
   blocksMovement: z.boolean().default(true),
+  /**
+   * Used again while it is open, to shut it. A door made by a prop's function swaps between the
+   * two; an object picked open stays open, and says so. Only ever set on the objects the engine
+   * builds from props (`scene/prop-functions.ts`), so a document never carries it.
+   */
+  toggles: z.boolean().optional(),
   /**
    * What using it does with no roll involved. Runs before any `check`, so an
    * object can say something and then ask for one — or, with no check at all,
@@ -158,6 +166,31 @@ export const decoSchema = z.object({
   position: placementPointSchema,
   /** Rotation in radians. */
   rotation: z.number().default(0),
+  /**
+   * How many tiles across it is drawn, as a square block anchored at `position`, which is its
+   * north-west corner. Absent is one, and left absent rather than defaulted so that a document
+   * says nothing about the size of a prop that is the ordinary size. See `scene/deco-span.ts`.
+   */
+  span: z.number().int().min(1).max(DECO_SPAN_MAX).optional(),
+  /**
+   * Whether a walk is stopped by it, rather than going straight through.
+   *
+   * Scenery by default, which is what a prop has always been: the ground says what a walk costs
+   * and a prop is a picture standing on it. Turned on, the block it covers is barred - nothing
+   * walks through it and nothing sees through it - so a boulder drawn across three tiles is an
+   * obstacle three tiles across rather than a decoration people stroll through.
+   *
+   * Absent is off, so a project full of ordinary props says nothing about it.
+   */
+  solid: z.boolean().optional(),
+  /**
+   * What it does when it is used; nothing, when it is absent, which makes it scenery.
+   *
+   * A prop with a function is what an object used to be - a door, a chest, a portal, a trap - and
+   * it needs an `id`, since the game keeps what has happened to it by that. `solid` still says
+   * whether it stands in the way, except for a door, which is in the way exactly while it is shut.
+   */
+  function: propFunctionSchema.optional(),
 });
 export type Deco = z.infer<typeof decoSchema>;
 
@@ -223,6 +256,13 @@ export const sceneSchema = z
       seen.add(id);
     };
     scene.interactables.forEach((it, i) => requireUniqueId(it.id, ['interactables', i, 'id']));
+    // A prop that can be used is found by its id, the way an object always was - and by the same
+    // namespace, since a script's `open` does not care which of the two it is pointed at.
+    scene.decos.forEach((deco, i) => {
+      if (deco.function === undefined) return;
+      if (deco.id === undefined) ctx.addIssue({ code: 'custom', path: ['decos', i, 'id'], message: 'a prop with a function needs an id' });
+      else requireUniqueId(deco.id, ['decos', i, 'id']);
+    });
     scene.encounters.forEach((e, i) => {
       requireUniqueId(e.id, ['encounters', i, 'id']);
       e.adversaries.forEach((a, j) =>
@@ -280,7 +320,7 @@ export type CodeDef = z.infer<typeof codeSchema>;
  * schema sees it; one newer is refused, because guessing at a format from a build that does not
  * exist yet is how a file gets quietly corrupted.
  */
-export const CURRENT_FORMAT_VERSION = 5;
+export const CURRENT_FORMAT_VERSION = 6;
 
 
 export const projectSchema = z
@@ -291,7 +331,7 @@ export const projectSchema = z
      * and a project built in code is current by construction. A version this build does not
      * know is refused, which is what tells a player their file is from a newer build.
      */
-    formatVersion: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5)]).default(CURRENT_FORMAT_VERSION),
+    formatVersion: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5), z.literal(6)]).default(CURRENT_FORMAT_VERSION),
     id: contentIdSchema,
     name: z.string().default(''),
     /** Omitted means the engine's default palette. */
@@ -306,6 +346,28 @@ export const projectSchema = z
      * every project built in code to carry an empty array it never asked for.
      */
     structureTypes: z.array(structureTypeSchema).optional(),
+    /**
+     * Props with their settings saved under a name: a model, the block it is drawn across, and
+     * the way it faces. A remix is not a new model and not a copy of one - it is the settings
+     * you would otherwise dial in by hand every time you wanted another six-tile boulder.
+     *
+     * The project's rather than the editor's, because a room built out of them is only
+     * reproducible by somebody else if they arrive with it. Optional for the same reason as
+     * `structureTypes` above: a project that has never saved one should not carry an empty list.
+     */
+    propPresets: z
+      .array(
+        z.object({
+          id: contentIdSchema,
+          label: z.string().min(1),
+          model: z.string().min(1),
+          span: z.number().int().min(1).max(DECO_SPAN_MAX).optional(),
+          rotation: z.number().optional(),
+          solid: z.boolean().optional(),
+          function: propFunctionSchema.optional(),
+        }),
+      )
+      .optional(),
     scenes: z.array(sceneSchema).min(1),
     /**
      * Conversations, addressed by id from a `startDialogue` effect. Project-level

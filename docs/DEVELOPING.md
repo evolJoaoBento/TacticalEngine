@@ -115,6 +115,7 @@ adapter: the rest of the core does not know it exists.
 | `script/effects.ts` | Behaviour over those shapes: `outcomeEffects` (the five-outcome fallback) and TypeScript constructors. Re-exports the types from `schema.ts`. |
 | `script/conditions.ts` | Evaluating a `Condition` against a `ConditionContext`; `TargetBindings` (`targets`, `hit`, and the optional `counts`), `NO_BINDINGS`, `countOf`. |
 | `script/runner.ts` | `ScriptRunner` (the stepper), `ScriptWorld` (what the world must provide), `JournalEntry`, `Prompt`, `Response`, `RunStatus`. |
+| `script/thing-effects.ts` | `applyThingEffect`: the effects that act on a thing in the room - `open`, `close`, `toggleOpen`, `remove`, `markUsed`, `openContainer`, `teleport`. The runner's switch hands all seven here in one line; the last two only write a journal entry, which the game reads (`game/prop-use.ts`). |
 | `script/world.ts` | `SceneScriptWorld` — the only writer of scene state (2616 lines). `ScenarioState`, `worldOptions`' counterpart types. Movement lives here too: `drawIn` walks a creature towards another until it is within a band, `breakAway` walks it as far off as it can get, both within a band as the crow flies and both refused while something holds it. |
 | `script/countdowns.ts` | The board a scenario carries: `RunningCountdown` (a clock plus what it is counting towards), `advanceBoard`, `reapBoard`, `endCreatureCountdowns`, and the snapshot schema a save uses. |
 | `script/hooks.ts` | Running project code: `HookContext`, `runHook`, `SAFE_MATH`. |
@@ -140,8 +141,21 @@ adapter: the rest of the core does not know it exists.
 | `render/scene-view.ts` | `SceneView` — engine state to three.js objects, one way (1500 lines). |
 | `render/camera.ts` | `OrbitCamera`, plain data, deliberately not three's `OrbitControls` so it is testable headless. The pitch is floored by the distance (`pitchFloor`): free close up, nearly overhead far out, and the angle the player dragged to is remembered and handed back on the way in. |
 | `render/glide.ts` | `planGlide`, `advanceGlide`: the drawing of a journey — the line a token crosses, the pace it keeps per tile, the arc of a throw. No scene in it, so a walk can be read in a test. |
+| `scene/deco-span.ts` | How much ground a prop covers: `spanOf`, `decoCovers`, `decoCentre`, `decoFootprint`, `DECO_SPAN_MAX`. A square block anchored at its north-west tile, which is what lets an even span exist and what lets the footprint ignore the prop's rotation. Read by the editor's click, its erase and the drawing of it, so it lives where all three can agree. |
+| `scene/retired-models.ts` | `RETIRED_MODELS` (each retired built-in model and the imported one that replaced it), `currentModel`, and `renameRetiredModels`, which `game/project-open.ts` runs on every project as it opens - props, remixes, objects, placed creatures, creature types' models and kinds of ground. Retiring another built-in model is a line here and the spec's removal from its library. |
+| `scene/prop-function-schema.ts` | What a prop can do: `propFunctionSchema`, a discriminated union on `kind` - `container`, `door`, `trapped` (whose `success` and `failure` are functions again, through zod 4's getter recursion), `portal`, `script`. A deco's `function?`. |
+| `scene/prop-functions.ts` | **The function registry.** `PROP_FUNCTIONS` maps each kind to its label, summary, a `fresh()` default, `object` (the behaviour the runtime plays it as), `steps` (the same as a step inside a trap) and `opens`, all built from `parts` (`open`, `close`, `toggle`, `showContents`, `teleport`, `usedUp`, `check`...). `interactablesOf(scene)` is every thing that can be used in a room, props and the bodiless objects left over, and is what everything reads instead of `scene.interactables`. Also `footprintOf`, `containerItems`, `portalsWith`/`portalPartner`/`pairTaken` (pairs span the project), and `objectsToProps`, the format-6 move. See recipe (e). |
+| `render/prop-ghost.ts` | The half-solid prop under the pointer: `fadeToGhost` (materials **cloned** before they are faded, since a model's come from a shared cache and fading those would fade every crate in the room) and `PropGhost`, which keeps one ghost, builds it once per model, and lets the caller seat it so it stands exactly where the real prop will. |
+| `render/reactions.ts` | `Reactions`: what a token does in place of standing still - a flinch, a fall, a rise, a lunge, a blink - one per token, moved on by the clock. Lifted out of `SceneView`, which hands it how a clip is played and whether a token is still walking. |
+| `render/blink.ts` | A step through a portal, drawn: `startBlink`, `poseBlink`, `restFromBlink`, `BLINK_SECONDS`. The token shrinks away spinning where it stood and grows back where it comes out. `SceneView.teleport(id)` asks for one on the next sync; after a walk up to the portal it waits for the walk to arrive, as a late flinch does. |
+| `render/door-swing.ts` | `DoorSwings`: a prop that opens is hung from a pivot at its own front-left edge (the model's bounding box, in its own frame, so the facing carries it round) and eased a quarter turn open or shut over 0.45 s. One that is already open when a room is drawn is hung open, not swung. |
+| `render/overlays.ts` | `buildOverlays`: the four transparent layers over the ground - lit tiles, a zone, and the border of each - allocated once at the largest room seen and given their draw order here, since none writes depth. Lifted out of `SceneView`. |
+| `render/tile-outline.ts` | `outlineTiles`: the border round a set of tiles, as line segments, written straight into a caller's buffer. An edge only where the neighbour is not in the set, so lit ground reads as one area. Lifted out of `SceneView`, which is at its ceiling. |
+| `render/path-bands.ts` | The walk line cut into range bands and coloured a band at a time: `bandedLine`, `bandAt`, `bandEdges`, `BAND_COLOURS`. Measured along the line walked, not across the gap, because that is what movement is spent on. No scene and no canvas; it reaches for three's `Color` only so a band is converted the way three would convert it. |
 | `render/spotlight.ts` | `Spotlight`: the white rim on whatever the pointer is over, drawn through what stands in front of it. One pair of inverted hulls per thing, round the merged silhouette of all its parts rather than round each — per part, a door's own bands stand in front of its panel, so the through-wall rim passed its depth test across the middle and filled the door instead of edging it. On the outline layer, so the editor never draws them and no raycast finds them. |
 | `tools/lighten-model.py` | Blender, headless: the pipeline every model in `public/models` goes through before it is committed. Decimates from the heavy original, carries its maps across by projection, and exports WebP at 2048 for colour and 1024 for the rest. The originals stay in the ignored `public/models/heavy/`. A file that skips it costs twenty megabytes instead of three, and a repository keeps every byte it is ever handed — Arty, Pint and Ganja were thirty-one thousand triangles wrapped in twenty-three megabytes of PNG, which is the shape the mistake takes. |
+| `tools/default-project.ts` | Vite plugin: serves `projects/default.json`, writes it back on a save (dev server only), and tells the page how to open through `virtual:boot-project`. The save route writes one fixed file and refuses anything without its own header or from another origin, because any page in the browser can POST to a local port. `TACTICAL_BOOT=builtin` - which the Playwright config sets - opens the demo from code and turns the save route off, so no test can overwrite the project. |
+| `tools/desaturate-model.mjs` | Node and Playwright's Chromium, no Blender: `node tools/desaturate-model.mjs <in.glb> <out.glb> <saturation 0..1>` takes colour out of a model's base-colour textures only (a normal or roughness map is data, and is left alone), towards the grey of the same brightness, and carries every other byte across. The crate, barrel, cart, door, chest, standing torch and training dummy went through it at 0.6, their originals kept in `public/models/heavy/`. |
 | `tools/size-model.py` | Blender, headless: give a `.glb` a height in tiles and put its origin at the middle of its base. Run after `lighten-model.py`, which keeps whatever size it was handed. |
 | `render/assets.ts` | `AssetLibrary` — glTF/GLB loading. `seatOnTile` puts a loaded file where the library puts its own models: centred over the **base it stands on** (the lowest slice of its meshes, not the middle of its bounding box, which on a leaning figure is off its feet) with its feet at y = 0, measured after the rotation and scale are on, so `scale` grows a model where it stands instead of sliding it off. |
 | `render/thumbnails.ts` | `ModelThumbnails`, `thumbnailOf` — a model drawn once into a small offscreen canvas of its own and kept as a data URL, for the editor's strip. The canvas is made on the first picture, so play never opens a second WebGL context. |
@@ -152,7 +166,7 @@ adapter: the rest of the core does not know it exists.
 | `render/layout.ts` | The only place that knows tile-to-world scale. |
 | `render/terrain-mesh.ts` | Continuous legacy ground mesh per terrain type. |
 | `scene/building.ts`, `render/building-view.ts` | Sparse construction schema and chunked instanced LOD; `editor/building.ts` owns reversible cell edits. |
-| `render/procedural/` | `spec.ts`, `registry.ts` (falls back to a placeholder rather than throwing; `missing()` lists unresolved ids), `build.ts`, `library/{heroes,monsters,props}.ts`. |
+| `render/procedural/` | `spec.ts`, `registry.ts` (falls back to a placeholder rather than throwing; `missing()` lists unresolved ids), `build.ts`, `library/{heroes,monsters,props}.ts`. The props library is down to rock, banner, campfire and pillar: the other ten were retired for imported models (`scene/retired-models.ts`). |
 
 There is **no `src/engine/audio/` and no `src/engine/input/`**. `CONTEXT.md` and
 `engine-is-headless.test.ts` name them as exemptions from the headless rule, but neither directory
@@ -171,11 +185,21 @@ exists: input is DOM listeners in `src/main.ts`, and there is no audio system at
 | `user-settings.ts` | The player's own settings, kept in the browser: `userSettings`, `setUserSetting`, `onUserSettings`, and `USER_SETTINGS` - the list the Escape-opened `SettingsModal` is drawn from. Not the project's and not the save's. |
 | `moment.ts` | Where the game is: `inCombat`, `scriptPending`. One field each, asked by everything, so they sit below everything. |
 | `demo-map.ts` | The demo's map: the old room copied in, the woods around it, the halls east. `hollowVaultMap`, `BEATEN_TINTS`, and the coordinates the rest of the demo counts on. |
+| `project-store.ts` | Which project the page opens on: `bootDemo` reads `projects/default.json` and falls back to the demo from code when it is missing, will not load, or is not wanted (`?boot=builtin`, or a test server); `savesToDefault` says whether `Ctrl+S` writes the file back, which it never does for a file that would not load; `saveDefault` sends the save. |
+| `editor/prop-edits.ts` | Editing a prop that is already down, and the remixes a project keeps: `resizeDeco`, `faceDeco`, `solidifyDeco`, `addPropPreset`, `removePropPreset`, `presetLabel`. A prop that is solid is a **terrain** change rather than a content one - its bars live on the grid, and only a terrain change rebuilds that - which `EditorController.propChange` decides. Beside `move-edits.ts` and for the same reason - `session.ts` is pinned at its size. A remix is a model with its span and facing under a name, kept in `project.propPresets` so a room built from them is reproducible by whoever opens the file. |
+| `ui/PropFunctionEditor.tsx` | The Function select and each function's settings. Draws itself again for a trap's success and failure (`prefix`), and holds nothing but a portal's half-typed pair id, so the Terrain panel and the Inspector bind it to the same controller calls (`setSelectedFunction`, `pairTakenBy`). It is keyed by the prop it shows, so that draft never leaks into the next prop. |
 | `steer.ts` | Where a held button walks somebody next: `steerStep`, and the distances it uses. DOM-free. |
+| `land.ts` | Interrupting a walk: `landWalkers` puts every figure still gliding down on the ground it has actually reached, and `standingNow` says where that is. A walk resolves the instant it is ordered, so until somebody is landed the character is in two places and a second click is measured from the wrong one. |
+| `hover.ts` | What the pointer would do, as a line: `hoverLine`. Three clicks draw one - an adversary, bare ground, and nothing else - and it is handed where the figure is standing, because mid-walk that is not the tile the document holds. Lifted out of `main.ts`, which is over its ceiling. |
+| `ui/floaters.ts` | The numbers that rise over heads: `driveFloaters`, `LiveFloater`, `FLOATER_LIFE`. Put back over their owner's head every frame, so one follows a character who is walking or thrown. Handed where a character is and where that lands on screen, so it needs neither scene nor camera. |
 | `party-drop.ts` | A HUD card dragged: `dropTargetAt` (aside, onto, between - from the cards' boxes and the pointer) and `dropCard` (what the party does about it). DOM-free. |
 | `circle.ts` | Where a fighter may move this spotlight: `movementCircle`, `pushCircle`, `fightWalk` (the options every walk in a fight is asked with), `pushPrompt`, `reachRings`. |
 | `reach.ts` | Reach measured as a swing measures it, for whoever must pick a tile to strike from before anyone has moved: `standingIn`, `standingOn`, `bandFromSpot`. |
 | `room.ts` | Standing a room up and moving between rooms: `SceneRuntime`, `buildRuntime`, `worldOptions` (what the script world needs from the game) and the content it reads (`characterContentFor`, `adversaryDefsFor`, `hooksFor`), `install`, `travelTo`, `enterSavedScene`, `syncAuthoredEncounters`, `settleTravel`, and `takeGround` (the edited ground taken into the grid in hand, or - when the room grew - the game stood up again on a bigger one). Knows `DemoScene` only as a type: `demo-scene.ts` imports from here, never the other way. |
+| `prop-use.ts` | What using a prop does beyond the script: `reactToThings` reads the journal for `openContainer` and `teleport`; the open container (`openContainer`, `closeContainer`, `containerContents`, `takeFromContainer` - what is taken is counted in the thing's saved `data`); `teleport` and `arriveByPortal` (another room is a `travelTo`, then the party arrives beside the partner); `nearestCovered` and `withinReach` for props wider than a tile. |
+| `project-open.ts` | `openProject`: what building any project does to it first - objects into props, and `withShippedModels`, which adds each model in `public/models` the project does not list by id (a project's own settings for a model win). Re-exports `SHIPPED_MODELS` for the demo. |
+| `camera-focus.ts` | `CameraFocus`: the camera slid over whoever is selected (a card, Tab, a click on them) and over whoever comes out of a portal - held until the walk up to it ends (`SceneView.hasWalk`). Moves only the camera's goal target, so the slide is `OrbitCamera`'s own easing and the angle and distance stay the player's. |
+| `ui/play-views.ts` | The play panel's views lifted out of `main.ts`: `journalEntries`, `hudMembers`, `containerView`. |
 | `demo-rules.ts` | The demo's house rules and cast: `DEMO_BAND_TILES`, `DEMO_MOVEMENT`, `DEMO_WALK`, `DEMO_MODELS`, `DEMO_ADVERSARIES`, `DEMO_CHARACTERS`, `PARTY_SHEETS`. Numbers and content; nothing here runs. |
 | `level-up.ts` | `awaitingLevel`, `applyLevelUp`: the game's side of `levelUp`, and what changes on the board once a level is taken. |
 | `equip.ts` | `equipItem`, `gearOf`: a piece out of the pack and onto the sheet, the old one back in. |
@@ -678,6 +702,26 @@ the ones its cards and stat blocks apply. The engine ships only the three its ow
 6. **Tests:** `src/engine/script/conditions.test.ts` and `src/engine/script/abilities.test.ts`; a
    condition a catalogue carries and a test plays goes in `tests/fixtures/conditions.ts`.
 
+### (e) Add a prop function
+
+Worked example: `door`, in the objects-into-props merge.
+
+1. **`src/engine/scene/prop-function-schema.ts`** — a variant in `propFunctionSchema` with its
+   settings and their defaults. `FUNCTION_KINDS` must list it, or the select never offers it.
+2. **`src/engine/scene/prop-functions.ts`** — a row in `PROP_FUNCTIONS`: `label`, `summary`,
+   `fresh()`; `object(fn, self, prop)`, the behaviour it plays as when used, built from `parts`;
+   `steps(fn, self)`, what it does when a trap's success or failure is this function; and
+   `opens(fn)`. A door's object is `{ blocksMovement: true, toggles: true, effects: [parts.toggle(self)] }`
+   (`toggles` lets it be used while open), its steps are `[parts.toggle(self)]`, and `opens` is
+   true, which is what makes the view hang it on a hinge (`render/door-swing.ts`).
+3. **A new effect** only if no part does it — recipe (a), with the case in
+   `script/thing-effects.ts` if it acts on a thing, and a reaction in `game/prop-use.ts` if the
+   game has to show something (as `openContainer` opens a window).
+4. **`src/editor/ui/PropFunctionEditor.tsx`** — its settings panel, if it has any.
+5. **`src/editor/validate.ts`** — whatever can be wrong with its settings that the schema cannot see.
+6. **Tests:** `src/engine/scene/prop-functions.test.ts`, `src/game/prop-use.test.ts`, and
+   `tests/e2e/prop-functions.spec.ts` for the panel and the play.
+
 ---
 
 ## 8. Testing
@@ -857,6 +901,11 @@ when the source changes; browser tests cover broken directory art, corrupt impor
 ---
 
 ## 11. Gotchas
+
+- **Read `interactablesOf(scene)`, never `scene.interactables`.** Since format 6 a door or a chest
+  is a deco with a `function`, and `scene.interactables` holds only the bodiless objects older
+  projects kept. The runtime state still speaks `Interactable`: `placementsOf` builds the list from
+  both, and `replaceInteractables` runs at room build and on every return from the editor.
 
 - **The repository path contains a space.** Quote it everywhere. The repo has moved between
   machines before: prefer repo-relative paths in code, scripts and docs, and never hardcode a path

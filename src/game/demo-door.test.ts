@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { hollowVaultMap } from './demo-map';
 import { tileOf } from '../engine/scene/grid-from-scene';
 import { answerPending, buildDemoScene, useSelectedOn, type DemoScene } from './demo-scene';
+import { interactablesOf } from '../engine/scene/prop-functions';
 
 /**
  * The vault door, picked rather than force-opened.
@@ -13,7 +14,7 @@ import { answerPending, buildDemoScene, useSelectedOn, type DemoScene } from './
 const scene = (seed: string): DemoScene => buildDemoScene(hollowVaultMap(), seed);
 
 function door(demo: DemoScene) {
-  return demo.scene.interactables.find((i) => i.kind === 'door')!;
+  return interactablesOf(demo.scene).find((i) => i.kind === 'door')!;
 }
 
 function tryTheDoor(demo: DemoScene): string {

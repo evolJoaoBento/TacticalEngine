@@ -126,6 +126,7 @@ import {
   useSelectedOn,
 } from '../game/demo-scene';
 import { startEncounter } from '../game/movement';
+import { interactablesOf } from '../engine/scene/prop-functions';
 
 /**
  * The question `docs/CRPG-GAPS.md` exists to answer: could someone build a
@@ -3410,6 +3411,6 @@ describe('a scenario built with nothing but the editor', () => {
 
     const demo = buildProjectScene(session.project, 'authored');
     expect(demo.sheets.get('kara')!.name).toBe('Quim the Unmoved');
-    expect(demo.scene.interactables.find((i) => i.id === 'iron-door')!.name).toBe('A rusted door');
+    expect(interactablesOf(demo.scene).find((i) => i.id === 'iron-door')!.name).toBe('A rusted door');
   });
 });

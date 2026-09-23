@@ -39,6 +39,8 @@ import {
 import { MODELS } from '../../engine/render/procedural/registry';
 import { Inspector } from './Inspector';
 import { TOOL_LABELS } from './ToolRail';
+import { PropFunctionEditor } from './PropFunctionEditor';
+import { portalPartner } from '../../engine/scene/prop-functions';
 
 /** The ids an effect list picks from rather than having them typed. */
 export interface PickableIds {
@@ -49,6 +51,37 @@ export interface PickableIds {
 }
 
 /** Inspector mode's side: the clicked object's properties, or a hint to click one. */
+/**
+ * The function picker, bound to the prop the panel is showing.
+ *
+ * `andNext` is the Terrain panel's rule for its settings, that a change applies to the prop being
+ * shown and to the next one placed alike. The Inspector places nothing, so there it is only the
+ * prop being shown.
+ */
+function PropFunctionField(props: { session: EditorSession; controller: EditorController; andNext?: boolean; onChange: () => void }): preact.JSX.Element {
+  const { session, controller } = props;
+  const chosen = controller.selectedDeco;
+  return (
+    <PropFunctionEditor
+      // One per prop: a pair id half-typed into one is not left standing in the next one shown.
+      key={chosen === null ? 'next' : `prop-${controller.selectedProp}`}
+      value={chosen === null ? controller.state.propFunction : chosen.function}
+      onChange={(next) => {
+        if (props.andNext === true || chosen === null) controller.set('propFunction', next);
+        controller.setSelectedFunction(next);
+        props.onChange();
+      }}
+      items={session.project.items.map((item) => ({ id: item.id, name: item.name }))}
+      pairTakenBy={(pair) => controller.pairTakenBy(pair, chosen?.id)}
+      partnerOf={(pair) => portalPartner(session.project, pair, chosen?.id ?? null)?.prop.id ?? null}
+      sceneIds={session.project.scenes.map((scene) => scene.id)}
+      dialogueIds={session.project.dialogues.map((dialogue) => dialogue.id)}
+      encounterIds={controller.scene.encounters.map((encounter) => encounter.id)}
+      quests={session.project.quests}
+    />
+  );
+}
+
 export function InspectorSide(props: {
   session: EditorSession;
   controller: EditorController;
@@ -57,11 +90,48 @@ export function InspectorSide(props: {
 }): preact.JSX.Element {
   const { session, controller } = props;
   const object = controller.selectedInteractable();
+  const prop = controller.selectedDeco;
   const sceneId = controller.sceneId;
   return (
     <aside class="ph-side ph-panel" data-testid="inspector-side">
-      {object === null ? (
-        <div class="ph-hint">Click an object on the board to change what it is and what it does. Drag anything on the board, a creature, a prop, an object or a party start, to move it.</div>
+      {object === null && prop !== null ? (
+        // A door, a chest, a portal: what used to be an object is a prop with a function.
+        <div data-testid="prop-inspector">
+          <div class="ph-heading">{prop.id ?? prop.model}</div>
+          <div class="ph-note">
+            {prop.model} at {prop.position.x}, {prop.position.y}
+            {prop.span !== undefined && prop.span > 1 ? `, ${prop.span}×${prop.span}` : ''}
+          </div>
+          <label class="ph-heading">
+            Drawn with
+            <select class="ph-select" data-testid="prop-model" value={prop.model} onChange={(e) => {
+              controller.remodelSelected((e.target as HTMLSelectElement).value);
+              props.onChange();
+            }}>
+              {modelChoices(session).map((id) => (
+                <option key={id} value={id}>
+                  {id}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div class="ph-heading">What it does</div>
+          <PropFunctionField session={session} controller={controller} onChange={props.onChange} />
+          <div class="ph-row ph-wrap">
+            <button
+              class={prop.solid === true ? 'ph-chip ph-on' : 'ph-chip'}
+              data-testid="inspector-prop-solid"
+              onClick={() => {
+                controller.solidifySelected(prop.solid !== true);
+                props.onChange();
+              }}
+            >
+              Solid
+            </button>
+          </div>
+        </div>
+      ) : object === null ? (
+        <div class="ph-hint">Click a prop on the board to change what it does - open, hold things, lead somewhere, ask for a roll. Drag anything on the board, a creature, a prop or a party start, to move it.</div>
       ) : (
         <Inspector
           interactable={object}
@@ -88,7 +158,6 @@ const TERRAIN_HINTS: Partial<Record<EditorTool, string>> = {
   raise: 'Drag to raise the ground a level. One drag is one undo.',
   lower: 'Drag to lower the ground a level. One drag is one undo.',
   prop: 'Hold Alt and point the mouse in the direction the prop should face, then click to place. Click an existing matching prop to turn it.',
-  interactable: 'Click to place the object picked below; click an object again to remove it.',
   erase: 'Click a prop to remove it, then the object under it.',
   select: 'Drag anything on the board - a creature, a prop, an object, a party start, or in Terrain a placed tile - to move it. One undo puts it back. Hold Alt to turn what a prop, an object or a tile will land facing; the wheel lifts a tile in hand.',
 };
@@ -102,7 +171,9 @@ const BRUSHED: readonly EditorTool[] = ['placeTile', 'raise', 'lower', 'eraseTil
  * nothing else, so a placer holding anything else has nothing to put down and a Z ladder
  * beside it is a control that changes nothing. `levelled` asks the further question.
  */
-const LEVELLED: readonly EditorTool[] = ['eraseTile', 'prop', 'interactable'];
+const LEVELLED: readonly EditorTool[] = ['eraseTile', 'prop'];
+/** The blocks a prop can be placed across. One is a prop on its tile; the rest cover more ground. */
+const PROP_SPANS: readonly number[] = [1, 2, 3, 4, 5, 6, 8];
 
 /**
  * Whether what is in hand is placed at a height: one of the levelled tools, or the placer
@@ -297,6 +368,13 @@ export function TerrainSide(props: {
 }): preact.JSX.Element {
   const { controller, session } = props;
   const tool = controller.state.tool;
+  /**
+   * The prop the panel is aimed at, when one has been placed or clicked.
+   *
+   * Which is not only the Props tool's business: Select takes hold of a prop as readily, and a
+   * prop picked up with Select and no way to change it is the thing that made this a bug.
+   */
+  const chosen = controller.selectedDeco;
   // What is in hand, not which tool: the placer stamps a piece when the kind of tile it
   // holds is a structure, so the controls a piece needs follow the tile rather than a verb.
   const structure = controller.heldStructure();
@@ -375,10 +453,80 @@ export function TerrainSide(props: {
           </button>
         </>
       ) : null}
-      {tool === 'prop' ? (
-        <button class="ph-chip ph-rotate" data-testid="prop-rotate" onClick={() => setRotation((controller.state.buildRotation + 1) % 4)}>
-          Rotate · {controller.state.buildRotation * 90}° (Alt + mouse / R)
-        </button>
+      {tool === 'prop' || chosen !== null ? (
+        <>
+          <button class="ph-chip ph-rotate" data-testid="prop-rotate" onClick={() => setRotation((controller.state.buildRotation + 1) % 4)}>
+            Rotate · {controller.state.buildRotation * 90}° (Alt + mouse / R)
+          </button>
+          <div class="ph-heading">Size</div>
+          <div class="ph-row ph-wrap" data-testid="prop-spans">
+            {PROP_SPANS.map((span) => (
+              <button
+                key={span}
+                class={(chosen?.span ?? controller.state.propSpan) === span ? 'ph-chip ph-on' : 'ph-chip'}
+                data-span={span}
+                onClick={() => {
+                  // Both, always: the prop being shown changes, and the next one is placed like
+                  // it, so a button never means two things depending on what is selected. With
+                  // nothing selected only the second half does anything.
+                  controller.set('propSpan', span);
+                  controller.resizeSelected(span);
+                  props.onChange();
+                }}
+              >
+                {span}×{span}
+              </button>
+            ))}
+          </div>
+          <div class="ph-note" data-testid="prop-chosen">
+            {chosen === null
+              ? "The same model drawn across that much ground, as one prop rather than a tile's worth repeated: the tile clicked is the block's north-west corner, and a click anywhere in the block afterwards turns or erases the whole of it. Scenery at any size - a walk goes straight through."
+              : `Showing the ${chosen.model} you placed or clicked. Size and Rotate change that one, and the next prop is placed the same way; click bare ground to put down a new one.`}
+          </div>
+          <div class="ph-heading">Function</div>
+          <PropFunctionField session={session} controller={controller} andNext onChange={props.onChange} />
+          <div class="ph-row ph-wrap">
+            <button
+              class={(chosen === null ? controller.state.propSolid : chosen.solid === true) ? 'ph-chip ph-on' : 'ph-chip'}
+              data-testid="prop-solid"
+              onClick={() => {
+                const next = !(chosen === null ? controller.state.propSolid : chosen.solid === true);
+                controller.set('propSolid', next);
+                controller.solidifySelected(next);
+                props.onChange();
+              }}
+            >
+              Solid
+            </button>
+          </div>
+          <div class="ph-note">
+            Off, a prop is scenery: a walk goes straight through it, and what the ground costs is
+            the Tiles workspace's to say. On, the whole block it covers is barred - nothing walks
+            through it and nothing sees through it - so a boulder three tiles across is an obstacle
+            three tiles across. The floor under it is left where it is, so the prop keeps standing
+            on the ground rather than on top of its own block.
+          </div>
+          <div class="ph-row ph-wrap">
+            <button class="ph-chip" data-testid="prop-save-remix" onClick={() => { controller.saveRemix(); props.onChange(); }}>
+              Save as remix
+            </button>
+            {controller.pickedPreset === null ? null : (
+              <button
+                class="ph-chip"
+                data-testid="prop-remove-remix"
+                onClick={() => { controller.removeRemix(controller.pickedPreset!); props.onChange(); }}
+              >
+                Remove remix
+              </button>
+            )}
+          </div>
+          <div class="ph-note">
+            A remix is these settings under a name, kept in the project and offered in the Props
+            strip beside the models, so another six-tile boulder facing north is one click rather
+            than three. It places an ordinary prop: removing the remix later leaves everything
+            placed from it exactly where it is.
+          </div>
+        </>
       ) : null}
       {tool === 'placeTile' ? (
         <div class="ph-note">

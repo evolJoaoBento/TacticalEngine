@@ -1,5 +1,6 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { TileGrid } from '../grid/grid';
+import { NO_TILE, TileGrid } from '../grid/grid';
+import { decoFootprint } from './deco-span';
 import { TerrainPalette, terrain } from '../grid/terrain';
 import { isStructure, setStructures } from './building';
 import {
@@ -277,5 +278,49 @@ describe('blankScene', () => {
     expect(parsed.success).toBe(true);
     expect(parsed.data!.terrain.every((id) => id === 'floor')).toBe(true);
     expect(parsed.data!.heights.every((h) => h === 0)).toBe(true);
+  });
+});
+
+describe('a prop that stops a walk', () => {
+  const room = (decos: unknown[]): SceneDoc => sceneSchema.parse({ ...blankScene('room', 10, 8), decos });
+
+  it('bars every tile of its block, and an ordinary prop bars nothing', () => {
+    const { grid } = gridFromScene(room([
+      { model: 'boulder', position: { x: 2, y: 2 }, rotation: 0, span: 3, solid: true },
+      { model: 'crate', position: { x: 8, y: 6 }, rotation: 0 },
+    ]));
+    // The whole block, not only the tile it is anchored to: an obstacle three tiles across.
+    for (const point of decoFootprint({ position: { x: 2, y: 2 }, span: 3 })) {
+      const tile = grid.indexOf(point.x, point.y);
+      expect(grid.isPassable(tile), `${point.x},${point.y} should be barred`).toBe(false);
+      expect(grid.blocksSight(tile)).toBe(true);
+    }
+    // One tile past it in each direction is open ground again.
+    expect(grid.isPassable(grid.indexOf(5, 2))).toBe(true);
+    expect(grid.isPassable(grid.indexOf(2, 5))).toBe(true);
+    expect(grid.isPassable(grid.indexOf(1, 2))).toBe(true);
+    // Scenery is still scenery: this is off unless an author says otherwise.
+    expect(grid.isPassable(grid.indexOf(8, 6))).toBe(true);
+  });
+
+  it('bars a single tile when it is not scaled up at all', () => {
+    const { grid } = gridFromScene(room([{ model: 'pillar', position: { x: 4, y: 4 }, rotation: 0, solid: true }]));
+    expect(grid.isPassable(grid.indexOf(4, 4))).toBe(false);
+    expect(grid.isPassable(grid.indexOf(5, 4))).toBe(true);
+  });
+
+  it('leaves the floor where it is, so a solid prop is not stood on top of itself', () => {
+    const { grid } = gridFromScene(room([{ model: 'boulder', position: { x: 1, y: 1 }, rotation: 0, span: 2, solid: true }]));
+    // `lift` is what everything standing on a cell is seated by, the prop included, and so are
+    // the ground models drawn under it. Raising it would float both on top of the block.
+    expect(grid.lift[grid.indexOf(1, 1)]).toBe(0);
+    expect(grid.heightAt(grid.indexOf(1, 1))).toBe(0);
+  });
+
+  it('keeps a block that hangs off the edge of the room to the tiles the room has', () => {
+    const { grid } = gridFromScene(room([{ model: 'boulder', position: { x: 9, y: 7 }, rotation: 0, span: 4, solid: true }]));
+    expect(grid.isPassable(grid.indexOf(9, 7))).toBe(false);
+    // The rest of the block is off the map, and asking for it is not an error.
+    expect(grid.indexOf(12, 10)).toBe(NO_TILE);
   });
 });

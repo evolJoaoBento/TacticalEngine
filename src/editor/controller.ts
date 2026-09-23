@@ -33,7 +33,6 @@ import {
   addAdversary,
   addDeco,
   addEncounter,
-  addInteractable,
   adjustHeight,
   brushTiles,
   removeAdversary,
@@ -42,8 +41,13 @@ import {
   rotateDeco,
   setSpawns,
   toggleTriggerCell,
+  type Edit,
 } from './session';
 import { moveAdversary, moveDeco, moveInteractable, moveSpawn } from './move-edits';
+import { decoCovers } from '../engine/scene/deco-span';
+import { addPropPreset, faceDeco, functionDeco, presetLabel, remodelDeco, removePropPreset, resizeDeco, solidifyDeco, type PropPreset } from './prop-edits';
+import { PROP_FUNCTIONS, pairTaken } from '../engine/scene/prop-functions';
+import type { PropFunction } from '../engine/scene/prop-function-schema';
 
 export type EditorTool =
   /** Click things to inspect them; changes nothing. */
@@ -54,7 +58,6 @@ export type EditorTool =
   | 'lower'
   | 'prop'
   | 'spawn'
-  | 'interactable'
   | 'adversary'
   | 'trigger'
   | 'erase';
@@ -99,8 +102,27 @@ export interface EditorToolState {
   tileId: string;
   /** Prop the prop tool places. */
   propModel: string;
-  /** Kind the interactable tool places. */
-  interactableKind: Interactable['kind'];
+  /**
+   * How many tiles across that prop is placed, as a square block anchored at the tile clicked.
+   *
+   * One is a prop on its tile, which is nearly all of them; above that the same model is drawn
+   * across that much ground, which is how a boulder or a great tree covers a 3x3 without a second
+   * model file existing. `scene/deco-span.ts` owns what the block means.
+   */
+  propSpan: number;
+  /**
+   * Whether the next prop placed is an obstacle rather than scenery.
+   *
+   * Off by default, which is what a prop has always been. On, the block it covers is barred:
+   * nothing walks through it and nothing sees through it, so a boulder across three tiles is an
+   * obstacle three tiles across. `scene/grid-from-scene.ts` is where that reaches a walk.
+   */
+  propSolid: boolean;
+  /**
+   * What the next prop placed does when used; nothing, which makes it scenery, until one is picked.
+   * `scene/prop-functions.ts` says what each one does.
+   */
+  propFunction: PropFunction | undefined;
   /** Adversary content id the adversary tool places. */
   adversaryId: string;
   /** Encounter that adversaries and triggers are added to. */
@@ -122,8 +144,10 @@ export const DEFAULT_TOOL_STATE: EditorToolState = {
   // structures and nothing else now, so opening it holding a kind of ground would be a
   // tool holding something it cannot place.
   tileId: 'platform',
-  propModel: 'crate',
-  interactableKind: 'chest',
+  propModel: 'crate-prop',
+  propSpan: 1,
+  propSolid: false,
+  propFunction: undefined,
   adversaryId: 'bandit-cutter',
   encounterId: null,
   brushSize: 1,
@@ -189,6 +213,16 @@ export class EditorController {
   private lastBuildingPoint: Point | null = null;
   /** The object the inspector is showing, if the select tool has hit one. */
   selected: string | null = null;
+  /**
+   * The prop the panel is showing, as its place in the room's list.
+   *
+   * An index rather than the prop itself, the way a carry names one: a prop has no id, and a
+   * reference held across an undo would point at something the history has thrown away. Read it
+   * through `selectedDeco`, which checks it still names a prop before answering.
+   */
+  selectedProp: number | null = null;
+  /** The remix whose settings are in hand, when the strip's pick came from one. */
+  pickedPreset: string | null = null;
   /**
    * The placed creature Combat's panel is showing. Kept apart from `selected`
    * because the two modes pick different kinds of thing, and one field holding
@@ -303,6 +337,7 @@ export class EditorController {
     // The selection belonged to the room being left.
     this.selected = null;
     this.selectedAdversary = null;
+    this.selectedProp = null;
   }
 
   set<K extends keyof EditorToolState>(key: K, value: EditorToolState[K]): void {
@@ -418,7 +453,7 @@ export class EditorController {
     }
     const scene = this.scene;
     // Sparse tools reach past the room's edge: what they act on is keyed by its own coordinates.
-    if (['prop', 'interactable', 'adversary'].includes(this.state.tool) || (this.mode === 'terrain' && ['erase', 'select'].includes(this.state.tool))) {
+    if (['prop', 'adversary'].includes(this.state.tool) || (this.mode === 'terrain' && ['erase', 'select'].includes(this.state.tool))) {
       if (!isBuildCoordinate(point.x) || !isBuildCoordinate(point.y)) return 'none';
       const changed = this.run(point, [], pressed);
       if (changed !== 'none') this.onChange(changed);
@@ -508,9 +543,13 @@ export class EditorController {
         // plane the pointer reads is the piece's own, and the wheel lifts it while it is held.
         const held = this.pickUp(point, this.mode === 'terrain' ? ['object', 'creature', 'prop', 'spawn', 'piece'] : ['object', 'creature', 'prop', 'spawn']);
         if (held?.piece !== undefined) this.state.buildLevel = held.piece.level;
+        // Taking hold of a prop is how the panel is pointed at one without the prop tool; taking
+        // hold of anything else lets go of it, so the panel never shows a prop nobody chose.
+        const prop = held?.kind === 'prop' ? Number(held.key) : null;
         const next = held?.kind === 'object' ? held.key : null;
-        if (next === this.selected) return 'none';
+        if (next === this.selected && prop === this.selectedProp) return 'none';
         this.selected = next;
+        this.selectedProp = prop;
         return 'content';
       }
 
@@ -529,18 +568,30 @@ export class EditorController {
 
       case 'prop': {
         if (!pressed) return 'none';
-        // Clicking a tile that already holds this prop turns it, which is how the
-        // legacy editor let one palette entry cover four facings.
+        // Clicking a tile that already holds this prop turns it, which is how the legacy editor
+        // let one palette entry cover four facings. The first click takes hold of it instead: a
+        // prop has settings to show now, and reaching for them should not spin somebody else's
+        // boulder before you have seen what it is. Placing takes hold too, so the old rhythm -
+        // put one down, click to turn it - is unchanged.
         const existing = this.decoAt(point);
         if (existing !== null && existing.model === state.propModel) {
-          session.run(rotateDeco(sceneId, point, state.rotationStep));
+          const index = this.scene.decos.lastIndexOf(existing);
+          if (this.selectedProp === index) session.run(rotateDeco(sceneId, point, state.rotationStep));
+          else this.selectedProp = index;
         } else {
           const deco: Deco = {
             model: state.propModel,
             position: this.placementAt(point),
             rotation: state.buildRotation * Math.PI / 2,
+            // Left off entirely at one, so an ordinary prop's document says nothing about size.
+            ...(state.propSpan > 1 ? { span: state.propSpan } : {}),
+            ...(state.propSolid ? { solid: true } : {}),
+            // A function needs the id its state is kept by, and a pair two portals already hold is not a third's.
+            ...(state.propFunction === undefined ? {} : { id: this.newThingId(state.propModel, point), function: this.freePairs(structuredClone(state.propFunction), undefined) }),
           };
           session.run(addDeco(sceneId, deco));
+          this.selectedProp = this.scene.decos.length - 1;
+          if (deco.solid === true && deco.function === undefined) return 'terrain';
         }
         return 'content';
       }
@@ -551,17 +602,6 @@ export class EditorController {
         const at = spawns.findIndex((s) => s.x === point.x && s.y === point.y);
         const next = at >= 0 ? spawns.filter((_, i) => i !== at) : [...spawns, { ...point }];
         session.run(setSpawns(sceneId, next));
-        return 'content';
-      }
-
-      case 'interactable': {
-        if (!pressed) return 'none';
-        const existing = this.interactableAt(point);
-        if (existing !== null) {
-          session.run(removeInteractable(sceneId, existing.id));
-          return 'content';
-        }
-        session.run(addInteractable(sceneId, this.newInteractable(point)));
         return 'content';
       }
 
@@ -596,8 +636,12 @@ export class EditorController {
         // Topmost content first, so one tool clears a stack a click at a time.
         const deco = this.decoAt(point);
         if (deco !== null) {
+          // Whatever the panel was showing is gone, or is now a different prop under the
+          // same number: every index above the hole slid down by one.
+          this.selectedProp = null;
+          const was = this.propChange(deco);
           session.run(removeDecoAt(sceneId, point));
-          return 'content';
+          return was;
         }
         const interactable = this.interactableAt(point);
         if (interactable !== null) {
@@ -770,7 +814,9 @@ export class EditorController {
       : held.kind === 'object' ? moveInteractable(sceneId, held.key, held.to, held.rotation)
       : held.kind === 'prop' ? moveDeco(sceneId, Number(held.key), held.to, held.rotation)
       : moveSpawn(sceneId, Number(held.key), held.to);
-    if (this.session.run(edit)) this.onChange('content');
+    // A solid prop carries its bars with it: where it was has to open as where it lands closes.
+    const change = held.kind === 'prop' ? this.propChange(this.scene.decos[Number(held.key)]) : 'content';
+    if (this.session.run(edit)) this.onChange(change);
   }
 
   /**
@@ -841,11 +887,184 @@ export class EditorController {
   }
 
   /** The prop on a tile, topmost first. */
+  /** The remixes this project has saved, newest last. */
+  get propPresets(): readonly PropPreset[] {
+    return this.session.project.propPresets ?? [];
+  }
+
+  /**
+   * Take up a prop from the strip: a bare model, or a remix, which brings its settings with it.
+   *
+   * A remix is not a kind of prop - what it places is an ordinary prop - so this only fills in
+   * the same three settings a hand would have set, and the prop that lands knows nothing about
+   * where its size came from.
+   */
+  pickProp(model: string): void {
+    // Reaching into the strip is reaching for the next prop, not for the one being edited, so
+    // the panel lets go: otherwise the size buttons would go on showing the selected prop's size
+    // while the settings they set belonged to something else.
+    this.selectedProp = null;
+    const preset = this.propPresets.find((saved) => saved.id === model);
+    this.pickedPreset = preset?.id ?? null;
+    this.state.propModel = preset?.model ?? model;
+    if (preset === undefined) return;
+    this.state.propSpan = preset.span ?? 1;
+    this.state.propSolid = preset.solid === true;
+    this.state.propFunction = preset.function === undefined ? undefined : structuredClone(preset.function);
+    this.state.buildRotation = (Math.round((preset.rotation ?? 0) / (Math.PI / 2)) % 4 + 4) % 4;
+  }
+
+  /**
+   * Run an edit and tell the viewport about it.
+   *
+   * Running it off the session alone notifies the session's own subscribers, which redraws the
+   * panels and nothing else: the room goes on being drawn as it was until something else happens
+   * to redraw it. The board is `onChange`'s to reach, and an edit that changes what is on the
+   * board has to say so here.
+   */
+  private runOnBoard(edit: Edit, change: EditorChange = 'content'): boolean {
+    if (!this.session.run(edit)) return false;
+    this.onChange(change);
+    return true;
+  }
+
+  /**
+   * What kind of change a prop is.
+   *
+   * A prop is scenery, and scenery is 'content': the room redraws and the ground is untouched. A
+   * prop that stops a walk is not scenery - it bars the tiles it covers - and the bars live on
+   * the grid, which only a 'terrain' change rebuilds. Reported for both the prop as it is and the
+   * prop as it was, since turning solid off has to take the bars away as surely as turning it on
+   * puts them there. `rebuildTerrain` redraws the scenery too, so nothing is lost by saying so.
+   */
+  private propChange(...decos: (Deco | null | undefined)[]): EditorChange {
+    return decos.some((deco) => deco?.solid === true) ? 'terrain' : 'content';
+  }
+
+  /** Draw the prop the panel is showing across a different block. Nothing selected, nothing done. */
+  resizeSelected(span: number): boolean {
+    if (this.selectedProp === null || this.selectedDeco === null) return false;
+    return this.runOnBoard(resizeDeco(this.sceneId, this.selectedProp, span), this.propChange(this.selectedDeco));
+  }
+
+  /** Say whether the prop the panel is showing stops a walk. */
+  solidifySelected(solid: boolean): boolean {
+    if (this.selectedProp === null || this.selectedDeco === null) return false;
+    // Either direction moves bars, so either direction is a change to the ground.
+    return this.runOnBoard(solidifyDeco(this.sceneId, this.selectedProp, solid), 'terrain');
+  }
+
+  /** Turn the prop the panel is showing to a facing. */
+  faceSelected(rotation: number): boolean {
+    if (this.selectedProp === null || this.selectedDeco === null) return false;
+    return this.runOnBoard(faceDeco(this.sceneId, this.selectedProp, rotation));
+  }
+
+  /**
+   * Keep what is in hand as a remix, and take it up: the settings are saved and still set.
+   *
+   * What is saved is what would be placed next - the model, the block, the facing - rather than
+   * what happens to be selected, because the panel's controls are the same either way and the
+   * thing in hand is the thing the buttons have been aimed at.
+   */
+  saveRemix(): string | null {
+    const span = this.state.propSpan;
+    const rotation = this.state.buildRotation * Math.PI / 2;
+    const solid = this.state.propSolid;
+    const fn = this.state.propFunction;
+    // What it does is part of what it is: two containers of the same crate with different things in
+    // them are two remixes, so the function's own fingerprint goes into the id.
+    const does = fn === undefined ? '' : `-${fn.kind}-${fingerprint(JSON.stringify(fn))}`;
+    const id = `remix-${this.state.propModel}-${span}-${this.state.buildRotation}${solid ? '-solid' : ''}${does}`.toLowerCase();
+    if (this.propPresets.some((saved) => saved.id === id)) return (this.pickedPreset = id);
+    const preset: PropPreset = {
+      id,
+      label: presetLabel(this.state.propModel, span, solid, fn === undefined ? undefined : PROP_FUNCTIONS[fn.kind].label),
+      model: this.state.propModel,
+      ...(span > 1 ? { span } : {}),
+      ...(rotation === 0 ? {} : { rotation }),
+      ...(solid ? { solid: true } : {}),
+      ...(fn === undefined ? {} : { function: structuredClone(fn) }),
+    };
+    if (!this.session.run(addPropPreset(preset))) return null;
+    return (this.pickedPreset = id);
+  }
+
+  /**
+   * Give the prop the panel is showing a function, or take its function away. Nothing selected,
+   * nothing done. The prop is given the id its state is kept by if it has none.
+   */
+  setSelectedFunction(fn: PropFunction | undefined): boolean {
+    const deco = this.selectedDeco;
+    if (this.selectedProp === null || deco === null) return false;
+    const id = deco.id ?? this.newThingId(deco.model, deco.position);
+    return this.runOnBoard(functionDeco(this.sceneId, this.selectedProp, fn === undefined ? undefined : structuredClone(fn), id));
+  }
+
+  /** Draw the prop the panel is showing with another model. */
+  remodelSelected(model: string): boolean {
+    if (this.selectedProp === null || this.selectedDeco === null) return false;
+    return this.runOnBoard(remodelDeco(this.sceneId, this.selectedProp, model));
+  }
+
+  /**
+   * Point the panel at the prop with this id, as a click on it would. What a test or a script reaches
+   * for when it knows a thing by name rather than by where it stands.
+   */
+  selectPropById(id: string): boolean {
+    const index = this.scene.decos.findIndex((deco) => deco.id === id);
+    if (index < 0) return false;
+    this.selected = null;
+    this.selectedProp = index;
+    return true;
+  }
+
+  /** The props already holding a pair id, when two others do and it cannot be given to this one. */
+  pairTakenBy(pair: string, self: string | undefined): string[] {
+    return pairTaken(this.session.project, pair, self);
+  }
+
+  /**
+   * An id for a thing that can be used, the way objects were always named: what it is and where,
+   * `door-12-7`. Unique across the room's props and objects, since both are found by it.
+   */
+  private newThingId(model: string, at: Point): string {
+    const base = `${model}-${at.x}-${at.y}`.toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/-+/g, '-').replace(/^-+|-+$/g, '') || 'thing';
+    const taken = new Set([...this.scene.decos.map((deco) => deco.id), ...this.scene.interactables.map((thing) => thing.id)]);
+    let id = base;
+    for (let n = 2; taken.has(id); n++) id = `${base}-${n}`;
+    return id;
+  }
+
+  /** A function with every pair id two other portals already hold emptied, for its author to choose again. */
+  private freePairs(fn: PropFunction, self: string | undefined): PropFunction {
+    if (fn.kind === 'portal') return pairTaken(this.session.project, fn.pair, self).length > 0 ? { ...fn, pair: '' } : fn;
+    if (fn.kind !== 'trapped') return fn;
+    return {
+      ...fn,
+      ...(fn.success === undefined ? {} : { success: this.freePairs(fn.success, self) }),
+      ...(fn.failure === undefined ? {} : { failure: this.freePairs(fn.failure, self) }),
+    };
+  }
+
+  /** Forget a remix. Props placed from it stay: they were only ever ordinary props. */
+  removeRemix(id: string): boolean {
+    if (this.pickedPreset === id) this.pickedPreset = null;
+    return this.session.run(removePropPreset(id));
+  }
+
+  /** The prop the panel is showing, or nothing when the number no longer names one. */
+  get selectedDeco(): Deco | null {
+    return this.selectedProp === null ? null : this.scene.decos[this.selectedProp] ?? null;
+  }
+
   decoAt(point: Point): Deco | null {
     const decos = this.scene.decos;
+    // Anywhere in the block it covers, not just the tile it is anchored to: a click on the
+    // south-east corner of a 3x3 boulder is a click on that boulder (`scene/deco-span.ts`).
     for (let i = decos.length - 1; i >= 0; i--) {
       const deco = decos[i]!;
-      if (deco.position.x === point.x && deco.position.y === point.y) return deco;
+      if (decoCovers(deco, point)) return deco;
     }
     return null;
   }
@@ -952,24 +1171,6 @@ export class EditorController {
     return `encounter-${n}`;
   }
 
-  private newInteractable(point: Point): Interactable {
-    return {
-      id: this.uniqueId(this.state.interactableKind, point),
-      kind: this.state.interactableKind,
-      position: this.placementAt(point),
-      name: '',
-      flavor: '',
-      model: null,
-      rotation: 0,
-      blocksMovement: true,
-      repeatable: false,
-      effects: [],
-      lockedText: '',
-      tags: [],
-      data: {},
-    };
-  }
-
   /**
    * A stable id from the thing and where it stands, with a counter only if that
    * collides. Positional ids match what the legacy importer produces, so hand-made
@@ -992,4 +1193,11 @@ export class EditorController {
 
 function inBounds(scene: SceneDoc, point: Point): boolean {
   return point.x >= 0 && point.y >= 0 && point.x < scene.width && point.y < scene.height;
+}
+
+/** A short, stable fingerprint of some text: enough to tell two remixes apart in an id. */
+function fingerprint(text: string): string {
+  let hash = 5381;
+  for (let i = 0; i < text.length; i++) hash = ((hash << 5) + hash + text.charCodeAt(i)) >>> 0;
+  return hash.toString(36).slice(0, 6);
 }

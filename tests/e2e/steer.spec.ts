@@ -95,7 +95,21 @@ test('a held button walks the selected character towards the pointer, with the c
     const tile = api.reachable().filter((t) => away(t) > 2 && away(t) < 3.5 && clear(t)).sort((x, y) => away(x) - away(y))[0]!;
     return { to: { x: tile % 44, y: Math.floor(tile / 44) }, px: api.screenOf(tile) };
   });
-  await page.mouse.click(clicked.px.x, clicked.px.y);
+  // Held the length of a real click, not Playwright's instant one. `mouse.click` puts the button
+  // down and up in the same tick, so no frame is ever drawn while it is down - which is why this
+  // test passed for a build that snapped the camera onto the character on every press. A human
+  // click lasts fifty to a hundred and fifty milliseconds, which is several frames, and the
+  // camera must not have moved by the end of any of them.
+  const before = await page.evaluate(() => window.__engine!.camera());
+  await page.mouse.move(clicked.px.x, clicked.px.y);
+  await page.mouse.down();
+  await page.waitForTimeout(110);
+  const during = await page.evaluate(() => window.__engine!.camera());
+  await page.mouse.up();
+  expect(
+    Math.hypot(during.target.x - before.target.x, during.target.z - before.target.z),
+    'the camera moved while the button was merely down',
+  ).toBeLessThan(0.05);
   expect(await page.evaluate(() => window.__engine!.selected())).toBe('kara');
   await expect
     .poll(async () => page.evaluate((to) => {
@@ -103,4 +117,12 @@ test('a held button walks the selected character towards the pointer, with the c
       return Math.hypot(at.x - to.x, at.y - to.y);
     }, clicked.to), { timeout: 30_000 })
     .toBeLessThan(0.75);
+
+  // And she walked there with the camera left exactly where the player had put it. This is the
+  // whole of the rule: the click moves the character, the hold moves the view.
+  const settled = await page.evaluate(() => window.__engine!.camera());
+  expect(
+    Math.hypot(settled.target.x - before.target.x, settled.target.z - before.target.z),
+    'the camera followed a walk that was only clicked for',
+  ).toBeLessThan(0.05);
 });

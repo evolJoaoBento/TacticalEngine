@@ -53,6 +53,7 @@ import {
 } from './effects';
 import type { Amount, CheckTrait, ConditionDuration, CountName } from './schema';
 import { COUNT_NAMES } from './schema';
+import { applyThingEffect } from './thing-effects';
 
 /** What one damage event did to one creature. */
 export interface DealtDamage {
@@ -107,6 +108,7 @@ export interface ScriptWorld extends ConditionContext {
   giveKey(key: string): void;
   setVar(name: string, value: ScriptValue): void;
   openInteractable(id: string): void;
+  closeInteractable(id: string): void;
   removeInteractable(id: string): void;
   markInteractableUsed(id: string): void;
   startEncounter(id: string): void;
@@ -288,7 +290,9 @@ export type JournalEntry =
   /** Items gained or lost. `change` is negative when they went. */
   | { kind: 'item'; item: string; change: number }
   | { kind: 'var'; name: string; value: ScriptValue }
-  | { kind: 'interactable'; id: string; change: 'open' | 'removed' | 'used' }
+  | { kind: 'interactable'; id: string; change: 'open' | 'closed' | 'removed' | 'used' }
+  | { kind: 'openContainer'; id: string }
+  | { kind: 'teleport'; pair: string; from: string | null }
   | { kind: 'loot'; table?: string; found: readonly { item: string; quantity: number }[] }
   /** `targets` and `dice` are set when the damage was rolled at someone. */
   | {
@@ -1064,10 +1068,8 @@ export class ScriptRunner {
         this.journal.push({ kind: 'var', name: effect.name, value: next });
         return null;
       }
-      case 'open':
-      case 'remove':
-      case 'markUsed':
-        return this.applyInteractable(effect);
+      case 'open': case 'close': case 'toggleOpen': case 'remove': case 'markUsed': case 'openContainer': case 'teleport':
+        return applyThingEffect(effect, world, this.journal, this.subject);
       case 'loot': {
         // The legacy importer produces table-less `loot`s; those find nothing
         // rather than throwing.
@@ -1908,25 +1910,6 @@ export class ScriptRunner {
     return null;
   }
 
-  private applyInteractable(
-    effect: Extract<Effect, { kind: 'open' | 'remove' | 'markUsed' }>,
-  ): null {
-    // An effect with no id targets whatever the script was started from; a caller
-    // that has no such subject simply gets nothing, rather than a crash.
-    const id = effect.interactable ?? this.subject;
-    if (id === null || id === undefined) return null;
-    if (effect.kind === 'open') {
-      this.world.openInteractable(id);
-      this.journal.push({ kind: 'interactable', id, change: 'open' });
-    } else if (effect.kind === 'remove') {
-      this.world.removeInteractable(id);
-      this.journal.push({ kind: 'interactable', id, change: 'removed' });
-    } else {
-      this.world.markInteractableUsed(id);
-      this.journal.push({ kind: 'interactable', id, change: 'used' });
-    }
-    return null;
-  }
 }
 
 /**

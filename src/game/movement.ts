@@ -164,6 +164,38 @@ export function closeToStrike(demo: Pick<DemoScene, 'grid' | 'state' | 'party' |
 }
 
 /**
+ * Walk up to a thing clicked from too far away to use it: to the cheapest tile this move reaches
+ * that is within `reach` of any tile the thing covers, as a click on an adversary walks up to swing.
+ * Out of a fight that is anywhere the floor goes; in one, only as far as the turn's move, and only
+ * for somebody whose turn it is. 'inReach' when they already were, 'closed' once walked, and
+ * 'short' - nobody moved - when nowhere this move is in reach, which the use itself then says.
+ */
+export function closeToUse(demo: Pick<DemoScene, 'grid' | 'state' | 'party' | 'sheets' | 'world' | 'log' | 'motions' | 'encounter'>, id: string, thing: string, reach: number): 'inReach' | 'closed' | 'short' {
+  const walker = demo.state.entity(id);
+  const covers = demo.state.interactableCovers(thing);
+  if (walker === undefined || covers.length === 0) return 'short';
+  const near = (tile: number): boolean =>
+    covers.some((at) => Math.max(Math.abs(demo.grid.xOf(at) - demo.grid.xOf(tile)), Math.abs(demo.grid.yOf(at) - demo.grid.yOf(tile))) <= reach);
+  if (near(walker.tile)) return 'inReach';
+  const fighting = inCombat(demo);
+  if (fighting && !demo.encounter!.canAct(id)) return 'short';
+  const field = fighting ? demo.party.covered(id, fightWalk(demo, id)) : demo.party.reachable(id, { inCombat: false });
+  let best = NO_TILE;
+  let bestCost = Infinity;
+  for (const tile of field.tiles()) {
+    if (!near(tile)) continue;
+    const cost = field.costTo(tile);
+    if (cost < bestCost || (cost === bestCost && tile < best)) {
+      best = tile;
+      bestCost = cost;
+    }
+  }
+  if (best === NO_TILE) return 'short';
+  walkSelected(demo, id, best, fighting);
+  return demo.state.entity(id)!.tile === best ? 'closed' : 'short';
+}
+
+/**
  * The tile the selected member would strike a target from: their own when it
  * is already in reach, else the cheapest to walk to this move that the weapon
  * reaches from; `NO_TILE` when none is.
@@ -223,11 +255,16 @@ export interface WalkPreview {
 }
 
 /**
+ * `from`, when given, is the ground the figure is actually standing on: part-way through a walk
+ * that is not where the document says they are, and the line has to be drawn from the body a
+ * player is looking at, because a click there will interrupt the walk and start from exactly
+ * there. See `game/land.ts`.
+ *
  * What `moveSelectedTo` would do with a click on a spot, without doing it:
  * the line drawn on the ground as the pointer moves. Null when nothing would
  * move - nobody selected, a script waiting, nowhere to go.
  */
-export function previewWalk(demo: Pick<DemoScene, 'grid' | 'state' | 'party' | 'characters' | 'project' | 'ambush' | 'pending' | 'encounter'>, destination: number, aimed: Spot): WalkPreview | null {
+export function previewWalk(demo: Pick<DemoScene, 'grid' | 'state' | 'party' | 'characters' | 'project' | 'ambush' | 'pending' | 'encounter'>, destination: number, aimed: Spot, from?: Spot): WalkPreview | null {
   if (demo.pending !== null || demo.ambush !== null) return null;
   const id = demo.party.selected;
   if (id === null || !demo.party.canCommand(id)) return null;
@@ -237,20 +274,20 @@ export function previewWalk(demo: Pick<DemoScene, 'grid' | 'state' | 'party' | '
 
   if (fighting) {
     // One line, to where the click aimed: as much of it as stays in the circle, and the rest of it past that.
-    const walk = demo.party.planWalk(id, destination, { ...fightWalk(demo, id), short: true, at: aimed });
+    const walk = demo.party.planWalk(id, destination, { ...fightWalk(demo, id), short: true, at: aimed, ...(from === undefined ? {} : { from }) });
     if (walk === null) return null;
     const beyond = walk.beyond ?? [];
     // Asked last: the rule's own search reuses the buffers the way above was traced over.
     return { route: walk.route, beyond, run: beyond.length >= 2 && underPressure(demo, id, destination, aimed) };
   }
-  const field = demo.party.reachable(id, { inCombat: false });
+  const field = demo.party.reachable(id, { inCombat: false, ...(from === undefined ? {} : { from }) });
   if (field.canReach(destination)) {
-    const walk = demo.party.planWalk(id, destination, { at: aimed });
+    const walk = demo.party.planWalk(id, destination, { at: aimed, ...(from === undefined ? {} : { from }) });
     return walk === null ? null : { route: walk.route, beyond: [], run: false };
   }
   const nearest = nearestReachable(demo, field, aimed, NO_TILE);
   if (nearest === NO_TILE || nearest === demo.state.entity(id)!.tile) return null;
-  const walk = demo.party.planWalk(id, nearest, { at: clampInto(demo.grid, aimed, nearest) });
+  const walk = demo.party.planWalk(id, nearest, { at: clampInto(demo.grid, aimed, nearest), ...(from === undefined ? {} : { from }) });
   return walk === null ? null : { route: walk.route, beyond: [], run: false };
 }
 

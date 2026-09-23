@@ -73,38 +73,32 @@ test('the frame rate reads under the top bar, and counts frames rather than gues
   expect(errors, `console errors: ${errors.join(' | ')}`).toEqual([]);
 });
 
-test('an object can be drawn with any model the project has, and put back to its kind', async ({ page }) => {
+test('a prop that does something can be drawn with any model the project has, and undone', async ({ page }) => {
   const errors = await editing(page);
+  // The demo's chest: an object once, a prop with a Script function now.
   await page.evaluate(() => {
     const api = window.__engine!;
     api.selectObject(api.objects().find((id) => id.startsWith('chest'))!);
   });
+  await expect(page.getByTestId('prop-inspector')).toBeVisible();
+  // A prop always has a model: the chest came across drawn with the body its kind always had.
+  expect(await page.evaluate(() => window.__engine!.objectField('model'))).toBe('chest-prop');
 
-  // Null until something is picked: the kind's own body is what `scene-view` falls back to,
-  // and the schema spells "no model of its own" as null rather than as an empty string.
-  expect(await page.evaluate(() => window.__engine!.objectField('model'))).toBeNull();
-
-  const picker = page.locator('[data-testid="object-model"]');
+  const picker = page.locator('[data-testid="prop-model"]');
   await expect(picker).toBeVisible();
-  // Every shipped .glb is in `project.assets`, discovered from public/models at build time,
-  // so the same list that re-skins a creature re-skins a chest.
+  // Every shipped .glb is in `project.assets`, discovered from public/models at build time, so the
+  // same list that re-skins a creature re-skins a chest.
   await expect(picker.locator('option[value="stone-block"]')).toHaveCount(1);
   await picker.selectOption('stone-block');
   expect(await page.evaluate(() => window.__engine!.objectField('model'))).toBe('stone-block');
 
-  // It goes through `updateInteractable` like every other field in this panel, so the top
-  // bar's undo reaches it rather than the document being written behind the session's back.
+  // Through the session like every other edit here, so the top bar's undo reaches it.
   await page.locator('[data-testid="undo"]').click();
-  expect(await page.evaluate(() => window.__engine!.objectField('model'))).toBeNull();
+  expect(await page.evaluate(() => window.__engine!.objectField('model'))).toBe('chest-prop');
   await page.locator('[data-testid="redo"]').click();
   expect(await page.evaluate(() => window.__engine!.objectField('model'))).toBe('stone-block');
-
-  // And back to the kind's own body: the empty option must write null, not ''. Asserted on
-  // the value rather than with a second undo, because successive edits to the same field
-  // share a merge key and coalesce into one step (`session.ts:481`, pinned by
-  // `session.test.ts:722`) - so an undo here rewinds the whole model change, not this half.
-  await picker.selectOption('');
-  expect(await page.evaluate(() => window.__engine!.objectField('model'))).toBeNull();
+  // What it does is untouched by what it is drawn with.
+  expect(await page.evaluate(() => window.__engine!.objectField('kind'))).toBe('chest');
   expect(errors, `console errors: ${errors.join(' | ')}`).toEqual([]);
 });
 
@@ -141,7 +135,7 @@ test('Terrain: its own tools, and a pick from the strip takes up the tool that p
 
   const strip = page.locator('[data-testid="terrain-library"]');
   await strip.locator('[data-tab="props"]').click();
-  await strip.locator('[data-item="barrel"]').click();
+  await strip.locator('[data-item="barrel-prop"]').click();
   await expect(strip.locator('[data-tab="props"]')).toHaveClass(/ph-on/);
   await expect(page.locator('[data-testid="tool-rail"] [data-tool="prop"]')).toHaveCount(0);
   // The rail not showing it is only half the claim: the pick has to have put
@@ -154,13 +148,13 @@ test('Terrain: its own tools, and a pick from the strip takes up the tool that p
   expect(await page.evaluate(() => window.__engine!.editorTool())).toBe('erase');
   expect(await page.evaluate(() => window.__engine!.editorTerrainTab())).toBe('props');
   await expect(page.locator('[data-testid="tool-rail"] [data-tool="erase"]')).toHaveCount(1);
-  await strip.locator('[data-item="barrel"]').click();
+  await strip.locator('[data-item="barrel-prop"]').click();
 
   const placed = await page.evaluate(() => {
     const api = window.__engine!;
     const models = (): string[] =>
       (JSON.parse(api.exportProject()) as { scenes: { decos: { model: string }[] }[] }).scenes[0]!.decos.map((d) => d.model);
-    const barrels = (): number => models().filter((model) => model === 'barrel').length;
+    const barrels = (): number => models().filter((model) => model === 'barrel-prop').length;
     const before = { all: models().length, barrels: barrels() };
     api.editAt(2 * 44 + 2);
     return { added: models().length - before.all, barrels: barrels() - before.barrels };

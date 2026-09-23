@@ -18,6 +18,7 @@ import type { LevelUpPlan } from '../engine/character/progression';
 import { PIT_SCENE_ID } from './demo-scenes';
 import { SAVED_LOG_LINES, loadGame, loadGameText, saveBlockedBy, saveGame, saveSchema } from './save';
 import { applyLevelUp } from './level-up';
+import { interactablesOf } from '../engine/scene/prop-functions';
 
 /**
  * Putting a campaign down and picking it up again.
@@ -31,7 +32,7 @@ const CHEST = 'chest-19-13';
 const scene = (seed = 'demo'): DemoScene => buildDemoScene(hollowVaultMap(), seed);
 
 function stand(demo: DemoScene, id: string): void {
-  const object = demo.scene.interactables.find((i) => i.id === id)!;
+  const object = interactablesOf(demo.scene).find((i) => i.id === id)!;
   demo.state.moveEntity(
     demo.party.selected!,
     tileOf(demo.grid, { x: object.position.x - 1, y: object.position.y }),
@@ -47,7 +48,7 @@ function loot(demo: DemoScene): void {
 
 /** The vault's door, and the tile it stands on. */
 function doorTile(demo: DemoScene): number {
-  const door = demo.scene.interactables.find((i) => i.kind === 'door')!;
+  const door = interactablesOf(demo.scene).find((i) => i.kind === 'door')!;
   return tileOf(demo.grid, door.position);
 }
 
@@ -273,7 +274,7 @@ describe('loading a game', () => {
     const tile = doorTile(demo);
     const mover = demo.party.selected!;
     expect(demo.state.blockedFor(mover)(tile)).toBe(true);
-    demo.world.openInteractable(demo.scene.interactables.find((i) => i.kind === 'door')!.id);
+    demo.world.openInteractable(interactablesOf(demo.scene).find((i) => i.kind === 'door')!.id);
     expect(demo.state.blockedFor(mover)(tile)).toBe(false);
 
     const back = reload(demo);

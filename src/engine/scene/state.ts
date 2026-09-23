@@ -27,6 +27,7 @@ import {
 } from '../rules/resources';
 import { shiftSnapshot } from './reshape';
 import type { SceneDoc } from './schema';
+import { footprintOf, interactablesOf } from './prop-functions';
 
 /** Which side an entity fights for. */
 export type Faction = 'party' | 'adversary' | 'neutral';
@@ -344,6 +345,11 @@ export class SceneState {
   /** Where each interactable stands, so removing one can free its tile. */
   private readonly interactableTiles = new Map<string, number>();
   /**
+   * Every tile a thing covers, when that is more than the one it stands on: a prop drawn across a
+   * block of tiles is used, opened and shut across all of them (`scene/deco-span.ts`).
+   */
+  private readonly interactableFootprints = new Map<string, number[]>();
+  /**
    * Interactables you can walk through once they are open — doors, and nothing
    * else. An opened chest still sits where it sat.
    */
@@ -364,16 +370,76 @@ export class SceneState {
    * agree, because the blocking index is built from the document and the
    * document says the door is shut.
    */
-  placeInteractable(id: string, tile: number, passableWhenOpen = false): void {
+  placeInteractable(id: string, tile: number, passableWhenOpen = false, footprint: readonly number[] = []): void {
     if (tile !== NO_TILE) this.interactableTiles.set(id, tile);
+    const covered = footprint.filter((at) => at !== NO_TILE);
+    if (covered.length > 1) this.interactableFootprints.set(id, covered);
+    else this.interactableFootprints.delete(id);
     if (passableWhenOpen) this.passableWhenOpen.add(id);
     else this.passableWhenOpen.delete(id);
+  }
+
+  /** Every tile it covers: its footprint when it has one, the tile it stands on otherwise. */
+  interactableCovers(id: string): number[] {
+    const footprint = this.interactableFootprints.get(id);
+    if (footprint !== undefined) return footprint;
+    const tile = this.interactableTile(id);
+    return tile === NO_TILE ? [] : [tile];
   }
 
   /** Open something, and get out of the way if it is the kind of thing that does. */
   openInteractable(id: string): void {
     this.interactable(id).open = true;
-    if (this.passableWhenOpen.has(id)) this.setInteractableBlocking(this.interactableTile(id), false);
+    if (this.passableWhenOpen.has(id)) for (const tile of this.interactableCovers(id)) this.setInteractableBlocking(tile, false);
+  }
+
+  /**
+   * Shut something that was open, and stand in the way again if it is a door.
+   *
+   * Not on somebody: a door swung shut on whoever is in the doorway would leave them standing
+   * inside a wall with no way out, since nothing can find a path off a blocked tile. So it stays
+   * open, and the caller reads that it did.
+   */
+  closeInteractable(id: string): boolean {
+    const state = this.interactable(id);
+    if (state.removed || !state.open) return !state.open;
+    const covers = this.interactableCovers(id);
+    if (this.passableWhenOpen.has(id) && covers.some((tile) => this.occupantsOf(tile).length > 0)) return false;
+    state.open = false;
+    if (this.passableWhenOpen.has(id)) for (const tile of covers) this.setInteractableBlocking(tile, true);
+    return true;
+  }
+
+  /** Take something out of the room: it is gone, and nothing it stood on is blocked by it any more. */
+  removeInteractable(id: string): void {
+    this.interactable(id).removed = true;
+    for (const tile of this.interactableCovers(id)) this.setInteractableBlocking(tile, false);
+  }
+
+  /**
+   * Stand the room's things up from what the document says, keeping what has happened to each.
+   *
+   * What building a room does, and what going back to play from the editor does too - the room is
+   * not rebuilt then, so a door placed in the editor would otherwise be walked through and one
+   * erased would still be in the way. A door already opened stays open; a chest already taken away
+   * stays gone. The two share this so that they cannot come to disagree.
+   */
+  replaceInteractables(things: readonly ThingPlacement[]): void {
+    this.blockingInteractables.clear();
+    this.interactableTiles.clear();
+    this.interactableFootprints.clear();
+    this.passableWhenOpen.clear();
+    for (const thing of things) {
+      this.placeInteractable(thing.id, thing.tile, thing.door, thing.footprint);
+      const was = this.interactables.get(thing.id);
+      const outOfTheWay = was?.removed === true || (thing.door && was?.open === true);
+      if (thing.blocks && !outOfTheWay) for (const tile of this.interactableCovers(thing.id)) this.setInteractableBlocking(tile, true);
+    }
+  }
+
+  /** Whether it is open, read without making a record for it: a view asks every frame, and a save should not grow for it. */
+  isOpen(id: string): boolean {
+    return this.interactables.get(id)?.open === true;
   }
 
   /** The tile an interactable stands on, or `NO_TILE`. */
@@ -489,7 +555,7 @@ export class SceneState {
       // believing a door the party opened or smashed is still in the way. Only
       // the snapshot knows otherwise.
       if (state.removed || (state.open && this.passableWhenOpen.has(id))) {
-        this.setInteractableBlocking(this.interactableTile(id), false);
+        for (const tile of this.interactableCovers(id)) this.setInteractableBlocking(tile, false);
       }
     }
     for (const [id, state] of Object.entries(snapshot.encounters)) {
@@ -597,6 +663,28 @@ export interface SceneStateOptions {
  * is how the legacy prototype worked — enemies stand on the map, dormant, until a
  * trigger cell or an effect wakes them.
  */
+/** Where one usable thing stands, what it covers, and whether it is in the way. */
+export interface ThingPlacement {
+  id: string;
+  tile: number;
+  /** Out of the way while it is open. */
+  door: boolean;
+  /** Every tile a prop covers; empty for an object that stands on one. */
+  footprint: readonly number[];
+  blocks: boolean;
+}
+
+/** Every usable thing in a room as the state places it: objects, and props with a function across their whole block. */
+export function placementsOf(scene: SceneDoc, grid: TileGrid): ThingPlacement[] {
+  return interactablesOf(scene).map((thing) => ({
+    id: thing.id,
+    tile: grid.indexOf(thing.position.x, thing.position.y),
+    door: thing.kind === 'door',
+    footprint: footprintOf(scene, thing.id).map((point) => grid.indexOf(point.x, point.y)),
+    blocks: thing.blocksMovement,
+  }));
+}
+
 export function sceneStateFromScene(
   scene: SceneDoc,
   grid: TileGrid,
@@ -606,11 +694,7 @@ export function sceneStateFromScene(
   const state = new SceneState(scene, grid, options.bad ?? createBad());
   const stats = options.adversaries ?? new Map<string, AdversaryStats>();
 
-  for (const interactable of scene.interactables) {
-    const tile = grid.indexOf(interactable.position.x, interactable.position.y);
-    state.placeInteractable(interactable.id, tile, interactable.kind === 'door');
-    if (interactable.blocksMovement) state.setInteractableBlocking(tile, true);
-  }
+  state.replaceInteractables(placementsOf(scene, grid));
 
   for (const encounter of scene.encounters) {
     for (const placement of encounter.adversaries) {

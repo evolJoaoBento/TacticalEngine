@@ -17,7 +17,6 @@ export const TOOL_LABELS: Readonly<Record<EditorTool, string>> = {
   raise: 'Raise ground',
   lower: 'Lower ground',
   prop: 'Place a prop',
-  interactable: 'Place an object',
   adversary: 'Place a creature',
   trigger: 'Trigger cells',
   spawn: 'Party start',

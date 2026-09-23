@@ -134,7 +134,10 @@ test('a jump aimed past their range walks first, and one in range does not', asy
   await expect.poll(() => page.evaluate(() => window.__engine!.gliding()), { timeout: 30_000 }).toBe(0);
   const landed = await page.evaluate(() => window.__engine!.tileOf('kara'));
   expect(landed).toBe(near.y * 44 + near.x);
-  expect(await page.evaluate(() => window.__engine!.log().at(-1)!.text)).toMatch(/^Quim jumps \d tiles?\.$/);
+  const said = await page.evaluate(() => window.__engine!.log().slice(-2).map((line) => line.text));
+  expect(said[0]).toMatch(/^Quim jumps \d tiles?\.$/);
+  // And lands alone: the ones walking with her do not follow a jump.
+  expect(said[1]).toBe('Quim goes on alone: the others stay where they are.');
 
   // Past her five tiles: not lit, and still aimed at - the walk is drawn, then the arc.
   await button.click();

@@ -299,8 +299,9 @@ describe('the shipped library', () => {
       buildModel(spec, fresh);
       parts += spec.parts.length;
     }
-    // The legacy library allocated one geometry and one material per part.
-    expect(parts).toBeGreaterThan(150);
+    // The legacy library allocated one geometry and one material per part. Fewer since ten props
+    // were retired for imported models, and still well over a hundred.
+    expect(parts).toBeGreaterThan(100);
     expect(fresh.primitives.size).toBeLessThan(parts * 0.8);
     expect(fresh.materials.size).toBeLessThan(parts * 0.8);
     fresh.dispose();

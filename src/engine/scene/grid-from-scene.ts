@@ -10,6 +10,7 @@
 import { NO_TILE, TileGrid, type PlacedPiece } from '../grid/grid';
 import { DEFAULT_TERRAIN_TYPES, TerrainPalette, terrain } from '../grid/terrain';
 import { pieceProfile, setStructures } from './building';
+import { decoFootprint } from './deco-span';
 import type { ContentIssue } from '../content/types';
 import type { Point, ProjectDoc, SceneDoc } from './schema';
 
@@ -73,6 +74,7 @@ export function gridFromScene(
   }
 
   stackPieces(scene, grid, palette);
+  barSolidProps(scene, grid);
 
   // One issue per unknown id, not per tile — a whole wall of typos is one problem.
   for (const [id, count] of unknown) {
@@ -85,6 +87,29 @@ export function gridFromScene(
   }
 
   return { grid, issues };
+}
+
+/**
+ * Bar the ground under a prop that is solid.
+ *
+ * A prop is scenery by default - the ground says what a walk costs, and the prop is a picture
+ * standing on it - so this only touches the ones an author has said are obstacles. Every tile of
+ * the block is barred, which is impassable and sight-blocking both: a boulder three tiles across
+ * is an obstacle three tiles across.
+ *
+ * What is *not* done is raise the surface. `barred` already stops a walk and a line of sight, and
+ * lifting the tile would seat the prop on top of its own block - `standHeight` reads `lift`, and
+ * so does everything else standing on that cell, including the ground drawn as models under it.
+ * So the block is solid without the floor under it moving.
+ */
+function barSolidProps(scene: SceneDoc, grid: TileGrid): void {
+  for (const deco of scene.decos) {
+    if (deco.solid !== true || deco.function !== undefined) continue;
+    for (const point of decoFootprint(deco)) {
+      const tile = grid.indexOf(point.x, point.y);
+      if (tile !== NO_TILE) grid.barred[tile] = 1;
+    }
+  }
 }
 
 /**

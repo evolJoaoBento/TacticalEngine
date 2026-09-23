@@ -570,6 +570,15 @@ export const effectSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('setVar'), name: z.string().min(1), value: scriptValueSchema }),
   z.object({ kind: z.literal('addVar'), name: z.string().min(1), by: z.number() }),
   z.object({ kind: z.literal('open'), interactable: z.string().min(1).optional() }),
+  /**
+   * The parts a prop's function is built from (`scene/prop-functions.ts`), each usable in any
+   * script: shut something `open` opened, flip it either way, show what a container holds, and
+   * send whoever used it to the other portal of a pair.
+   */
+  z.object({ kind: z.literal('close'), interactable: z.string().min(1).optional() }),
+  z.object({ kind: z.literal('toggleOpen'), interactable: z.string().min(1).optional() }),
+  z.object({ kind: z.literal('openContainer'), interactable: z.string().min(1).optional() }),
+  z.object({ kind: z.literal('teleport'), pair: z.string().min(1) }),
   z.object({ kind: z.literal('remove'), interactable: z.string().min(1).optional() }),
   z.object({ kind: z.literal('markUsed'), interactable: z.string().min(1).optional() }),
   z.object({ kind: z.literal('loot'), table: contentIdSchema.optional() }),

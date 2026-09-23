@@ -15,6 +15,7 @@ import { PIT_SCENE_ID } from './demo-scenes';
 import { loadGameText, saveGame } from './save';
 import { runScript } from '../engine/script/runner';
 import { createRng } from '../engine/core/rng';
+import { interactablesOf } from '../engine/scene/prop-functions';
 
 /**
  * Levelling up, in the game.
@@ -113,7 +114,7 @@ describe('taking the level', () => {
 
     const talking = scene();
     grant(talking);
-    const chest = talking.scene.interactables.find((i) => i.id === 'chest-19-13')!;
+    const chest = interactablesOf(talking.scene).find((i) => i.id === 'chest-19-13')!;
     talking.state.moveEntity(
       talking.party.selected!,
       tileOf(talking.grid, { x: chest.position.x - 1, y: chest.position.y }),
@@ -164,7 +165,7 @@ describe('the demo milestone', () => {
     const demo = scene();
     demo.scenario.items.set('wardens-word', 1);
     travelTo(demo, PIT_SCENE_ID);
-    const box = demo.scene.interactables.find((i) => i.id === 'strongbox')!;
+    const box = interactablesOf(demo.scene).find((i) => i.id === 'strongbox')!;
     demo.state.moveEntity(demo.party.selected!, tileOf(demo.grid, { x: box.position.x - 1, y: box.position.y }));
     expect(useSelectedOn(demo, 'strongbox').status).toBe('done');
     if (demo.pending !== null) answerPending(demo, { kind: 'continue' });

@@ -362,6 +362,16 @@ with a Blender-grey top bar of four modes (Inspector, Terrain, Combat, Interacti
 - content editors open as workspaces under the bar;
 - Combat's eraser takes creatures, trigger cells and party starts.
 
+**Props that do something (2026-09-23).** Objects and props are one thing: any prop can be given
+a function - Container, Door, Trapped, Portal or Script - from a select in the Props panel and the
+Inspector, and the Objects tab is gone. A container opens a window of what it holds and gives it up
+a Take at a time; a door blocks until used and swings open on its front-left edge; a trap asks for a
+roll and runs one function on a success and another on a failure, nested as deep as wanted; a
+portal pair carries the party to its other end, in the same room or another. Format 6 migrates old
+objects. Still open: a container cannot be filled by loot table, only item by item; a trap's roll is
+made by whoever used it, with nothing to spot or disarm it first; a portal has no look of its own
+while it is waiting for its other end.
+
 **Carrying (2026-09-15).** Anything placed in a room -- a creature, a prop, an object, a party start --
 is taken by a press on what is drawn rather than the ground behind it, carried hanging from the
 pointer, and dropped on release as one undo step. The editor draws party starts, and objects with no
@@ -463,8 +473,8 @@ the fight if there is one.
 **Still open:**
 - Creature placements now draw from the document; other editor overlays still need authoring views.
 - Trigger cells and spawns are never drawn.
-- No object has a model, so doors, chests, pillars and stairs are invisible in play too.
-- Only objects can be inspected.
+- A thing with no body of its own (an invisible trigger object) is still drawn nowhere in play.
+- Only props and objects can be inspected; a party start has no panel of its own.
 - Combat still holds the original tools; construction needs multilevel navigation.
 - **Editor camera**: right-drag pan, middle-drag orbit, wheel zoom, WASD/arrows, Q/E and Home work in edit mode;
   **F (frame the selected character) is still play-only**, there being no selection to frame.

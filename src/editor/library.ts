@@ -23,6 +23,14 @@ export interface LibraryItem {
   readonly swatch?: string;
   /** Words a search matches besides the label and the id. */
   readonly keywords?: readonly string[];
+  /**
+   * The model to draw its picture from, when that is not the id.
+   *
+   * A remix is named for itself - its id is the remix's, not a model's - so without this its
+   * card would fall back to the first letter of its label and a strip of saved boulders would
+   * be a row of Bs.
+   */
+  readonly model?: string;
 }
 
 /** One tab of the strip: a label over the cards it groups. */
@@ -93,26 +101,28 @@ export function tilesTab(types: readonly GroundType[]): LibraryTab {
 }
 
 /** Built-in props come first, then the project's imported models, marked "imported" so a designer can tell which ship with the engine. */
-export function propsTab(models: readonly string[], imported: readonly string[]): LibraryTab {
+export function propsTab(
+  models: readonly string[],
+  imported: readonly string[],
+  /** Remixes the project has saved: a model with its size and facing, offered as one more prop. */
+  presets: readonly { id: string; label: string; model: string; span?: number }[] = [],
+): LibraryTab {
   return {
     id: 'props',
     label: 'Props',
     items: [
+      // Remixes first: they are what this project has decided it wants, and a strip of forty
+      // models is a long way to scroll past the six somebody actually saved.
+      ...presets.map((preset) => ({
+        tab: 'props',
+        id: preset.id,
+        label: preset.label,
+        detail: preset.span === undefined || preset.span <= 1 ? 'remix' : `remix · ${preset.span}×${preset.span}`,
+        model: preset.model,
+      })),
       ...models.map((id) => ({ tab: 'props', id, label: titleCase(id) })),
       ...imported.map((id) => ({ tab: 'props', id, label: titleCase(id), detail: 'imported' })),
     ],
-  };
-}
-
-/** Every kind the schema allows, in the order a designer reaches for them. */
-export const OBJECT_KINDS: readonly Interactable['kind'][] = ['chest', 'door', 'pillar', 'portal', 'scripted'];
-
-/** One card per interactable kind, in OBJECT_KINDS order. */
-export function objectsTab(): LibraryTab {
-  return {
-    id: 'objects',
-    label: 'Objects',
-    items: OBJECT_KINDS.map((kind) => ({ tab: 'objects', id: kind, label: titleCase(kind) })),
   };
 }
 

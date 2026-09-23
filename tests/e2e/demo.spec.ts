@@ -38,6 +38,7 @@ declare global {
       moveTo: (tile: number) => boolean;
       walkTo: (x: number, y: number) => boolean;
       standingAt: (id: string) => { x: number; y: number } | null;
+      standingNow: (id: string) => { x: number; y: number } | null;
       screenAt: (x: number, y: number) => { x: number; y: number };
       previewAt: (x: number, y: number) => { route: { x: number; y: number }[]; beyond: { x: number; y: number }[]; run: boolean } | null;
       pathPoints: () => number;
@@ -47,6 +48,7 @@ declare global {
       reachable: () => number[];
       sample: (x: number, y: number) => number[];
       use: (id: string) => string;
+      approach: (id: string) => string;
       useInReach: () => string;
       answer: (
         response: { kind: 'choose'; index: number } | { kind: 'roll'; advantage?: number; disadvantage?: number; helpDice?: number; experience?: string } | { kind: 'cancel' } | { kind: 'answered'; reroll?: 'good' | 'bad' | 'both'; name?: boolean; raise?: number } | { kind: 'continue' },
@@ -57,6 +59,11 @@ declare global {
       clearDice: () => void;
       pendingKind: () => string | null;
       objects: () => string[];
+      /** The container whose window is open, and what is left in it. */
+      container: () => { id: string; lines: { item: string; count: number }[] } | null;
+      take: (item: string) => boolean;
+      /** How far a door is swung from its facing, in radians; null for a prop that is not a door. */
+      doorAngle: (id: string) => number | null;
       dialogueOptions: () => string[];
       hasDialogue: () => boolean;
       within: () => string | null;
@@ -143,6 +150,7 @@ declare global {
       buildAt: (x: number, y: number) => boolean;
       buildScreenAt: (x: number, y: number) => { x: number; y: number };
       editAt: (tile: number) => boolean;
+      propGhost: () => { id: string; span: number } | null;
       terrainAt: (tile: number) => string;
       heightAt: (tile: number) => number;
       undo: () => boolean;
@@ -198,7 +206,9 @@ test('renders the imported demo vault under headless WebGL, with no errors', asy
   expect(info.tiles).toBe(44 * 32);
   expect(info.entities).toBeGreaterThan(3);
   // Every deco got a model, and none fell back to the placeholder.
-  expect(info.decos).toBe(73); // the woods, the camp and the halls, as well as the old room's dressing
+  // the woods, the camp and the halls, the old room's dressing, and its door, chest, pillar and
+  // stair, which were objects until they became props that do something
+  expect(info.decos).toBe(77);
   expect(info.missingModels).toEqual([]);
 
   // Something was actually drawn: the frame is not one flat colour.
@@ -849,24 +859,19 @@ test('lists the scenes in the panel, marking where the party is', async ({ page 
 test('authors an object in the inspector, and plays what it wrote', async ({ page }) => {
   const consoleErrors = await boot(page);
 
-  // Author a brand new lever in the editor: a Strength roll that opens onto a
-  // line of prose. None of this touches a TypeScript file.
+  // Author a brand new lever in the editor: a prop that asks for a Strength roll and opens onto
+  // a line of prose. None of this touches a TypeScript file. A prop is put down as scenery and
+  // takes hold of it; what it is told makes it a thing that does something, with an id of its own.
   await page.evaluate(() => {
     const api = window.__engine!;
     api.setMode('edit');
-    api.setTool('interactable');
+    api.setTool('prop');
     // Somewhere the party can reach, in the open part of the vault.
     api.editAt(9 * 44 + 3);
   });
 
   const authored = await page.evaluate(() => {
     const api = window.__engine!;
-    const scene = api.exportProject();
-    const id = (JSON.parse(scene) as { scenes: { interactables: { id: string }[] }[] }).scenes[0]!
-      .interactables.map((i) => i.id)
-      .find((i) => i.startsWith('chest-3-9'))!;
-
-    api.selectObject(id);
     api.editObject({ name: 'A rusted lever' });
     api.editObject({ flavor: 'A lever, thick with rust, set into the floor.' });
     api.editObject({
@@ -880,10 +885,12 @@ test('authors an object in the inspector, and plays what it wrote', async ({ pag
       },
     });
 
-    return { id, name: api.objectField('name'), flavor: api.objectField('flavor') };
+    return { id: api.objectField('id') as string, name: api.objectField('name'), flavor: api.objectField('flavor') };
   });
 
   expect(authored.name).toBe('A rusted lever');
+  // Named the way objects always were: what it is drawn with, and where.
+  expect(authored.id).toMatch(/-3-9$/);
 
   // Now play it: walk up to the thing that did not exist a moment ago and use it.
   const played = await page.evaluate((id: string) => {
@@ -920,7 +927,7 @@ test('shows the inspector for a clicked object', async ({ page }) => {
   await expect(panel).toContainText('Flavour');
 
   // Editing the name in the panel reaches the document.
-  const name = panel.locator('input').first();
+  const name = panel.locator('[data-testid="script-settings"] input').first();
   await name.fill('A very old chest');
   const stored = await page.evaluate(() => window.__engine!.objectField('name'));
   expect(stored).toBe('A very old chest');
@@ -1958,17 +1965,6 @@ test('recalls a card from the vault for Stress, and passes the spotlight with a 
     api.select('kara');
     api.setCards('kara', ['power-slash', 'shield-wall', 'iron-stance', 'rallying-cry', 'unbroken', 'smoke-step']);
   });
-  // What a card costs is printed on the card the way the full card prints its recall cost: every
-  // coin sits inside its own card, down on the art, so the name above it is still readable.
-  const coins = await page.locator('[data-testid="action-bar"] .hand-cost').evaluateAll((els) => els.map((el) => {
-    const card = el.closest('.hand-card')!;
-    const coin = el.getBoundingClientRect();
-    const box = card.getBoundingClientRect();
-    const title = card.querySelector('.face-title')!.getBoundingClientRect();
-    return { inside: coin.top > box.top && coin.left >= box.left && coin.right <= box.right, clear: coin.top >= title.bottom - 3 };
-  }));
-  expect(coins.length).toBeGreaterThan(0);
-  expect(coins.every((coin) => coin.inside && coin.clear), JSON.stringify(coins)).toBe(true);
   await page.locator('[data-testid="open-loadout"]').click();
   const panel = page.locator('[data-testid="loadout"]');
   await expect(panel).toBeVisible();

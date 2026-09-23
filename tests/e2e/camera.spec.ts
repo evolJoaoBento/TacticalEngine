@@ -71,3 +71,30 @@ test('Ctrl + wheel over the board moves the build level a quarter tile a notch, 
   await expect(ladder).toHaveAttribute('aria-valuenow', '0.25');
   expect(await page.evaluate(() => window.__engine!.errors)).toEqual([]);
 });
+
+test('selecting another character from their card slides the camera over them', async ({ page }) => {
+  await booted(page);
+  // Finn sent off across the room first, without the camera: the driver's select does not move it.
+  const where = await page.evaluate(() => {
+    const api = window.__engine!;
+    api.setDiceSpeed(0);
+    api.select('finn');
+    api.walkTo(10.5, 22.5);
+    api.arrive();
+    api.select('kara');
+    // Where they stand, in the room's own frame: the vault is 44 by 32, a tile a unit, centred.
+    const at = api.standingAt('finn')!;
+    return { x: at.x - 21.5, z: at.y - 15.5 };
+  });
+  const before = await camera(page);
+  expect(Math.hypot(before.target.x - where.x, before.target.z - where.z)).toBeGreaterThan(2);
+
+  await page.locator('.hud-card[data-member="finn"]').click();
+  expect(await page.evaluate(() => window.__engine!.selected())).toBe('finn');
+  // Over them, at the angle and distance it had. The handle reads where the camera is going; that it
+  // eases there rather than cutting is the camera's own, and `camera-focus.test.ts` watches it.
+  await expect.poll(async () => { const now = await camera(page); return Math.hypot(now.target.x - where.x, now.target.z - where.z); }).toBeLessThan(0.1);
+  const after = await camera(page);
+  expect(after.yaw).toBeCloseTo(before.yaw);
+  expect(after.distance).toBeCloseTo(before.distance);
+});

@@ -28,6 +28,10 @@ export default defineConfig({
   },
   webServer: {
     command: `npx vite --port ${PORT} --strictPort --host 127.0.0.1`,
+    // The suite runs on the demo built from code, never on the project somebody has been editing:
+    // a test that assumes the vault's walls cannot pass on a room where they were moved, and this
+    // server also refuses to save, so no test can overwrite that project by pressing Ctrl+S.
+    env: { TACTICAL_BOOT: 'builtin' },
     url: `http://127.0.0.1:${PORT}`,
     reuseExistingServer: true,
     timeout: 90_000,

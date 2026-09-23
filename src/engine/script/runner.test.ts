@@ -45,6 +45,7 @@ function stubWorld(overrides: Partial<ScriptWorld> = {}): ScriptWorld {
     giveKey: () => {},
     setVar: () => {},
     openInteractable: () => {},
+    closeInteractable: () => {},
     removeInteractable: () => {},
     markInteractableUsed: () => {},
     startEncounter: () => {},

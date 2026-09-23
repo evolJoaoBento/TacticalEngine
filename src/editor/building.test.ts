@@ -87,9 +87,7 @@ describe('sparse construction', () => {
     editor.openTerrainTab('props');
     stamp(editor, -20, 80);
     expect(scene.decos).toHaveLength(1);
-    editor.openTerrainTab('objects');
-    stamp(editor, -20, 80);
-    expect(scene.interactables).toHaveLength(1);
+    // No Objects tab: a door or a chest is a prop with a function, placed from Props.
     editor.openTerrainTab('tiles');
     stamp(editor, -20, 80);
     expect(Object.values(scene.buildingTiles!)).toHaveLength(1);

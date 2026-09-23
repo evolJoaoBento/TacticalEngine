@@ -64,7 +64,7 @@ export const PACK_LISTS = Object.keys(ENTRY) as PackList[];
  * `migrateDocument` reads its absence as version 1.
  */
 export const packDocumentSchema = contentPackSchema.extend({
-  formatVersion: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5)]).optional(),
+  formatVersion: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5), z.literal(6)]).optional(),
   abilities: z.array(abilitySchema).default([]),
   conditionDefs: z.array(conditionDefSchema).default([]),
   code: z.array(codeSchema).default([]),

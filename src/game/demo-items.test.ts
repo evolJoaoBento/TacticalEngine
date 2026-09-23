@@ -5,6 +5,7 @@ import { validateProject } from '../editor/validate';
 import { buildDemoScene, useSelectedOn, type DemoScene } from './demo-scene';
 import { startEncounter } from './movement';
 import { useItem } from './use-item';
+import { interactablesOf } from '../engine/scene/prop-functions';
 
 /**
  * Using what is carried.
@@ -83,7 +84,7 @@ describe('using an item', () => {
   it('waits its turn behind a script that is asking something', () => {
     const demo = scene();
     demo.world.addItem(DRAUGHT, 1);
-    const chest = demo.scene.interactables.find((i) => i.id === 'chest-19-13')!;
+    const chest = interactablesOf(demo.scene).find((i) => i.id === 'chest-19-13')!;
     demo.state.moveEntity(demo.party.selected!, tileOf(demo.grid, { x: chest.position.x - 1, y: chest.position.y }));
     useSelectedOn(demo, 'chest-19-13');
     expect(demo.pending).not.toBeNull();

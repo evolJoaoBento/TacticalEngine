@@ -168,7 +168,7 @@ function woods(at: (x: number, y: number) => Tile, decos: Deco[]): void {
       const roll = hash(x, y, 5);
       const wanted = tile.prop === 'difficult' ? 165 : 40;
       if (roll >= wanted) continue;
-      decos.push({ type: roll % 7 === 0 ? 'deadTree' : 'pine', x, y, rot: (roll % 100) / 16 });
+      decos.push({ type: roll % 7 === 0 ? 'withering-tree-prop' : 'tree-prop', x, y, rot: (roll % 100) / 16 });
     }
   }
 
@@ -177,7 +177,7 @@ function woods(at: (x: number, y: number) => Tile, decos: Deco[]): void {
     ['tree-prop', 12, 20], ['tree-prop', 27, 19], ['tree-prop', 36, 30], ['tree-prop', 2, 26],
     ['withering-tree-prop', 15, 28], ['withering-tree-prop', 31, 29], ['withering-tree-prop', 24, 17],
     ['rock', 11, 25], ['rock', 25, 22], ['rock', 38, 19], ['rock', 17, 30], ['rock', 5, 19],
-    ['campfire', 4, 22], ['cart', 2, 21], ['crate', 3, 24], ['barrel', 5, 25], ['deadTree', 13, 24],
+    ['campfire', 4, 22], ['cart-prop', 2, 21], ['crate-prop', 3, 24], ['barrel-prop', 5, 25], ['withering-tree-prop', 13, 24],
   ];
   for (const [type, x, y] of standing) {
     const tile = at(x, y);
@@ -240,10 +240,10 @@ function halls(at: (x: number, y: number) => Tile, decos: Deco[]): void {
   // The dais at the far end, a step up between its braziers.
   for (let y = 6; y <= 9; y++) for (let x = 38; x <= 41; x++) at(x, y).h = 1;
   for (const [type, x, y] of [
-    ['brazier', 30, 6], ['brazier', 30, 9], ['brazier', 38, 5], ['brazier', 41, 10],
+    ['standing-torch-prop', 30, 6], ['standing-torch-prop', 30, 9], ['standing-torch-prop', 38, 5], ['standing-torch-prop', 41, 10],
     ['banner', 29, 2], ['banner', 29, 13], ['banner', 37, 1], ['banner', 37, 14],
-    ['crate', 26, 12], ['barrel', 27, 13], ['crate', 33, 2], ['barrel', 34, 2],
-    ['pillar', 32, 7], ['dummy', 24, 4],
+    ['crate-prop', 26, 12], ['barrel-prop', 27, 13], ['crate-prop', 33, 2], ['barrel-prop', 34, 2],
+    ['pillar', 32, 7], ['training-dummy-prop', 24, 4],
   ] as const) {
     at(x, y).prop = null;
     decos.push({ type, x, y, rot: (hash(x, y, 8) % 100) / 16 });

@@ -13,7 +13,7 @@
 import { CHEST_LOOT, DEMO_ITEMS, DEMO_LOOT_TABLES } from './demo-items';
 import { DEMO_TERRAIN, DEMO_VAULT_WALL_X, PIT_SCENE, PIT_SCENE_ID, groundAsTiles, lineUp } from './demo-scenes';
 import { BEATEN_TINTS, VAULT_SOUTH_Y } from './demo-map';
-import { SHIPPED_MODELS } from 'virtual:shipped-models';
+import { SHIPPED_MODELS, openProject } from './project-open';
 import { DEMO_QUESTS } from './demo-quests';
 import { DEMO_CODE, DEMO_PROJECT_ABILITIES, DEMO_PROJECT_CARDS } from './demo-code';
 import { SRD_CONDITIONS } from '../engine/content/conditions';
@@ -43,6 +43,7 @@ import {
 } from './log';
 import { inCombat, scriptPending } from './moment';
 import { aimOfMove, closeToStrike, walkTheMove, type MoveResult } from './movement';
+import { interactablesOf, nearestCovered, reactToThings } from './prop-use';
 import { bandFromSpot, standingIn } from './reach';
 import { runForIt } from './rolled-move';
 import {
@@ -604,7 +605,7 @@ export function gatherParty(demo: Pick<DemoScene, 'grid' | 'state' | 'party' | '
 }
 
 /** The nearest free passable tile to `from`, `from` itself when it is one; `NO_TILE` for nowhere. */
-function freeTileNear(demo: Pick<DemoScene, 'grid' | 'state'>, from: number): number {
+export function freeTileNear(demo: Pick<DemoScene, 'grid' | 'state'>, from: number): number {
   if (from === NO_TILE) return NO_TILE;
   const grid = demo.grid;
   const free = (tile: number): boolean => demo.state.bodyFree(tile);
@@ -775,10 +776,10 @@ export function buildDemoScene(map: LegacyMap, seed = 'demo'): DemoScene {
  * function rather than the tail of one that starts from a legacy map.
  */
 export function buildProjectScene(project: ProjectDoc, seed = 'project'): DemoScene {
-  // Everything is read out of the *project*, not out of the literals it was
-  // parsed from. `projectSchema.parse` copies, so keeping the originals would
-  // leave the editor and the game editing two documents that only look alike —
-  // a scene added in one would be invisible to the other.
+  // Everything is read out of the *project*, not the literals it was parsed from: `projectSchema.parse`
+  // copies, so keeping the originals would leave the editor and the game editing two documents that
+  // only look alike — a scene added in one would be invisible to the other.
+  openProject(project); // objects are props with a function now, and the models folder is every project's
   const sheets = new Map<string, CharacterSheet>(project.party.map((sheet) => [sheet.id, sheet]));
 
   // Derive every sheet once, with the project's abilities folded in; the pools
@@ -4085,13 +4086,13 @@ export function useSelectedOn(demo: DemoScene, interactableId: string): UseOutco
   // Nor is anything used on the way into an ambush.
   if (demo.pending !== null || demo.ambush !== null) return { status: 'busy', lines: [] };
 
-  const object = demo.scene.interactables.find((i) => i.id === interactableId);
+  const object = interactablesOf(demo.scene).find((i) => i.id === interactableId);
   if (object === undefined) return { status: 'missing', lines: [] };
 
   const actor = demo.party.selected;
   if (actor === null) return { status: 'unreachable', lines: [] };
   const here = demo.state.entity(actor)?.tile ?? NO_TILE;
-  const there = tileOf(demo.grid, object.position);
+  const there = nearestCovered(demo, object.id, here);
   if (here === NO_TILE || there === NO_TILE || chebyshev(demo.grid, here, there) > DEMO_REACH) {
     return { status: 'unreachable', lines: note(demo, 'It is out of reach.', 'system') };
   }
@@ -4299,8 +4300,8 @@ export function reachableInteractable(demo: Pick<DemoScene, 'scene' | 'grid' | '
   if (actor === null) return null;
   const here = demo.state.entity(actor)?.tile ?? NO_TILE;
   if (here === NO_TILE) return null;
-  for (const object of demo.scene.interactables) {
-    const there = tileOf(demo.grid, object.position);
+  for (const object of interactablesOf(demo.scene)) {
+    const there = nearestCovered(demo, object.id, here);
     if (there !== NO_TILE && chebyshev(demo.grid, here, there) <= DEMO_REACH) return object.id;
   }
   return null;
@@ -4331,16 +4332,15 @@ export function record(demo: DemoScene, journal: readonly JournalEntry[]): LogLi
 /**
  * Act on what a script did, once the whole journal is in.
  *
- * Travel is remembered rather than taken: the rest of this script belongs to
- * the room it was asked in, and `settleTravel` spends it once nothing waits. A
- * condition a script put on or took off someone may move a pool's maximum.
+ * What it did to things in the room - travel, a container, a portal - is `prop-use.ts`'s to act
+ * on. A condition a script put on or took off someone may move a pool's maximum.
  * Clocks move on what the *party* does — "it ticks down when a PC makes an
  * attack roll" — and a stat block's own roll is the GM's move; a countdown
  * fired by a countdown must not advance the one that fired it, so the cues
  * are raised after the whole journal is in, never during it.
  */
 function react(demo: DemoScene, journal: readonly JournalEntry[]): void {
-  for (const entry of journal) if (entry.kind === 'goto') demo.destination = entry.scene;
+  reactToThings(demo, journal);
   syncPools(demo);
   for (const { roller, roll } of rollsFrom(demo, journal)) playPartyRolled(demo, roller, roll);
   for (const cue of cuesFrom(demo, journal)) tickCountdowns(demo, cue);
