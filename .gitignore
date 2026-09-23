@@ -7,6 +7,13 @@ playwright-report/
 .DS_Store
 Thumbs.db
 
+# The heavy originals every model in public/models is lightened from. They are the source of
+# truth and they are kept, but they are 361 MB and nothing serves them: the game loads the light
+# copy beside them. Same argument as the card art below - a blob committed once stays in history
+# forever, and on a public repository every clone pays for it. Guarded by
+# tests/unit/licensing-boundary.test.ts.
+public/models/heavy/
+
 # Card illustrations fetched by tools/download-card-art.mjs from a third-party
 # mirror. They are Critical Role artwork, NOT SRD content: the DPCGL licenses
 # the System Reference Document's text and mechanics and does not cover

@@ -67,6 +67,22 @@ describe('the licensing boundary', () => {
     ).toBe(true);
   });
 
+  it('ignores the heavy models, so 361 MB of source never lands in history', () => {
+    // The same argument as the card art, for a different reason: these are ours, so nothing
+    // forbids committing them - but they are the originals every served model is lightened from,
+    // nothing loads them, and a blob committed once is in history for good. A `git add -A` with
+    // this rule missing is 361 MB that only a history rewrite takes back out.
+    const ignored = read('.gitignore')
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line !== '' && !line.startsWith('#'));
+    expect(
+      ignored.some((rule) => rule.replace(/^\/+|\/+$/g, '') === 'public/models/heavy'),
+      '.gitignore must ignore "public/models/heavy/" -- the heavy originals are kept on disk and ' +
+        'out of git. Restore the rule rather than deleting this test.',
+    ).toBe(true);
+  });
+
   it('never builds a card art URL that the index did not promise', () => {
     // A guessed `/cards/${id}.jpg` 404s for every card without a file, and the
     // directory is ignored, so on most machines that is every card. Only
