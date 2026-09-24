@@ -51,6 +51,18 @@ describe('the library', () => {
     ]);
   });
 
+  it('draws a kind that names a model as that model, keeping its colour for while the picture comes', () => {
+    const tab = tilesTab([
+      { id: 'road', name: 'Road', color: '#6b6350', model: 'dirt-ground', structure: 'floor' },
+      { id: 'lava', name: 'Lava', color: '#c4441f', structure: 'block' },
+    ]);
+    expect(tab.items.map((i) => [i.id, i.model, i.swatch])).toEqual([
+      ['road', 'dirt-ground', '#6b6350'],
+      // No model: the swatch is the whole card, as it always was.
+      ['lava', undefined, '#c4441f'],
+    ]);
+  });
+
   it('takes the name a kind of tile was given, and titles its id when it has none', () => {
     const tab = tilesTab([
       { id: 'deep-water', name: 'Deep Water', structure: 'block' },

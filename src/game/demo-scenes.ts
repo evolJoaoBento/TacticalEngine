@@ -139,10 +139,10 @@ export function lineUp(): Encounter {
  * whoever is strong enough jumps onto it, and the door is for everybody else.
  *
  * `flagstone` is the stone block's file as a floor tile - fitted to a floor's height, as any
- * file is to its structure - so indoors is not a lawn. `road` is a
- * floor that costs what the legacy map's difficult ground did, and `low-wall` is the cover
- * it had: half a block of wall, which shelters whoever stands by it and is stepped over.
- * Neither names a model, so the building layer draws them as the boxes they are.
+ * file is to its structure - so indoors is not a lawn. `road` is the dirt ground's file as a
+ * floor that costs what the legacy map's difficult ground did. The cover that map had is half a
+ * block of the engine's own `barrier`, the stone wall, which shelters whoever stands by it and is
+ * stepped over; it had a `low-wall` kind of its own until that was folded into the stone wall.
  */
 export const DEMO_TERRAIN: NonNullable<ProjectDoc['terrainPalette']> = [
   ...DEFAULT_TERRAIN_TYPES.map((type) => ({
@@ -159,8 +159,9 @@ export const DEMO_TERRAIN: NonNullable<ProjectDoc['terrainPalette']> = [
   })),
   { id: 'rampart', name: 'Rampart', passable: false, cost: 1, providesCover: false, blocksSight: true, structure: 'block', model: 'stone-block', scale: 1, color: '#3b3f4a' },
   { id: 'flagstone', name: 'Flagstone', passable: true, cost: 1, providesCover: false, blocksSight: false, structure: 'floor', model: 'stone-block', scale: 1, color: '#8a8994' },
-  { id: 'road', name: 'Road', passable: true, cost: 2, providesCover: false, blocksSight: false, structure: 'floor', color: '#6b6350' },
-  { id: 'low-wall', name: 'Low wall', passable: true, cost: 1, providesCover: true, blocksSight: false, structure: 'wall', color: '#7d7a6d' },
+  { id: 'road', name: 'Road', passable: true, cost: 2, providesCover: false, blocksSight: false, structure: 'floor', model: 'dirt-ground', scale: 1, color: '#6b6350' },
+  // Where the road gives out into the grass: grass with the dirt showing through, walked like grass.
+  { id: 'grass-dirt', name: 'Grass & dirt', passable: true, cost: 1, providesCover: false, blocksSight: false, structure: 'floor', model: 'grass-dirt-ground', scale: 1, color: '#6f7a4c' },
 ];
 
 /** The column the vault's wall stands in: from here east is indoors. */
@@ -216,7 +217,7 @@ export function groundAsTiles(
         if (up === undefined) put(x, y, FLOOR_TOP, 'platform', 'floor');
         else put(x, y, FLOOR_TOP, 'steps', 'stairs', up[2]);
       }
-      if (kind === 'cover') put(x, y, FLOOR_TOP, 'low-wall', 'wall', 0, 0.5);
+      if (kind === 'cover') put(x, y, FLOOR_TOP, 'barrier', 'wall', 0, 0.5);
       scene.terrain[at] = 'floor';
       scene.heights[at] = 0;
     }

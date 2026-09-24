@@ -37,7 +37,7 @@ describe('retired models', () => {
       expect(drawn.has(retired), retired).toBe(false);
       expect(now).toMatch(/-prop$/);
     }
-    expect(Object.keys(RETIRED_MODELS).sort()).toEqual(['barrel', 'brazier', 'cart', 'chest', 'crate', 'deadTree', 'door', 'dummy', 'pine', 'portal']);
+    expect(Object.keys(RETIRED_MODELS).sort()).toEqual(['banner', 'barrel', 'brazier', 'cart', 'chest', 'crate', 'deadTree', 'door', 'dummy', 'pine', 'portal']);
   });
 
   it('gives the replacement for a retired name and leaves any other name alone', () => {

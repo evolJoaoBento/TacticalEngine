@@ -198,3 +198,37 @@ test('a click on a thing out of reach walks up to it and uses it', async ({ page
   await expect(page.getByTestId('container')).toBeVisible();
   expect(errors, `console errors: ${errors.join(' | ')}`).toEqual([]);
 });
+
+test('a click anywhere on a lit thing uses it, not only over the middle of its tile', async ({ page }) => {
+  const errors = await editing(page);
+  // A pillar, two tiles tall: seen from the camera its top stands over the ground north of it.
+  await page.getByTestId('mode-terrain').click();
+  await page.locator('[data-tab="props"]').click();
+  await page.locator('[data-item="pillar"]').click();
+  await place(page, 3, 9);
+  await page.getByTestId('function').selectOption('container');
+  await page.getByTestId('container-add').click();
+  const id = await idOfSelected(page);
+
+  const who = await page.evaluate((id) => {
+    const api = window.__engine!;
+    api.setMode('play');
+    api.standBeside(id);
+    return api.selected()!;
+  }, id);
+  // Close enough to aim at: their card slides the camera over them, beside the pillar, and the wheel brings it in.
+  await page.locator(`.hud-card[data-member="${who}"]`).click();
+  const box = (await page.locator('#gl').boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  for (let i = 0; i < 6; i++) await page.mouse.wheel(0, -240);
+  await page.waitForTimeout(1500);
+  const at = await page.evaluate(() => ({ here: window.__engine!.screenOf(9 * 44 + 3), north: window.__engine!.screenOf(8 * 44 + 3) }));
+  // Most of the way to the next tile north: the ground under the pointer is that tile, and the
+  // pointer is on the pillar's body. A click there used to walk to that tile instead.
+  const point = { x: at.here.x + 0.7 * (at.north.x - at.here.x), y: at.here.y + 0.7 * (at.north.y - at.here.y) };
+  expect(await page.evaluate((p) => document.elementFromPoint(p.x, p.y)?.id, point)).toBe('gl');
+  await page.mouse.move(point.x, point.y);
+  await page.mouse.click(point.x, point.y);
+  await expect.poll(() => page.evaluate(() => window.__engine!.container()?.id ?? null)).toBe(id);
+  expect(errors, `console errors: ${errors.join(' | ')}`).toEqual([]);
+});

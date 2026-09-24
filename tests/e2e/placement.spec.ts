@@ -147,7 +147,14 @@ test('open tabs drive placement; edge walls overlap floors and preserve Z throug
   await expect(page.locator(placementTools)).toHaveCount(0);
   // Strip cards are kinds of tile now, named by their terrain id: the `tile-<shape>` cards
   // went with the Structures tab they belonged to.
-  // The room is laid from tiles already: counted over what it opened with.
+  // The room is laid from tiles already: counted over what it opened with, once every file the
+  // ground is drawn with has come in - the dirt under the roads is a big file, and a count taken
+  // before it lands grows by every road tile halfway through the test.
+  await expect.poll(() => page.evaluate(() => {
+    const api = window.__engine!;
+    const palette = (JSON.parse(api.exportProject()) as { terrainPalette?: { model?: string }[] }).terrainPalette ?? [];
+    return palette.every((kind) => kind.model === undefined || api.assetStatus(kind.model) === 'ready');
+  }), { timeout: 60_000 }).toBe(true);
   const laid = await page.evaluate(() => window.__engine!.pieceModels());
   await strip.locator('[data-item="platform"]').click();
   await page.evaluate(() => window.__engine!.buildAt(8, 6));

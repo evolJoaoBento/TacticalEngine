@@ -43,7 +43,7 @@ switches between play and edit at any time.
 
 | Input | Play mode | Edit mode |
 |---|---|---|
-| Left click | Party member: select, and the camera slides over them. Adversary: attack with the selected character. Object: use it, walking up to it first when it is out of reach. Ground: walk there. | Apply the current tool to the tile |
+| Left click | Party member: select, and the camera slides over them. Adversary: attack with the selected character. Object: use it, walking up to it first when it is out of reach - anywhere on it that its white outline lights, not only over the middle of its tile. Ground: walk there - the spot answers with a ripple in the selected character's blue, or a small red shake when the click walks nobody. | Apply the current tool to the tile |
 | Left drag | Walk the selected character towards the pointer in play; orbit the camera in the editor. Turning the view in play is the **middle** drag | Drag with the current tool — erase, raise and lower follow the pointer; the placer puts one piece where it is clicked |
 | Middle drag | Orbit the camera | Orbit the camera |
 | Right drag | Pan the camera | Pan the camera |
@@ -530,7 +530,7 @@ function (see *What a prop does*). Picks are remembered when switching
 tabs. The rail only offers the applicable erase or raise/lower actions; there is no separate
 placement-type selector. Clicking the tab or an item returns from erase to placement. Every card
 shows what it puts down: a picture of the model for a prop or a creature (one with no model of its
-own shows the husk that stands in for it on the board, marked **stand-in**), a drawn icon for a tile, and the colour a kind of tile declares. The Tiles tab offers only kinds that are
+own shows the husk that stands in for it on the board, marked **stand-in**), and for a kind of tile a picture of the model it is drawn with - its declared colour for a kind that names no model, and while the picture is being drawn. The Tiles tab offers only kinds that are
 structures: ground is the substrate every cell already holds, edited in the Tiles workspace, and is
 not something the placer puts down. A name too long for its card wraps to a second line. A tab with nothing in it
 is dimmed and says so ("Nothing in Tier 3 yet."); "Nothing matches." is only ever a search's answer.
@@ -823,12 +823,12 @@ row reports the file by weight (`embedded · 2.4 MB`) rather than printing megab
 **✕** removes one. A model already sitting beside the app is still referenced by its path, and the
 row shows that path instead.
 
-Ten of the built-in props have been **retired** for models in that folder: the pine is `tree-prop`,
+Eleven of the built-in props have been **retired** for models in that folder: the pine is `tree-prop`,
 the dead tree `withering-tree-prop`, the barrel `barrel-prop`, the crate `crate-prop`, the brazier
-`standing-torch-prop`, the cart `cart-prop`, the training dummy `training-dummy-prop`, and the door,
-chest and portal `door-prop`, `chest-prop` and `portal-prop`. A project that still names an old one
+`standing-torch-prop`, the cart `cart-prop`, the training dummy `training-dummy-prop`, the banner
+`banner-prop`, and the door, chest and portal `door-prop`, `chest-prop` and `portal-prop`. A project that still names an old one
 is renamed as it opens, so nothing it placed turns into a placeholder; the next save writes the new
-names. Of the built-in props, the rock, the banner, the campfire and the pillar remain.
+names. Of the built-in props, the rock, the campfire and the pillar remain. The portal's opening glows and turns: the glow is in the file itself, an animated clip the board plays on a loop (`tools/add-portal-glow.mjs` put it there).
 
 The other way in is the folder: a `.glb` dropped into `public/models` is a model of every project
 the page opens - the built-in demo, the default project and any file loaded - named after the file
@@ -1434,9 +1434,9 @@ that answers every failed roll stops every roll in the game to ask; recall it at
 standing in for the prototype's homebrew Hollow Husks.
 
 1. **The Hollow Vault** (44×32, and relaid as tiles on the way
-   in: grass outside, a road that costs double, flagstone indoors, a wall two blocks high that
-   whoever is strong enough jumps onto - Kara is, and the drop inside is a fall - low
-   walls for cover, and the dais as blocks with its steps - or, in a fight with the steps a
+   in: grass outside, a dirt road that costs double, flagstone indoors, a wall two blocks high that
+   whoever is strong enough jumps onto - Kara is, and the drop inside is a fall - half-height
+   stone walls for cover, and the dais as blocks with its steps - or, in a fight with the steps a
    move away, a jump). The vault door starts shut
    and in the way: using it is a Finesse 13 roll, a failure leaves it shut, and a door can be
    tried again. East of the door, trigger cells start the husk fight; a chest opens

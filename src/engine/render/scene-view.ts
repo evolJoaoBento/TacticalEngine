@@ -92,6 +92,7 @@ import { CarryMotion } from './carry';
 export { OUTLINE_LAYER } from './toon';
 import { DEFAULT_FACTION_COLORS, dim, forgetOutline, litOutlines, outline } from './faction-outline';
 import { Reactions } from './reactions';
+import { ClickRipples } from './click-ripple';
 import { buildTerrainMesh, type TerrainMesh, type TerrainMeshOptions } from './terrain-mesh';
 import { drawsTileModel, redrawTileModels } from './tile-models';
 
@@ -193,6 +194,8 @@ export class SceneView {
     walking: (token) => [...this.glides.values()].some((glide) => glide.token === token && !glide.thrown),
     tileSize: () => this.layout.tileSize,
   });
+  /** The ground answering a click to walk (`render/click-ripple.ts`). */
+  private readonly ripples = new ClickRipples(() => this.layout.tileSize);
   /** Stepping through a portal on the next sync (`teleport`); and, once a walk up to it arrives, then. */
   private readonly pendingBlinks = new Set<string>();
   private readonly lateBlinks = new Set<string>();
@@ -378,6 +381,7 @@ export class SceneView {
    */
   rebind(grid: TileGrid, options: { tints?: readonly string[]; decos?: readonly Deco[]; objects?: readonly Interactable[] } = {}): void {
     this.settle();
+    this.ripples.clear();
     this._grid = grid;
     this.terrainOptions = { ...this.terrainOptions, ...(options.tints === undefined ? {} : { tints: options.tints }) };
     this.rebuildTerrain(options.tints);
@@ -615,6 +619,17 @@ export class SceneView {
     this.pendingRoutes.set(id, route);
     if (wait) this.waiting.add(id);
     if (leap !== undefined) this.pendingLeaps.set(id, leap); // the last leg is a jump, arcing this many blocks
+  }
+
+  /** A click on the ground at this spot sent somebody walking (`ok`), or sent nobody. */
+  ripple(spot: Spot, ok: boolean): void {
+    if (this.ripples.group.parent === null) this.root.add(this.ripples.group);
+    this.ripples.add(spotToWorld(this.grid, spot, this.layout), ok ? 'go' : 'no');
+  }
+
+  /** How many click ripples are on the ground. */
+  get rippleCount(): number {
+    return this.ripples.count;
   }
 
   /** The entity is about to be found through a portal: blinked there, not walked (`render/blink.ts`). */
@@ -858,6 +873,7 @@ export class SceneView {
   tick(dt: number): void {
     this.advanceGlides(dt);
     this.reactions.advance(dt);
+    this.ripples.tick(dt);
     this.carry.tick(dt);
     this.swings.tick(dt);
     for (const [object, mixer] of this.mixers) {
@@ -1409,6 +1425,7 @@ export class SceneView {
 
   dispose(): void {
     if (this.stopListening !== null) this.stopListening();
+    this.ripples.dispose();
     for (const mixer of this.mixers.values()) mixer.stopAllAction();
     this.mixers.clear();
     this.clipSets.clear();

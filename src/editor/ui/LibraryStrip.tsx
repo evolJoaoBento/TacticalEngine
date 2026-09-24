@@ -37,12 +37,11 @@ export function LibraryStrip(props: LibraryStripProps): preact.JSX.Element {
   const items = searching ? filterLibrary(props.tabs, query) : (tab?.items ?? []);
 
   const face = (item: LibraryItem): preact.JSX.Element | null => {
-    // The swatch first, because Tiles is every kind of tile now rather than four shapes
-    // with ids of their own. `TileIcon` drew its glyph off a `tile-<shape>` id, and there
-    // are no such ids left: a structure is a kind of tile, and shows the colour it declares.
-    if (item.swatch !== undefined) return null;
+    // A kind of tile is its model's picture when it names a model, over the colour it declares,
+    // which is what the card is when it names none - or while the picture is still being drawn.
+    if (item.swatch !== undefined && item.model === undefined) return null;
     const picture = props.thumbnail?.(item) ?? null;
-    if (picture === null) return <span class="ph-glyph">{item.label.slice(0, 1)}</span>;
+    if (picture === null) return item.swatch !== undefined ? null : <span class="ph-glyph">{item.label.slice(0, 1)}</span>;
     return (
       <>
         <img src={picture.url} alt="" draggable={false} />

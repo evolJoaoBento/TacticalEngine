@@ -127,6 +127,7 @@ declare global {
       arc: () => 'ok' | 'blocked' | null;
       floaters: () => { id: string; text: string }[];
       gliding: () => number;
+      ripples: () => number;
       arrive: () => boolean;
       reacting: () => number;
       screenOf: (tile: number) => { x: number; y: number };

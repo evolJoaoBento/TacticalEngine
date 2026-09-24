@@ -1,7 +1,7 @@
 /**
  * Built-in models that were retired, and what took each one's place.
  *
- * Ten of the props ported from the legacy prototype were replaced by imported models in
+ * Eleven of the props ported from the legacy prototype were replaced by imported models in
  * `public/models` and taken out of the procedural library. A project saved before that - a file,
  * an old save, a legacy map read in - still names them, and a name the library no longer has is
  * drawn as the placeholder. So a project is renamed as it opens (`game/project-open.ts`): every
@@ -22,6 +22,7 @@ export const RETIRED_MODELS: Readonly<Record<string, string>> = {
   door: 'door-prop',
   chest: 'chest-prop',
   portal: 'portal-prop',
+  banner: 'banner-prop',
 };
 
 /** The model to draw for a name: its replacement when it was retired, else the name itself. */

@@ -119,17 +119,21 @@
       "providesCover": false,
       "blocksSight": false,
       "color": "#6b6350",
-      "structure": "floor"
+      "structure": "floor",
+      "model": "dirt-ground",
+      "scale": 1
     },
     {
-      "id": "low-wall",
-      "name": "Low wall",
+      "id": "grass-dirt",
+      "name": "Grass & dirt",
       "passable": true,
       "cost": 1,
-      "providesCover": true,
+      "providesCover": false,
       "blocksSight": false,
-      "color": "#7d7a6d",
-      "structure": "wall"
+      "structure": "floor",
+      "model": "grass-dirt-ground",
+      "scale": 1,
+      "color": "#6f7a4c"
     }
   ],
   "scenes": [
@@ -4677,7 +4681,7 @@
           "rotation": 0
         },
         {
-          "model": "banner",
+          "model": "banner-prop",
           "position": {
             "x": 13,
             "y": 2
@@ -4685,7 +4689,7 @@
           "rotation": 0
         },
         {
-          "model": "banner",
+          "model": "banner-prop",
           "position": {
             "x": 13,
             "y": 12
@@ -5055,7 +5059,7 @@
           "rotation": 3.25
         },
         {
-          "model": "banner",
+          "model": "banner-prop",
           "position": {
             "x": 29,
             "y": 2
@@ -5063,7 +5067,7 @@
           "rotation": 6.125
         },
         {
-          "model": "banner",
+          "model": "banner-prop",
           "position": {
             "x": 29,
             "y": 13
@@ -5071,7 +5075,7 @@
           "rotation": 3.5
         },
         {
-          "model": "banner",
+          "model": "banner-prop",
           "position": {
             "x": 37,
             "y": 1
@@ -5079,7 +5083,7 @@
           "rotation": 1
         },
         {
-          "model": "banner",
+          "model": "banner-prop",
           "position": {
             "x": 37,
             "y": 14
@@ -5384,7 +5388,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "7,0,0": {
           "x": 7,
@@ -5393,7 +5397,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "8,0,0": {
           "x": 8,
@@ -5402,7 +5406,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "9,0,0": {
           "x": 9,
@@ -5411,7 +5415,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "10,0,0": {
           "x": 10,
@@ -5420,7 +5424,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "11,0,0": {
           "x": 11,
@@ -6248,7 +6252,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "6,1,0.25": {
           "x": 6,
@@ -6293,7 +6297,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "11,1,0": {
           "x": 11,
@@ -6788,7 +6792,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "7,2,0": {
           "x": 7,
@@ -6824,7 +6828,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "11,2,0": {
           "x": 11,
@@ -7319,7 +7323,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "7,3,0": {
           "x": 7,
@@ -7355,7 +7359,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "11,3,0": {
           "x": 11,
@@ -7850,7 +7854,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "7,4,0": {
           "x": 7,
@@ -7886,7 +7890,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "11,4,0": {
           "x": 11,
@@ -8346,7 +8350,7 @@
           "shape": "wall",
           "material": "stone",
           "rotation": 0,
-          "tile": "low-wall"
+          "tile": "barrier"
         },
         "5,5,0": {
           "x": 5,
@@ -8364,7 +8368,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "7,5,0": {
           "x": 7,
@@ -8400,7 +8404,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "11,5,0": {
           "x": 11,
@@ -8859,7 +8863,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "7,6,0": {
           "x": 7,
@@ -8895,7 +8899,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "11,6,0": {
           "x": 11,
@@ -9363,7 +9367,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "7,7,0": {
           "x": 7,
@@ -9399,7 +9403,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "11,7,0": {
           "x": 11,
@@ -9490,7 +9494,7 @@
           "shape": "wall",
           "material": "stone",
           "rotation": 0,
-          "tile": "low-wall"
+          "tile": "barrier"
         },
         "20,7,0": {
           "x": 20,
@@ -9850,7 +9854,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "7,8,0": {
           "x": 7,
@@ -9886,7 +9890,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "11,8,0": {
           "x": 11,
@@ -10336,7 +10340,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "7,9,0": {
           "x": 7,
@@ -10372,7 +10376,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "11,9,0": {
           "x": 11,
@@ -10463,7 +10467,7 @@
           "shape": "wall",
           "material": "stone",
           "rotation": 0,
-          "tile": "low-wall"
+          "tile": "barrier"
         },
         "18,9,0": {
           "x": 18,
@@ -10859,7 +10863,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "7,10,0": {
           "x": 7,
@@ -10895,7 +10899,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "11,10,0": {
           "x": 11,
@@ -11328,7 +11332,7 @@
           "shape": "wall",
           "material": "stone",
           "rotation": 0,
-          "tile": "low-wall"
+          "tile": "barrier"
         },
         "5,11,0": {
           "x": 5,
@@ -11346,7 +11350,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "7,11,0": {
           "x": 7,
@@ -11382,7 +11386,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "11,11,0": {
           "x": 11,
@@ -11446,7 +11450,7 @@
           "shape": "wall",
           "material": "stone",
           "rotation": 0,
-          "tile": "low-wall"
+          "tile": "barrier"
         },
         "15,11,0": {
           "x": 15,
@@ -11806,7 +11810,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "6,12,0.25": {
           "x": 6,
@@ -11851,7 +11855,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "11,12,0": {
           "x": 11,
@@ -12292,7 +12296,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "7,13,0": {
           "x": 7,
@@ -12328,7 +12332,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "11,13,0": {
           "x": 11,
@@ -12760,7 +12764,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "7,14,0": {
           "x": 7,
@@ -12796,7 +12800,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "11,14,0": {
           "x": 11,
@@ -13210,7 +13214,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "4,15,0": {
           "x": 4,
@@ -13219,7 +13223,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "5,15,0": {
           "x": 5,
@@ -13228,7 +13232,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "6,15,0": {
           "x": 6,
@@ -13237,7 +13241,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "7,15,0": {
           "x": 7,
@@ -13246,7 +13250,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "8,15,0": {
           "x": 8,
@@ -13255,7 +13259,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "9,15,0": {
           "x": 9,
@@ -13264,7 +13268,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "10,15,0": {
           "x": 10,
@@ -13273,7 +13277,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "11,15,0": {
           "x": 11,
@@ -13651,7 +13655,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "1,16,0": {
           "x": 1,
@@ -13660,7 +13664,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "2,16,0": {
           "x": 2,
@@ -13669,7 +13673,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "3,16,0": {
           "x": 3,
@@ -13678,7 +13682,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "3,16,0.25": {
           "x": 3,
@@ -13750,7 +13754,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "11,16,0": {
           "x": 11,
@@ -13759,7 +13763,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "12,16,0": {
           "x": 12,
@@ -14632,7 +14636,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "0,17,0.25": {
           "x": 0,
@@ -14668,7 +14672,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "2,17,0.25": {
           "x": 2,
@@ -14686,7 +14690,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "3,17,0.25": {
           "x": 3,
@@ -14758,7 +14762,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "11,17,0": {
           "x": 11,
@@ -14767,7 +14771,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "12,17,0": {
           "x": 12,
@@ -14785,7 +14789,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "14,17,0": {
           "x": 14,
@@ -14794,7 +14798,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "15,17,0": {
           "x": 15,
@@ -14803,7 +14807,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "16,17,0": {
           "x": 16,
@@ -14812,7 +14816,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "17,17,0": {
           "x": 17,
@@ -14821,7 +14825,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "18,17,0": {
           "x": 18,
@@ -14830,7 +14834,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "19,17,0": {
           "x": 19,
@@ -14848,7 +14852,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "21,17,0": {
           "x": 21,
@@ -14857,7 +14861,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "22,17,0": {
           "x": 22,
@@ -14884,7 +14888,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "25,17,0": {
           "x": 25,
@@ -14893,7 +14897,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "26,17,0": {
           "x": 26,
@@ -14902,7 +14906,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "27,17,0": {
           "x": 27,
@@ -14983,7 +14987,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "36,17,0": {
           "x": 36,
@@ -15010,7 +15014,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "39,17,0": {
           "x": 39,
@@ -15064,7 +15068,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "0,18,0.25": {
           "x": 0,
@@ -15082,7 +15086,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "2,18,0": {
           "x": 2,
@@ -15109,7 +15113,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "4,18,0": {
           "x": 4,
@@ -15118,7 +15122,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "5,18,0": {
           "x": 5,
@@ -15127,7 +15131,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "6,18,0": {
           "x": 6,
@@ -15172,7 +15176,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "11,18,0": {
           "x": 11,
@@ -15181,7 +15185,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "12,18,0": {
           "x": 12,
@@ -15190,7 +15194,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "13,18,0": {
           "x": 13,
@@ -15217,7 +15221,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "16,18,0": {
           "x": 16,
@@ -15235,7 +15239,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "18,18,0": {
           "x": 18,
@@ -15244,7 +15248,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "19,18,0": {
           "x": 19,
@@ -15253,7 +15257,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "20,18,0": {
           "x": 20,
@@ -15271,7 +15275,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "22,18,0": {
           "x": 22,
@@ -15298,7 +15302,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "25,18,0": {
           "x": 25,
@@ -15316,7 +15320,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "27,18,0": {
           "x": 27,
@@ -15397,7 +15401,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "36,18,0": {
           "x": 36,
@@ -15406,7 +15410,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "37,18,0": {
           "x": 37,
@@ -15415,7 +15419,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "38,18,0": {
           "x": 38,
@@ -15424,7 +15428,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "39,18,0": {
           "x": 39,
@@ -15496,7 +15500,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "2,19,0": {
           "x": 2,
@@ -15505,7 +15509,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "2,19,0.25": {
           "x": 2,
@@ -15523,7 +15527,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "3,19,0.25": {
           "x": 3,
@@ -15550,7 +15554,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "6,19,0": {
           "x": 6,
@@ -15559,7 +15563,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "7,19,0": {
           "x": 7,
@@ -15604,7 +15608,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "12,19,0": {
           "x": 12,
@@ -15613,7 +15617,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "13,19,0": {
           "x": 13,
@@ -15622,7 +15626,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "14,19,0": {
           "x": 14,
@@ -15640,7 +15644,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "16,19,0": {
           "x": 16,
@@ -15649,7 +15653,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "17,19,0": {
           "x": 17,
@@ -15658,7 +15662,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "18,19,0": {
           "x": 18,
@@ -15667,7 +15671,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "19,19,0": {
           "x": 19,
@@ -15694,7 +15698,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "22,19,0": {
           "x": 22,
@@ -15703,7 +15707,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "23,19,0": {
           "x": 23,
@@ -15712,7 +15716,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "24,19,0": {
           "x": 24,
@@ -15721,7 +15725,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "25,19,0": {
           "x": 25,
@@ -15730,7 +15734,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "26,19,0": {
           "x": 26,
@@ -15739,7 +15743,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "27,19,0": {
           "x": 27,
@@ -15748,7 +15752,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "28,19,0": {
           "x": 28,
@@ -15757,7 +15761,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "29,19,0": {
           "x": 29,
@@ -15766,7 +15770,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "30,19,0": {
           "x": 30,
@@ -15865,7 +15869,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "41,19,0": {
           "x": 41,
@@ -15874,7 +15878,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "42,19,0": {
           "x": 42,
@@ -15883,7 +15887,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "43,19,0": {
           "x": 43,
@@ -15919,7 +15923,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "3,20,0": {
           "x": 3,
@@ -15928,7 +15932,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "4,20,0": {
           "x": 4,
@@ -15937,7 +15941,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "5,20,0": {
           "x": 5,
@@ -15946,7 +15950,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "6,20,0": {
           "x": 6,
@@ -15955,7 +15959,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "7,20,0": {
           "x": 7,
@@ -16009,7 +16013,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "13,20,0": {
           "x": 13,
@@ -16018,7 +16022,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "14,20,0": {
           "x": 14,
@@ -16027,7 +16031,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "15,20,0": {
           "x": 15,
@@ -16036,7 +16040,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "16,20,0": {
           "x": 16,
@@ -16063,7 +16067,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "19,20,0": {
           "x": 19,
@@ -16099,7 +16103,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "22,20,0": {
           "x": 22,
@@ -16108,7 +16112,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "22,20,0.25": {
           "x": 22,
@@ -16144,7 +16148,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "25,20,0": {
           "x": 25,
@@ -16171,7 +16175,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "28,20,0": {
           "x": 28,
@@ -16189,7 +16193,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "30,20,0": {
           "x": 30,
@@ -16198,7 +16202,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "31,20,0": {
           "x": 31,
@@ -16279,7 +16283,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "40,20,0": {
           "x": 40,
@@ -16288,7 +16292,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "40,20,0.25": {
           "x": 40,
@@ -16324,7 +16328,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "42,20,0.25": {
           "x": 42,
@@ -16369,7 +16373,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "3,21,0": {
           "x": 3,
@@ -16396,7 +16400,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "6,21,0": {
           "x": 6,
@@ -16405,7 +16409,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "7,21,0": {
           "x": 7,
@@ -16477,7 +16481,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "15,21,0": {
           "x": 15,
@@ -16486,7 +16490,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "16,21,0": {
           "x": 16,
@@ -16495,7 +16499,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "17,21,0": {
           "x": 17,
@@ -16504,7 +16508,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "18,21,0": {
           "x": 18,
@@ -16513,7 +16517,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "19,21,0": {
           "x": 19,
@@ -16522,7 +16526,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "19,21,0.25": {
           "x": 19,
@@ -16540,7 +16544,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "20,21,0.25": {
           "x": 20,
@@ -16558,7 +16562,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "21,21,0.25": {
           "x": 21,
@@ -16576,7 +16580,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "22,21,0.25": {
           "x": 22,
@@ -16603,7 +16607,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "25,21,0": {
           "x": 25,
@@ -16630,7 +16634,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "28,21,0": {
           "x": 28,
@@ -16639,7 +16643,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "29,21,0": {
           "x": 29,
@@ -16657,7 +16661,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "31,21,0": {
           "x": 31,
@@ -16738,7 +16742,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "40,21,0": {
           "x": 40,
@@ -16765,7 +16769,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "41,21,0.25": {
           "x": 41,
@@ -16783,7 +16787,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "42,21,0.25": {
           "x": 42,
@@ -16837,7 +16841,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "3,22,0": {
           "x": 3,
@@ -16846,7 +16850,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "4,22,0": {
           "x": 4,
@@ -16855,7 +16859,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "5,22,0": {
           "x": 5,
@@ -16864,7 +16868,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "6,22,0": {
           "x": 6,
@@ -16972,7 +16976,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "18,22,0": {
           "x": 18,
@@ -16981,7 +16985,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "18,22,0.25": {
           "x": 18,
@@ -16999,7 +17003,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "19,22,0.25": {
           "x": 19,
@@ -17053,7 +17057,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "22,22,0.25": {
           "x": 22,
@@ -17071,7 +17075,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "23,22,0.25": {
           "x": 23,
@@ -17089,7 +17093,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "25,22,0": {
           "x": 25,
@@ -17125,7 +17129,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "29,22,0": {
           "x": 29,
@@ -17143,7 +17147,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "31,22,0": {
           "x": 31,
@@ -17152,7 +17156,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "32,22,0": {
           "x": 32,
@@ -17161,7 +17165,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "33,22,0": {
           "x": 33,
@@ -17170,7 +17174,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "34,22,0": {
           "x": 34,
@@ -17179,7 +17183,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "35,22,0": {
           "x": 35,
@@ -17188,7 +17192,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "36,22,0": {
           "x": 36,
@@ -17197,7 +17201,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "37,22,0": {
           "x": 37,
@@ -17206,7 +17210,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "38,22,0": {
           "x": 38,
@@ -17215,7 +17219,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "39,22,0": {
           "x": 39,
@@ -17224,7 +17228,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "40,22,0": {
           "x": 40,
@@ -17251,7 +17255,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "41,22,0.25": {
           "x": 41,
@@ -17323,7 +17327,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "4,23,0": {
           "x": 4,
@@ -17386,7 +17390,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "11,23,0": {
           "x": 11,
@@ -17395,7 +17399,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "12,23,0": {
           "x": 12,
@@ -17404,7 +17408,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "13,23,0": {
           "x": 13,
@@ -17467,7 +17471,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "19,23,0.25": {
           "x": 19,
@@ -17593,7 +17597,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "29,23,0": {
           "x": 29,
@@ -17602,7 +17606,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "30,23,0": {
           "x": 30,
@@ -17620,7 +17624,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "32,23,0": {
           "x": 32,
@@ -17665,7 +17669,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "37,23,0": {
           "x": 37,
@@ -17674,7 +17678,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "38,23,0": {
           "x": 38,
@@ -17692,7 +17696,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "40,23,0": {
           "x": 40,
@@ -17701,7 +17705,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "40,23,0.25": {
           "x": 40,
@@ -17719,7 +17723,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "41,23,0.25": {
           "x": 41,
@@ -17737,7 +17741,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "42,23,0.25": {
           "x": 42,
@@ -17755,7 +17759,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "43,23,0.25": {
           "x": 43,
@@ -17800,7 +17804,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "4,24,0": {
           "x": 4,
@@ -17809,7 +17813,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "5,24,0": {
           "x": 5,
@@ -17863,7 +17867,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "10,24,0.25": {
           "x": 10,
@@ -17899,7 +17903,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "13,24,0": {
           "x": 13,
@@ -17908,7 +17912,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "14,24,0": {
           "x": 14,
@@ -17917,7 +17921,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "15,24,0": {
           "x": 15,
@@ -17962,7 +17966,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "19,24,0.25": {
           "x": 19,
@@ -17980,7 +17984,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "20,24,0.25": {
           "x": 20,
@@ -17998,7 +18002,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "21,24,0.25": {
           "x": 21,
@@ -18016,7 +18020,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "22,24,0.25": {
           "x": 22,
@@ -18034,7 +18038,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "24,24,0": {
           "x": 24,
@@ -18043,7 +18047,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "24,24,0.25": {
           "x": 24,
@@ -18061,7 +18065,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "25,24,0.25": {
           "x": 25,
@@ -18079,7 +18083,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "26,24,0.25": {
           "x": 26,
@@ -18097,7 +18101,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "27,24,0.25": {
           "x": 27,
@@ -18115,7 +18119,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "29,24,0": {
           "x": 29,
@@ -18205,7 +18209,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "39,24,0": {
           "x": 39,
@@ -18214,7 +18218,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "40,24,0": {
           "x": 40,
@@ -18223,7 +18227,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "41,24,0": {
           "x": 41,
@@ -18241,7 +18245,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "43,24,0": {
           "x": 43,
@@ -18295,7 +18299,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "5,25,0": {
           "x": 5,
@@ -18349,7 +18353,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "10,25,0.25": {
           "x": 10,
@@ -18385,7 +18389,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "13,25,0": {
           "x": 13,
@@ -18403,7 +18407,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "15,25,0": {
           "x": 15,
@@ -18412,7 +18416,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "16,25,0": {
           "x": 16,
@@ -18421,7 +18425,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "16,25,0.25": {
           "x": 16,
@@ -18439,7 +18443,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "17,25,0.25": {
           "x": 17,
@@ -18520,7 +18524,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "25,25,0.25": {
           "x": 25,
@@ -18601,7 +18605,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "34,25,0": {
           "x": 34,
@@ -18664,7 +18668,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "41,25,0": {
           "x": 41,
@@ -18682,7 +18686,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "43,25,0": {
           "x": 43,
@@ -18691,7 +18695,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "0,26,0": {
           "x": 0,
@@ -18736,7 +18740,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "5,26,0": {
           "x": 5,
@@ -18790,7 +18794,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "10,26,0.25": {
           "x": 10,
@@ -18817,7 +18821,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "13,26,0": {
           "x": 13,
@@ -18826,7 +18830,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "14,26,0": {
           "x": 14,
@@ -18835,7 +18839,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "15,26,0": {
           "x": 15,
@@ -18844,7 +18848,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "16,26,0": {
           "x": 16,
@@ -18853,7 +18857,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "16,26,0.25": {
           "x": 16,
@@ -18871,7 +18875,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "18,26,0": {
           "x": 18,
@@ -18880,7 +18884,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "18,26,0.25": {
           "x": 18,
@@ -18898,7 +18902,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "20,26,0": {
           "x": 20,
@@ -18997,7 +19001,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "31,26,0": {
           "x": 31,
@@ -19006,7 +19010,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "32,26,0": {
           "x": 32,
@@ -19015,7 +19019,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "33,26,0": {
           "x": 33,
@@ -19024,7 +19028,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "34,26,0": {
           "x": 34,
@@ -19033,7 +19037,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "35,26,0": {
           "x": 35,
@@ -19096,7 +19100,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "42,26,0": {
           "x": 42,
@@ -19105,7 +19109,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "43,26,0": {
           "x": 43,
@@ -19159,7 +19163,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "5,27,0": {
           "x": 5,
@@ -19168,7 +19172,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "6,27,0": {
           "x": 6,
@@ -19213,7 +19217,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "10,27,0.25": {
           "x": 10,
@@ -19249,7 +19253,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "13,27,0": {
           "x": 13,
@@ -19267,7 +19271,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "15,27,0": {
           "x": 15,
@@ -19285,7 +19289,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "16,27,0.25": {
           "x": 16,
@@ -19303,7 +19307,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "17,27,0.25": {
           "x": 17,
@@ -19321,7 +19325,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "18,27,0.25": {
           "x": 18,
@@ -19339,7 +19343,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "19,27,0.25": {
           "x": 19,
@@ -19357,7 +19361,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "21,27,0": {
           "x": 21,
@@ -19366,7 +19370,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "22,27,0": {
           "x": 22,
@@ -19375,7 +19379,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "23,27,0": {
           "x": 23,
@@ -19420,7 +19424,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "27,27,0.25": {
           "x": 27,
@@ -19438,7 +19442,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "29,27,0": {
           "x": 29,
@@ -19447,7 +19451,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "30,27,0": {
           "x": 30,
@@ -19456,7 +19460,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "31,27,0": {
           "x": 31,
@@ -19492,7 +19496,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "35,27,0": {
           "x": 35,
@@ -19501,7 +19505,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "36,27,0": {
           "x": 36,
@@ -19510,7 +19514,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "37,27,0": {
           "x": 37,
@@ -19519,7 +19523,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "38,27,0": {
           "x": 38,
@@ -19564,7 +19568,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "43,27,0": {
           "x": 43,
@@ -19582,7 +19586,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "1,28,0": {
           "x": 1,
@@ -19591,7 +19595,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "2,28,0": {
           "x": 2,
@@ -19600,7 +19604,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "3,28,0": {
           "x": 3,
@@ -19609,7 +19613,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "4,28,0": {
           "x": 4,
@@ -19618,7 +19622,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "5,28,0": {
           "x": 5,
@@ -19672,7 +19676,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "11,28,0": {
           "x": 11,
@@ -19681,7 +19685,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "12,28,0": {
           "x": 12,
@@ -19690,7 +19694,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "13,28,0": {
           "x": 13,
@@ -19708,7 +19712,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "15,28,0": {
           "x": 15,
@@ -19717,7 +19721,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "16,28,0": {
           "x": 16,
@@ -19726,7 +19730,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "17,28,0": {
           "x": 17,
@@ -19744,7 +19748,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "19,28,0": {
           "x": 19,
@@ -19753,7 +19757,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "20,28,0": {
           "x": 20,
@@ -19771,7 +19775,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "22,28,0": {
           "x": 22,
@@ -19780,7 +19784,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "23,28,0": {
           "x": 23,
@@ -19789,7 +19793,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "24,28,0": {
           "x": 24,
@@ -19798,7 +19802,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "25,28,0": {
           "x": 25,
@@ -19807,7 +19811,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "26,28,0": {
           "x": 26,
@@ -19825,7 +19829,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "28,28,0": {
           "x": 28,
@@ -19843,7 +19847,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "30,28,0": {
           "x": 30,
@@ -19897,7 +19901,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "34,28,0.25": {
           "x": 34,
@@ -19933,7 +19937,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "37,28,0": {
           "x": 37,
@@ -19942,7 +19946,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "38,28,0": {
           "x": 38,
@@ -19951,7 +19955,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "39,28,0": {
           "x": 39,
@@ -19996,7 +20000,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "42,28,0.25": {
           "x": 42,
@@ -20014,7 +20018,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "43,28,0.25": {
           "x": 43,
@@ -20050,7 +20054,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "3,29,0": {
           "x": 3,
@@ -20059,7 +20063,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "4,29,0": {
           "x": 4,
@@ -20122,7 +20126,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "11,29,0": {
           "x": 11,
@@ -20131,7 +20135,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "12,29,0": {
           "x": 12,
@@ -20149,7 +20153,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "14,29,0": {
           "x": 14,
@@ -20158,7 +20162,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "15,29,0": {
           "x": 15,
@@ -20176,7 +20180,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "17,29,0": {
           "x": 17,
@@ -20185,7 +20189,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "18,29,0": {
           "x": 18,
@@ -20194,7 +20198,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "19,29,0": {
           "x": 19,
@@ -20212,7 +20216,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "21,29,0": {
           "x": 21,
@@ -20221,7 +20225,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "22,29,0": {
           "x": 22,
@@ -20230,7 +20234,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "23,29,0": {
           "x": 23,
@@ -20257,7 +20261,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "26,29,0": {
           "x": 26,
@@ -20266,7 +20270,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "27,29,0": {
           "x": 27,
@@ -20275,7 +20279,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "28,29,0": {
           "x": 28,
@@ -20284,7 +20288,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "29,29,0": {
           "x": 29,
@@ -20293,7 +20297,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "30,29,0": {
           "x": 30,
@@ -20302,7 +20306,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "31,29,0": {
           "x": 31,
@@ -20311,7 +20315,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "32,29,0": {
           "x": 32,
@@ -20320,7 +20324,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "32,29,0.25": {
           "x": 32,
@@ -20338,7 +20342,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "33,29,0.25": {
           "x": 33,
@@ -20356,7 +20360,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "35,29,0": {
           "x": 35,
@@ -20365,7 +20369,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "35,29,0.25": {
           "x": 35,
@@ -20383,7 +20387,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "37,29,0": {
           "x": 37,
@@ -20392,7 +20396,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "38,29,0": {
           "x": 38,
@@ -20401,7 +20405,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "39,29,0": {
           "x": 39,
@@ -20410,7 +20414,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "40,29,0": {
           "x": 40,
@@ -20419,7 +20423,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "40,29,0.25": {
           "x": 40,
@@ -20437,7 +20441,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "42,29,0": {
           "x": 42,
@@ -20464,7 +20468,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "0,30,0": {
           "x": 0,
@@ -20473,7 +20477,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "1,30,0": {
           "x": 1,
@@ -20482,7 +20486,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "2,30,0": {
           "x": 2,
@@ -20491,7 +20495,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "3,30,0": {
           "x": 3,
@@ -20527,7 +20531,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "7,30,0": {
           "x": 7,
@@ -20563,7 +20567,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "11,30,0": {
           "x": 11,
@@ -20572,7 +20576,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "12,30,0": {
           "x": 12,
@@ -20581,7 +20585,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "13,30,0": {
           "x": 13,
@@ -20590,7 +20594,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "14,30,0": {
           "x": 14,
@@ -20599,7 +20603,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "15,30,0": {
           "x": 15,
@@ -20608,7 +20612,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "16,30,0": {
           "x": 16,
@@ -20617,7 +20621,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "17,30,0": {
           "x": 17,
@@ -20635,7 +20639,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "19,30,0": {
           "x": 19,
@@ -20644,7 +20648,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "20,30,0": {
           "x": 20,
@@ -20653,7 +20657,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "21,30,0": {
           "x": 21,
@@ -20671,7 +20675,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "23,30,0": {
           "x": 23,
@@ -20680,7 +20684,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "24,30,0": {
           "x": 24,
@@ -20689,7 +20693,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "25,30,0": {
           "x": 25,
@@ -20716,7 +20720,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "28,30,0": {
           "x": 28,
@@ -20734,7 +20738,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "30,30,0": {
           "x": 30,
@@ -20752,7 +20756,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "32,30,0": {
           "x": 32,
@@ -20779,7 +20783,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "33,30,0.25": {
           "x": 33,
@@ -20815,7 +20819,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "35,30,0.25": {
           "x": 35,
@@ -20833,7 +20837,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "37,30,0": {
           "x": 37,
@@ -20842,7 +20846,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "38,30,0": {
           "x": 38,
@@ -20860,7 +20864,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "40,30,0": {
           "x": 40,
@@ -20878,7 +20882,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "41,30,0.25": {
           "x": 41,
@@ -20896,7 +20900,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "43,30,0": {
           "x": 43,
@@ -20905,7 +20909,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "43,30,0.25": {
           "x": 43,
@@ -20941,7 +20945,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "3,31,0": {
           "x": 3,
@@ -20968,7 +20972,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "6,31,0": {
           "x": 6,
@@ -21013,7 +21017,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "11,31,0": {
           "x": 11,
@@ -21049,7 +21053,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "15,31,0": {
           "x": 15,
@@ -21067,7 +21071,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "17,31,0": {
           "x": 17,
@@ -21103,7 +21107,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "21,31,0": {
           "x": 21,
@@ -21112,7 +21116,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "22,31,0": {
           "x": 22,
@@ -21121,7 +21125,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "23,31,0": {
           "x": 23,
@@ -21139,7 +21143,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "25,31,0": {
           "x": 25,
@@ -21166,7 +21170,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "28,31,0": {
           "x": 28,
@@ -21175,7 +21179,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "29,31,0": {
           "x": 29,
@@ -21184,7 +21188,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "30,31,0": {
           "x": 30,
@@ -21193,7 +21197,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "31,31,0": {
           "x": 31,
@@ -21202,7 +21206,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "32,31,0": {
           "x": 32,
@@ -21211,7 +21215,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "32,31,0.25": {
           "x": 32,
@@ -21229,7 +21233,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "33,31,0.25": {
           "x": 33,
@@ -21265,7 +21269,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "35,31,0.25": {
           "x": 35,
@@ -21292,7 +21296,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "38,31,0": {
           "x": 38,
@@ -21301,7 +21305,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "39,31,0": {
           "x": 39,
@@ -21310,7 +21314,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "40,31,0": {
           "x": 40,
@@ -21337,7 +21341,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         },
         "41,31,0.25": {
           "x": 41,
@@ -21373,7 +21377,7 @@
           "shape": "floor",
           "material": "stone",
           "rotation": 0,
-          "tile": "platform"
+          "tile": "grass-dirt"
         }
       }
     },

@@ -50,6 +50,16 @@ test('every creature, prop and object card shows what it puts down, and no card 
   // Every built-in prop is its own model, so none is a stand-in.
   await expect(terrain.locator('.ph-stand-in')).toHaveCount(0);
 
+  // A kind of tile is a picture of what it is drawn with, not a patch of its colour: every kind the
+  // vault is built from names a file.
+  await terrain.locator('[data-tab="tiles"]').click();
+  const tiles = terrain.locator('[data-item]');
+  const tileCount = await tiles.count();
+  expect(tileCount).toBeGreaterThan(3);
+  await expect(terrain.locator('.ph-thumb img[src^="data:image/png"]')).toHaveCount(tileCount, { timeout: 60_000 });
+  await expect(terrain.locator('[data-item="road"] img')).toHaveCount(1);
+  await terrain.locator('[data-tab="props"]').click();
+
   // No Objects tab: a door or a chest is a prop with a function, and its card is its model's picture.
   await expect(terrain.locator('[data-tab="objects"]')).toHaveCount(0);
   await expect(terrain.locator('.ph-glyph')).toHaveCount(0);

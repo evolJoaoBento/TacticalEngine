@@ -4,6 +4,31 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## A click answers, the banner retires, and the portal glows — done
+
+A click on the ground that orders a walk now ripples there (`render/click-ripple.ts`), and one that
+walks nobody shakes red. The procedural banner is retired for `banner-prop`, as the other ten were.
+The portal model carries its own animated glow (`tools/add-portal-glow.mjs`): emissive discs over
+the opening and a looping clip, in the file, so nothing in the engine knows portals glow.
+
+## The ground gets its own pictures and colours — done
+
+The Tiles strip shows each kind of tile as a picture of the model it is drawn with rather than a
+patch of colour (`tilesTab` passes the kind's `model`; its colour stays as the card's background
+and as the whole card for a kind with no model). The road is drawn with the dirt ground, the grass
+ground was turned greener - its browns towards its own grass, hue only - the dirt ground was matched
+to the dirt showing through the grass (`recolour-model.mjs match`: 66% of its saturation, 91% of its
+lightness, a degree of hue) and then greyed further (`saturation 0.7`), which read better beside it
+on the board than a lighter dirt did, and a `grass-dirt` kind, drawn with the grass as it was before, sits
+between the two. The demo's `low-wall` kind is gone: its five pieces are half-height stone walls,
+the engine's `barrier`, in the demo and in the default project. The stone wall's texture, olive and
+dark beside every other stone, was matched to the stone block and stairs (`match-all`) and set a
+little darker, so the walls sit in the vault as its own stone.
+
+**Working rule this leaves:** a test that counts drawn tile models waits for their files first
+(`assetStatus(id) === 'ready'`). The dirt ground is a 25 MB file, and a count taken before it lands
+grows by every road tile halfway through the test.
+
 ## Ten built-in props are retired for imported models — done
 
 The pine, dead tree, barrel, crate, brazier, cart, training dummy, door, chest and portal were

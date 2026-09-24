@@ -1,12 +1,12 @@
 /**
  * Scenery props, ported from `legacy/js/models.js`.
  *
- * What is left of the port: the four the shipped maps place that no imported model has replaced
+ * What is left of the port: the three the shipped maps place that no imported model has replaced
  * yet. The pine, the dead tree, the barrel, the crate, the brazier, the cart, the training dummy,
- * the door, the chest and the portal were retired for the models in `public/models` that took
- * their places (`tree-prop`, `withering-tree-prop`, `barrel-prop`, `crate-prop`,
+ * the door, the chest, the portal and the banner were retired for the models in `public/models`
+ * that took their places (`tree-prop`, `withering-tree-prop`, `barrel-prop`, `crate-prop`,
  * `standing-torch-prop`, `cart-prop`, `training-dummy-prop`, `door-prop`, `chest-prop`,
- * `portal-prop`); a project that still names one is renamed as it opens (`RETIRED_MODELS`).
+ * `portal-prop`, `banner-prop`); a project that still names one is renamed as it opens (`RETIRED_MODELS`).
  * The remaining legacy props (piano, throne, hut, spotlight, barrier, gate, spectator,
  * floorboard, trunk) belong to the one-shot and follow when that campaign is ported.
  */
@@ -25,24 +25,6 @@ export const rock: ProceduralModelSpec = {
   parts: [
     { prim: { kind: 'icosahedron', r: 0.3 }, mat: 'stone', pos: [0, 0.2, 0], rot: [0.4, 0.7, 0.2] },
     { prim: { kind: 'icosahedron', r: 0.18 }, mat: 'chip', pos: [0.28, 0.12, 0.15], rot: [1.1, 0.3, 0.5] },
-  ],
-};
-export const banner: ProceduralModelSpec = {
-  id: 'banner',
-  category: 'prop',
-  standHeight: 1.62,
-  tags: ['heraldry'],
-  info: { name: 'Banner', desc: 'A company standard, colours faded.' },
-  palette: {
-    pole: { color: '#4a3a26' },
-    cloth: { color: '#7a2433' },
-    finial: { color: '#d4af37', metalness: 0.5 },
-  },
-  parts: [
-    { prim: { kind: 'cylinder', rTop: 0.03, rBottom: 0.04, h: 1.5, seg: 5 }, mat: 'pole', pos: [0, 0.75, 0] },
-    { prim: { kind: 'box', w: 0.42, h: 0.04, d: 0.04 }, mat: 'pole', pos: [0.18, 1.42, 0] },
-    { prim: { kind: 'box', w: 0.34, h: 0.62, d: 0.025 }, mat: 'cloth', pos: [0.2, 1.1, 0] },
-    { prim: { kind: 'cone', r: 0.04, h: 0.12, seg: 4 }, mat: 'finial', pos: [0, 1.56, 0] },
   ],
 };
 export const campfire: ProceduralModelSpec = {
@@ -92,4 +74,4 @@ export const pillar: ProceduralModelSpec = {
   ],
 };
 
-export const PROP_MODELS = [rock, banner, campfire, pillar];
+export const PROP_MODELS = [rock, campfire, pillar];

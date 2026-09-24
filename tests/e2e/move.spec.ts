@@ -135,3 +135,22 @@ test('a right click while a jump is being aimed puts the jump down', async ({ pa
   expect(await page.evaluate(() => window.__engine!.standingAt('kara'))).toEqual(stood);
   expect(await page.evaluate(() => window.__engine!.errors)).toEqual([]);
 });
+
+test('a click on the ground to walk answers with a ripple where it landed, which spreads and is gone', async ({ page }) => {
+  await page.goto('/');
+  await page.waitForFunction(() => (window.__engine?.frames ?? 0) > 5);
+  const at = await page.evaluate(() => {
+    const api = window.__engine!;
+    api.setDiceSpeed(0);
+    api.select('kara');
+    const from = api.standingAt('kara')!;
+    return { ...api.screenAt(from.x + 3, from.y - 2), tile: api.tileOf('kara') };
+  });
+  expect(await page.evaluate(() => window.__engine!.ripples())).toBe(0);
+  await page.mouse.click(at.x, at.y);
+  expect(await page.evaluate(() => window.__engine!.ripples())).toBe(1);
+  // It walked: the ripple is the answer to a walk ordered, and a refused one is the red shake.
+  expect(await page.evaluate(() => window.__engine!.tileOf('kara'))).not.toBe(at.tile);
+  // A moment later it has spread, faded and gone: it answers the click, and does not linger.
+  await expect.poll(() => page.evaluate(() => window.__engine!.ripples()), { timeout: 5_000 }).toBe(0);
+});

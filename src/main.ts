@@ -213,6 +213,7 @@ declare global {
       floaters: () => { id: string; text: string }[];
       /** How many tokens are still walking to where their creature already is. */
       gliding: () => number;
+      ripples: () => number;
       /** Skip the walk: let the fight a move woke begin now. True when one did. */
       arrive: () => boolean;
       /** How many tokens are flinching, falling or getting up. */
@@ -1652,8 +1653,10 @@ const inspectTile = (tile: number): Inspection | null => inspection(demo, entity
 /** A click on the board in play mode. */
 function clickAt(event: PointerEvent): void {
   const ground = groundUnderPointer(event);
-  if (ground === null || ground.tile === NO_TILE) return;
-  const { tile, spot } = ground;
+  // What the rim lights is what a click uses, anywhere on it - its lid, or its top over a wall - as if its middle were clicked.
+  const lit = targeting === null ? view.objectUnder(aim(event)) : null;
+  if (lit === null && (ground === null || ground.tile === NO_TILE)) return;
+  const { tile, spot } = ground ?? { tile: NO_TILE, spot: { x: -1, y: -1 } };
 
   if (targeting !== null) {
     pickTarget(tile, spot);
@@ -1661,24 +1664,21 @@ function clickAt(event: PointerEvent): void {
     return;
   }
 
-  // A new order interrupts the walk in flight: whoever is still moving is put down where they
-  // have got to, so everything below is measured from there rather than from the tile the
-  // document already moved them to (`game/land.ts`).
+  // A new order interrupts the walk in flight: whoever is still moving is put down where they have
+  // got to, and everything below is measured from there, not from the tile the document moved them to.
   landWalkers(demo.party, view);
-  const occupant = entityNear(spot) ?? [entityOn(tile)].find((id) => id !== demo.party.selected) ?? null;
+  const occupant = lit !== null ? null : entityNear(spot) ?? [entityOn(tile)].find((id) => id !== demo.party.selected) ?? null;
   if (occupant !== null) {
     const entity = demo.state.entity(occupant)!;
     if (entity.faction === 'party') { if (demo.party.select(occupant)) focus.on(occupant); }
     else attackWithSelected(demo, occupant);
   } else {
-    // A click on a thing tries to use it; on bare ground, walk. Reach is checked
-    // inside the verb, which reports "out of reach" rather than silently walking.
-    const object = objectOn(tile);
+    // A click on a thing uses it, walking up to it when it is out of reach; on bare ground, walk.
+    const object = lit ?? objectOn(tile);
     if (object !== null) approachAndUse(object);
-    else moveSelectedTo(demo, tile, spot);
+    else { const walk = moveSelectedTo(demo, tile, spot); view.ripple(spot, walk.moved || walk.pending === true); } // the ground answers
   }
-  // The walk is under way; the line it was going to take is not needed on the ground now.
-  view.clearPath();
+  view.clearPath(); // the walk is under way: the line it was going to take is not needed on the ground now
   refreshPlay();
 }
 
@@ -2328,6 +2328,7 @@ const state = {
   /** Where a tile's centre lands on screen, in CSS pixels from the page origin. */
   screenOf: (tile: number): { x: number; y: number } => screenPoint(tile, 0),
   gliding: (): number => view.glidingCount,
+  ripples: (): number => view.rippleCount,
   arrive: (): boolean => {
     const began = arrive(demo);
     if (began) refreshPlay();

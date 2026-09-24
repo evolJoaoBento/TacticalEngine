@@ -241,7 +241,7 @@ function halls(at: (x: number, y: number) => Tile, decos: Deco[]): void {
   for (let y = 6; y <= 9; y++) for (let x = 38; x <= 41; x++) at(x, y).h = 1;
   for (const [type, x, y] of [
     ['standing-torch-prop', 30, 6], ['standing-torch-prop', 30, 9], ['standing-torch-prop', 38, 5], ['standing-torch-prop', 41, 10],
-    ['banner', 29, 2], ['banner', 29, 13], ['banner', 37, 1], ['banner', 37, 14],
+    ['banner-prop', 29, 2], ['banner-prop', 29, 13], ['banner-prop', 37, 1], ['banner-prop', 37, 14],
     ['crate-prop', 26, 12], ['barrel-prop', 27, 13], ['crate-prop', 33, 2], ['barrel-prop', 34, 2],
     ['pillar', 32, 7], ['training-dummy-prop', 24, 4],
   ] as const) {

@@ -52,17 +52,20 @@ export function titleCase(id: string): string {
 
 const FALLBACK_SWATCH = '#5d8a4a';
 
-/** What the strip needs of a kind of tile: what to call it, what colour, and whether it stacks. */
+/** What the strip needs of a kind of tile: what to call it, what it looks like, and whether it stacks. */
 export interface GroundType {
   readonly id: string;
   readonly name?: string;
   readonly color?: string;
+  /** The model it is drawn with, when it names one: its card is a picture of that. */
+  readonly model?: string;
   /** The structure it is, if it is one. Marks the card as something that stacks. */
   readonly structure?: string;
 }
 
 /**
- * Every kind of tile the project has, as colour swatches.
+ * Every kind of tile the project has: each card a picture of the model it is drawn with, and its
+ * colour for a kind that names none - which is also what shows while the picture is being drawn.
  *
  * One tab, where there were two. Structures used to be a tab of its own listing the four
  * shapes a build tool stamped, and picking one put a different tool in hand; a kind of tile
@@ -92,6 +95,7 @@ export function tilesTab(types: readonly GroundType[]): LibraryTab {
               id: type.id,
               label: type.name !== undefined && type.name !== '' ? type.name : titleCase(type.id),
               swatch: type.color ?? FALLBACK_SWATCH,
+              ...(type.model === undefined ? {} : { model: type.model }),
               // No "Stackable" detail any more: everything here stacks, so it said nothing.
               keywords: ['building', 'structure', type.structure],
             },

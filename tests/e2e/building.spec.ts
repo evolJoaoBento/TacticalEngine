@@ -125,7 +125,14 @@ test('builds outside the board, stacks, rotates, erases and restores saved tiles
   await page.evaluate(() => window.__engine!.setMode('edit'));
   await page.getByTestId('mode-terrain').click();
   await expect(page.locator('[data-tab="tiles"]')).toHaveClass(/ph-on/);
-  // The room is laid from tiles already: every count below is over what it opened with.
+  // The room is laid from tiles already: every count below is over what it opened with. Taken
+  // once every file the ground is drawn with has come in - the dirt under the roads is a big
+  // file, and a count taken before it lands grows by every road tile halfway through the test.
+  await expect.poll(() => page.evaluate(() => {
+    const api = window.__engine!;
+    const palette = (JSON.parse(api.exportProject()) as { terrainPalette?: { model?: string }[] }).terrainPalette ?? [];
+    return palette.every((kind) => kind.model === undefined || api.assetStatus(kind.model) === 'ready');
+  }), { timeout: 60_000 }).toBe(true);
   await expect.poll(() => page.evaluate(() => window.__engine!.pieceModels())).toBeGreaterThan(300);
   const laid = await page.evaluate(() => window.__engine!.pieceModels());
   const laidBoxes = await page.evaluate(() => window.__engine!.buildingStats().tiles);
