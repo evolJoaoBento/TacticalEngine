@@ -35,6 +35,8 @@ export interface HudMember {
   gear: string;
   /** Which group of walkers they are in, counted among the groups of more than one; null for somebody who walks alone. */
   group: number | null;
+  /** In a conversation set aside while somebody else is selected: held until it is picked up again. */
+  talking?: boolean;
 }
 
 export interface PartyHudProps {
@@ -270,6 +272,7 @@ export function PartyHud(props: PartyHudProps): preact.JSX.Element | null {
           </div>
           {stranded.has(member.id) ? <span className="hud-band" data-testid="group-tab" aria-hidden="true" /> : null}
           {member.conditions.length > 0 ? <div className="hud-conditions">{member.conditions.join(' · ')}</div> : null}
+          {member.talking === true ? <div className="hud-talking" data-testid="hud-talking">In conversation</div> : null}
           {slot(member.id)}
           {member.id === last ? slot(null) : null}
         </div>

@@ -121,6 +121,12 @@ export class Party {
    */
   private readonly groups = new Map<string, number>();
   private nextGroup = 1;
+  /**
+   * Members held where they are, busy with something else - a conversation set aside while the
+   * rest of the party goes on. Still in their group, and still selectable; but they take no order,
+   * and the others walk off without them until they are let go.
+   */
+  private readonly heldIds = new Set<string>();
   /** The order the party is read in, once somebody has been moved in it; scene order until then, and for anyone not named. */
   private order: readonly string[] = [];
   /**
@@ -253,11 +259,28 @@ export class Party {
     return this.groups.get(id) ?? 0;
   }
 
-  /** Whether the selected member can be given an order. */
+  /** Whether the selected member can be given an order: a member, standing, and not held. */
   canCommand(id = this.selectedId): boolean {
     if (id === null) return false;
     const entity = this.state.entity(id);
-    return entity !== undefined && entity.faction === 'party' && entity.alive;
+    return entity !== undefined && entity.faction === 'party' && entity.alive && !this.heldIds.has(id);
+  }
+
+  /** Hold a member where they are: no orders, and they do not follow. False for anyone who is no member. */
+  hold(id: string): boolean {
+    if (this.groupIndex(id) === null) return false;
+    this.heldIds.add(id);
+    return true;
+  }
+
+  /** Let a held member go again. Whether they were held. */
+  release(id: string): boolean {
+    return this.heldIds.delete(id);
+  }
+
+  /** Whether a member is held. */
+  isHeld(id: string): boolean {
+    return this.heldIds.has(id);
   }
 
   /** The movement context for one member — occupancy, minus themselves. */
@@ -682,7 +705,7 @@ export class Party {
     if (leader === undefined) return [];
     return this.state
       .entitiesOf('party')
-      .filter((e) => e.alive && e.id !== leaderId && this.linked(leaderId, e.id))
+      .filter((e) => e.alive && e.id !== leaderId && !this.heldIds.has(e.id) && this.linked(leaderId, e.id))
       .sort(
         (a, b) =>
           this.grid.manhattanDistance(a.tile, leader.tile) -

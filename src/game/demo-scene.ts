@@ -485,6 +485,8 @@ export interface PendingDialogue {
   prompt: Prompt | null;
   /** Same cumulative-journal guard as above. */
   recorded: number;
+  /** The member having it: held while it is set aside for somebody else (`game/talks.ts`). */
+  by?: string;
   /**
    * The node whose lines are already in the log.
    *
@@ -4304,6 +4306,7 @@ export function settle(demo: DemoScene, lines: LogLine[]): UseOutcome {
     prompt: status.status === 'script' ? status.prompt : null,
     recorded: status.journal.length,
     spokenNode: null,
+    ...(demo.scenario.actorId === null ? {} : { by: demo.scenario.actorId }),
   };
   if (status.status === 'ended') {
     demo.pending = { ...waiting, dialogue: null };

@@ -410,7 +410,16 @@ but you can still turn it (Q / E, or a drag with the left or middle button). Whe
 ends the camera goes back to where it was looking. A conversation shows its lines and the replies you may give. A reply can be hidden until the
 party knows something, shown but greyed ("Not available"), cost a roll (the roll prompt appears
 inside the conversation), or end the conversation. A node's lines are also written to the log.
-Everything else — walking, using, saving, levelling — waits until the conversation ends.
+A conversation is the character's who is having it, not the whole party's. While they are selected
+everything else waits for it; select somebody else - **Tab**, their card, a click on them - and
+it steps aside: the conversation leaves the screen, the camera lets go, and the rest of the party
+carries on as usual, while the one talking stands where they are, marked *In conversation* on
+their card. They are still in their group, but they take no orders and the others walk off without
+them. Select them again and the conversation is back where it was - with the shop it had open, if
+it had one - and when it ends they are free. The party cannot save or rest while anybody is in the
+middle of one; a fight that begins breaks off any conversation set aside ("Quim breaks off the
+conversation."), and so, without a word, does the party leaving the room or a save being loaded. In a fight a conversation holds the whole table, as a
+creature's surrender does. Esc does not close a conversation: it opens the settings over it.
 
 Some creatures talk. A **friendly** one stands on nobody's side - a green line round it, not red - and
 clicking it walks up and opens its conversation instead of attacking; stepping on its encounter's
@@ -456,9 +465,10 @@ is paid in ("You have 20 gold."). Buying takes the price out of the shared pack 
 in it ("Quim buys Healing Draught for 6 gold."); a Buy the party cannot afford is greyed out, and a
 thing a shop has only so many of is gone once they are bought - still gone after a save. The window
 opens in the middle of the screen, over everything, with the room dimmed behind it, and has to be
-closed - its ✕, or Esc - before anything else goes on: the conversation that opened it waits, its
-replies greyed under "Close the shop to go on.", and the board cannot be clicked through it. The
-**Loadout** book stays above the dimming, so the party's cards can still be looked at mid-shop.
+closed - its ✕, or a click outside it - before anything else goes on: the conversation that opened
+it waits, its replies greyed under "Close the shop to go on.", and the board cannot be clicked
+through it. The **Loadout** book stays above the dimming, so the party's cards can still be looked
+at mid-shop, and Esc opens the settings over it, as it does over a conversation.
 **Selling:** the window's **Sell** list is what the party carries that the seller will
 buy, and what it pays ("Sell · 3 gold") - its share of its own price for something it sells, which
 goes back on its shelf if it had only so many, and of an item's worth for anything else. The share

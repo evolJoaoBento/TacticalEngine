@@ -12,9 +12,13 @@ describe('whose Escape it is', () => {
   });
 
   it('belongs to whatever Escape already closes, while that is up', () => {
-    for (const open of ['[data-testid="loadout-backdrop"]', '[data-testid="rest"]', '[data-testid="cancel-targeting"]', '[data-testid="inspect"]', '.roll-backdrop', '[data-testid="level-up"]', '[data-testid="dialogue"]']) {
+    for (const open of ['[data-testid="loadout-backdrop"]', '[data-testid="rest"]', '[data-testid="cancel-targeting"]', '[data-testid="inspect"]', '.roll-backdrop', '[data-testid="level-up"]']) {
       expect(ESCAPE_IS_TAKEN.split(',')).toContain(open);
       expect(escapeIsTaken(pageWith(open))).toBe(true);
     }
+  });
+
+  it('is the settings’ in a conversation, and over a shop: Escape closes neither', () => {
+    expect(escapeIsTaken(pageWith('[data-testid="dialogue"]', '[data-testid="shop-backdrop"]', '[data-testid="container"]'))).toBe(false);
   });
 });

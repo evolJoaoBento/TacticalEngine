@@ -4,11 +4,24 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## A conversation is its speaker's: Tab leaves them talking while the rest go on — done
+
+A conversation held the whole party: nothing else could happen until it ended. Now it is the
+speaker's (`game/talks.ts`). Select somebody else - Tab, a card, a click - and `syncTalks` (run on
+every `refreshPlay`) sets it aside: it leaves the screen, the camera lets go, the rest play on,
+and the speaker is held where they stand (`Party.hold`: no orders, not followed, still in the group),
+marked *In conversation* on their card. Select them again and it is back where it was, with the
+shop it had open; ended, they are free. Out of a fight only - a fight, leaving the room, a load,
+or the speaker falling ends what is set aside - and saving and resting wait for it. The speaker is
+`PendingDialogue.by`. Esc no longer belongs to a conversation or a shop, so it opens the settings
+over either; a shop closes with its ✕ or a click outside it. Unit `game/talks.test.ts`,
+`engine/scene/party.test.ts`, `ui/settings-modal.test.ts`; e2e in `merchant.spec.ts`.
+
 ## A shop in the middle of the screen, and the party walks up together — done
 
 A shop's window opened in the play panel's stack on the right while its conversation went on
 beside it. Now it opens in the middle of the screen over everything, the room dimmed behind it
-(`ContainerWindow`, `shop-backdrop` in `hud.css`), and has to be closed - ✕ or Esc - before anything
+(`ContainerWindow`, `shop-backdrop` in `hud.css`), and has to be closed - its ✕ - before anything
 goes on: the conversation that opened it waits, its replies shut under "Close the shop to go on."
 (`TalkingView.held` from `talkingView`), and `answerPending` refuses a conversation's answer while a
 shop is open (`shopOpen` in `prop-use.ts`), the driver's included. The Loadout book is lifted above

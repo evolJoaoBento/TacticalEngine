@@ -21,7 +21,8 @@ import { EditorSession, addAsset, removeAsset, addScene, removeScene, renameScen
 import { EditorShell } from './editor/ui/EditorShell';
 import { PlayPanel, TONE, type Inspection } from './game/ui/PlayPanel';
 import { carriedItems, containerView, hudMembers, journalEntries, talkingTo, talkingView } from './game/ui/play-views';
-import { closeContainer, interactablesOf, shopOpen, takeFromContainer, withinReach } from './game/prop-use';
+import { interactablesOf, takeFromContainer, withinReach } from './game/prop-use';
+import { syncTalks } from './game/talks';
 import { driveFloaters, type LiveFloater } from './game/ui/floaters';
 import { PartyHud } from './game/ui/PartyHud';
 import { bootDemo, saveDefault, savesToDefault } from './game/project-store';
@@ -1203,6 +1204,8 @@ function rebindScene(grown?: TileGrid): void {
 }
 
 function refreshPlay(): void {
+  // A conversation is its speaker's: set aside when somebody else is selected, back when they are.
+  syncTalks(demo);
   autosaveOnTravel();
   rebindScene();
   // Tokens belong to the played room. Drawing them over another room's grid puts
@@ -1836,9 +1839,6 @@ window.addEventListener('keydown', (event) => {
   if (event.key === 'Escape' && (inspecting !== null || targeting !== null || loadoutOpen !== null || restOpen)) {
     inspecting = targeting = loadoutOpen = null;
     restOpen = false;
-    refreshPlay();
-  } else if (event.key === 'Escape' && shopOpen(demo)) {
-    closeContainer(demo);
     refreshPlay();
   } else if (event.key === 'Tab') {
     event.preventDefault();

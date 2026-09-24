@@ -15,6 +15,7 @@ import { characterContentFor } from '../room';
 import type { HudMember } from './PartyHud';
 import type { JournalQuest, OpenContainer } from './PlayPanel';
 import { closeContainer, containerContents, openContainer, shopOpen, takeFromContainer } from '../prop-use';
+import { talkingAside } from '../talks';
 import { nameOf } from '../log';
 import { purse, sellTo, sellables, shopOf } from '../shop';
 import { interactablesOf } from '../../engine/scene/prop-functions';
@@ -46,6 +47,7 @@ export function journalEntries(demo: DemoScene): JournalQuest[] {
 /** What the HUD shows for each party member, in the party's order. */
 export function hudMembers(demo: DemoScene): HudMember[] {
   const waiting = new Set(awaitingLevel(demo));
+  const aside = new Set(talkingAside(demo));
   // Groups are numbered by their first member, in the party's order, for the band on the cards.
   const groups = [...new Set(demo.party.members().map((id) => demo.party.groupOf(id)[0]!))];
   return demo.party.members().map((id) => demo.state.entity(id)!).map((entity) => {
@@ -64,9 +66,10 @@ export function hudMembers(demo: DemoScene): HudMember[] {
       ...(entity.good === undefined ? {} : { good: { ...entity.good } }),
       // What they are called rather than their ids: a HUD is read by a player.
       conditions: [...entity.conditions].map((c) => demo.world.conditionName(c)),
-      canLevel: waiting.has(entity.id) && !inCombat(demo) && demo.pending === null,
+      canLevel: waiting.has(entity.id) && !inCombat(demo) && demo.pending === null && !aside.has(entity.id),
       gear: `${gearOf(demo, entity.id).weapon} · ${gearOf(demo, entity.id).armor}`,
       group: demo.party.groupOf(entity.id).length > 1 ? groups.indexOf(demo.party.groupOf(entity.id)[0]!) : null,
+      talking: aside.has(entity.id),
     };
   });
 }

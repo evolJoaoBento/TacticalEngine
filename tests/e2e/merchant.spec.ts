@@ -96,8 +96,16 @@ test('the merchant by the camp fire sells to a party that can pay', async ({ pag
   await expect(page.getByTestId('loadout-backdrop')).toHaveCount(0);
   await expect(shop).toBeVisible();
 
-  // Closed, and the conversation goes on - and ends as any other does.
-  await page.getByTestId('container-close').click();
+  // Esc does not close it: it opens the settings, over the shop, and shuts them again.
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('settings-backdrop')).toBeVisible();
+  await expect(shop).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('settings-backdrop')).toHaveCount(0);
+  await expect(shop).toBeVisible();
+
+  // A click outside the window closes it, and the conversation goes on - and ends as any other does.
+  await page.getByTestId('shop-backdrop').click({ position: { x: 8, y: 8 } });
   await expect(page.getByTestId('shop-backdrop')).toHaveCount(0);
   await expect(page.getByTestId('dialogue-held')).toHaveCount(0);
   await page.evaluate(() => {
@@ -258,5 +266,64 @@ test('talking to somebody across the camp waits for the walk, and a right-click 
     return Math.hypot(me.x - him.x, me.y - him.y);
   });
   expect(apart).toBeGreaterThan(2);
+  expect(errors).toEqual([]);
+});
+
+test('Tab leaves a conversation with whoever is having it, held there while the rest go on', async ({ page }) => {
+  test.setTimeout(120_000);
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.route('**/projects/default.json', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: shipped }));
+  await page.goto('/?boot=file');
+  await page.waitForFunction(() => (window.__engine?.frames ?? 0) > 5);
+  await page.evaluate(() => window.__engine!.setDiceSpeed(0));
+  const dialogue = page.getByTestId('dialogue');
+
+  const talker = await page.evaluate(() => {
+    const api = window.__engine!;
+    api.attack('tobin');
+    return api.selected()!;
+  });
+  await expect(dialogue).toContainText('Travellers! Sit by the fire');
+  // Esc opens the settings in a conversation too, and shuts them.
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('settings-backdrop')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('settings-backdrop')).toHaveCount(0);
+
+  // Tab: somebody else, the cards back, and the one talking marked on their card.
+  await page.keyboard.press('Tab');
+  await expect(dialogue).toHaveCount(0);
+  expect(await page.evaluate(() => window.__engine!.selected())).not.toBe(talker);
+  expect(await page.evaluate(() => window.__engine!.pendingKind())).toBeNull();
+  await expect(page.getByTestId('hud-talking')).toHaveCount(1);
+  await expect(page.getByTestId('action-bar').locator('.hand')).toBeVisible();
+  await page.screenshot({ path: 'test-results/talk-set-aside.png' });
+
+  // The rest walk off; the one talking stays where they are.
+  const walked = await page.evaluate((who) => {
+    const api = window.__engine!;
+    const stood = api.tileOf(who);
+    const other = api.selected()!;
+    const from = api.tileOf(other);
+    const tiles = api.reachable().filter((tile) => tile !== from);
+    api.moveTo(tiles[Math.floor(tiles.length / 2)]!);
+    api.arrive();
+    return { stood, now: api.tileOf(who), moved: api.tileOf(other) !== from };
+  }, talker);
+  expect(walked.moved).toBe(true);
+  expect(walked.now).toBe(walked.stood);
+
+  // Back to them, and the conversation is where it was; ended, they are free.
+  await page.evaluate((who) => window.__engine!.select(who), talker);
+  await expect(dialogue).toContainText('Travellers! Sit by the fire');
+  await expect(page.getByTestId('hud-talking')).toHaveCount(0);
+  await dialogue.getByRole('button', { name: 'Nothing today.', exact: true }).click();
+  await page.evaluate(() => {
+    const api = window.__engine!;
+    for (let i = 0; i < 5 && api.pendingKind() !== null; i++) api.answer({ kind: 'continue' });
+  });
+  expect(await page.evaluate(() => window.__engine!.pendingKind())).toBeNull();
+  await expect(dialogue).toHaveCount(0);
   expect(errors).toEqual([]);
 });

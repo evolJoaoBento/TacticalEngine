@@ -315,6 +315,26 @@ describe('following', () => {
   });
 });
 
+describe('a held member', () => {
+  it('takes no order and is left behind, still in the group, until let go', () => {
+    const { grid, party, state } = setup();
+    expect(party.hold('mira')).toBe(true);
+    expect(party.canCommand('mira')).toBe(false);
+    // Still selectable, still one of the group.
+    expect(party.select('mira')).toBe(true);
+    expect(party.linked('kara', 'mira')).toBe(true);
+    const stood = state.entity('mira')!.tile;
+    const path = party.moveTo('kara', grid.indexOf(5, 1))!;
+    expect([...party.follow('kara', path).keys()]).toEqual(['finn']);
+    expect(state.entity('mira')!.tile).toBe(stood);
+
+    expect(party.release('mira')).toBe(true);
+    expect(party.canCommand('mira')).toBe(true);
+    expect(party.isHeld('mira')).toBe(false);
+    expect(party.hold('nobody')).toBe(false);
+  });
+});
+
 describe('groups', () => {
   it('start as one: everybody walks with everybody', () => {
     const { party } = setup();

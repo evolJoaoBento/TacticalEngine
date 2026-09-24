@@ -45,6 +45,7 @@ import {
   setSheet,
 } from './demo-scene';
 import { inCombat } from './moment';
+import { talkingAside } from './talks';
 import { DEMO_CHARACTERS } from './demo-rules';
 import { characterContentFor, settleTravel } from './room';
 import { nameOf, note, type LogLine } from './log';
@@ -619,7 +620,7 @@ export type RestResult = { ok: true; badGained: number } | { ok: false; reason: 
  */
 export function rest(demo: DemoScene, kind: 'short' | 'long', plan: RestPlan): RestResult {
   if (inCombat(demo)) return { ok: false, reason: 'not in the middle of a fight' };
-  if (demo.pending !== null) return { ok: false, reason: 'not in the middle of a conversation' };
+  if (demo.pending !== null || talkingAside(demo).length > 0) return { ok: false, reason: 'not in the middle of a conversation' };
   const party = demo.state.entitiesOf('party');
   if (party.length === 0) return { ok: false, reason: 'nobody to rest' };
 

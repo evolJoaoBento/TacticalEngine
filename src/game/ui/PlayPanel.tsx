@@ -389,9 +389,10 @@ export function PlayPanel(props: PlayPanelProps): preact.JSX.Element | null {
 
 /**
  * An open container, in the panel stack - or a shop, in the middle of the screen over everything,
- * with the room dimmed behind it. A shop is closed before anything else goes on: the board cannot
- * be clicked through it, and a conversation that opened it waits (`answerPending`). The loadout's
- * book is lifted above the dimming (`hud.css`), and its binder opens over the shop.
+ * with the room dimmed behind it. A shop is closed - its x, or a click outside it - before anything
+ * else goes on: the board cannot be clicked through it, and a conversation that opened it waits
+ * (`answerPending`). The loadout's book is lifted above the dimming (`hud.css`), and its binder
+ * opens over the shop, as the settings do.
  */
 function ContainerWindow({ container }: { container: OpenContainer }): preact.JSX.Element {
   const shop = container.paidIn !== undefined;
@@ -453,5 +454,6 @@ function ContainerWindow({ container }: { container: OpenContainer }): preact.JS
       )}
     </div>
   );
-  return shop ? <div className="shop-backdrop" data-testid="shop-backdrop">{box}</div> : box;
+  // A click outside the window closes it, as its x does.
+  return shop ? <div className="shop-backdrop" data-testid="shop-backdrop" onClick={(e) => { if (e.target === e.currentTarget) container.onClose(); }}>{box}</div> : box;
 }

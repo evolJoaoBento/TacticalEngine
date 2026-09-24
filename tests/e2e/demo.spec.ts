@@ -1223,10 +1223,10 @@ test('will not save in the middle of a conversation', async ({ page }) => {
     api.use(pillar);
   });
   expect(await page.evaluate(() => window.__engine!.hasDialogue())).toBe(true);
-  // Escape belongs to the conversation while it is up, so the menu the save button lives on does
-  // not even open: there is no way to press it, and the engine refuses it in any case.
+  // Escape opens the settings over a conversation as anywhere else, but the save button on them is
+  // shut: there is no way to press it, and the engine refuses it in any case.
   await page.keyboard.press('Escape');
-  await expect(page.getByTestId('user-settings')).toHaveCount(0);
+  await expect(save).toBeDisabled();
   expect(await page.evaluate(() => window.__engine!.saveBlocked())).toMatch(/conversation/);
 
   expect(consoleErrors).toEqual([]);

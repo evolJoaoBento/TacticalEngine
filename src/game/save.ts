@@ -31,6 +31,7 @@ import {
 } from '../engine/script/world';
 import { sceneSnapshotSchema } from '../engine/scene/state';
 import { migrateDocument, CURRENT_FORMAT_VERSION } from '../engine/scene/migrate';
+import { talkingAside } from './talks';
 
 export const saveSchema = z.object({
   /**
@@ -89,7 +90,7 @@ export type SaveGame = z.infer<typeof saveSchema>;
 export function saveBlockedBy(demo: DemoScene): string | null {
   if (inCombat(demo)) return 'Not in the middle of a fight.';
   if (demo.ambush !== null) return 'Not while the party is approaching an ambush.';
-  if (demo.pending !== null) return 'Not in the middle of a conversation.';
+  if (demo.pending !== null || talkingAside(demo).length > 0) return 'Not in the middle of a conversation.';
   return null;
 }
 

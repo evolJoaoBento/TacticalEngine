@@ -63,6 +63,11 @@ export function closeContainer(demo: Demo): void {
   opened.delete(demo);
 }
 
+/** Open a container's window again - a shop a conversation had open, brought back with it. */
+export function showContainer(demo: Demo, id: string): void {
+  opened.set(demo, id);
+}
+
 /** Whether what is open is a shop: its window is over everything, and a conversation waits on it. */
 export function shopOpen(demo: Demo): boolean {
   const id = openContainer(demo);
