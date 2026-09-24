@@ -198,6 +198,24 @@ export function removePropPreset(id: string): Edit {
   };
 }
 
+/** Call a remix something else. What it places is unchanged; only the name on its card is. */
+export function renamePropPreset(id: string, label: string): Edit {
+  let before: string | null = null;
+  return {
+    label: `Rename remix ${label}`,
+    apply(project) {
+      const preset = (project.propPresets ?? []).find((saved) => saved.id === id);
+      before = preset === undefined ? null : preset.label;
+      if (preset !== undefined) preset.label = label;
+    },
+    undo(project) {
+      const preset = (project.propPresets ?? []).find((saved) => saved.id === id);
+      if (preset !== undefined && before !== null) preset.label = before;
+    },
+    isNoop: () => before === null || before === label,
+  };
+}
+
 /**
  * A name for a remix nobody has named: what it is, how big, and whether it is an obstacle.
  *

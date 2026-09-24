@@ -748,6 +748,12 @@ export const effectSchema = z.discriminatedUnion('kind', [
    * none is running. Whom it means is the one a conversation is with unless `target` says.
    * A party member is never turned.
    */
+  /**
+   * Open a seller's window: what it sells, each with its price. Whose shop is `of`, else the one a
+   * conversation is with, else the thing being used; the stock is on the seller - a prop's Shop
+   * function or a creature's interaction - as a chest's contents are on the chest.
+   */
+  z.object({ kind: z.literal('openShop'), of: z.string().min(1).optional() }),
   z.object({ kind: z.literal('setAttitude'), attitude: z.enum(['friendly', 'hostile']), target: targetSelectorSchema.optional() }),
   /**
    * A weapon attack as an effect — "make an attack with your primary weapon".

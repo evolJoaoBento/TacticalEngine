@@ -380,7 +380,9 @@ test('a prop previews before it is placed, is edited after, and its settings can
   expect(carried.span, 'the prop shrank when it was picked up').toBe(2);
   await page.evaluate(() => window.__engine!.setTool('prop'));
 
-  // Saved as a remix, it joins the Props strip with its settings on it.
+  // Saved as a remix with its name left empty, it joins the Props strip with its settings on it,
+  // named as the box's grey placeholder said it would be.
+  await expect(page.getByTestId('prop-remix-name')).toHaveAttribute('placeholder', 'Crate Prop 2×2');
   await page.getByTestId('prop-save-remix').click();
   const strip = page.getByTestId('terrain-library');
   const remix = strip.locator('.ph-card', { hasText: 'remix' }).first();
@@ -397,6 +399,17 @@ test('a prop previews before it is placed, is edited after, and its settings can
   await page.mouse.up();
   const fromRemix = JSON.parse(await page.evaluate(() => window.__engine!.exportProject())).scenes[0].decos.at(-1);
   expect(fromRemix).toMatchObject({ model: 'crate-prop', span: 2, position: { x: 14, y: 24 } });
+
+  // Renamed, its card in the strip says the new name - and emptied, it is named for what it is again.
+  const rename = page.getByTestId('prop-remix-rename');
+  await expect(rename).toHaveValue('Crate Prop 2×2');
+  await rename.fill('Crate stack');
+  await rename.press('Enter');
+  await expect(strip.locator('.ph-card', { hasText: 'Crate stack' })).toHaveCount(1);
+  expect(JSON.parse(await page.evaluate(() => window.__engine!.exportProject())).propPresets[0].label).toBe('Crate stack');
+  await rename.fill('');
+  await rename.press('Enter');
+  await expect(rename).toHaveValue('Crate Prop 2×2');
 
   // Forgetting the remix leaves what was placed from it exactly where it is.
   await page.getByTestId('prop-remove-remix').click();

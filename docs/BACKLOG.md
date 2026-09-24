@@ -4,6 +4,50 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## A merchant, and a shop that is a function — done
+
+Tobin the Pedlar sits by the camp fire in the default project: a friendly creature (a `merchant`
+stat block the project carries itself, drawn with `merchant.glb`) whose conversation's "Show me
+your wares" runs a consequence node with **Open a shop** (`openShop`), and his shop window opens
+while the talk goes on. The camp's crate holds 20 gold so there is something to spend. A shop is
+kept by the seller, as a chest's contents are: `interaction.shop` on a creature, or a prop given the
+new **Shop** function, each edited with `ui/StockEditor.tsx` (paid in, and a line per item with a
+price and an optional count). The window is the container window with prices and Buy
+(`game/shop.ts`, `prop-use.ts`, `ui/PlayPanel.tsx`); what is bought out of a limited line is saved on
+the seller. Unit `game/shop.test.ts`; e2e `tests/e2e/merchant.spec.ts` (plays the default project
+through `?boot=file`) and the shop editor in `interaction.spec.ts`.
+
+**Still open:** a placed creature's own **Name** is shown on the shop window and nowhere else -
+`nameOf` reads the stat block, so the log says "Merchant" and the husks the default project names
+"Hollow Husk" read as their stat block too. Making `nameOf` read the placement's name is a small
+change with a wide reach into the log and every spec that reads it.
+
+## The pillar retires, and carries a π — done
+
+The author made `pillar-prop`, and the procedural pillar - the last prop the procedural library drew
+- retired for it: `RETIRED_MODELS` renames it as a project opens, an object of kind pillar is drawn
+with it (`OBJECT_BODIES`), and the demo and the default project name it. The old pillar's glowing
+rune is kept in spirit: a π carved into the new one's top, glowing blue, in the file
+(`tools/add-top-rune.mjs`, which finds the top face from the model's own vertices). Shrunk from 6.8
+MB to 1.3, uploaded to Hugging Face and pinned. Tests that needed a drawn prop use `husk` now.
+
+**Working rule this leaves:** never write under `public/` while a browser run is going, not even an
+unused file in `public/models/heavy/`: Vite reloads every open page for it, and tests fail with
+"Execution context was destroyed". Model work goes to the scratchpad until the run is done.
+
+## A save leaves imported models nobody uses in the browser, and remixes take names — done
+
+The browser remembers every model imported in the Models panel and lays it back under the project
+as it opens, so a save wrote every one of them into the file: four unused Meshy models once took
+`projects/default.json` to 83 MB. A save now goes through `withoutUnusedEmbedded`: an embedded model
+is written when something in the project names it (`scene/model-references.ts` counts every string
+outside the model list) or the game's own table does, and otherwise stays remembered in the browser
+and offered in the editor. Unit `editor/save-trim.test.ts`, e2e in `default-project.spec.ts`.
+
+**Save as remix** has a name box beside it - empty is the name it was always given - and a picked
+remix's name can be changed, one undo step each, emptied back to the given name
+(`renamePropPreset`, `EditorController.renameRemix`, `remixLabel`). Unit `editor/remix-names.test.ts`.
+
 ## Creatures and props that talk — done
 
 A creature placed in Combat mode can be given an **Interaction**: **Friendly** (it stands on
@@ -130,8 +174,9 @@ rather than the dummy.
   `public/models`, not code, so they must be committed with it: a clone without them draws every
   one as the placeholder. They arrived at 7 to 9 MB each - lighten them (`tools/lighten-model.py`)
   before they go in.
-- **A test that needs a prop the procedural library draws** uses `pillar`, the only one left: a
-  node test has no asset library, so an imported model is only ever `missing()` there.
+- **A test that needs something the procedural library draws** uses a creature body - `husk` -
+  since no procedural prop is left: a node test has no asset library, so an imported model is only
+  ever `missing()` there.
 
 ## Objects are props that do something — done
 

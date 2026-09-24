@@ -17,7 +17,7 @@
 import { z } from 'zod';
 import { BUILD_LIMIT, buildingTilesSchema, structureTypeSchema } from './building';
 import { DECO_SPAN_MAX } from './deco-span';
-import { propFunctionSchema } from './prop-function-schema';
+import { propFunctionSchema, shopSchema } from './prop-function-schema';
 import { itemSchema, lootTableSchema } from '../content/items';
 import { abilitySchema } from '../content/abilities';
 import { characterSheetSchema } from '../character/sheet-schema';
@@ -129,10 +129,12 @@ export type Interactable = z.infer<typeof interactableSchema>;
  * Absent is neither: an ordinary creature, which is the "none" of the editor.
  */
 export const adversaryInteractionSchema = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('friendly'), dialogue: contentIdSchema }),
+  // `shop`: what it sells, when its conversation opens a shop (`openShop`) - a merchant.
+  z.object({ kind: z.literal('friendly'), dialogue: contentIdSchema, shop: shopSchema.optional() }),
   z.object({
     kind: z.literal('threshold'),
     dialogue: contentIdSchema,
+    shop: shopSchema.optional(),
     /** Of its Hit Points, whole per cent: at or under this many left, it stops to talk. */
     percent: z.number().int().min(1).max(99).default(50),
   }),

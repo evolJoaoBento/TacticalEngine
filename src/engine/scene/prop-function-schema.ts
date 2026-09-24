@@ -44,6 +44,20 @@ const doorFunction = z.object({ kind: z.literal('door') });
 const portalFunction = z.object({ kind: z.literal('portal'), pair: z.string().trim().default('') });
 
 /**
+ * What a seller sells: a line per item with its price, and how many there are - left out, as many
+ * as the party can pay for - and the item it is paid in. Kept by a prop with the Shop function or a
+ * creature's interaction, the way a chest keeps its contents; `openShop` opens the window on it.
+ */
+export const shopSchema = z.object({
+  currency: contentIdSchema.default('gold'),
+  stock: z.array(z.object({ item: contentIdSchema, price: z.number().int().min(0), count: z.number().int().min(1).optional() })).default([]),
+});
+export type Shop = z.infer<typeof shopSchema>;
+
+/** A shop: using it opens a window of what it sells, each with its price and a Buy. */
+const shopFunction = z.object({ kind: z.literal('shop'), shop: shopSchema.default({ currency: 'gold', stock: [] }) });
+
+/**
  * A conversation: using it opens the dialogue, whose replies and consequence nodes do the rest.
  * Empty while it is being set up, and an empty one says nothing.
  */
@@ -95,6 +109,7 @@ export const propFunctionSchema = z.discriminatedUnion('kind', [
   doorFunction,
   portalFunction,
   interactionFunction,
+  shopFunction,
   trappedFunction,
   scriptFunction,
 ]);

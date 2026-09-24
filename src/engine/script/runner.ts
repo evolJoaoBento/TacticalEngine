@@ -313,6 +313,7 @@ export type JournalEntry =
   | { kind: 'goto'; scene: string }
   | { kind: 'dialogue'; dialogue: string }
   | { kind: 'attitude'; id: string; attitude: 'friendly' | 'hostile' }
+  | { kind: 'shop'; id: string }
   | { kind: 'quest'; quest: string; change: 'started' | 'completed' | 'failed' }
   | { kind: 'levelUp'; level: number }
   /** `id` is set when the Light went to someone other than the actor. */
@@ -1231,6 +1232,12 @@ export class ScriptRunner {
       case 'slay': {
         const killed = world.slay(effect.target ?? { kind: 'hit' }, this.bindings());
         for (const id of killed) this.journal.push({ kind: 'slain', id });
+        return null;
+      }
+      case 'openShop': {
+        const seller = effect.of ?? this.targets[0] ?? this.subject;
+        if (seller === null || seller === undefined) return this.refuse('nobody to buy from');
+        this.journal.push({ kind: 'shop', id: seller });
         return null;
       }
       case 'setAttitude': {

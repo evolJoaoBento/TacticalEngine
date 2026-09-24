@@ -438,6 +438,15 @@ where the card asks for one.
 
 ### Loot, keys, equipping and using
 
+**Buying.** A merchant's conversation, or a prop that is a shop, opens a window of what it sells:
+each thing with its price and a **Buy** button, and a line saying how much the party has of what it
+is paid in ("You have 20 gold."). Buying takes the price out of the shared pack and puts the thing
+in it ("Quim buys Healing Draught for 6 gold."); a Buy the party cannot afford is greyed out, and a
+thing a shop has only so many of is gone once they are bought - still gone after a save. The window
+stays open while the conversation that opened it goes on, and shuts when the party walks away from
+the seller. In the default project Tobin the Pedlar sits by the camp fire south of the vault, and
+the camp's crate holds 20 gold to spend with him.
+
 A `loot` effect draws from a weighted table with the scene's own dice, so a chest's contents are
 as replayable as the roll that opened it. Drops read "You find 7 Gold and a Brass key." and go
 into the shared pack. Keys are items: a door that "requires key X" is satisfied by carrying one
@@ -531,7 +540,7 @@ selection.
 |---|---|---|
 | **Inspector** (1) | The selected thing's properties, on the right | Click a prop to see what it is drawn with, what it does and whether it is solid (an object from an older project is shown as it always was). Press on anything placed, a creature, a prop, an object or a party start, and drag to move it: it lifts off the ground, hangs under the pointer with its bottom swinging behind the way it goes, and drops with a bump where you let go, at the height it stood. It never lands on another of its kind (props stack), and a party start stays in the room; one undo puts it back. The editor draws a party start as the character who begins there - party member 1 on start 1, and round again if the party outnumbers the starts - in the model play gives them, rimmed in gold; a start nobody fills is a blue pawn in a ring. Click a start and the side pane shows that character's sheet, the same form as the Party workspace, and an edit there is an edit to the party. An object with no model is a gold ring with a gem |
 | **Terrain** (2) | Tools on the left rail; **Tiles** and **Props** in the strip along the bottom; the tool's options on the right | Build stacked tiles anywhere (brush 1×1, 3×3, 5×5); erase tiles at a chosen level; raise/lower ground; place props; **Select** picks up a placed tile - the topmost on the cell - and carries it: the Z ladder goes to its level, the wheel lifts it while held, Alt turns it, and it lands where you let go, on top of whatever is there. One undo puts it back. With Select in hand the **Z ladder** stays out: it shows the height of the prop or tile Select last took hold of and raises or lowers it, a quarter tile a rung, each an undo step - or is the build plane when Select holds nothing. Kinds of tile are named for the model they are drawn with (Grass Ground, Stone Stairs, Stone Block, Stone Wall, Dirt Ground, Grass Dirt Ground; the three drawn with the stone block say which is which) |
-| **Combat** (3) | Tools on the left rail; the SRD's creatures by tier in the strip, with a search; the encounter on the right | Place the picked creature in the encounter; press on a placed creature and drag to move it, as in the Inspector (Select carries party starts too); toggle trigger cells that start it; toggle party start tiles; erase a creature, then a trigger cell, then a party start (never the last one). The selected creature's panel ends with **Interaction**: None, **Friendly** (on nobody's side until its conversation says otherwise; clicking it in play talks) or **Threshold** (fights until a blow leaves it at or under the **% of Hit Points** given, 50 to start, then stops the fight to talk - once), and the **Conversation** it opens. Friendly and Threshold need a conversation to exist first |
+| **Combat** (3) | Tools on the left rail; the SRD's creatures by tier in the strip, with a search; the encounter on the right | Place the picked creature in the encounter; press on a placed creature and drag to move it, as in the Inspector (Select carries party starts too); toggle trigger cells that start it; toggle party start tiles; erase a creature, then a trigger cell, then a party start (never the last one). The selected creature's panel ends with **Interaction**: None, **Friendly** (on nobody's side until its conversation says otherwise; clicking it in play talks) or **Threshold** (fights until a blow leaves it at or under the **% of Hit Points** given, 50 to start, then stops the fight to talk - once), and the **Conversation** it opens. Friendly and Threshold need a conversation to exist first. **Sells things** gives it a shop: what it is **Paid in** (gold to start), and a line for each thing it sells with a **price** and **how many** (empty is no end to them); its conversation opens the shop with **Open a shop** in a reply or a consequence node |
 | **Interaction** (4) | The conversations, on the left | Click one to open its graph |
 
 Opening a Terrain library tab chooses the placement action automatically: Tiles builds and Props
@@ -608,9 +617,12 @@ can find a way *off* a barred tile, so making a prop solid while somebody is sta
 them in where they stand - mark it solid before the party walks through, or move them out first.
 
 **Save as remix** keeps the settings in hand - the model, the block, the facing and whether it is
-solid - under a name
+solid - under the name typed in the box beside it, or, left empty, the name the box shows greyed,
 like *Crate Prop 2×2* (or *Rock 3×3 · solid*, since whether a prop is an obstacle is the one setting
-that cannot be seen on the board), and the remix appears in the Props strip beside the models, drawn with its own
+that cannot be seen on the board). Saving the same settings again under a new name renames the
+remix that holds them rather than making a second. While a remix is picked its name is in a box
+of its own: change it and press Enter (or leave the box) to rename it, one undo step; empty it and
+it takes the name it would have been given. The remix appears in the Props strip beside the models, drawn with its own
 model's picture. Picking it sets all three at once, so another six-tile boulder facing north is
 one click rather than three. What a remix places is an ordinary prop: **Remove remix** forgets the
 settings and leaves everything ever placed from it exactly where it is. Remixes belong to the
@@ -635,6 +647,9 @@ Any prop can **do something**. The Props panel's **Function** select, under Size
   nobody holding its id says it is waiting for its other end.
 - **Interaction** — opens a conversation, picked from the project's; its replies and consequence
   nodes decide what comes of it. With none picked it says nothing, and Check says so.
+- **Shop** — sells things: the same **Paid in** and stock lines as a merchant (below, under Combat),
+  and using it opens its window. Check flags a shop that sells, or is paid in, an item the project
+  does not have.
 - **Script** — everything an object could be told: name, flavour, a key it needs, effects with no
   roll, a check with its five outcomes. The demo's quest things - the lever that starts a quest,
   the pillar that ends one - are Script props.
@@ -762,7 +777,8 @@ party up — and the combat vocabulary a card is written in: Make an attack, Mar
 Mark/Clear Armor Slots, Gain/Spend Light, GM gains Shadow, Apply/Clear a condition, Put tokens on a
 card, Spend tokens on a card, Push them back, Ask for a reaction roll, Run code, and **Change sides**
 (friendly or hostile - by default the creature a conversation is with; a party member is never
-turned, and a creature turned hostile with no fight running starts its encounter's fight). Scene,
+turned, and a creature turned hostile with no fight running starts its encounter's fight), and
+**Open a shop** (the shop of the creature a conversation is with, or of the thing being used). Scene,
 conversation, encounter and quest ids are dropdowns over what the project holds; the objective
 dropdown follows its quest. Flag, key and loot-table ids are typed.
 
@@ -841,12 +857,12 @@ row reports the file by weight (`embedded · 2.4 MB`) rather than printing megab
 **✕** removes one. A model already sitting beside the app is still referenced by its path, and the
 row shows that path instead.
 
-Thirteen of the built-in props have been **retired** for models in that folder: the pine is `tree-prop`,
+All fourteen of the built-in props have been **retired** for models in that folder: the pine is `tree-prop`,
 the dead tree `withering-tree-prop`, the barrel `barrel-prop`, the crate `crate-prop`, the brazier
 `standing-torch-prop`, the cart `cart-prop`, the training dummy `training-dummy-prop`, the banner
-`banner-prop`, the rock `rock-prop`, the campfire `camp-fire-prop`, and the door, chest and portal `door-prop`, `chest-prop` and `portal-prop`. A project that still names an old one
+`banner-prop`, the rock `rock-prop`, the campfire `camp-fire-prop`, the pillar `pillar-prop`, and the door, chest and portal `door-prop`, `chest-prop` and `portal-prop`. A project that still names an old one
 is renamed as it opens, so nothing it placed turns into a placeholder; the next save writes the new
-names. Of the built-in props, only the pillar remains. The portal's opening glows and turns: the glow is in the file itself, an animated clip the board plays on a loop (`tools/add-portal-glow.mjs` put it there). The torches' and the campfire's flames glow the same way, from inside their files (`tools/add-flame-glow.mjs`), so they stay alight in shadow.
+names. None of the built-in props remains. The pillar's top has a π carved into it that glows blue, in the file itself (`tools/add-top-rune.mjs`). The portal's opening glows and turns: the glow is in the file itself, an animated clip the board plays on a loop (`tools/add-portal-glow.mjs` put it there). The torches' and the campfire's flames glow the same way, from inside their files (`tools/add-flame-glow.mjs`), so they stay alight in shadow.
 
 The other way in is the folder: a `.glb` dropped into `public/models` is a model of every project
 the page opens - the built-in demo, the default project and any file loaded - named after the file
@@ -1007,6 +1023,11 @@ is in the repository like anything else.
   with one bad field in it. Fix the file, or move it aside, and reload.
 - **`?boot=builtin`** on the address opens the demo from code and never touches the file, however
   often you save; `?boot=file` asks for the file on a server that would otherwise not.
+- **A model imported and never used is not written.** The Models panel remembers every model
+  imported in this browser and lays it back under the project each time it opens; a save writes
+  the ones something in the project names - a prop, a creature or its type, a character, anything -
+  and leaves the rest out of the file, still remembered here and still offered in the editor. A
+  project that used none of four imported models once carried 80 MB of them.
 - Writing the file back needs the dev server (`npm run dev`): it is the server, not the page, that
   writes to disk. A built site opens on the same file but cannot save into it, and a save there
   downloads the project as it always did.
@@ -1188,6 +1209,7 @@ leaves the chosen target out — "all other targets within range").
 | `open` / `remove` / `markUsed` | `interactable?` | changes that object's state; default is the object the script ran from. An opened door stops blocking |
 | `close` / `toggleOpen` | `interactable?` | shuts it, or opens it if shut and shuts it if open; a shut door blocks again. Nothing shuts on somebody standing in it |
 | `openContainer` | `interactable?` | opens the container window over what that prop holds |
+| `openShop` | `of?` (whose; the one a conversation is with, else the thing being used) | opens that seller's shop window - the stock is on the seller, a Shop prop's function or a creature's `interaction.shop` |
 | `teleport` | `pair` | sends whoever used it to the other portal holding `pair` |
 | `loot` | `table?` | draws from the table into the pack and logs the drops; no table finds nothing |
 | `damage` | `amount` **or** `dice` ("d8+2"; `weapon` for the actor's own weapon; `same` to reuse the damage already rolled in this script), `type?`, `using?` (proficiency \| spellcast), `direct?`, `half?`, `target?`, `source?` | `amount` marks that many Hit Points outright (default target: the actor). `dice` rolls damage once and takes it through thresholds, resistances, Armor Slots and reactions on each target (default: `hit`), scaled by Proficiency or the Spellcast trait, with a critical's maximum dice. `same` rolls nothing: it hands on the last damage this script rolled — the total off an `attack` or an earlier `damage` — which is how Whirlwind gives the rest of the room half of the swing it already made rather than a second roll |

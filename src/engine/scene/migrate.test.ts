@@ -455,7 +455,7 @@ describe('version 5 to 6: objects are props with a function', () => {
 
   it('is drawn with its own model when it named one, and with its kind body when it did not', () => {
     const after = migrateDocument(room([{ id: 'c', kind: 'chest', position: { x: 1, y: 1 }, model: 'barrel' }, { id: 'p', kind: 'pillar', position: { x: 2, y: 2 } }])) as { scenes: { decos: { model: string }[] }[] };
-    expect(after.scenes[0]!.decos.map((deco) => deco.model)).toEqual(['barrel', 'pillar']);
+    expect(after.scenes[0]!.decos.map((deco) => deco.model)).toEqual(['barrel', 'pillar-prop']);
   });
 
   it('leaves an object with nothing to draw it alone, because a prop is drawn and it never was', () => {

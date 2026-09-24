@@ -38,7 +38,7 @@ describe('the parts', () => {
 
 describe('what each function plays as', () => {
   it('offers every function it knows, with a fresh one of each that the document accepts', () => {
-    expect(FUNCTION_KINDS).toEqual(['container', 'door', 'trapped', 'portal', 'interaction', 'script']);
+    expect(FUNCTION_KINDS).toEqual(['container', 'door', 'trapped', 'portal', 'interaction', 'shop', 'script']);
     for (const kind of FUNCTION_KINDS) expect(propFunctionSchema.safeParse(PROP_FUNCTIONS[kind].fresh()).success, kind).toBe(true);
   });
 

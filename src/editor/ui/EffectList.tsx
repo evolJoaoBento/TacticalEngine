@@ -75,6 +75,7 @@ const ADDABLE = [
   'removeItem',
   'endEncounter',
   'setAttitude',
+  'openShop',
   // What a card does to a creature.
   'attack',
   'markStress',
@@ -128,6 +129,7 @@ const LABELS: Readonly<Record<Addable, string>> = {
   heal: 'Heal',
   startEncounter: 'Start a fight',
   setAttitude: 'Change sides',
+  openShop: 'Open a shop',
   goto: 'Travel to a scene',
   startDialogue: 'Start a conversation',
   startQuest: 'Start a quest',
@@ -311,6 +313,8 @@ function blank(kind: Addable, props: EffectListProps): Effect {
       return { kind };
     case 'setAttitude':
       return { kind, attitude: 'hostile' };
+    case 'openShop':
+      return { kind };
     case 'boostDamage':
       return { kind, dice: '1d6' };
     case 'forceHitPoints':
@@ -1040,6 +1044,8 @@ function renderBody(
           {who(effect.target, 'the one talked to', (target) => ({ ...effect, target }))}
         </>
       );
+    case 'openShop':
+      return <span style={{ ...field, color: 'var(--ph-muted)' }}>{effect.of ?? 'of the one talked to, or the thing used'}</span>;
     case 'endSpotlight':
       return (
         <span style={{ ...field, color: 'var(--ph-muted)' }}>

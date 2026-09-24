@@ -1,7 +1,7 @@
 {
   "repo": "JunjiBento/tactical-engine-models",
   "repoType": "model",
-  "revision": "14ddb8a6d80426106f6c1b57b4159fec81be34b4",
+  "revision": "59fc3b276ea2f5f509aa865ae5374d9a41382e58",
   "files": [
     {
       "path": "Arty.glb",
@@ -102,6 +102,11 @@
       "path": "merchant.glb",
       "bytes": 1841284,
       "sha256": "c8ca48a68494160893e132429e70e49d79467bbb77cb439ae5f64c405a8963ed"
+    },
+    {
+      "path": "pillar-prop.glb",
+      "bytes": 1250220,
+      "sha256": "ad050fee99cfc9d635772ac6453f2105f1698c7955cabe48c167180c5b5b676f"
     },
     {
       "path": "Pint.glb",

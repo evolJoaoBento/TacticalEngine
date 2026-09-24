@@ -226,6 +226,11 @@ The demo's vault chest and the pit's strongbox draw from different tables, and `
 what the party carries. Validation catches a `loot` naming a table nobody wrote, a table that can
 drop something which is not an item, and an `addItem` for an item that does not exist.
 
+**Trading (2026-09-24).** A shop is kept by a seller - a creature's interaction or a prop with the
+Shop function - and opened by the `openShop` effect, from a conversation or a use (`game/shop.ts`).
+Buying pays from the party pack in whatever item the shop names, gold by default; a limited line
+stays sold out across a save. Selling to a merchant is not in yet, nor are prices that move.
+
 **Equipping is in** (`equipItem` in `game/equip.ts`). A carried weapon or armor item whose
 `contentId` names SRD gear can be put on whoever is selected, from the pack. The piece comes out
 of the pack and what it replaced goes back in when the project has an item for it (the demo ships

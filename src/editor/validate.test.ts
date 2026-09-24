@@ -431,11 +431,11 @@ describe('interactables', () => {
     project.scenes[0]!.decos.push(
       { model: 'nonesuch', position: { x: 0, y: 1 }, rotation: 0 },
       { model: 'nonesuch', position: { x: 1, y: 1 }, rotation: 0 },
-      { model: 'pillar', position: { x: 2, y: 1 }, rotation: 0 },
+      { model: 'husk', position: { x: 2, y: 1 }, rotation: 0 },
     );
     const problems = validateProject(project, { knownModels: KNOWN_MODELS });
     expect(problems.filter((p) => p.message.includes('nonesuch'))).toHaveLength(1);
-    expect(problems.some((p) => p.message.includes('pillar'))).toBe(false);
+    expect(problems.some((p) => p.message.includes('husk'))).toBe(false);
   });
 });
 

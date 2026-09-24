@@ -129,6 +129,14 @@ export const PROP_FUNCTIONS: { readonly [K in PropFunctionKind]: PropFunctionDef
     opens: () => false,
     fresh: () => ({ kind: 'interaction', dialogue: '' }),
   },
+  shop: {
+    label: 'Shop',
+    summary: 'Opens a window of what it sells, each with its price; buying pays from the party pack.',
+    object: (_fn, self, prop) => ({ kind: 'scripted', blocksMovement: prop.solid === true, repeatable: true, effects: [{ kind: 'openShop', of: self }] }),
+    steps: (_fn, self) => [{ kind: 'openShop', of: self }],
+    opens: () => false,
+    fresh: () => ({ kind: 'shop', shop: { currency: 'gold', stock: [] } }),
+  },
   script: {
     label: 'Script',
     summary: 'Anything the engine can do, written out: effects, a check with its outcomes, a key.',
@@ -157,7 +165,7 @@ export function definitionOf<F extends PropFunction>(fn: F): PropFunctionDef<F> 
 }
 
 /** The functions in the order the editor offers them. Script last: it is the one to reach for when nothing else fits. */
-export const FUNCTION_KINDS: readonly PropFunctionKind[] = ['container', 'door', 'trapped', 'portal', 'interaction', 'script'];
+export const FUNCTION_KINDS: readonly PropFunctionKind[] = ['container', 'door', 'trapped', 'portal', 'interaction', 'shop', 'script'];
 
 /** A prop that can be used: one with a function and the id its state is kept by. */
 export type UsableProp = Deco & { id: string; function: PropFunction };
@@ -248,7 +256,7 @@ export function pairTaken(project: Rooms, pair: string, self: string | undefined
 }
 
 /** What each kind of object is drawn with when it names no model of its own. */
-export const OBJECT_BODIES: Readonly<Record<string, string>> = { door: 'door-prop', chest: 'chest-prop', pillar: 'pillar', portal: 'portal-prop' };
+export const OBJECT_BODIES: Readonly<Record<string, string>> = { door: 'door-prop', chest: 'chest-prop', pillar: 'pillar-prop', portal: 'portal-prop' };
 
 /**
  * Turn a room's objects into props, each with a Script function that says everything the object

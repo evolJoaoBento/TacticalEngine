@@ -201,10 +201,12 @@ test('a click on a thing out of reach walks up to it and uses it', async ({ page
 
 test('a click anywhere on a lit thing uses it, not only over the middle of its tile', async ({ page }) => {
   const errors = await editing(page);
-  // A pillar, two tiles tall: seen from the camera its top stands over the ground north of it.
+  // A pillar, two tiles tall: seen from the camera its top stands over the ground north of it -
+  // once its file has landed, since until then it is drawn as a stand-in a tile high.
+  await page.waitForFunction(() => window.__engine!.assetStatus('pillar-prop') === 'ready', null, { timeout: 30_000 });
   await page.getByTestId('mode-terrain').click();
   await page.locator('[data-tab="props"]').click();
-  await page.locator('[data-item="pillar"]').click();
+  await page.locator('[data-item="pillar-prop"]').click();
   await place(page, 3, 9);
   await page.getByTestId('function').selectOption('container');
   await page.getByTestId('container-add').click();

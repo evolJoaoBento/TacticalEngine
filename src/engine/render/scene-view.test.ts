@@ -158,10 +158,10 @@ describe('SceneView', () => {
   it("draws a prop across the block it covers, as one prop and not a tile's worth repeated", () => {
     const { view } = setup();
     view.setDecos([
-      { model: 'pillar', position: { x: 0, y: 0 }, rotation: 0 },
-      { model: 'pillar', position: { x: 1, y: 1 }, rotation: 0, span: 3 },
+      { model: 'husk', position: { x: 0, y: 0 }, rotation: 0 },
+      { model: 'husk', position: { x: 1, y: 1 }, rotation: 0, span: 3 },
     ]);
-    const props = view.root.children.filter((child) => child.name === 'model:pillar');
+    const props = view.root.children.filter((child) => child.name === 'model:husk');
     // Two props, not one plus nine: a block is one thing drawn big, not a tile repeated over it.
     expect(props.length).toBe(2);
     const [one, big] = props as [typeof props[0], typeof props[0]];
@@ -179,10 +179,10 @@ describe('SceneView', () => {
   it('draws an even block centred where its tiles meet, not on a tile', () => {
     const { view } = setup();
     view.setDecos([
-      { model: 'pillar', position: { x: 0, y: 0 }, rotation: 0 },
-      { model: 'pillar', position: { x: 0, y: 0 }, rotation: 0, span: 2 },
+      { model: 'husk', position: { x: 0, y: 0 }, rotation: 0 },
+      { model: 'husk', position: { x: 0, y: 0 }, rotation: 0, span: 2 },
     ]);
-    const [one, pair] = view.root.children.filter((child) => child.name === 'model:pillar');
+    const [one, pair] = view.root.children.filter((child) => child.name === 'model:husk');
     const tile = view.layout.tileSize;
     // Half a tile south-east of the anchor's middle: the corner its four tiles share.
     expect(pair!.position.x - one!.position.x).toBeCloseTo(0.5 * tile, 5);

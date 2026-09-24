@@ -243,7 +243,7 @@ function halls(at: (x: number, y: number) => Tile, decos: Deco[]): void {
     ['standing-torch-prop', 30, 6], ['standing-torch-prop', 30, 9], ['standing-torch-prop', 38, 5], ['standing-torch-prop', 41, 10],
     ['banner-prop', 29, 2], ['banner-prop', 29, 13], ['banner-prop', 37, 1], ['banner-prop', 37, 14],
     ['crate-prop', 26, 12], ['barrel-prop', 27, 13], ['crate-prop', 33, 2], ['barrel-prop', 34, 2],
-    ['pillar', 32, 7], ['training-dummy-prop', 24, 4],
+    ['pillar-prop', 32, 7], ['training-dummy-prop', 24, 4],
   ] as const) {
     at(x, y).prop = null;
     decos.push({ type, x, y, rot: (hash(x, y, 8) % 100) / 16 });

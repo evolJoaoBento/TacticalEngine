@@ -45,7 +45,7 @@ import {
 } from './session';
 import { moveAdversary, moveDeco, moveInteractable, moveSpawn } from './move-edits';
 import { decoCovers } from '../engine/scene/deco-span';
-import { addPropPreset, faceDeco, functionDeco, presetLabel, remodelDeco, removePropPreset, resizeDeco, solidifyDeco, type PropPreset } from './prop-edits';
+import { addPropPreset, faceDeco, functionDeco, presetLabel, remodelDeco, removePropPreset, renamePropPreset, resizeDeco, solidifyDeco, type PropPreset } from './prop-edits';
 import { PROP_FUNCTIONS, pairTaken } from '../engine/scene/prop-functions';
 import type { PropFunction } from '../engine/scene/prop-function-schema';
 
@@ -985,8 +985,12 @@ export class EditorController {
    * What is saved is what would be placed next - the model, the block, the facing - rather than
    * what happens to be selected, because the panel's controls are the same either way and the
    * thing in hand is the thing the buttons have been aimed at.
+   *
+   * Named what `name` says, or - left empty - what it is, how big and what it does. The same
+   * settings saved again under a name renames the remix already holding them, rather than keeping
+   * a second card that places the same prop.
    */
-  saveRemix(): string | null {
+  saveRemix(name = ''): string | null {
     const span = this.state.propSpan;
     const rotation = this.state.buildRotation * Math.PI / 2;
     const solid = this.state.propSolid;
@@ -995,10 +999,14 @@ export class EditorController {
     // them are two remixes, so the function's own fingerprint goes into the id.
     const does = fn === undefined ? '' : `-${fn.kind}-${fingerprint(JSON.stringify(fn))}`;
     const id = `remix-${this.state.propModel}-${span}-${this.state.buildRotation}${solid ? '-solid' : ''}${does}`.toLowerCase();
-    if (this.propPresets.some((saved) => saved.id === id)) return (this.pickedPreset = id);
+    const named = name.trim();
+    if (this.propPresets.some((saved) => saved.id === id)) {
+      if (named !== '') this.renameRemix(id, named);
+      return (this.pickedPreset = id);
+    }
     const preset: PropPreset = {
       id,
-      label: presetLabel(this.state.propModel, span, solid, fn === undefined ? undefined : PROP_FUNCTIONS[fn.kind].label),
+      label: named !== '' ? named : this.remixLabel(),
       model: this.state.propModel,
       ...(span > 1 ? { span } : {}),
       ...(rotation === 0 ? {} : { rotation }),
@@ -1111,6 +1119,24 @@ export class EditorController {
   }
 
   /** Forget a remix. Props placed from it stay: they were only ever ordinary props. */
+  /** The name a remix of what is in hand is given when nobody names it: what it is, how big, what it does. */
+  remixLabel(): string {
+    const fn = this.state.propFunction;
+    return presetLabel(this.state.propModel, this.state.propSpan, this.state.propSolid, fn === undefined ? undefined : PROP_FUNCTIONS[fn.kind].label);
+  }
+
+  /**
+   * Call a remix something else. Emptied, it goes back to the name it would have been given:
+   * what it is, how big and what it does.
+   */
+  renameRemix(id: string, name: string): boolean {
+    const preset = this.propPresets.find((saved) => saved.id === id);
+    if (preset === undefined) return false;
+    const named = name.trim();
+    const label = named !== '' ? named : presetLabel(preset.model, preset.span ?? 1, preset.solid === true, preset.function === undefined ? undefined : PROP_FUNCTIONS[preset.function.kind].label);
+    return this.session.run(renamePropPreset(id, label));
+  }
+
   removeRemix(id: string): boolean {
     if (this.pickedPreset === id) this.pickedPreset = null;
     return this.session.run(removePropPreset(id));

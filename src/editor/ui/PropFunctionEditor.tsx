@@ -11,6 +11,7 @@
  * panel edit the prop that is selected and the settings the next prop will be placed with.
  */
 
+import { StockEditor } from './StockEditor';
 import { useState } from 'preact/hooks';
 import { FUNCTION_KINDS, PROP_FUNCTIONS } from '../../engine/scene/prop-functions';
 import type { PropFunction, PropFunctionKind } from '../../engine/scene/prop-function-schema';
@@ -67,6 +68,7 @@ export function PropFunctionEditor(props: PropFunctionEditorProps): preact.JSX.E
       {value?.kind === 'trapped' ? <TrappedSettings {...props} value={value} /> : null}
       {value?.kind === 'portal' ? <PortalSettings {...props} value={value} /> : null}
       {value?.kind === 'interaction' ? <InteractionSettings {...props} value={value} /> : null}
+      {value?.kind === 'shop' ? <StockEditor prefix={props.prefix ?? ''} shop={value.shop} items={props.items} onChange={(shop) => props.onChange({ ...value, shop })} /> : null}
       {value?.kind === 'script' ? <ScriptSettings {...props} value={value} /> : null}
     </div>
   );

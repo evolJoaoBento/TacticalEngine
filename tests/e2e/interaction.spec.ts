@@ -135,3 +135,55 @@ test('a conversation gets a consequence that changes sides or runs code, and a p
   expect(fn).toEqual({ kind: 'interaction', dialogue: 'the-listening-pillar' });
   expect(errors).toEqual([]);
 });
+
+test('a creature is given a shop beside its conversation, and a prop the Shop function', async ({ page }) => {
+  const errors = await editing(page);
+  await page.getByTestId('mode-combat').click();
+  const strip = page.getByTestId('combat-library');
+  await strip.getByTestId('library-search').fill('hound');
+  await strip.locator('[data-item]').first().click();
+  const spot = await page.evaluate(() => {
+    const api = window.__engine!;
+    for (let y = 3; y <= 6; y += 1) {
+      for (let x = 3; x <= 6; x += 1) {
+        const at = api.buildScreenAt(x, y);
+        if (document.elementFromPoint(at.x, at.y)?.id === 'gl') return { x, y, at };
+      }
+    }
+    return null;
+  });
+  await page.evaluate(({ x, y }) => window.__engine!.buildAt(x, y), spot!);
+  await page.evaluate(() => window.__engine!.setTool('select'));
+  await page.mouse.click(spot!.at.x, spot!.at.y);
+  await page.getByTestId('creature-interaction').selectOption('friendly');
+  await page.getByTestId('creature-shop').check();
+  // Sold in gold to start, and what it sells added a line at a time with a price and, if it runs out, a count.
+  await expect(page.getByTestId('creature-shop-currency')).toHaveValue('gold');
+  await page.getByTestId('creature-shop-pick').selectOption('healing-draught');
+  await page.getByTestId('creature-shop-add').click();
+  await page.getByTestId('creature-shop-price').fill('7');
+  await page.getByTestId('creature-shop-price').blur();
+  await page.getByTestId('creature-shop-count').fill('2');
+  await page.getByTestId('creature-shop-count').blur();
+  const creature = await page.evaluate(({ x, y }) => {
+    const api = window.__engine!;
+    const project = JSON.parse(api.exportProject()) as { scenes: { id: string; encounters: { adversaries: { position: { x: number; y: number }; interaction?: { shop?: unknown } }[] }[] }[] };
+    return project.scenes.find((s) => s.id === api.editScene())!.encounters.flatMap((e) => e.adversaries).find((a) => a.position.x === x && a.position.y === y)!.interaction?.shop;
+  }, spot!);
+  expect(creature).toEqual({ currency: 'gold', stock: [{ item: 'healing-draught', price: 7, count: 2 }] });
+
+  // A prop sells through the same control.
+  await page.evaluate(() => window.__engine!.setTool('prop'));
+  expect(await page.evaluate(() => window.__engine!.editAt(9 * 44 + 3))).toBe(true);
+  await page.getByTestId('function').selectOption('shop');
+  await page.getByTestId('shop-pick').selectOption('round-shield');
+  await page.getByTestId('shop-add').click();
+  const stall = await page.evaluate(() => {
+    const api = window.__engine!;
+    const project = JSON.parse(api.exportProject()) as { scenes: { id: string; decos: { position: { x: number; y: number }; function?: unknown }[] }[] };
+    return project.scenes.find((s) => s.id === api.editScene())!.decos.find((d) => d.position.x === 3 && d.position.y === 9)?.function;
+  });
+  expect(stall).toEqual({ kind: 'shop', shop: { currency: 'gold', stock: [{ item: 'round-shield', price: 1 }] } });
+  await page.screenshot({ path: 'test-results/shop-editor.png' });
+  expect(errors).toEqual([]);
+});

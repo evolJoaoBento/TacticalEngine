@@ -92,3 +92,31 @@ test('this server can never write the default project, whatever a test does', as
   expect(refused.status).toBe(403);
   expect(refused.text).toContain('does not save');
 });
+
+test('a save leaves out an embedded model nothing names, and keeps one something does', async ({ page }) => {
+  // Two tiny embedded models: one a creature type is drawn with, one nothing names - the shape of the
+  // four imported Meshy models a save once wrote back into this file, 80 MB of them.
+  const tiny = 'data:application/octet-stream;base64,AAAA';
+  const project = JSON.parse(shipped) as { assets: { id: string; url: string }[]; adversaryModels: Record<string, string> };
+  project.assets.push({ id: 'named-import', url: tiny }, { id: 'forgotten-import', url: tiny });
+  project.adversaryModels = { ...project.adversaryModels, 'nobody-placed': 'named-import' };
+  await serveProject(page, 200, JSON.stringify(project));
+  // The file picker answers with a file that keeps what is written to it, where the test can read it.
+  await page.addInitScript(() => {
+    const kept = window as unknown as { written?: string; showSaveFilePicker: () => Promise<unknown> };
+    kept.showSaveFilePicker = () => Promise.resolve({
+      createWritable: () => Promise.resolve({ write: (text: string) => { kept.written = text; return Promise.resolve(); }, close: () => Promise.resolve() }),
+    });
+  });
+  await open(page, '/?boot=file');
+  await page.evaluate(() => window.__engine!.setMode('edit'));
+  await page.keyboard.press('Control+s');
+  await expect.poll(() => page.evaluate(() => (window as unknown as { written?: string }).written !== undefined), { timeout: 10_000 }).toBe(true);
+  const saved = JSON.parse(await page.evaluate(() => (window as unknown as { written: string }).written)) as { assets: { id: string }[] };
+  const ids = saved.assets.map((asset) => asset.id);
+  expect(ids).toContain('named-import');
+  expect(ids).not.toContain('forgotten-import');
+  // The project being edited still declares it: the editor goes on offering what the file left out.
+  const declared = await page.evaluate(() => (JSON.parse(window.__engine!.exportProject()) as { assets: { id: string }[] }).assets.map((a) => a.id));
+  expect(declared).toContain('forgotten-import');
+});

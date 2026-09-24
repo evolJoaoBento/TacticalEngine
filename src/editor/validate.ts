@@ -34,6 +34,7 @@ import { parseDice } from '../engine/rules/dice';
 import { compileHooks } from '../engine/script/hooks';
 import { projectSchema, type ProjectDoc, type SceneDoc } from '../engine/scene/schema';
 import { containerItems, findFunction, interactablesOf, pairsOf, portalsWith } from '../engine/scene/prop-functions';
+import type { Shop } from '../engine/scene/prop-function-schema';
 
 export type ProblemSeverity =
   /** The project will not run, or something is unreachable at runtime. */
@@ -853,6 +854,13 @@ interface Context {
   options: ValidationOptions;
 }
 
+/** A shop's stock and what it is paid in must be things the project has. */
+function checkShop(shop: Shop | undefined, who: string, itemIds: ReadonlySet<string>, error: (message: string) => void): void {
+  if (shop === undefined) return;
+  if (!itemIds.has(shop.currency)) error(`${who} is paid in "${shop.currency}", which is not an item the project has.`);
+  for (const line of shop.stock) if (!itemIds.has(line.item)) error(`${who} sells "${line.item}", which is not an item the project has.`);
+}
+
 function validateScene(scene: SceneDoc, context: Context, problems: Problem[]): void {
   const add = (severity: ProblemSeverity, message: string, entity?: string): void => {
     problems.push({
@@ -931,6 +939,7 @@ function validateScene(scene: SceneDoc, context: Context, problems: Problem[]): 
       else if (holders.length < 2) add('warning', `Portal "${name}" has no other end: no other portal has the pair id "${pair}".`, deco.id);
     }
     if (findFunction(deco.function, 'portal')?.pair === '') add('warning', `Portal "${name}" has no pair id, so it leads nowhere.`, deco.id);
+    checkShop(findFunction(deco.function, 'shop')?.shop, `"${name}"`, itemIds, (message) => add('error', message, deco.id));
     if (findFunction(deco.function, 'interaction')?.dialogue === '') add('warning', `"${name}" is an interaction with no conversation picked, so using it says nothing.`, deco.id);
   }
 
@@ -1000,6 +1009,7 @@ function validateScene(scene: SceneDoc, context: Context, problems: Problem[]): 
       if (talk !== undefined && !context.project.dialogues.some((d) => d.id === talk.dialogue)) {
         add('error', `"${placement.id}" talks with conversation "${talk.dialogue}", which does not exist.`, placement.id);
       }
+      checkShop(talk?.shop, `"${placement.id}"`, new Set(context.project.items.map((item) => item.id)), (message) => add('error', message, placement.id));
     }
   }
 

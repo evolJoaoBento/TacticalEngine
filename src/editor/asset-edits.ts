@@ -8,7 +8,28 @@
  */
 
 import type { ModelAsset } from '../engine/render/assets';
+import { modelNamesIn } from '../engine/scene/model-references';
+import type { ProjectDoc } from '../engine/scene/schema';
 import type { Edit } from './session';
+
+/**
+ * The project as a save writes it: without the embedded models - imported into the Models panel,
+ * carried as data URLs - that nothing in it names. The browser remembers every model it imported
+ * (`model-memory.ts`) and lays them back under a project as it opens, so a save used to write every
+ * one of them into the file, placed or not, and a project that used none of four Meshy models
+ * carried 80 MB of them. One that is placed is kept, so the file still draws everything in it; one
+ * left out is still remembered, and still offered in the editor.
+ *
+ * `alsoNamed` is what the game draws by that the project does not say: its own table of models.
+ * The project being edited is not touched - the answer is a copy, or the same object when there is
+ * nothing to leave out.
+ */
+export function withoutUnusedEmbedded(project: ProjectDoc, alsoNamed: Iterable<string> = []): ProjectDoc {
+  const named = modelNamesIn(project);
+  for (const id of alsoNamed) named.add(id);
+  const kept = project.assets.filter((asset) => !asset.url.startsWith('data:') || named.has(asset.id));
+  return kept.length === project.assets.length ? project : { ...project, assets: kept };
+}
 
 export function addAsset(asset: ModelAsset): Edit {
   return {

@@ -81,11 +81,15 @@ export interface Inspection {
   cards?: readonly { id: string; name: string; text: string }[];
 }
 
-/** A container that has been opened: what it is called and what is still in it. */
+/**
+ * A container that has been opened: what it is called and what is still in it - or a shop, whose
+ * lines have prices and whose Take is Buy, and which says what it is paid in and how much the party has.
+ */
 export interface OpenContainer {
   id: string;
   name: string;
-  lines: readonly { item: string; name: string; count: number }[];
+  lines: readonly { item: string; name: string; count: number; price?: number }[];
+  paidIn?: { name: string; held: number };
   onTake: (item: string) => void;
   onClose: () => void;
 }
@@ -269,17 +273,34 @@ export function PlayPanel(props: PlayPanelProps): preact.JSX.Element | null {
               ✕
             </button>
           </div>
+          {props.container.paidIn === undefined ? null : (
+            <div className="panel-prose" data-testid="shop-purse">
+              You have {props.container.paidIn.held} {props.container.paidIn.name.toLowerCase()}.
+            </div>
+          )}
           {props.container.lines.length === 0 ? (
-            <div className="panel-prose" data-testid="container-empty">Nothing left in it.</div>
+            <div className="panel-prose" data-testid="container-empty">{props.container.paidIn === undefined ? 'Nothing left in it.' : 'Sold out.'}</div>
           ) : (
             props.container.lines.map((line) => (
               <div key={line.item} className="panel-row" data-item={line.item}>
                 <span>{line.name}</span>
                 <span className="panel-detail">
-                  {line.count > 1 ? `×${line.count}` : ''}
-                  <button className="play-btn is-primary" data-testid="container-take" onClick={() => props.container!.onTake(line.item)}>
-                    Take
-                  </button>
+                  {line.count > 1 && Number.isFinite(line.count) ? `×${line.count}` : ''}
+                  {line.price === undefined ? (
+                    <button className="play-btn is-primary" data-testid="container-take" onClick={() => props.container!.onTake(line.item)}>
+                      Take
+                    </button>
+                  ) : (
+                    <button
+                      className="play-btn is-primary"
+                      data-testid="shop-buy"
+                      disabled={line.price > (props.container!.paidIn?.held ?? 0)}
+                      title={line.price > (props.container!.paidIn?.held ?? 0) ? 'Not enough to pay for it' : undefined}
+                      onClick={() => props.container!.onTake(line.item)}
+                    >
+                      Buy · {line.price} {props.container!.paidIn?.name.toLowerCase()}
+                    </button>
+                  )}
                 </span>
               </div>
             ))

@@ -42,6 +42,7 @@ import { TOOL_LABELS } from './ToolRail';
 import { PropFunctionEditor } from './PropFunctionEditor';
 import { SheetEditor } from './SheetEditor';
 import { setCreatureInteraction } from '../creature-edits';
+import { StockEditor } from './StockEditor';
 import type { AdversaryInteraction, AdversaryPlacement } from '../../engine/scene/schema';
 import type { ContentPack } from '../../engine/content/pack/import';
 import { portalPartner } from '../../engine/scene/prop-functions';
@@ -410,6 +411,9 @@ export function TerrainSide(props: {
   const building = tool === 'eraseTile' || (tool === 'placeTile' && structure !== undefined);
   const [x, setX] = useState('0');
   const [y, setY] = useState('0');
+  // The name a remix is about to be saved under; empty is the name it would be given.
+  const [remixName, setRemixName] = useState('');
+  const picked = controller.pickedPreset === null ? undefined : controller.propPresets.find((preset) => preset.id === controller.pickedPreset);
   const goX = typedNumber(x, isBuildCoordinate);
   const goY = typedNumber(y, isBuildCoordinate);
   const setRotation = (rotation: number): void => {
@@ -536,19 +540,43 @@ export function TerrainSide(props: {
             on the ground rather than on top of its own block.
           </div>
           <div class="ph-row ph-wrap">
-            <button class="ph-chip" data-testid="prop-save-remix" onClick={() => { controller.saveRemix(); props.onChange(); }}>
+            <input
+              class="ph-input"
+              data-testid="prop-remix-name"
+              aria-label="Name for the remix"
+              placeholder={controller.remixLabel()}
+              value={remixName}
+              onInput={(e) => setRemixName(e.currentTarget.value)}
+            />
+            <button
+              class="ph-chip"
+              data-testid="prop-save-remix"
+              title="Save these settings as a remix, under the name typed - or, left empty, the one shown greyed"
+              onClick={() => { controller.saveRemix(remixName); setRemixName(''); props.onChange(); }}
+            >
               Save as remix
             </button>
-            {controller.pickedPreset === null ? null : (
+          </div>
+          {picked === undefined ? null : (
+            <div class="ph-row ph-wrap" data-testid="picked-remix">
+              <input
+                class="ph-input"
+                key={picked.id}
+                data-testid="prop-remix-rename"
+                aria-label="The remix's name"
+                title="Rename the remix. Emptied, it goes back to the name it would have been given."
+                value={picked.label}
+                onChange={(e) => { controller.renameRemix(picked.id, e.currentTarget.value); props.onChange(); }}
+              />
               <button
                 class="ph-chip"
                 data-testid="prop-remove-remix"
-                onClick={() => { controller.removeRemix(controller.pickedPreset!); props.onChange(); }}
+                onClick={() => { controller.removeRemix(picked.id); props.onChange(); }}
               >
                 Remove remix
               </button>
-            )}
-          </div>
+            </div>
+          )}
           <div class="ph-note">
             A remix is these settings under a name, kept in the project and offered in the Props
             strip beside the models, so another six-tile boulder facing north is one click rather
@@ -758,8 +786,12 @@ function CreatureInteraction(props: {
   const dialogues = props.session.project.dialogues.map((d) => d.id);
   const dialogue = current?.dialogue ?? dialogues[0] ?? '';
   const percent = current?.kind === 'threshold' ? current.percent : 50;
+  // What it sells goes with it whatever else changes: a merchant stays a merchant when turned threshold.
+  const shop = current?.shop;
+  const selling = shop === undefined ? {} : { shop };
   const make = (kind: string, conversation = dialogue, share = percent): AdversaryInteraction | null =>
-    kind === 'friendly' ? { kind, dialogue: conversation } : kind === 'threshold' ? { kind, dialogue: conversation, percent: share } : null;
+    kind === 'friendly' ? { kind, dialogue: conversation, ...selling } : kind === 'threshold' ? { kind, dialogue: conversation, percent: share, ...selling } : null;
+  const items = props.session.project.items.map((item) => ({ id: item.id, name: item.name }));
   return (
     <div data-testid="creature-interaction-editor">
       <label class="ph-heading">
@@ -801,6 +833,24 @@ function CreatureInteraction(props: {
               />
             </label>
           ) : null}
+          <label class="ph-heading" style={{ flexDirection: 'row', alignItems: 'center', gap: '6px' }} title="What it sells, when its conversation opens a shop - a consequence or a reply with Open a shop">
+            <input
+              type="checkbox"
+              data-testid="creature-shop"
+              checked={shop !== undefined}
+              onChange={(e) => {
+                const { shop: _gone, ...rest } = current;
+                props.onChange(e.currentTarget.checked ? { ...current, shop: { currency: items.some((item) => item.id === 'gold') ? 'gold' : items[0]?.id ?? 'gold', stock: [] } } : rest);
+              }}
+            />
+            Sells things
+          </label>
+          {shop === undefined ? null : (
+            <>
+              <StockEditor prefix="creature-" shop={shop} items={items} onChange={(next) => props.onChange({ ...current, shop: next })} />
+              <div class="ph-hint">Its conversation opens the shop: give a reply, or a consequence node, the effect Open a shop.</div>
+            </>
+          )}
         </>
       )}
     </div>

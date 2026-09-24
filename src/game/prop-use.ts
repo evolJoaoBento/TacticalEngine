@@ -1,6 +1,7 @@
 /**
- * What the game does with a prop's function once a script has run: a container's window, a
- * portal's other end, and travel.
+ * What the game does with a prop's function once a script has run: a container's window - or a
+ * shop's, which is the same window with a price on each line (`game/shop.ts`) - a portal's other
+ * end, and travel.
  *
  * The runner journals `openContainer`, `teleport` and `goto` and stops there, because each of them
  * needs something the rules do not have - a screen to show a chest's contents on, a map to find a
@@ -18,6 +19,7 @@ import type { JournalEntry } from '../engine/script/runner';
 import { inCombat } from './moment';
 import { nameOf, note } from './log';
 import { freeTileNear, type DemoScene } from './demo-scene';
+import { buyFrom, shopContents, shopOf } from './shop';
 
 /** Everything usable in a room, props included: re-exported so the game reads it from where it acts on it. */
 export { interactablesOf, objectsToProps };
@@ -33,22 +35,27 @@ const arriving = new WeakMap<object, { scene: string; prop: string }>();
 export function reactToThings(demo: Demo, journal: readonly JournalEntry[]): void {
   for (const entry of journal) {
     if (entry.kind === 'goto') demo.destination = entry.scene;
-    else if (entry.kind === 'openContainer') opened.set(demo, entry.id);
+    else if (entry.kind === 'openContainer' || entry.kind === 'shop') opened.set(demo, entry.id);
     else if (entry.kind === 'teleport') teleport(demo, entry.pair, entry.from);
   }
 }
 
-/** One thing in an open container: what it is, what it is called, and how many are left. */
+/**
+ * One thing in an open container: what it is, what it is called, and how many are left - and in a
+ * shop, what it costs, with no end to a line that has no count.
+ */
 export interface ContainerLine {
   item: string;
   name: string;
   count: number;
+  price?: number;
 }
 
 /** The container whose window is open, if there is one here still to be open. */
 export function openContainer(demo: Demo): string | null {
   const id = opened.get(demo) ?? null;
-  if (id !== null && !demo.scene.decos.some((deco) => deco.id === id)) opened.delete(demo);
+  // Gone from the room: a prop taken away, or a merchant who is no longer standing there.
+  if (id !== null && !demo.scene.decos.some((deco) => deco.id === id) && demo.state.entity(id)?.alive !== true) opened.delete(demo);
   return opened.get(demo) ?? null;
 }
 
@@ -63,6 +70,7 @@ export function closeContainer(demo: Demo): void {
  * emptied and left is still empty when the party comes back or the game is loaded.
  */
 export function containerContents(demo: Demo, id: string): ContainerLine[] {
+  if (shopOf(demo, id) !== null) return shopContents(demo, id).map((line) => ({ item: line.item, name: line.name, count: line.left ?? Infinity, price: line.price }));
   const prop = demo.scene.decos.find((deco) => deco.id === id);
   const taken = demo.state.interactable(id).data;
   return containerItems(prop?.function)
@@ -72,6 +80,8 @@ export function containerContents(demo: Demo, id: string): ContainerLine[] {
 
 /** Take one of something out of a container and into the party's pack. */
 export function takeFromContainer(demo: Demo, id: string, item: string): boolean {
+  // From a shop, taking is buying.
+  if (shopOf(demo, id) !== null) return buyFrom(demo, id, item);
   const line = containerContents(demo, id).find((candidate) => candidate.item === item);
   if (line === undefined) return false;
   const state = demo.state.interactable(id);
@@ -123,7 +133,10 @@ export function arriveByPortal(demo: Demo): void {
 export function nearestCovered(demo: Pick<DemoScene, 'grid' | 'state'>, id: string, here: number): number {
   let best = NO_TILE;
   let bestAway = Infinity;
-  for (const tile of demo.state.interactableCovers(id)) {
+  // A creature - a merchant - covers the tile it stands on.
+  const covers = demo.state.interactableCovers(id);
+  const standing = demo.state.entity(id)?.tile ?? NO_TILE;
+  for (const tile of covers.length === 0 && standing !== NO_TILE ? [standing] : covers) {
     const away = Math.max(Math.abs(demo.grid.xOf(tile) - demo.grid.xOf(here)), Math.abs(demo.grid.yOf(tile) - demo.grid.yOf(here)));
     if (away < bestAway) {
       best = tile;

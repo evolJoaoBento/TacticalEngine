@@ -4549,6 +4549,52 @@
           "triggerCells": [],
           "startsOnTrigger": false,
           "bystanders": true
+        },
+        {
+          "id": "the-camp",
+          "name": "The camp",
+          "triggerCells": [],
+          "startsOnTrigger": false,
+          "adversaries": [
+            {
+              "id": "tobin",
+              "adversary": "merchant",
+              "position": {
+                "x": 6,
+                "y": 22
+              },
+              "name": "Tobin the Pedlar",
+              "model": "merchant",
+              "interaction": {
+                "kind": "friendly",
+                "dialogue": "the-merchant",
+                "shop": {
+                  "currency": "gold",
+                  "stock": [
+                    {
+                      "item": "healing-draught",
+                      "price": 6
+                    },
+                    {
+                      "item": "round-shield",
+                      "price": 15,
+                      "count": 1
+                    },
+                    {
+                      "item": "padded-coat",
+                      "price": 12,
+                      "count": 1
+                    },
+                    {
+                      "item": "hunting-bow",
+                      "price": 18,
+                      "count": 1
+                    }
+                  ]
+                }
+              }
+            }
+          ]
         }
       ],
       "decos": [
@@ -5008,7 +5054,17 @@
             "x": 3,
             "y": 24
           },
-          "rotation": 2.3125
+          "rotation": 2.3125,
+          "id": "crate-prop-3-24",
+          "function": {
+            "kind": "container",
+            "items": [
+              {
+                "item": "gold",
+                "count": 20
+              }
+            ]
+          }
         },
         {
           "model": "barrel-prop",
@@ -5123,7 +5179,7 @@
           "rotation": 2.6875
         },
         {
-          "model": "pillar",
+          "model": "pillar-prop",
           "position": {
             "x": 32,
             "y": 7
@@ -5264,7 +5320,7 @@
         },
         {
           "id": "pillar-14-7",
-          "model": "pillar",
+          "model": "pillar-prop",
           "position": {
             "x": 14,
             "y": 7
@@ -21842,6 +21898,93 @@
           ]
         }
       ]
+    },
+    {
+      "id": "the-merchant",
+      "start": "greet",
+      "nodes": [
+        {
+          "id": "greet",
+          "lines": [
+            {
+              "speaker": "Tobin",
+              "text": "Travellers! Sit by the fire a while. I have things to sell, if you have coin to spend."
+            }
+          ],
+          "choices": [
+            {
+              "text": "Show me your wares.",
+              "goto": "wares"
+            },
+            {
+              "text": "What brings you out here?",
+              "goto": "story"
+            },
+            {
+              "text": "Nothing today.",
+              "goto": "bye"
+            }
+          ]
+        },
+        {
+          "id": "wares",
+          "kind": "consequence",
+          "lines": [],
+          "onEnter": [
+            {
+              "kind": "openShop"
+            }
+          ],
+          "goto": "browse"
+        },
+        {
+          "id": "browse",
+          "lines": [
+            {
+              "speaker": "Tobin",
+              "text": "Take your time. Everything is honest. Mostly."
+            }
+          ],
+          "choices": [
+            {
+              "text": "What brings you out here?",
+              "goto": "story"
+            },
+            {
+              "text": "That is all, thank you.",
+              "goto": "bye"
+            }
+          ]
+        },
+        {
+          "id": "story",
+          "lines": [
+            {
+              "speaker": "Tobin",
+              "text": "The vault. Folk go in with full purses and come out lighter, or not at all. Either way, somebody needs a draught."
+            }
+          ],
+          "choices": [
+            {
+              "text": "Show me your wares.",
+              "goto": "wares"
+            },
+            {
+              "text": "Farewell.",
+              "goto": "bye"
+            }
+          ]
+        },
+        {
+          "id": "bye",
+          "lines": [
+            {
+              "speaker": "Tobin",
+              "text": "Mind the husks."
+            }
+          ]
+        }
+      ]
     }
   ],
   "items": [
@@ -22425,6 +22568,16 @@
       "rotationY": 0,
       "offsetX": 0,
       "offsetY": 0
+    },
+    {
+      "id": "pillar-prop",
+      "kind": "gltf",
+      "url": "/models/pillar-prop.glb",
+      "scale": 1,
+      "groundOffset": 0,
+      "rotationY": 0,
+      "offsetX": 0,
+      "offsetY": 0
     }
   ],
   "adversaryModels": {},
@@ -22591,7 +22744,40 @@
     }
   ],
   "armors": [],
-  "adversaries": [],
+  "adversaries": [
+    {
+      "id": "merchant",
+      "name": "Merchant",
+      "tier": 1,
+      "role": "social",
+      "description": "A pedlar with a cart, a fire and a price for everything.",
+      "motivesAndTactics": "Sell, haggle, and keep well out of anybody else’s fight.",
+      "difficulty": 10,
+      "thresholds": {
+        "major": 4,
+        "severe": 8
+      },
+      "hitPoints": 3,
+      "stress": 3,
+      "attackName": "Walking Stick",
+      "attackModifier": {
+        "count": 0,
+        "sides": 0,
+        "modifier": 0
+      },
+      "attackRange": "melee",
+      "attackDamage": {
+        "count": 1,
+        "sides": 4,
+        "modifier": 0,
+        "types": [
+          "physical"
+        ]
+      },
+      "experiences": [],
+      "features": []
+    }
+  ],
   "abilities": [
     {
       "id": "power-slash",

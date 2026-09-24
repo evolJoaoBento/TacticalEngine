@@ -1235,7 +1235,7 @@ export function updateObjective(questId: string, index: number, changes: Partial
 // ---------------------------------------------------------------------------
 
 /** The model edits live in `asset-edits.ts`; this file is pinned, and they are a domain of their own. */
-export { addAsset, removeAsset, updateAsset } from './asset-edits';
+export { addAsset, removeAsset, updateAsset, withoutUnusedEmbedded } from './asset-edits';
 
 /**
  * What every creature of one type is drawn with, by adversary id. `null` removes

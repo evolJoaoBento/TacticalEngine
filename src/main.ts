@@ -17,7 +17,7 @@ import { PCFShadowMap, Plane, PerspectiveCamera, Raycaster, Vector2, Vector3, We
 import { EditorController } from './editor/controller';
 import { placementRotation } from './editor/placement-rotation';
 import { EDITOR_MODES, type EditorMode } from './editor/modes';
-import { EditorSession, addAsset, removeAsset, addScene, removeScene, renameScene, setStartScene, updateInteractable, importPack, packChanges } from './editor/session';
+import { EditorSession, addAsset, removeAsset, addScene, removeScene, renameScene, setStartScene, updateInteractable, importPack, packChanges, withoutUnusedEmbedded } from './editor/session';
 import { EditorShell } from './editor/ui/EditorShell';
 import { PlayPanel, TONE, type Inspection } from './game/ui/PlayPanel';
 import { containerView, hudMembers, journalEntries } from './game/ui/play-views';
@@ -686,7 +686,7 @@ function renderPanel(): void {
 }
 
 async function saveProject(): Promise<void> {
-  const text = JSON.stringify(session.project, null, 2);
+  const text = JSON.stringify(withoutUnusedEmbedded(session.project, Object.values(DEMO_MODELS)), null, 2); // an embedded model nothing names stays in the browser, not the file
   const outcome = savesDefault && (await saveDefault(text)) === 'written' ? 'written' : await saveProjectFile(text, `${session.project.id}.json`);
   // A closed dialog is not a save: the project stays dirty and the tab still warns.
   if (outcome !== 'cancelled') session.markSaved();
