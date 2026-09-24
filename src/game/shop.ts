@@ -7,9 +7,10 @@
  * each line (`game/ui/play-views.ts`); what is bought out of a stock with a limit is counted on the
  * seller's saved state, so a shop sold out stays sold out across a save.
  *
- * A seller buys what the party carries for half of what it is worth, rounded down and never
- * nothing: its own lines for half its own price - one with a count going back onto its shelf - and
- * anything else for half the item's `value`. An item with no value, and its own coin, it will not buy.
+ * A seller buys what the party carries for its share of what it is worth - half, unless the shop
+ * says (`buysAt`) - rounded down and never nothing: its own lines by its own price, one with a count
+ * going back onto its shelf, and anything else by the item's `value`. An item with no value, and
+ * its own coin, it will not buy.
  */
 
 import { findFunction } from '../engine/scene/prop-functions';
@@ -89,8 +90,9 @@ export function buyFrom(demo: Demo, id: string, item: string): boolean {
   return true;
 }
 
-/** What a seller pays for one of its own lines: half what it asks, rounded down, and never nothing. */
-export const buyBackPrice = (price: number): number => (price <= 0 ? 0 : Math.max(1, Math.floor(price / 2)));
+/** What a seller pays for its share of a worth - half unless it says - rounded down, and never nothing. */
+export const buyBackPrice = (worth: number, percent = 50): number =>
+  worth <= 0 || percent <= 0 ? 0 : Math.max(1, Math.floor((worth * percent) / 100));
 
 /** One thing the party could sell: what it is, how many they carry, and what the seller pays for one. */
 export interface SaleLine {
@@ -100,12 +102,12 @@ export interface SaleLine {
   price: number;
 }
 
-/** What a seller pays for one of something: half its own price for one of its lines, else half the item's value. */
+/** What a seller pays for one of something: its share (`buysAt`, half) of its own price for one of its lines, else of the item's value. */
 export function offerFor(demo: Pick<DemoScene, 'project' | 'scene'>, shop: Shop, item: string): number {
   if (item === shop.currency) return 0;
   const stocked = shop.stock.find((line) => line.item === item);
-  if (stocked !== undefined) return buyBackPrice(stocked.price);
-  return buyBackPrice(demo.project.items.find((known) => known.id === item)?.value ?? 0);
+  const worth = stocked !== undefined ? stocked.price : demo.project.items.find((known) => known.id === item)?.value ?? 0;
+  return buyBackPrice(worth, shop.buysAt ?? 50);
 }
 
 /**

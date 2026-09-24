@@ -4,6 +4,26 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## Every side has its own colour: party white, friends green, stood-down yellow — done
+
+The line round a creature was gold for the party and grey for anybody on nobody's side, so a
+merchant, a bystander and an enemy stood down by End a fight all read alike. Now the party is white,
+a friendly creature - bystander, merchant, one talked round - green, a hostile one red as before,
+and one an End a fight stood down yellow until the next fight turns it red again
+(`DEFAULT_FACTION_COLORS`, `outlineSide` in `render/faction-outline.ts`; the view rebuilds a token
+when its side's colour changes). The editor draws a creature placed Friendly, or as a bystander,
+green too. Unit `render/side-colours.test.ts`.
+
+## Each shop sets what it pays, and the pack says what things are worth — done
+
+A shop has an optional **buys back at** (`shopSchema.buysAt`, whole per cent of a thing's worth, 50
+when left out, 0 to 100): a fence pays a quarter, a temple the whole worth, a shop at nought buys
+nothing. Capped at the whole worth so a party cannot buy a line and sell it straight back at a
+profit. Edited in `ui/StockEditor.tsx` for a merchant and a Shop prop alike. The **Carried** list
+shows what each thing in the pack is worth ("worth 6"; nothing for the coin, a key, anything without
+a value), carried from `main.ts`'s pack lines without a line of its own there. Unit
+`game/shop.test.ts`; e2e in `merchant.spec.ts` and `interaction.spec.ts`.
+
 ## Items are worth something, and merchants buy anything that is — done
 
 An item has an optional **value** (`itemSchema.value`, the Items panel's **worth** box), in the coin

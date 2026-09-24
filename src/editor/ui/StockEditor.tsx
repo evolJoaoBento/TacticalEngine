@@ -38,6 +38,26 @@ export function StockEditor(props: StockEditorProps): preact.JSX.Element {
           ))}
         </select>
       </label>
+      <label class="ph-heading">
+        Buys back at, % of worth
+        <input
+          class="ph-input"
+          type="number"
+          min="0"
+          max="100"
+          step="5"
+          placeholder="50"
+          data-testid={`${prefix}shop-buys-at`}
+          title="What it pays for what the party sells it, as a share of the thing's worth: its own price for its own lines, else the item's value. Empty is half; a fence pays less, a temple more, up to 100; 0 buys nothing."
+          value={shop.buysAt ?? ''}
+          onChange={(e) => {
+            const typed = e.currentTarget.value.trim();
+            const n = Math.round(Number(typed));
+            const { buysAt: _gone, ...rest } = shop;
+            props.onChange(typed === '' || !Number.isFinite(n) ? rest : { ...rest, buysAt: Math.min(100, Math.max(0, n)) });
+          }}
+        />
+      </label>
       {shop.stock.length === 0 ? (
         <div class="ph-note">Nothing for sale yet. Add what it sells below.</div>
       ) : (

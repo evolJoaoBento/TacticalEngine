@@ -90,7 +90,7 @@ import type { Interactable } from '../scene/schema';
 import { Spotlight } from './spotlight';
 import { CarryMotion } from './carry';
 export { OUTLINE_LAYER } from './toon';
-import { DEFAULT_FACTION_COLORS, dim, forgetOutline, litOutlines, outline } from './faction-outline';
+import { DEFAULT_FACTION_COLORS, dim, forgetOutline, litOutlines, outline, outlineSide } from './faction-outline';
 import { Reactions } from './reactions';
 import { ClickRipples } from './click-ripple';
 import { buildTerrainMesh, type TerrainMesh, type TerrainMeshOptions } from './terrain-mesh';
@@ -506,7 +506,7 @@ export class SceneView {
       // What an entity is drawn with can change under it — a creature re-skinned in
       // the editor — and the token standing there was built from the old id.
       const wanted = this.drawnModel(this.modelForEntity(entity), entity);
-      if (this.tokens.has(entity.id) && (this.tokenModels.get(entity.id) !== wanted || this.tokenFactions.get(entity.id) !== entity.faction)) this.dropToken(entity.id);
+      if (this.tokens.has(entity.id) && (this.tokenModels.get(entity.id) !== wanted || this.tokenFactions.get(entity.id) !== outlineSide(entity))) this.dropToken(entity.id);
       let token = this.tokens.get(entity.id);
       // A move waiting on a roll that is still being read: the token stays put, what it was
       // handed stays queued, and it goes when the card is accepted.
@@ -523,11 +523,11 @@ export class SceneView {
       if (token === undefined) {
         // Which side it is on, drawn round it and dimmed until the pointer finds it.
         token = this.build(wanted);
-        outline(token.group, wanted, dim(this.factionColors[entity.faction] ?? DEFAULT_FACTION_COLORS['neutral']!));
+        outline(token.group, wanted, dim(this.factionColors[outlineSide(entity)] ?? DEFAULT_FACTION_COLORS['neutral']!));
         token.group.name = `token:${entity.id}`;
         this.tokens.set(entity.id, token);
         this.tokenModels.set(entity.id, wanted);
-        this.tokenFactions.set(entity.id, entity.faction);
+        this.tokenFactions.set(entity.id, outlineSide(entity));
         this.root.add(token.group);
         // Built dim, so whoever is already selected - or already under the pointer - has to
         // be given their colour back. A token is rebuilt when its file lands, too.
@@ -1120,7 +1120,7 @@ export class SceneView {
       const model = this.build(modelId);
       // The editor is where creatures are placed, so it is the mode that most needs to say
       // which side one is on. Layer 0, which is why it shows here at all.
-      outline(model.group, modelId, DEFAULT_FACTION_COLORS.adversary!);
+      outline(model.group, modelId, (encounter.bystanders === true || placement.interaction?.kind === 'friendly' ? DEFAULT_FACTION_COLORS.neutral : DEFAULT_FACTION_COLORS.adversary)!);
       const centre = placementCentre(this.grid, this.layout, placement.position);
       model.group.position.set(centre.x, centre.y + (model.spec.groundOffset ?? 0), centre.z);
       model.group.name = `authored-creature:${placement.id}`;
@@ -1224,7 +1224,7 @@ export class SceneView {
       this.tokens,
       this.hoverTile,
       this.selectionId,
-      (id) => this.lastState?.entity(id) ?? null,
+      (id) => ((entity) => (entity === undefined ? null : { tile: entity.tile, faction: outlineSide(entity) }))(this.lastState?.entity(id)),
       this.factionColors,
     );
   }

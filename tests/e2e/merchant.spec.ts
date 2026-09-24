@@ -62,6 +62,11 @@ test('the merchant by the camp fire sells to a party that can pay', async ({ pag
   await expect(shop.locator('[data-item="hunting-bow"]').getByTestId('shop-buy')).toBeDisabled();
   expect(await page.evaluate(() => window.__engine!.log().some((line) => /buys Healing Draught for 6 gold/i.test(line.text)))).toBe(true);
 
+  // The pack says what the draught is worth, before anybody offers for it.
+  await expect(page.getByTestId('pack').locator('[data-item="healing-draught"]').getByTestId('item-worth')).toHaveText('worth 6');
+  await expect(page.getByTestId('pack').locator('[data-item="gold"]').getByTestId('item-worth')).toHaveCount(0);
+  await page.getByTestId('pack').screenshot({ path: 'test-results/pack-worth.png' });
+
   // And he buys it back, for half what he asked.
   const sell = shop.getByTestId('shop-selling').locator('[data-sell="healing-draught"]').getByTestId('shop-sell');
   await expect(sell).toContainText('3 gold');

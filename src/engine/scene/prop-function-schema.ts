@@ -50,6 +50,13 @@ const portalFunction = z.object({ kind: z.literal('portal'), pair: z.string().tr
  */
 export const shopSchema = z.object({
   currency: contentIdSchema.default('gold'),
+  /**
+   * What it pays for what the party sells it, as a share of the thing's worth - its own price for
+   * one of its lines, else the item's value - in whole per cent. Left out is half: a fence pays
+   * less, a temple more - up to the whole worth, never more, or a party could buy a line and sell
+   * it straight back for a profit. Nought buys nothing at all.
+   */
+  buysAt: z.number().int().min(0).max(100).optional(),
   stock: z.array(z.object({ item: contentIdSchema, price: z.number().int().min(0), count: z.number().int().min(1).optional() })).default([]),
 });
 export type Shop = z.infer<typeof shopSchema>;

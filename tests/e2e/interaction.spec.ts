@@ -165,12 +165,15 @@ test('a creature is given a shop beside its conversation, and a prop the Shop fu
   await page.getByTestId('creature-shop-price').blur();
   await page.getByTestId('creature-shop-count').fill('2');
   await page.getByTestId('creature-shop-count').blur();
+  // A fence: it pays a quarter of what a thing is worth, not half.
+  await page.getByTestId('creature-shop-buys-at').fill('25');
+  await page.getByTestId('creature-shop-buys-at').blur();
   const creature = await page.evaluate(({ x, y }) => {
     const api = window.__engine!;
     const project = JSON.parse(api.exportProject()) as { scenes: { id: string; encounters: { adversaries: { position: { x: number; y: number }; interaction?: { shop?: unknown } }[] }[] }[] };
     return project.scenes.find((s) => s.id === api.editScene())!.encounters.flatMap((e) => e.adversaries).find((a) => a.position.x === x && a.position.y === y)!.interaction?.shop;
   }, spot!);
-  expect(creature).toEqual({ currency: 'gold', stock: [{ item: 'healing-draught', price: 7, count: 2 }] });
+  expect(creature).toEqual({ currency: 'gold', buysAt: 25, stock: [{ item: 'healing-draught', price: 7, count: 2 }] });
 
   // A prop sells through the same control.
   await page.evaluate(() => window.__engine!.setTool('prop'));

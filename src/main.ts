@@ -1268,8 +1268,8 @@ function aimingHighlights(armed: NonNullable<typeof targeting>): number[] {
   return [...armed.tiles, ...caught];
 }
 
-/** The party's pack, joined to the project's item names. */
-function carriedItems(): { id: string; name: string; quantity: number; wearable: boolean; usable: boolean }[] {
+/** The party's pack, joined to the project's item names - and worths, so a player knows what a thing fetches. */
+function carriedItems(): { id: string; name: string; quantity: number; wearable: boolean; usable: boolean; value?: number }[] {
   const items = new Map(demo.project.items.map((item) => [item.id, item]));
   return [...demo.scenario.items]
     .filter(([, quantity]) => quantity > 0)
@@ -1280,7 +1280,7 @@ function carriedItems(): { id: string; name: string; quantity: number; wearable:
         name: item?.name ?? id,
         quantity,
         wearable: (item?.kind === 'weapon' || item?.kind === 'armor') && item.contentId !== undefined,
-        usable: (item?.use.length ?? 0) > 0,
+        usable: (item?.use.length ?? 0) > 0, ...(item?.value === undefined ? {} : { value: item.value }),
       };
     });
 }

@@ -27,6 +27,8 @@ export interface CarriedItem {
   wearable: boolean;
   /** Something with a `use`. */
   usable: boolean;
+  /** What one is worth, in the coin shops are paid in; absent for a key, the coin, anything no merchant buys. */
+  value?: number;
 }
 
 /**
@@ -359,6 +361,11 @@ export function PlayPanel(props: PlayPanelProps): preact.JSX.Element | null {
               <span>{item.name}</span>
               <span className="panel-detail">
                 {item.quantity > 1 ? `×${item.quantity}` : ''}
+                {item.value === undefined ? null : (
+                  <span data-testid="item-worth" title="What one is worth. A merchant pays a share of it - most pay half.">
+                    worth {item.value}
+                  </span>
+                )}
                 {item.usable ? (
                   <button className="play-btn is-primary" data-testid="use-item" onClick={() => props.onUseItem(item.id)}>
                     Use

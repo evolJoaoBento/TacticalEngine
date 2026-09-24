@@ -45,16 +45,23 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { OUTLINE_LAYER, smoothHull } from './toon';
 
 /**
- * The colour each side is drawn in.
+ * The colour each side is drawn in: the party white, a hostile creature red, a friendly one - on
+ * nobody's side - green, and one a script's End a fight stood down, not hostile for now, yellow.
  *
  * Lives here rather than in `scene-view.ts` because this is what the colour is now *for*: it
  * was the fill of a disc under a token, and it is the line round one.
  */
 export const DEFAULT_FACTION_COLORS: Readonly<Record<string, string>> = {
-  party: '#f6c453',
+  party: '#ffffff',
   adversary: '#c0524a',
-  neutral: '#8ea3b0',
+  neutral: '#5fbf6a',
+  truce: '#e6c23a',
 };
+
+/** Which colour a creature is drawn in: its side's, or the stood-down yellow while it stands down. */
+export function outlineSide(entity: { faction: string; truce?: boolean }): string {
+  return entity.truce === true ? 'truce' : entity.faction;
+}
 
 /**
  * The blue whoever is selected is drawn in.

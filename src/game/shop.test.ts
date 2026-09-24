@@ -172,3 +172,22 @@ describe('selling what a merchant does not stock', () => {
     expect(demo.world.hasItem('key', 1)).toBe(true);
   });
 });
+
+describe("a shop's own buy-back rate", () => {
+  it('pays its share of the worth instead of half: a fence less, a temple all of it, nought nothing', () => {
+    expect([buyBackPrice(10, 20), buyBackPrice(10, 100), buyBackPrice(10, 0), buyBackPrice(3, 10)]).toEqual([2, 10, 0, 1]);
+    const demo = room();
+    const shop = shopOf(demo, 'tobin')!;
+    demo.world.addItem('ring', 1);
+    // Half, when it says nothing.
+    expect(offerFor(demo, shop, 'ring')).toBe(4);
+    shop.buysAt = 25;
+    expect(offerFor(demo, shop, 'ring')).toBe(2);
+    expect(offerFor(demo, shop, 'shield')).toBe(2);
+    shop.buysAt = 100;
+    expect(offerFor(demo, shop, 'ring')).toBe(9);
+    shop.buysAt = 0;
+    expect(sellables(demo, 'tobin')).toEqual([]);
+    expect(sellTo(demo, 'tobin', 'ring')).toBe(false);
+  });
+});

@@ -70,6 +70,10 @@ Q/E) are ignored while a text field has focus; the other keys are not (see Limit
 
 ### The screen
 
+- **The board**: each creature has a thin line round it in its side's colour - blue for whoever is
+  selected, white for the rest of the party, red for anything hostile, green for anybody friendly (a
+  bystander, a merchant, one talked round), and yellow for an enemy an End a fight stood down, which
+  turns red again when the next fight begins. The line sits dim until the pointer finds it.
 - **The Duality Dice** (over the board, when a party member rolls): two d12s —
   gold for Light, violet for Shadow — tumbling and settling on the faces that were rolled, with the
   sum and the outcome on a pill underneath. They are a view of a roll that has already happened, not the roll itself:
@@ -88,7 +92,7 @@ Q/E) are ignored while a text field has focus; the other keys are not (see Limit
   - **Journal**: every quest the party has been given. Active quests show their summary and
     their steps as ☐ / ☑; completed quests are struck through; failed ones say "— failed".
     Finished quests sink below active ones.
-  - **Carried**: the party's shared pack, with counts (×N). A weapon or armor item that points
+  - **Carried**: the party's shared pack, with counts (×N) and what each thing is worth. A weapon or armor item that points
     at SRD gear shows an **Equip** button.
   - **Log**: the narrative log, most recent twelve lines, coloured by tone (see tones in §4).
   - **Conversation**: speaker-tagged lines and reply buttons when a conversation is open;
@@ -400,7 +404,7 @@ party knows something, shown but greyed ("Not available"), cost a roll (the roll
 inside the conversation), or end the conversation. A node's lines are also written to the log.
 Everything else — walking, using, saving, levelling — waits until the conversation ends.
 
-Some creatures talk. A **friendly** one stands on nobody's side - a grey rim, not red - and
+Some creatures talk. A **friendly** one stands on nobody's side - a green line round it, not red - and
 clicking it walks up and opens its conversation instead of attacking; stepping on its encounter's
 trigger wakes nothing while every creature in it is friendly. Another fights until a blow leaves it
 with its **threshold** share of Hit Points or less: then it lowers its guard ("Rot Hound lowers
@@ -445,10 +449,13 @@ in it ("Quim buys Healing Draught for 6 gold."); a Buy the party cannot afford i
 thing a shop has only so many of is gone once they are bought - still gone after a save. The window
 stays open while the conversation that opened it goes on, and shuts when the party walks away from
 the seller. **Selling:** the window's **Sell** list is what the party carries that the seller will
-buy, and what it pays ("Sell · 3 gold") - half of its own price for something it sells, which goes
-back on its shelf if it had only so many, and half of an item's worth for anything else. Always
+buy, and what it pays ("Sell · 3 gold") - its share of its own price for something it sells, which
+goes back on its shelf if it had only so many, and of an item's worth for anything else. The share
+is half unless the shop says otherwise: a fence may pay a quarter, a temple the whole worth. Always
 rounded down, never nothing; a key, a quest's token, the coin itself - anything without a worth -
-it will not buy. In the default project a husk carapace fetches 2 gold, a longsword 7. In the default project Tobin the Pedlar sits by the
+it will not buy. In the default project a husk carapace fetches 2 gold, a longsword 7. The
+**Carried** list says what each thing is worth ("Healing draught · worth 6"), so a player knows what
+it will fetch before walking up to anybody. In the default project Tobin the Pedlar sits by the
 camp fire south of the vault, and the camp's crate holds 20 gold to spend with him.
 
 A `loot` effect draws from a weighted table with the scene's own dice, so a chest's contents are
@@ -542,9 +549,9 @@ selection.
 
 | Mode | Around the board | What a click or drag does |
 |---|---|---|
-| **Inspector** (1) | The selected thing's properties, on the right | Click a prop to see what it is drawn with, what it does and whether it is solid (an object from an older project is shown as it always was). Press on anything placed, a creature, a prop, an object or a party start, and drag to move it: it lifts off the ground, hangs under the pointer with its bottom swinging behind the way it goes, and drops with a bump where you let go, at the height it stood. It never lands on another of its kind (props stack), and a party start stays in the room; one undo puts it back. The editor draws a party start as the character who begins there - party member 1 on start 1, and round again if the party outnumbers the starts - in the model play gives them, rimmed in gold; a start nobody fills is a blue pawn in a ring. Click a start and the side pane shows that character's sheet, the same form as the Party workspace, and an edit there is an edit to the party. An object with no model is a gold ring with a gem |
+| **Inspector** (1) | The selected thing's properties, on the right | Click a prop to see what it is drawn with, what it does and whether it is solid (an object from an older project is shown as it always was). Press on anything placed, a creature, a prop, an object or a party start, and drag to move it: it lifts off the ground, hangs under the pointer with its bottom swinging behind the way it goes, and drops with a bump where you let go, at the height it stood. It never lands on another of its kind (props stack), and a party start stays in the room; one undo puts it back. The editor draws a party start as the character who begins there - party member 1 on start 1, and round again if the party outnumbers the starts - in the model play gives them, rimmed in white; a start nobody fills is a blue pawn in a ring. Click a start and the side pane shows that character's sheet, the same form as the Party workspace, and an edit there is an edit to the party. An object with no model is a gold ring with a gem |
 | **Terrain** (2) | Tools on the left rail; **Tiles** and **Props** in the strip along the bottom; the tool's options on the right | Build stacked tiles anywhere (brush 1×1, 3×3, 5×5); erase tiles at a chosen level; raise/lower ground; place props; **Select** picks up a placed tile - the topmost on the cell - and carries it: the Z ladder goes to its level, the wheel lifts it while held, Alt turns it, and it lands where you let go, on top of whatever is there. One undo puts it back. With Select in hand the **Z ladder** stays out: it shows the height of the prop or tile Select last took hold of and raises or lowers it, a quarter tile a rung, each an undo step - or is the build plane when Select holds nothing. Kinds of tile are named for the model they are drawn with (Grass Ground, Stone Stairs, Stone Block, Stone Wall, Dirt Ground, Grass Dirt Ground; the three drawn with the stone block say which is which) |
-| **Combat** (3) | Tools on the left rail; the SRD's creatures by tier in the strip, with a search; the encounter on the right | Place the picked creature in the encounter; press on a placed creature and drag to move it, as in the Inspector (Select carries party starts too); toggle trigger cells that start it; toggle party start tiles; erase a creature, then a trigger cell, then a party start (never the last one). The selected creature's panel ends with **Interaction**: None, **Friendly** (on nobody's side until its conversation says otherwise; clicking it in play talks) or **Threshold** (fights until a blow leaves it at or under the **% of Hit Points** given, 50 to start, then stops the fight to talk - once), and the **Conversation** it opens. Friendly and Threshold need a conversation to exist first. **Sells things** gives it a shop: what it is **Paid in** (gold to start), and a line for each thing it sells with a **price** and **how many** (empty is no end to them); its conversation opens the shop with **Open a shop** in a reply or a consequence node |
+| **Combat** (3) | Tools on the left rail; the SRD's creatures by tier in the strip, with a search; the encounter on the right | Place the picked creature in the encounter; press on a placed creature and drag to move it, as in the Inspector (Select carries party starts too); toggle trigger cells that start it; toggle party start tiles; erase a creature, then a trigger cell, then a party start (never the last one). The selected creature's panel ends with **Interaction**: None, **Friendly** (on nobody's side until its conversation says otherwise; clicking it in play talks) or **Threshold** (fights until a blow leaves it at or under the **% of Hit Points** given, 50 to start, then stops the fight to talk - once), and the **Conversation** it opens. Friendly and Threshold need a conversation to exist first. **Sells things** gives it a shop: what it is **Paid in** (gold to start), what it **Buys back at** (the share of a thing's worth it pays when the party sells, as a %: empty is 50, up to 100, 0 buys nothing), and a line for each thing it sells with a **price** and **how many** (empty is no end to them); its conversation opens the shop with **Open a shop** in a reply or a consequence node |
 | **Interaction** (4) | The conversations, on the left | Click one to open its graph |
 
 Opening a Terrain library tab chooses the placement action automatically: Tiles builds and Props
