@@ -121,19 +121,23 @@ describe('the licence the repository is under', () => {
    * Three files have to agree about which one it is, and they are edited at different times by
    * different people, so this is the thing that notices when one of them stops agreeing.
    */
-  it('ships the licence text whole, and the section a browser game is licensed for', () => {
+  it('ships the licence text whole: the legal code, not a summary of it', () => {
     const licence = read('LICENSE');
-    expect(licence).toContain('GNU AFFERO GENERAL PUBLIC LICENSE');
-    expect(licence).toContain('Version 3, 19 November 2007');
-    // Section 13 is why this and not the GPL: the game is used over a network, never handed over.
-    expect(licence).toContain('13. Remote Network Interaction');
+    expect(licence.startsWith('Attribution-NonCommercial 4.0 International')).toBe(true);
+    // The two clauses the choice was made for: what non-commercial means, and the credit it asks.
+    expect(licence).toContain('NonCommercial means not primarily intended for or directed towards');
+    expect(licence).toContain('Section 3 -- License Conditions.');
+    expect(licence).toContain('Creative Commons may be contacted at creativecommons.org.');
   });
 
   it('says which licence in the place a tool reads and the place a person reads', () => {
-    expect(JSON.parse(read('package.json')).license).toBe('AGPL-3.0-or-later');
+    expect(JSON.parse(read('package.json')).license).toBe('CC-BY-NC-4.0');
     const notice = read('NOTICE.md');
-    expect(notice).toContain('GNU Affero General Public License');
+    expect(notice).toContain('Creative Commons Attribution-NonCommercial 4.0 International');
     expect(notice).toContain('https://github.com/evolJoaoBento/TacticalEngine');
+    // The switch does not reach back: what was taken under the AGPL stays under it, and says so.
+    expect(notice).toContain('GNU Affero General Public License');
+    expect(notice).toContain('24 September 2026');
   });
 
   it('keeps the carve-outs the licence cannot reach', () => {

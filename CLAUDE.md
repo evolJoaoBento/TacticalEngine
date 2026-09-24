@@ -28,8 +28,8 @@ the repo has moved between machines, so never hardcode a path or a home director
 - **The engine core is DOM-free**, there is one effect schema, RNG is seeded, and every module is
   tested. `npx tsc --noEmit` is the only static check — there is no lint and no formatter, so match
   the surrounding style by reading it.
-- **The repository is public and AGPL-3.0-or-later.** `LICENSE`, `NOTICE.md` and `package.json`
-  must agree, and the notice's carve-outs stay: the font under the OFL, and the rules the engine
+- **The repository is public and CC BY-NC 4.0** (it was AGPL-3.0-or-later until 24 September 2026).
+  `LICENSE`, `NOTICE.md` and `package.json` must agree, and the notice's carve-outs stay: the font under the OFL, and the rules the engine
   implements, which are somebody else's Public Game Content. `AGENTS.md` carries the case in full.
 - **Do not `git checkout` a file with uncommitted work in it.** Copy it aside and back.
 

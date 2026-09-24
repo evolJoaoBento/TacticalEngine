@@ -57,14 +57,16 @@ Daggerheart is a trademark of Critical Role, LLC; this project is unaffiliated.
 
 ## What the repository is licensed as
 
-The project's own work is **AGPL-3.0-or-later**: `LICENSE` holds the text, `NOTICE.md` says what it
-reaches, and `package.json` declares it. Two things it does not reach, both named in the notice —
+The project's own work is **CC BY-NC 4.0** (Creative Commons Attribution-NonCommercial 4.0
+International): `LICENSE` holds the legal code, `NOTICE.md` says what it reaches, and `package.json`
+declares it (`CC-BY-NC-4.0`). Two things it does not reach, both named in the notice —
 Kreon, which stays under the SIL OFL beside its own licence file, and the rules the engine
 implements, which are Public Game Content under the DPCGL and are relicensed by nothing here.
 
-Section 13 is the one to know. A browser game is used over a network rather than handed over, so
-anyone running a modified copy for other people owes those people the source of their version. Keep
-the repository URL in `NOTICE.md` correct; it is the offer that satisfies it.
+It was AGPL-3.0-or-later until 24 September 2026, and copies taken before then stay so; the notice
+says as much, and that line stays. Non-commercial is the licence's point: nothing here may grant
+commercial use, and the credit it asks for is the copyright line and the repository URL in
+`NOTICE.md`, so keep both correct.
 `tests/unit/licensing-boundary.test.ts` fails if the three files stop agreeing.
 
 ---

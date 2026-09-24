@@ -3,16 +3,16 @@
 Tactical Engine — a browser CRPG engine and editor for party-based tactical RPGs.
 Copyright (C) 2026 João Bento (evolJoaoBento)
 
-This program is free software: you can redistribute it and/or modify it under the terms of the GNU
-Affero General Public License as published by the Free Software Foundation, either version 3 of the
-License, or (at your option) any later version.
+This work is licensed under the Creative Commons Attribution-NonCommercial 4.0 International
+License (CC BY-NC 4.0). The full legal code is in `LICENSE`; a summary is at
+<https://creativecommons.org/licenses/by-nc/4.0/>.
 
-This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
-even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-Affero General Public License for more details.
+You may share and adapt it, for any purpose that is not commercial, as long as you give credit,
+link to the licence, and say if you changed it. Using it commercially needs the author's
+permission. It comes with no warranty of any kind: see section 5 of the licence.
 
-You should have received a copy of the GNU Affero General Public License along with this program.
-If not, see <https://www.gnu.org/licenses/>. The full text is in `LICENSE`.
+Copies obtained before 24 September 2026 were licensed under the GNU Affero General Public License,
+version 3 or later, and remain so for whoever holds them. From that date the work is CC BY-NC 4.0.
 
 ## What the licence covers
 
@@ -20,13 +20,14 @@ The project's own work, which is nearly all of it: the engine, the editor, the s
 pack, the models and art authored for it, the tests, the documentation, and the `legacy/` prototype
 this grew out of. The models are distributed from a Hugging Face repository,
 [JunjiBento/tactical-engine-models](https://huggingface.co/JunjiBento/tactical-engine-models), under
-the same licence; `models.lock.json` names them.
+the same licence; `models.lock.json` names them. The source is at
+<https://github.com/evolJoaoBento/TacticalEngine>.
 
 ## What it does not cover
 
 - **The rules the engine implements.** The Daggerheart System Reference Document is Public Game
   Content under the DPCGL, and the attribution that licence requires is kept in `docs/CONTEXT.md`,
-  which is the only place holding its wording. The AGPL covers the code that implements those
+  which is the only place holding its wording. This licence covers the code that implements those
   rules; it does not reach the rules themselves, and nothing here relicenses them.
   Daggerheart is a trademark of Critical Role, LLC; this project is unaffiliated and unendorsed.
 
@@ -35,10 +36,3 @@ the same licence; `models.lock.json` names them.
 
 - **Card art.** `public/cards/` is ignored by git and nothing in it is distributed from here. Cards
   draw their own emblems when the directory is empty.
-
-## Running it for other people
-
-Section 13 is why this licence and not the GPL: a browser game is used over a network rather than
-handed over as a binary. If you run a modified copy and let other people play it, you owe those
-people the source of your version. The source of this one is at
-<https://github.com/evolJoaoBento/TacticalEngine>.

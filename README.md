@@ -71,10 +71,10 @@ document can hold.
 
 ## Licence
 
-**AGPL-3.0-or-later.** `LICENSE` carries the text and `NOTICE.md` says what it covers. Section 13
-is the one that matters here: a browser game is used over a network rather than handed over, so if
-you run a modified copy and let other people play it, you owe those people the source of your
-version.
+**CC BY-NC 4.0** (Creative Commons Attribution-NonCommercial 4.0 International). `LICENSE` carries
+the legal code and `NOTICE.md` says what it covers. Share it and adapt it for anything that is not
+commercial, with credit and a link to the licence; commercial use needs the author's permission.
+Copies obtained before 24 September 2026 were AGPL-3.0-or-later and stay so.
 
 Two things the licence does not reach, both set out in `NOTICE.md`. The play UI's font is Kreon,
 used under the SIL Open Font License, which travels with it. And the rules this engine implements
