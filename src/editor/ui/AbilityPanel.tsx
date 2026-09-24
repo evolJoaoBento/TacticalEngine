@@ -388,6 +388,8 @@ function CardDetail(props: {
     <>
       <div style={{ display: 'flex', gap: '6px' }}>
         <input
+          // Keyed on whose card it is, as the text below is: the pack's and the copy's are two fields.
+          key={own ? 'copy' : 'pack'}
           style={{ ...field, flex: 1 }}
           value={props.card.name}
           placeholder="name"
@@ -398,6 +400,10 @@ function CardDetail(props: {
         <span style={{ color: 'var(--ph-muted)', alignSelf: 'center' }}>{props.card.id}</span>
       </div>
       <textarea
+        // A new field when the card changes hands. Typing into a copy and removing it can land in one
+        // render, and the value then reads as the pack's words both before and after - so Preact left
+        // the typed words standing in a read-only box that said it was the pack's.
+        key={own ? 'copy' : 'pack'}
         style={{ ...field, width: '100%', minHeight: '46px', resize: 'vertical' }}
         value={props.card.text}
         placeholder="The card's text, as printed"

@@ -1829,13 +1829,14 @@ test('plays a skinned model\'s first clip once it arrives', async ({ page }) => 
 
 test('a glTF that names its clips walks with the walk and idles after', async ({ page }) => {
   const consoleErrors = await boot(page);
-  // The fox as Violet's body: the asset id is the model id the rogue's token asks for.
+  // The fox as Violet's body: the asset id is the model her token asks for - her own sheet's
+  // `violet`, not the cutpurse class's `rogue`, which only a character naming no model falls back to.
   await page.evaluate(() => {
     const api = window.__engine!;
-    api.addAsset({ id: 'rogue', url: '/tests/fixtures/models/Fox.glb', scale: 0.012, clips: { idle: 'Survey', walk: 'Run' } });
+    api.addAsset({ id: 'violet', url: '/tests/fixtures/models/Fox.glb', scale: 0.012, clips: { idle: 'Survey', walk: 'Run' } });
     // A prop naming it starts the load; the token is redrawn when the file lands.
     api.setMode('edit');
-    api.placeProp(api.tileOf('finn') + 2, 'rogue');
+    api.placeProp(api.tileOf('finn') + 2, 'violet');
     api.setMode('play');
     api.select('finn');
   });
@@ -1844,8 +1845,11 @@ test('a glTF that names its clips walks with the walk and idles after', async ({
   const walked = await page.evaluate(() => {
     const api = window.__engine!;
     const from = api.tileOf('finn');
-    const tiles = api.reachable().filter((t) => t !== from);
-    const far = tiles.reduce((x, y) => (Math.abs(y - from) > Math.abs(x - from) ? y : x));
+    // A walk of a few steps: long enough to be a walk, short enough to end. Out of a fight the whole
+    // field is in reach, and the far side of it is a walk no test should sit through.
+    const apart = (t: number): number => Math.max(Math.abs((t % 44) - (from % 44)), Math.abs(Math.floor(t / 44) - Math.floor(from / 44)));
+    const near = api.reachable().filter((t) => t !== from && apart(t) <= 4);
+    const far = near.reduce((x, y) => (apart(y) > apart(x) ? y : x));
     return { moved: api.moveTo(far), clip: api.clipOf('finn') };
   });
   expect(walked.moved).toBe(true);
