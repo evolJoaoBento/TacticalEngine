@@ -26,7 +26,7 @@ import {
   type MarkPool,
 } from '../rules/resources';
 import { shiftSnapshot } from './reshape';
-import type { SceneDoc } from './schema';
+import type { AdversaryPlacement, Encounter, SceneDoc } from './schema';
 import { footprintOf, interactablesOf } from './prop-functions';
 
 /** Which side an entity fights for. */
@@ -44,6 +44,12 @@ export interface EntityState {
    * ordinary case.
    */
   readonly model?: string;
+  /**
+   * What this one creature is called: a placement's own name - a named lieutenant, a merchant with
+   * a name - where it was given one. Read before the stat block's everywhere a creature is named.
+   * Unset for everyone else, and for anything a script summoned.
+   */
+  name?: string;
   /** Tile the entity stands on, or `NO_TILE` when it is off the map. */
   tile: number;
   /**
@@ -80,6 +86,12 @@ export interface EntityState {
    * so a second blow under it does not stop the fight again. Absent on everyone else.
    */
   interacted?: boolean;
+  /**
+   * A creature a script's End a fight stood down: on nobody's side until the next fight in the room
+   * begins, when it is hostile again. Absent on everyone else - a creature friendly by its own
+   * interaction, or talked round, stays so.
+   */
+  truce?: boolean;
 }
 
 /** When a condition ends. The SRD's "temporary" plus the engine's scopes. */
@@ -136,6 +148,8 @@ export const sceneSnapshotSchema = z.object({
       alive: z.boolean(),
       dead: z.boolean().optional(),
       interacted: z.boolean().optional(),
+      truce: z.boolean().optional(),
+      name: z.string().optional(),
     }),
   ),
   interactables: z.record(
@@ -635,13 +649,14 @@ export function createAdversaryEntity(
   id: string,
   definition: string,
   tile: number,
-  options: { hitPoints: number; stress: number; model?: string; faction?: 'adversary' | 'neutral' },
+  options: { hitPoints: number; stress: number; model?: string; faction?: 'adversary' | 'neutral'; name?: string },
 ): EntityState {
   return {
     id,
     faction: options.faction ?? 'adversary',
     definition,
     ...(options.model === undefined ? {} : { model: options.model }),
+    ...(options.name === undefined ? {} : { name: options.name }),
     tile,
     at: UNPLACED,
     hitPoints: createMarkPool(options.hitPoints),
@@ -650,6 +665,26 @@ export function createAdversaryEntity(
     conditions: new Set(),
     conditionDurations: new Map(),
     alive: true,
+  };
+}
+
+/**
+ * How a placement is stood up: its stat block's pools, and what the placement says of this one
+ * creature - its Hit Points, its model, its name, and whether it starts on nobody's side (a
+ * bystander, or a creature that starts out friendly). One place, for the room built from a
+ * document and for a creature placed in the editor while the game was running.
+ */
+export function placementOptions(
+  encounter: Pick<Encounter, 'bystanders'>,
+  placement: AdversaryPlacement,
+  definition: { hitPoints: number; stress: number },
+): Parameters<typeof createAdversaryEntity>[3] {
+  return {
+    hitPoints: placement.hitPoints ?? definition.hitPoints,
+    stress: definition.stress,
+    ...(placement.model === undefined ? {} : { model: placement.model }),
+    ...(placement.name === undefined ? {} : { name: placement.name }),
+    ...(encounter.bystanders === true || placement.interaction?.kind === 'friendly' ? { faction: 'neutral' as const } : {}),
   };
 }
 
@@ -737,14 +772,9 @@ export function sceneStateFromScene(
           placement.id,
           placement.adversary,
           grid.indexOf(placement.position.x, placement.position.y),
-          {
-            hitPoints: placement.hitPoints ?? definition.hitPoints,
-            stress: definition.stress,
-            ...(placement.model === undefined ? {} : { model: placement.model }),
-            // Bystanders are on nobody's side, so no fight counts them in or waits for them to fall;
-            // nor is a creature that starts out friendly, until something turns it.
-            ...(encounter.bystanders === true || placement.interaction?.kind === 'friendly' ? { faction: 'neutral' as const } : {}),
-          },
+          // Bystanders are on nobody's side, so no fight counts them in or waits for them to fall;
+          // nor is a creature that starts out friendly, until something turns it.
+          placementOptions(encounter, placement, definition),
         ),
       );
     }

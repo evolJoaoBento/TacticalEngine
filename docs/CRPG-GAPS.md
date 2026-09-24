@@ -104,10 +104,9 @@ friendly or hostile from a reply or a consequence; a conversation opened with a 
 as the target throughout. A prop can be given the **Interaction** function, which opens one.
 
 **Still open:** a reply's own effects are still JSON-only in the graph (a consequence node is the
-editor's way to the same thing), and a `startEncounter` effect only marks an encounter started -
-it does not begin the fight the way a trigger or a creature turned hostile does. A dialogue is
-otherwise written in the editor's graph — nodes, replies, conditions, consequences — and validated
-with everything else.
+editor's way to the same thing). A `startEncounter` effect begins its fight now, as a trigger does
+(`beginScriptedFights`). A dialogue is otherwise written in the editor's graph — nodes, replies,
+conditions, consequences — and validated with everything else.
 
 ### ~~3. The turn loop~~ — done
 
@@ -229,7 +228,8 @@ drop something which is not an item, and an `addItem` for an item that does not 
 **Trading (2026-09-24).** A shop is kept by a seller - a creature's interaction or a prop with the
 Shop function - and opened by the `openShop` effect, from a conversation or a use (`game/shop.ts`).
 Buying pays from the party pack in whatever item the shop names, gold by default; a limited line
-stays sold out across a save. Selling to a merchant is not in yet, nor are prices that move.
+stays sold out across a save. A seller buys back its own lines for half its price, and anything
+else with a `value` for half of that. Prices that move are not in.
 
 **Equipping is in** (`equipItem` in `game/equip.ts`). A carried weapon or armor item whose
 `contentId` names SRD gear can be put on whoever is selected, from the pack. The piece comes out

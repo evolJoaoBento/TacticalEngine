@@ -5407,7 +5407,7 @@ describe('one swing through all of them', () => {
       const after = demo.log.slice(said).map((l) => l.text);
 
       // Both of them were swung at, whatever came of it.
-      const named = adversaryDefOf(demo, husk.id)!.name;
+      const named = demo.state.entity(husk.id)!.name ?? adversaryDefOf(demo, husk.id)!.name; // what the log calls it
       expect(after.filter((t) => t.includes(named)).length).toBeGreaterThanOrEqual(2);
       // Read off the log rather than the pool: a success with Light hands one
       // straight back, so the number on the sheet says nothing about the cost.

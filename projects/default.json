@@ -22031,7 +22031,8 @@
           "text": "Iron and mint. The cuts close.",
           "tone": "good"
         }
-      ]
+      ],
+      "value": 6
     },
     {
       "id": "husk-carapace",
@@ -22039,7 +22040,8 @@
       "kind": "trinket",
       "description": "Light, and still faintly warm.",
       "stackable": true,
-      "use": []
+      "use": [],
+      "value": 4
     },
     {
       "id": "longsword",
@@ -22048,7 +22050,8 @@
       "description": "Older than the vault, and better kept.",
       "contentId": "longsword",
       "stackable": false,
-      "use": []
+      "use": [],
+      "value": 15
     },
     {
       "id": "round-shield",
@@ -22057,7 +22060,8 @@
       "description": "Dented on the rim where it did its job.",
       "contentId": "round-shield",
       "stackable": false,
-      "use": []
+      "use": [],
+      "value": 15
     },
     {
       "id": "hunting-bow",
@@ -22066,7 +22070,8 @@
       "description": "",
       "contentId": "hunting-bow",
       "stackable": false,
-      "use": []
+      "use": [],
+      "value": 18
     },
     {
       "id": "ember-staff",
@@ -22075,7 +22080,8 @@
       "description": "",
       "contentId": "ember-staff",
       "stackable": false,
-      "use": []
+      "use": [],
+      "value": 20
     },
     {
       "id": "ringmail",
@@ -22084,7 +22090,8 @@
       "description": "",
       "contentId": "ringmail",
       "stackable": false,
-      "use": []
+      "use": [],
+      "value": 20
     },
     {
       "id": "padded-coat",
@@ -22093,7 +22100,8 @@
       "description": "",
       "contentId": "padded-coat",
       "stackable": false,
-      "use": []
+      "use": [],
+      "value": 12
     }
   ],
   "lootTables": [

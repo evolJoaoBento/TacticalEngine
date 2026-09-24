@@ -90,6 +90,9 @@ export interface OpenContainer {
   name: string;
   lines: readonly { item: string; name: string; count: number; price?: number }[];
   paidIn?: { name: string; held: number };
+  /** In a shop: what the party carries that the seller buys back, and for how much. */
+  selling?: readonly { item: string; name: string; held: number; price: number }[];
+  onSell?: (item: string) => void;
   onTake: (item: string) => void;
   onClose: () => void;
 }
@@ -304,6 +307,22 @@ export function PlayPanel(props: PlayPanelProps): preact.JSX.Element | null {
                 </span>
               </div>
             ))
+          )}
+          {props.container.selling === undefined || props.container.selling.length === 0 ? null : (
+            <div data-testid="shop-selling">
+              <div className="play-eyebrow panel-heading">Sell</div>
+              {props.container.selling.map((line) => (
+                <div key={line.item} className="panel-row" data-sell={line.item}>
+                  <span>{line.name}</span>
+                  <span className="panel-detail">
+                    {line.held > 1 ? `×${line.held}` : ''}
+                    <button className="play-btn" data-testid="shop-sell" onClick={() => props.container!.onSell?.(line.item)}>
+                      Sell · {line.price} {props.container!.paidIn?.name.toLowerCase()}
+                    </button>
+                  </span>
+                </div>
+              ))}
+            </div>
           )}
         </div>
       ) : null}

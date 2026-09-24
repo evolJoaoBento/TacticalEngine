@@ -18,6 +18,7 @@ import { tracePath, type ReachableField } from '../engine/grid/pathfinding';
 import { insideCircle } from '../engine/grid/walk';
 import { reaches, type RangeBand } from '../engine/rules/range';
 import type { EntityState } from '../engine/scene/state';
+import type { JournalEntry } from '../engine/script/runner';
 import { DEMO_BAND_TILES } from './demo-rules';
 import type { DemoScene } from './demo-scene';
 import { nameOf, note } from './log';
@@ -364,11 +365,41 @@ export function clampInto(grid: TileGrid, aimed: Spot, tile: number): Spot {
   return { x: Math.min(x + 0.49, Math.max(x - 0.49, aimed.x)), y: Math.min(y + 0.49, Math.max(y - 0.49, aimed.y)) };
 }
 
-/** Begin a fight. Safe to call twice. */
+/**
+ * Begin a fight. Safe to call twice. Whoever a script's End a fight stood down is hostile again the
+ * moment any fight in the room begins - by a trigger, a script, a creature turned, a blow.
+ */
 export function startEncounter(demo: Pick<DemoScene, 'state' | 'encounter'>, encounterId: string): EncounterRunner {
-  if (demo.encounter !== null && demo.encounter.encounterId === encounterId) return demo.encounter;
+  // The same fight still going is kept; one that has ended - won, or stopped - is begun afresh.
+  if (demo.encounter !== null && demo.encounter.encounterId === encounterId && demo.encounter.outcome === 'ongoing') return demo.encounter;
+  for (const creature of demo.state.allEntities()) {
+    if (creature.truce !== true) continue;
+    delete creature.truce;
+    demo.state.setAttitude(creature.id, 'hostile');
+  }
   const runner = new EncounterRunner(demo.state, encounterId);
   runner.start();
   demo.encounter = runner;
   return runner;
+}
+
+/**
+ * What a script's Start a fight does beyond marking the encounter started: begin the fight, as a
+ * trigger cell would - the party first, the intro line already in the log.
+ *
+ * Only with no fight running: a fight counts every hostile creature in the room, so one already
+ * going has that encounter's creatures in it, and replacing its runner would lose the turn it is
+ * on. Only an encounter of this room. And only with somebody to fight - a room whose creatures are
+ * all dead or friendly begins nothing, rather than a fight that is over the moment it starts.
+ */
+export function beginScriptedFights(demo: Pick<DemoScene, 'scene' | 'state' | 'encounter'>, journal: readonly JournalEntry[]): void {
+  for (const entry of journal) {
+    if (entry.kind !== 'encounter' || entry.change !== 'started' || inCombat(demo)) continue;
+    if (!demo.scene.encounters.some((encounter) => encounter.id === entry.id)) continue;
+    // Somebody to fight: hostile, or stood down by an End a fight and hostile again the moment this begins.
+    if (!demo.state.allEntities().some((creature) => creature.alive && (creature.faction === 'adversary' || creature.truce === true))) continue;
+    // A fight that has ended is begun afresh, not handed back finished.
+    if (demo.encounter?.encounterId === entry.id) demo.encounter = null;
+    startEncounter(demo, entry.id);
+  }
 }

@@ -47,8 +47,9 @@ export function inspection(demo: DemoScene, occupant: string | null, objectId: s
     return {
       kind: 'adversary',
       id: entity.id,
-      name: def?.name ?? entity.definition,
-      line: def === undefined ? entity.definition : `Tier ${def.tier} ${def.role}`,
+      // Its own name where it has one, and then what it is, so a named lieutenant still says which block it fights with.
+      name: entity.name ?? def?.name ?? entity.definition,
+      line: def === undefined ? entity.definition : `${entity.name === undefined || entity.name === def.name ? '' : `${def.name} · `}Tier ${def.tier} ${def.role}`,
       text: def?.description ?? '',
       facts: [
         ...pools,

@@ -444,8 +444,12 @@ is paid in ("You have 20 gold."). Buying takes the price out of the shared pack 
 in it ("Quim buys Healing Draught for 6 gold."); a Buy the party cannot afford is greyed out, and a
 thing a shop has only so many of is gone once they are bought - still gone after a save. The window
 stays open while the conversation that opened it goes on, and shuts when the party walks away from
-the seller. In the default project Tobin the Pedlar sits by the camp fire south of the vault, and
-the camp's crate holds 20 gold to spend with him.
+the seller. **Selling:** the window's **Sell** list is what the party carries that the seller will
+buy, and what it pays ("Sell · 3 gold") - half of its own price for something it sells, which goes
+back on its shelf if it had only so many, and half of an item's worth for anything else. Always
+rounded down, never nothing; a key, a quest's token, the coin itself - anything without a worth -
+it will not buy. In the default project a husk carapace fetches 2 gold, a longsword 7. In the default project Tobin the Pedlar sits by the
+camp fire south of the vault, and the camp's crate holds 20 gold to spend with him.
 
 A `loot` effect draws from a weighted table with the scene's own dice, so a chest's contents are
 as replayable as the roll that opened it. Drops read "You find 7 Gold and a Brass key." and go
@@ -694,7 +698,10 @@ named lieutenant or a standout; setting it back to *Whatever the type uses* clea
 leaves the type alone. Both lists offer the built-in models and anything the project imported under
 **Models**, so an imported `.glb` is chosen by name rather than by naming the file after an adversary.
 The same panel edits that creature's **Name** and **Hit points**, which are per-creature overrides of
-its stat block. **Check** warns about a model name nothing can supply — the creature still plays, it
+its stat block. A name is what play calls it - the log, a roll's prompt, a shop's window - and the
+right-click card shows the name with the stat block under it (*Captain Vey*, "Foe · Tier 1
+standard"); a creature with no name of its own is called by its stat block. A name changed while
+the game is running reaches the creature when you return to play. **Check** warns about a model name nothing can supply — the creature still plays, it
 just stands in a borrowed body.
 Every entry into a room brings its creatures up to date with the document: returning to play,
 travelling in through a door, or loading a save each add the creatures placed since and remove
@@ -975,7 +982,8 @@ Check's to report.
 
 **Write an item…** opens the Items panel, which holds both halves of the pack because they only
 mean anything together. An **item** is a name, a description, a kind (key, consumable, weapon,
-armor, trinket), whether a second one stacks, and an effect list for what using it does — the
+armor, trinket), whether a second one stacks, what it is **worth** (in the coin shops are paid in -
+a merchant buys it for half; empty, no merchant will buy it), and an effect list for what using it does — the
 same list every other panel edits, so a draught heals and a scroll starts a conversation. A
 consumable is spent by the use; anything else stays in the pack. A weapon or armour also picks
 the SRD content it stands for, from the same vendored list the Party panel uses, so equipping is
@@ -1227,8 +1235,8 @@ leaves the chosen target out — "all other targets within range").
 | `summon` | `adversary` (a stat block id), `count?` (dice, one when left out), `perPc?`, `range?` (the band they appear in, Close by default), `spotlight?` | Puts creatures on the map around whoever is acting, in the band named — a ring, not a disc, falling inward when there is no room in it. They are in the fight the moment they stand there, because the encounter reads the map rather than a roster. `spotlight` makes them act at once instead of next turn; `perPc` multiplies the count by the party still standing |
 | `push` | `to` (band), `target?` | knocks the target(s) straight away from the actor until the distance reads as that band, stopping at a wall or a creature |
 | `reactionRoll` | `difficulty` (number \| `roll` = the actor's last total), `trait?`, `targets?` (hit), `damage?` (`dice`, `type?`), `onFail[]?`, `onSuccess[]?` | adversaries roll a d20, party members their Duality Dice (no Light or Shadow); `onFail` runs with the failures bound to `hit`, then `onSuccess` with the rest. `damage` is rolled once, before anyone rolls to avoid it, and both branches spend it with `{ kind: 'damage', dice: 'same' }` — the successes adding `half`. That is what "targets who succeed take half damage" means: half of the number that landed, and something to halve even when nobody failed |
-| `startEncounter` | `encounter`, `intro?` | starts a fight; logs `intro` or "Something moves." |
-| `endEncounter` | `encounter` | marks the encounter ended |
+| `startEncounter` | `encounter`, `intro?` | begins that encounter's fight, as a trigger cell does - the party first - when no fight is running and somebody in the room is hostile; logs `intro` or "Something moves." either way. A fight already running is left as it is: it already counts every hostile creature in the room |
+| `endEncounter` | `encounter` | stops that fight when it is the one running (or its creatures are in it): "The fight stops. Nobody raises a weapon." Every enemy standing stands down - on nobody's side, saved - until the next fight in the room begins, when they are hostile again; a blow struck at one of them begins it. Creatures friendly by their own interaction are not touched |
 | `goto` | `scene` | travel, taken once the script has stopped asking |
 | `startDialogue` | `dialogue` | pauses the script, runs the conversation, then resumes |
 | `setAttitude` | `attitude` (`friendly` \| `hostile`), `target?` (the one a conversation is with) | a creature onto nobody's side, or back among the adversaries; a party member is never turned. Hostile with no fight running starts the fight of the encounter that placed it |
@@ -1425,7 +1433,8 @@ campaign state, not in the document.
 
 An **item**: `id`, `name`, `kind` (key | consumable | weapon | armor | trinket; default
 trinket), `description`, `contentId?` (the SRD weapon or armor id it stands for — required for
-Equip), `stackable` (default true). A **loot table**: `id`, `rolls` (draws; default 1),
+Equip), `stackable` (default true), `value?` (what one is worth in the coin shops are paid in; a
+merchant pays half, and nothing for an item without one). A **loot table**: `id`, `rolls` (draws; default 1),
 `entries[]` of `item`, `quantity` (a number or `{min,max}` rolled per draw; default 1),
 `weight` (relative within the table, default 1; not a percentage). Same-item drops stack.
 

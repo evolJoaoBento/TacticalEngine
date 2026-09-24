@@ -275,7 +275,7 @@ function withMentions(demo: Named, line: LogLine): LogLine {
 }
 
 /**
- * A creature's name for the log: the sheet's, the stat block's, or its id.
+ * A creature's name for the log: the sheet's, its own - a placement's name - the stat block's, or its id.
  *
  * The stat block is asked of the world, which knows the content this fight is
  * being played with, rather than of whatever the shipped pack has under the id.
@@ -285,7 +285,17 @@ export function nameOf(demo: Named, id: string): string {
   if (sheet !== undefined) return sheet.name;
   const entity = demo.state.entity(id);
   if (entity === undefined) return id;
-  return demo.world.adversaryDef(entity.definition)?.name ?? id;
+  return entity.name ?? demo.world.adversaryDef(entity.definition)?.name ?? id;
+}
+
+/**
+ * A creature at the head of a sentence: "The Hollow Knight" for one known by its stat block, and a
+ * name of its own as it was given - "Captain Vey", not "The Captain Vey". `lower` is the same,
+ * mid-sentence.
+ */
+export function theNameOf(demo: Named, id: string, lower = false): string {
+  const own = demo.sheets.has(id) || demo.state.entity(id)?.name !== undefined;
+  return own ? nameOf(demo, id) : `${lower ? 'the' : 'The'} ${nameOf(demo, id)}`;
 }
 
 /** "12 gold and a brass key" — an item nobody named reads as its id. */

@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { nameOf, theNameOf } from './log';
 import { hollowVaultMap } from './demo-map';
 import { deriveCharacter } from '../engine/character/sheet';
 import { abilitySchema } from '../engine/content/abilities';
@@ -99,8 +100,9 @@ function holds(demo: DemoScene, who: string, cards: readonly string[]): void {
 
 /** The living adversary nearest a character, and its tile. */
 /** What the demo places, by name: the log lines are built from the block's own. */
+/** What the log calls a creature: its own name where the room gave it one, else its stat block's. */
 function foeName(demo: DemoScene, id: string): string {
-  return adversaryDefOf(demo, id)!.name;
+  return nameOf(demo, id);
 }
 
 function nearestFoe(demo: DemoScene, characterId: string): { id: string; tile: number } {
@@ -453,7 +455,7 @@ describe("the GM's turn", () => {
     const hpBefore = demo.state.entity('kara')!.hitPoints.marked;
     endTurn(demo);
     expect(husk.conditions.has('restrained')).toBe(false);
-    expect(demo.log.map((l) => l.text)).toContain(`The ${foeName(demo, foe.id)} shakes off restrained.`);
+    expect(demo.log.map((l) => l.text)).toContain(`${theNameOf(demo, foe.id)} shakes off restrained.`);
     // It did not also attack.
     expect(demo.log.some((l) => l.text.includes(`${foeName(demo, foe.id)}'s`) && l.text.includes('Quim'))).toBe(false);
     expect(demo.state.entity('kara')!.hitPoints.marked).toBe(hpBefore);
@@ -509,7 +511,7 @@ describe('what holds an adversary', () => {
     endTurn(demo);
     expect(husk.conditions.has('asleep')).toBe(false);
     expect(demo.state.bad.value).toBe(0);
-    expect(demo.log.map((l) => l.text)).toContain(`The GM spends a Shadow: the ${foeName(demo, foe.id)} shakes off asleep.`);
+    expect(demo.log.map((l) => l.text)).toContain(`The GM spends a Shadow: ${theNameOf(demo, foe.id, true)} shakes off asleep.`);
   });
 
   it('a hit that marks a Hit Point wakes a sleeper', () => {

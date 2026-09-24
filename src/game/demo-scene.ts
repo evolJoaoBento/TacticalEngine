@@ -30,7 +30,7 @@ import {
   DICE_MILLIS,
   describeRoll,
   float,
-  nameOf, note,
+  nameOf, note, theNameOf,
   showRoll,
   speak,
   struck,
@@ -42,9 +42,9 @@ import {
   type RollShow,
 } from './log';
 import { inCombat, scriptPending } from './moment';
-import { aimOfMove, closeToStrike, walkTheMove, type MoveResult } from './movement';
+import { aimOfMove, beginScriptedFights, closeToStrike, walkTheMove, type MoveResult } from './movement';
 import { interactablesOf, nearestCovered, reactToThings } from './prop-use';
-import { fightOverLine, playTurnings, reactToAttitudes, talkTo, talksTo } from './interaction';
+import { fightOverLine, playTurnings, reactToAttitudes, resumeOnBlow, stopScriptedFights, talkTo, talksTo } from './interaction';
 import { cuesFrom } from './cues';
 import { bandFromSpot, standingIn } from './reach';
 import { runForIt } from './rolled-move';
@@ -886,6 +886,7 @@ export function attackWithSelected(
   if (inCombat(demo) && !demo.encounter!.canAct(id!)) return null;
   // A creature on nobody's side with something to say is talked to, not struck.
   if (talksTo(demo, targetId)) return { hit: false, refused: null, hitPointsMarked: 0, waiting: talkTo(demo, id!, targetId).status === 'waiting' };
+  resumeOnBlow(demo, targetId); // a blow at one who stood down starts the fight again
 
   const profile = attackProfile(character);
   // The first thing a player does is click the enemy across the room. Out of
@@ -1704,6 +1705,11 @@ export function settleFight(demo: DemoScene): void {
   // Ashen Tyrant's death throes go off instead. Here because this is where a
   // death is noticed, whoever dealt it.
   for (const moved of demo.world.reapCountdowns()) playCountdown(demo, moved);
+  closeFight(demo);
+}
+
+/** Once a fight is over, however it ended - won, lost, or stopped by a script - put it away, once. */
+export function closeFight(demo: DemoScene): void {
   const encounter = demo.encounter;
   if (encounter === null || encounter.outcome === 'ongoing' || announced.has(encounter)) return;
   announced.add(encounter);
@@ -1724,8 +1730,8 @@ export function settleFight(demo: DemoScene): void {
   }
   note(
     demo,
-    encounter.outcome === 'victory' ? fightOverLine(demo) : 'The party falls.',
-    encounter.outcome === 'victory' ? 'success' : 'bad',
+    encounter.outcome === 'victory' ? fightOverLine(demo) : encounter.outcome === 'stopped' ? 'The fight stops. Nobody raises a weapon.' : 'The party falls.',
+    encounter.outcome === 'victory' ? 'success' : encounter.outcome === 'stopped' ? 'system' : 'bad',
   );
 }
 
@@ -2163,7 +2169,7 @@ function runAdversaryScript(
 ): boolean {
   const stress = ability.cost.stress ?? 0;
   if (stress > 0) demo.world.markStress(adversaryId, stress);
-  note(demo, `The ${nameOf(demo, adversaryId)} uses ${ability.name}.`, 'combat');
+  note(demo, `${theNameOf(demo, adversaryId)} uses ${ability.name}.`, 'combat');
   const was = demo.scenario.actorId;
   demo.scenario.actorId = adversaryId;
   const runner = new ScriptRunner(demo.world, demo.rng, {
@@ -3216,7 +3222,7 @@ function clearTemporaryConditions(demo: Pick<DemoScene, 'state' | 'sheets' | 'wo
     cleared.push(condition);
   }
   if (cleared.length > 0) {
-    note(demo, `The ${nameOf(demo, adversaryId)} shakes off ${cleared.join(' and ')}.`, 'combat');
+    note(demo, `${theNameOf(demo, adversaryId)} shakes off ${cleared.join(' and ')}.`, 'combat');
   }
 }
 
@@ -3234,7 +3240,7 @@ function clearWithBad(demo: Pick<DemoScene, 'state' | 'sheets' | 'world' | 'log'
     adversary.conditions.delete(condition);
     adversary.conditionDurations.delete(condition);
   }
-  note(demo, `The GM spends a Shadow: the ${nameOf(demo, adversaryId)} shakes off ${held.join(' and ')}.`, 'bad');
+  note(demo, `The GM spends a Shadow: ${theNameOf(demo, adversaryId, true)} shakes off ${held.join(' and ')}.`, 'bad');
 }
 
 /**
@@ -3298,7 +3304,7 @@ function attackPartyMember(demo: DemoScene, adversaryId: string, targetId: strin
   if (!outcome.hit || outcome.damageRoll === undefined || character === undefined) {
     applyAttack(demo.state, outcome);
     demo.world.endsOnAttack(adversaryId);
-    note(demo, `The ${def.name}'s ${def.attackName} misses ${character?.sheet.name ?? target.id}.`, 'combat');
+    note(demo, `${theNameOf(demo, adversaryId)}'s ${def.attackName} misses ${character?.sheet.name ?? target.id}.`, 'combat');
     playAttackedOn(demo, targetId, adversaryId);
     offerMiss(demo, { attacker: adversaryId, defender: targetId, outcome, def, used: [] });
     return true;
@@ -3414,7 +3420,7 @@ function defeatMinions(demo: Pick<DemoScene, 'state' | 'sheets' | 'world' | 'log
   };
   if (target.alive) {
     fell(target);
-    note(demo, `The ${nameOf(demo, targetId)} goes down at a touch.`, 'combat');
+    note(demo, `${theNameOf(demo, targetId)} goes down at a touch.`, 'combat');
   }
   const extras = Math.floor(damage / per);
   if (extras <= 0) return;
@@ -3792,7 +3798,7 @@ function answeredWith(demo: DemoScene, attack: IncomingAttack, journal: readonly
     note(demo, `${who} sees it coming: ${raised} more to beat.`, 'good');
     if (!gm.critical && gm.total < gm.difficulty + raised) {
       demo.world.endsOnAttack(attack.attacker);
-      note(demo, `The ${attack.def.name}'s ${attack.def.attackName} misses ${who}.`, 'combat');
+      note(demo, `${theNameOf(demo, attack.attacker)}'s ${attack.def.attackName} misses ${who}.`, 'combat');
       playAttackedOn(demo, attack.defender, attack.attacker);
       settleFight(demo);
       return;
@@ -3800,7 +3806,7 @@ function answeredWith(demo: DemoScene, attack: IncomingAttack, journal: readonly
   }
   if (avoided) {
     demo.world.endsOnAttack(attack.attacker);
-    note(demo, `The ${attack.def.name}'s ${attack.def.attackName} finds nothing where ${who} was.`, 'combat');
+    note(demo, `${theNameOf(demo, attack.attacker)}'s ${attack.def.attackName} finds nothing where ${who} was.`, 'combat');
     playAttackedOn(demo, attack.defender, attack.attacker);
     settleFight(demo);
     return;
@@ -3898,8 +3904,8 @@ function landAttack(demo: DemoScene, attack: IncomingAttack, plan: DefensePlan |
   note(
     demo,
     final.hitPointsMarked === 0
-      ? `The ${attack.def.name}'s ${attack.def.attackName} hits ${who}, and is turned aside.`
-      : `The ${attack.def.name}'s ${attack.def.attackName} ${final.critical ? 'tears into' : 'hits'} ${who}: ${hitPointWord(final.hitPointsMarked)}.`,
+      ? `${theNameOf(demo, attack.attacker)}'s ${attack.def.attackName} hits ${who}, and is turned aside.`
+      : `${theNameOf(demo, attack.attacker)}'s ${attack.def.attackName} ${final.critical ? 'tears into' : 'hits'} ${who}: ${hitPointWord(final.hitPointsMarked)}.`,
     'combat',
   );
   settleFight(demo);
@@ -4018,11 +4024,11 @@ export function applyDefenseChoice(demo: DemoScene, attack: IncomingAttack, choi
     defender: demo.world.defenderOf(target),
     options: { bandTiles: DEMO_BAND_TILES, armorSlotsMarked: 0 },
   });
-  note(demo, `${helper}: ${choice.ability.name}. The ${attack.def.name} swings again.`, 'good');
+  note(demo, `${helper}: ${choice.ability.name}. ${theNameOf(demo, attack.attacker)} swings again.`, 'good');
   if (again.refused !== null || !again.hit || again.damageRoll === undefined) {
     applyAttack(demo.state, again);
     demo.world.endsOnAttack(attack.attacker);
-    note(demo, `The ${attack.def.name}'s ${attack.def.attackName} misses ${nameOf(demo, attack.defender)}.`, 'combat');
+    note(demo, `${theNameOf(demo, attack.attacker)}'s ${attack.def.attackName} misses ${nameOf(demo, attack.defender)}.`, 'combat');
     settleFight(demo);
     return;
   }
@@ -4351,6 +4357,8 @@ export function record(demo: DemoScene, journal: readonly JournalEntry[]): LogLi
 function react(demo: DemoScene, journal: readonly JournalEntry[]): void {
   reactToThings(demo, journal);
   reactToAttitudes(demo, journal);
+  beginScriptedFights(demo, journal);
+  stopScriptedFights(demo, journal);
   syncPools(demo);
   for (const { roller, roll } of rollsFrom(demo, journal)) playPartyRolled(demo, roller, roll);
   for (const cue of cuesFrom(demo, journal)) tickCountdowns(demo, cue);

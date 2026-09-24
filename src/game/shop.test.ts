@@ -1,7 +1,8 @@
 /**
  * Buying (`game/shop.ts`): a merchant's conversation opens his shop, the window lists what he sells
  * with its price, and buying pays from the party pack - refused when it cannot pay, a line with a
- * count sold out for good, across a save. A prop with the Shop function sells the same way.
+ * count sold out for good, across a save. A prop with the Shop function sells the same way. And
+ * he buys back what he sells, for half his price.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -16,6 +17,7 @@ import { FIXTURE_ADVERSARIES, FIXTURE_FOE } from '../../tests/fixtures/adversari
 import { answerPending, attackWithSelected, buildProjectScene, useSelectedOn, type DemoScene } from './demo-scene';
 import { scriptPending } from './moment';
 import { containerContents, openContainer, takeFromContainer } from './prop-use';
+import { buyBackPrice, offerFor, sellTo, sellables, shopOf } from './shop';
 
 const KARA = characterSheetSchema.parse(
   blankSheet('kara', 'sentinel', { name: 'Kara', ancestryId: 'human', armorId: 'ringmail', primaryWeaponId: 'longsword', subclassId: 'shieldbearer' }),
@@ -32,6 +34,11 @@ function room(): DemoScene {
   for (const [id, name] of [['gold', 'Gold'], ['draught', 'A draught'], ['shield', 'A shield']] as const) {
     s.run(addItem(itemSchema.parse({ id, name, kind: 'trinket', stackable: true })));
   }
+  // Not his: a ring worth something, a key worth nothing to anybody but its door, and a draught
+  // valued higher than he sells it for - his own price wins.
+  s.run(addItem(itemSchema.parse({ id: 'ring', name: 'A silver ring', kind: 'trinket', value: 9 })));
+  s.run(addItem(itemSchema.parse({ id: 'key', name: 'An iron key', kind: 'key' })));
+  s.project.items.find((item) => item.id === 'draught')!.value = 40;
   s.run(addDialogue(dialogueSchema.parse({
     id: 'haggle',
     start: 'hello',
@@ -116,5 +123,52 @@ describe('a prop with the Shop function', () => {
     expect(openContainer(demo)).toBe('stall');
     expect(takeFromContainer(demo, 'stall', 'shield')).toBe(true);
     expect(gold(demo)).toBe(0);
+  });
+});
+
+describe('selling to a merchant', () => {
+  it('buys back what he sells, for half his price, rounded down and never nothing', () => {
+    expect([buyBackPrice(5), buyBackPrice(8), buyBackPrice(1), buyBackPrice(0)]).toEqual([2, 4, 1, 0]);
+    const demo = room();
+    demo.world.addItem('draught', 2);
+    demo.world.addItem('gold', 3);
+    // Only his own lines, only what the party carries, and never his own coin.
+    expect(sellables(demo, 'tobin')).toEqual([{ item: 'draught', name: 'A draught', held: 2, price: 2 }]);
+    expect(sellTo(demo, 'tobin', 'draught')).toBe(true);
+    expect(gold(demo)).toBe(5);
+    expect(demo.world.hasItem('draught', 2)).toBe(false);
+    expect(demo.log.some((line) => line.text === 'Kara sells A draught for 2 gold.')).toBe(true);
+    expect(sellTo(demo, 'tobin', 'gold')).toBe(false);
+  });
+
+  it('puts a limited line back on his shelf when he buys one back', () => {
+    const demo = room();
+    demo.world.addItem('gold', 8);
+    browse(demo);
+    takeFromContainer(demo, 'tobin', 'shield');
+    expect(containerContents(demo, 'tobin').map((line) => line.item)).toEqual(['draught']);
+    expect(sellTo(demo, 'tobin', 'shield')).toBe(true);
+    expect(gold(demo)).toBe(4);
+    expect(containerContents(demo, 'tobin').map((line) => line.item)).toEqual(['draught', 'shield']);
+  });
+});
+
+describe('selling what a merchant does not stock', () => {
+  it('fetches half its value, and an item with no value is not bought at all', () => {
+    const demo = room();
+    demo.world.addItem('ring', 1);
+    demo.world.addItem('key', 1);
+    demo.world.addItem('draught', 1);
+    const shop = shopOf(demo, 'tobin')!;
+    expect(offerFor(demo, shop, 'ring')).toBe(4);
+    expect(offerFor(demo, shop, 'key')).toBe(0);
+    // His own line is priced by what he asks for it, not by what it is said to be worth.
+    expect(offerFor(demo, shop, 'draught')).toBe(2);
+    // His lines first, then the rest of what the party carries that is worth something.
+    expect(sellables(demo, 'tobin').map((line) => [line.item, line.price])).toEqual([['draught', 2], ['ring', 4]]);
+    expect(sellTo(demo, 'tobin', 'ring')).toBe(true);
+    expect(gold(demo)).toBe(4);
+    expect(sellTo(demo, 'tobin', 'key')).toBe(false);
+    expect(demo.world.hasItem('key', 1)).toBe(true);
   });
 });

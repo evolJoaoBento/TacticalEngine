@@ -234,3 +234,56 @@ test('a click anywhere on a lit thing uses it, not only over the middle of its t
   await expect.poll(() => page.evaluate(() => window.__engine!.container()?.id ?? null)).toBe(id);
   expect(errors, `console errors: ${errors.join(' | ')}`).toEqual([]);
 });
+
+test("a prop whose script says Start a fight begins the fight when it is used", async ({ page }) => {
+  const errors = await editing(page);
+  await place(page, 3, 9);
+  await page.getByTestId('function').selectOption('script');
+  // The effect list the Script function carries, and the fight it starts: the room's first encounter.
+  const effects = page.getByTestId('object-effects');
+  await effects.locator('[data-role="add-effect"]').selectOption('startEncounter');
+  const id = await idOfSelected(page);
+  const fight = await page.evaluate(() => {
+    const api = window.__engine!;
+    const project = JSON.parse(api.exportProject()) as { scenes: { id: string; encounters: { id: string }[]; decos: { id?: string; function?: { effects?: { kind: string; encounter?: string }[] } }[] }[] };
+    return project.scenes.find((s) => s.id === api.editScene())!;
+  });
+  const started = fight.decos.find((d) => d.id === id)!.function!.effects![0]!;
+  expect(started).toMatchObject({ kind: 'startEncounter', encounter: fight.encounters[0]!.id });
+
+  const after = await page.evaluate((id) => {
+    const api = window.__engine!;
+    api.setMode('play');
+    const before = api.inCombat();
+    api.approach(id);
+    while (api.pendingKind() !== null) api.answer({ kind: 'choose', index: 0 });
+    return { before, now: api.inCombat(), side: api.turnSide() };
+  }, id);
+  expect(after).toEqual({ before: false, now: true, side: 'party' });
+  expect(errors, `console errors: ${errors.join(' | ')}`).toEqual([]);
+});
+
+test('a prop whose script says End a fight stops it, and the next fight turns them back', async ({ page }) => {
+  const errors = await editing(page);
+  await place(page, 3, 9);
+  await page.getByTestId('function').selectOption('script');
+  await page.getByTestId('object-effects').locator('[data-role="add-effect"]').selectOption('endEncounter');
+  const id = await idOfSelected(page);
+
+  const result = await page.evaluate((id) => {
+    const api = window.__engine!;
+    api.setMode('play');
+    api.startFight();
+    const fighting = api.adversaries().length;
+    api.approach(id);
+    while (api.pendingKind() !== null) api.answer({ kind: 'choose', index: 0 });
+    const stopped = { inCombat: api.inCombat(), hostile: api.adversaries().length };
+    // A fight begun again turns every one who stood down back.
+    api.startFight();
+    return { fighting, stopped, again: { inCombat: api.inCombat(), hostile: api.adversaries().length } };
+  }, id);
+  expect(result.fighting).toBeGreaterThan(0);
+  expect(result.stopped).toEqual({ inCombat: false, hostile: 0 });
+  expect(result.again).toEqual({ inCombat: true, hostile: result.fighting });
+  expect(errors, `console errors: ${errors.join(' | ')}`).toEqual([]);
+});

@@ -406,3 +406,23 @@ test("a party start taken hold of in the Inspector shows that character's sheet,
   await expect(page.getByTestId('party-panel')).toHaveCount(0);
   expect(errors).toEqual([]);
 });
+
+test("an item's worth is set in the Items panel, and emptied it is worth nothing to a merchant", async ({ page }) => {
+  const errors = await editing(page);
+  page.on('dialog', (d) => void d.accept('A silver ring'));
+  await page.locator('[data-testid="open-content"]').click();
+  await page.locator('[data-testid="open-items"]').click();
+  const panel = page.locator('[data-testid="item-panel"]');
+  await panel.locator('[data-testid="add-item"]').click();
+  const worth = panel.locator('[data-testid="item-value"]');
+  await expect(worth).toHaveValue('');
+  await worth.fill('9');
+  await worth.blur();
+  const valueOf = () =>
+    page.evaluate(() => (JSON.parse(window.__engine!.exportProject()) as { items: { id: string; value?: number }[] }).items.find((item) => item.id === 'a-silver-ring')?.value);
+  expect(await valueOf()).toBe(9);
+  await worth.fill('');
+  await worth.blur();
+  expect(await valueOf()).toBeUndefined();
+  expect(errors).toEqual([]);
+});

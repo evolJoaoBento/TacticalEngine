@@ -4,7 +4,7 @@ import { expect, test } from '@playwright/test';
 /**
  * The merchant in the default project, played: the camp's crate gives up a few coins, Tobin the
  * Pedlar is talked to rather than struck, "Show me your wares" opens his shop while the talk goes
- * on, and buying pays from the party pack.
+ * on, buying pays from the party pack, and he buys back what he sells for half.
  *
  * Every other suite plays the demo built from code; this one is about what the project file holds,
  * so it serves `projects/default.json` itself, as `default-project.spec.ts` does - less any model an
@@ -61,6 +61,13 @@ test('the merchant by the camp fire sells to a party that can pay', async ({ pag
   // What costs more than is left cannot be bought.
   await expect(shop.locator('[data-item="hunting-bow"]').getByTestId('shop-buy')).toBeDisabled();
   expect(await page.evaluate(() => window.__engine!.log().some((line) => /buys Healing Draught for 6 gold/i.test(line.text)))).toBe(true);
+
+  // And he buys it back, for half what he asked.
+  const sell = shop.getByTestId('shop-selling').locator('[data-sell="healing-draught"]').getByTestId('shop-sell');
+  await expect(sell).toContainText('3 gold');
+  await sell.click();
+  await expect(shop.getByTestId('shop-purse')).toHaveText('You have 17 gold.');
+  await expect(shop.getByTestId('shop-selling')).toHaveCount(0);
 
   // And the conversation ends as any other does.
   await page.evaluate(() => {

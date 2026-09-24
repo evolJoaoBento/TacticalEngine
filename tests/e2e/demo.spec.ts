@@ -1893,7 +1893,7 @@ test('casts Cinder Burst at a spot on the board, picks an Experience, and the tu
   const prompt = page.locator('[data-testid="check-prompt"]');
   await expect(prompt).toBeVisible();
   await expect(prompt).toContainText('Cinder Burst');
-  await expect(prompt).toContainText('Hollow Knight');
+  await expect(prompt).toContainText('Hollow Husk'); // what the room calls it, not its stat block
   // The card asked Stress; nothing the pack ships spends Light. The Experience is
   // what spends one, which is why the picker is here at all.
   await prompt.locator('[data-testid="experience-pick"]').first().click();
@@ -2000,7 +2000,7 @@ test('recalls a card from the vault for Stress, and passes the spotlight with a 
   // The husk's blow may be waiting on Quim's answer; take it as it comes.
   const asked = page.locator('[data-testid="choice-prompt"]');
   if ((await asked.count()) > 0) await asked.locator('[data-option="0"]').click();
-  await expect(page.locator('[data-testid="log"]')).toContainText(/Hollow Knight's/);
+  await expect(page.locator('[data-testid="log"]')).toContainText(/Hollow Husk's/);
   expect(await page.evaluate(() => window.__engine!.turnSide())).not.toBe('gm');
   await page.screenshot({ path: 'test-results/action-bar.png' });
   expect(consoleErrors).toEqual([]);

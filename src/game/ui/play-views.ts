@@ -16,7 +16,7 @@ import type { HudMember } from './PartyHud';
 import type { JournalQuest, OpenContainer } from './PlayPanel';
 import { closeContainer, containerContents, openContainer, takeFromContainer } from '../prop-use';
 import { nameOf } from '../log';
-import { purse, sellerName, shopOf } from '../shop';
+import { purse, sellTo, sellables, shopOf } from '../shop';
 
 /** The journal: every quest the party has been given, joined to its words. */
 export function journalEntries(demo: DemoScene): JournalQuest[] {
@@ -86,9 +86,17 @@ export function containerView(demo: DemoScene, reach: (id: string) => boolean, r
   const shop = shopOf(demo, id);
   return {
     id,
-    name: prop === undefined ? (demo.state.entity(id) === undefined ? 'Container' : sellerName(demo, id) ?? nameOf(demo, id)) : prop.model.replace(/[-_]+/g, ' ').replace(/^./, (letter) => letter.toUpperCase()),
+    name: prop === undefined ? (demo.state.entity(id) === undefined ? 'Container' : nameOf(demo, id)) : prop.model.replace(/[-_]+/g, ' ').replace(/^./, (letter) => letter.toUpperCase()),
     lines: containerContents(demo, id),
-    ...(shop === null ? {} : { paidIn: { name: demo.project.items.find((item) => item.id === shop.currency)?.name ?? shop.currency, held: purse(demo, shop) } }),
+    ...(shop === null ? {} : {
+      paidIn: { name: demo.project.items.find((item) => item.id === shop.currency)?.name ?? shop.currency, held: purse(demo, shop) },
+      // What the party can sell back: the seller's own lines, for half.
+      selling: sellables(demo, id),
+      onSell: (item: string) => {
+        sellTo(demo, id, item);
+        refresh();
+      },
+    }),
     onTake: (item) => {
       takeFromContainer(demo, id, item);
       refresh();

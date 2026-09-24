@@ -250,6 +250,24 @@ export function ItemPanel(props: ItemPanelProps): preact.JSX.Element {
                 />
                 a second one adds to the count
               </label>
+              {labelled(
+                'worth',
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  style={{ ...field, width: '64px' }}
+                  data-testid="item-value"
+                  placeholder="—"
+                  title="What one is worth, in the coin shops are paid in. A merchant buys it for half; empty, no merchant will buy it."
+                  value={item.value ?? ''}
+                  onChange={(e) => {
+                    const typed = (e.target as HTMLInputElement).value.trim();
+                    const n = Math.round(Number(typed));
+                    editItem({ value: typed === '' || !Number.isFinite(n) || n < 0 ? undefined : n });
+                  }}
+                />,
+              )}
             </div>
             {item.kind === 'weapon' || item.kind === 'armor' ? (
               <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>

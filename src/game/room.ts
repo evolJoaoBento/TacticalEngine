@@ -24,7 +24,7 @@ import { gridFromScene, paletteForProject, tileOf } from '../engine/scene/grid-f
 import { Party } from '../engine/scene/party';
 import type { Trait } from '../engine/scene/primitives';
 import type { CodeDef, ProjectDoc, SceneDoc } from '../engine/scene/schema';
-import { createAdversaryEntity, createPartyEntity, placementsOf, sceneStateFromScene, type SceneState, type SceneStateSnapshot } from '../engine/scene/state';
+import { createAdversaryEntity, createPartyEntity, placementOptions, placementsOf, sceneStateFromScene, type SceneState, type SceneStateSnapshot } from '../engine/scene/state';
 import { TriggerIndex } from '../engine/scene/triggers';
 import { compileHooks, type HookMap } from '../engine/script/hooks';
 import { SceneScriptWorld, type SceneScriptWorldOptions, type ScenarioState } from '../engine/script/world';
@@ -406,8 +406,14 @@ export function syncAuthoredEncounters(demo: Pick<DemoScene, 'scene' | 'grid' | 
   if (known !== undefined) {
     for (const encounter of demo.scene.encounters) {
       for (const placement of encounter.adversaries) {
+        // One already standing takes a name given or changed in the editor since.
+        const standing = demo.state.entity(placement.id);
+        if (standing !== undefined) {
+          if (placement.name === undefined) delete standing.name;
+          else standing.name = placement.name;
+        }
         if (!placed.has(placement.id) || known.has(placement.id)) continue;
-        if (demo.state.entity(placement.id) !== undefined) continue;
+        if (standing !== undefined) continue;
         // The project is asked before the pack, the way the load path asks it: a
         // room may carry the creature it places rather than borrow one. No
         // substitution either way -- a document naming a creature nobody can look
@@ -422,7 +428,7 @@ export function syncAuthoredEncounters(demo: Pick<DemoScene, 'scene' | 'grid' | 
           placement.id,
           placement.adversary,
           demo.grid.indexOf(placement.position.x, placement.position.y),
-          { hitPoints: placement.hitPoints ?? definition.hitPoints, stress: definition.stress },
+          placementOptions(encounter, placement, definition),
         ));
       }
     }

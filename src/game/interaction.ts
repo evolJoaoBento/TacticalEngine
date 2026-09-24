@@ -15,7 +15,7 @@
 
 import { ScriptRunner, type JournalEntry } from '../engine/script/runner';
 import type { AdversaryInteraction, AdversaryPlacement, SceneDoc } from '../engine/scene/schema';
-import { record, runGmTurn, settle, settleFight, type DemoScene, type UseOutcome } from './demo-scene';
+import { closeFight, record, runGmTurn, settle, settleFight, type DemoScene, type UseOutcome } from './demo-scene';
 import { inCombat } from './moment';
 import { closeToStrike, startEncounter } from './movement';
 
@@ -113,4 +113,36 @@ export function fightOverLine(demo: Pick<DemoScene, 'state'>): string {
   return demo.state.entitiesOf('adversary').length === 0
     ? 'Nobody is left who wants a fight. It is over.'
     : 'The last of them falls. The fight is over.';
+}
+
+/**
+ * A script's End a fight stops the fight it names - the running one, or one its creatures are in -
+ * and every enemy still standing stands down: on nobody's side, marked `truce`, until the next
+ * fight in the room begins (`startEncounter` turns them back) or somebody strikes one of them.
+ */
+export function stopScriptedFights(demo: DemoScene, journal: readonly JournalEntry[]): void {
+  for (const entry of journal) {
+    if (entry.kind !== 'encounter' || entry.change !== 'ended' || !inCombat(demo)) continue;
+    const placed = demo.scene.encounters.find((encounter) => encounter.id === entry.id)?.adversaries ?? [];
+    const inIt = demo.encounter!.encounterId === entry.id || placed.some((p) => demo.state.entity(p.id)?.faction === 'adversary');
+    if (!inIt) continue;
+    for (const creature of demo.state.entitiesOf('adversary')) {
+      if (!creature.alive) continue;
+      demo.state.setAttitude(creature.id, 'friendly');
+      creature.truce = true;
+    }
+    // Stopped mid-turn, the GM's turn goes with it.
+    demo.gmTurn = null;
+    demo.encounter!.end('stopped');
+    closeFight(demo);
+  }
+}
+
+/** A blow at a creature an End a fight stood down begins its encounter's fight again, and it is hostile once more. */
+export function resumeOnBlow(demo: DemoScene, targetId: string): void {
+  if (demo.state.entity(targetId)?.truce !== true || inCombat(demo)) return;
+  const encounter = placementOf(demo.scene, targetId)?.encounter;
+  if (encounter === undefined) return;
+  if (demo.encounter?.encounterId === encounter) demo.encounter = null;
+  startEncounter(demo, encounter);
 }

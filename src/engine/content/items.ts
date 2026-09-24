@@ -34,6 +34,12 @@ export const itemSchema = z.object({
   /** Whether a second one adds to the count or sits beside the first. */
   stackable: z.boolean().default(true),
   /**
+   * What one is worth, in the coin shops are paid in. A merchant buys any item with a value for half
+   * of it, and his own lines for half his price; left out - a key, a quest's token, the coin itself -
+   * no merchant will buy it.
+   */
+  value: z.number().int().min(0).optional(),
+  /**
    * What using it does, in the one effect vocabulary — a draught heals the
    * `actor`, a scroll starts a conversation. Empty means it cannot be used.
    * A `consumable` is spent by the use; any other kind stays in the pack.

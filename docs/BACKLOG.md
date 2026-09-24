@@ -4,6 +4,57 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## Items are worth something, and merchants buy anything that is — done
+
+An item has an optional **value** (`itemSchema.value`, the Items panel's **worth** box), in the coin
+shops are paid in. A merchant now buys anything the party carries that has one, for half of it
+(`offerFor`, `game/shop.ts`) - his own lines still at half his own price - and nothing without one:
+keys, the Warden's word, the coin. The demo's and the default project's items are given worths (a
+draught 6, a husk carapace 4, a longsword or round shield 15, a hunting bow 18, ringmail or an ember
+staff 20, a padded coat 12). Unit `game/shop.test.ts`; e2e in `editor-panels.spec.ts`.
+
+## End a fight stops it, and merchants buy — done
+
+**End a fight** stops the fight it names (`stopScriptedFights`, `game/interaction.ts`): the runner
+ends `stopped` ("The fight stops. Nobody raises a weapon."), the usual end-of-fight tidying runs
+(`closeFight`, split out of `settleFight`), and every enemy standing stands down - on nobody's side
+and marked `truce`, saved. The next fight in the room turns them hostile again, however it begins:
+`startEncounter` does it, and a blow struck at one begins the fight (`resumeOnBlow`). A creature
+friendly by its own interaction, or talked round, is not touched. `startEncounter` now begins an
+ended fight afresh rather than handing back the finished runner.
+
+A merchant buys back what he sells, for half his price, rounded down and never nothing: the shop
+window's **Sell** list (`sellables`, `sellTo`, `buyBackPrice` in `game/shop.ts`). A limited line he
+buys back goes back on his shelf. Unit `game/scripted-fight.test.ts`, `game/shop.test.ts`; e2e in
+`prop-functions.spec.ts` and `merchant.spec.ts`.
+
+## Start a fight begins the fight — done
+
+A script's **Start a fight** (`startEncounter`) only marked its encounter started: the log said
+"Something moves." and nobody fought. The game now reads the journal (`beginScriptedFights`,
+`game/movement.ts`, run by `react`) and begins that encounter's fight, as a trigger cell does, the
+party first - from a prop, an item, a reply or a consequence node alike. Never over a fight already
+running (which counts every hostile creature in the room already), never for another room's
+encounter, and never with nobody hostile standing, so a room of friends does not "win" a fight the
+moment it begins. Unit `game/scripted-fight.test.ts`; e2e in `prop-functions.spec.ts` (a Script
+prop given Start a fight in the editor, used in play).
+
+**End a fight** stops a fight (next entry).
+
+## A placed creature is called by its own name — done
+
+The **Name** a creature is given in the Combat panel was kept in the document and shown nowhere in
+play: `nameOf` read the stat block. A placement's name now rides on the creature it stands up
+(`EntityState.name`, saved with the room) and is read before the stat block's - the log, a roll's
+prompt, a shop's window - and the right-click card shows the stat block under it. The demo's husks,
+named "Hollow Husk" by the legacy import and fought with the Hollow Knight's block, now read as
+husks. `placementOptions` (`scene/state.ts`) is the one place a placement becomes a creature's
+options, for the room built from a document and for a creature placed in the editor mid-session -
+which also fixes a Friendly creature placed mid-session standing up hostile. A rename in the editor
+reaches a creature already standing on the way back to play. A sentence that starts with a creature
+uses `theNameOf` - "The Hollow Knight's Greatsword", but "Captain Vey's", not "The Captain Vey's".
+Unit `game/creature-names.test.ts`.
+
 ## A merchant, and a shop that is a function — done
 
 Tobin the Pedlar sits by the camp fire in the default project: a friendly creature (a `merchant`
@@ -17,10 +68,7 @@ price and an optional count). The window is the container window with prices and
 the seller. Unit `game/shop.test.ts`; e2e `tests/e2e/merchant.spec.ts` (plays the default project
 through `?boot=file`) and the shop editor in `interaction.spec.ts`.
 
-**Still open:** a placed creature's own **Name** is shown on the shop window and nowhere else -
-`nameOf` reads the stat block, so the log says "Merchant" and the husks the default project names
-"Hollow Husk" read as their stat block too. Making `nameOf` read the placement's name is a small
-change with a wide reach into the log and every spec that reads it.
+**Since:** a placed creature's own name is what play calls it (below).
 
 ## The pillar retires, and carries a π — done
 

@@ -41,6 +41,7 @@ export const DEMO_ITEMS: readonly ItemDef[] = [
     name: 'Healing draught',
     kind: 'consumable',
     description: 'Tastes of iron and mint.',
+    value: 6,
     use: [
       { kind: 'heal', amount: 2, target: { kind: 'actor' } },
       { kind: 'log', text: 'Iron and mint. The cuts close.', tone: 'good' },
@@ -51,6 +52,7 @@ export const DEMO_ITEMS: readonly ItemDef[] = [
     name: 'Husk carapace',
     kind: 'trinket',
     description: 'Light, and still faintly warm.',
+    value: 4,
   },
   // Gear points at SRD content, so equipping is a lookup rather than a copy.
   {
@@ -59,6 +61,7 @@ export const DEMO_ITEMS: readonly ItemDef[] = [
     kind: 'weapon',
     contentId: 'longsword',
     description: 'Older than the vault, and better kept.',
+    value: 15,
     stackable: false,
   },
   {
@@ -67,13 +70,14 @@ export const DEMO_ITEMS: readonly ItemDef[] = [
     kind: 'weapon',
     contentId: 'round-shield',
     description: 'Dented on the rim where it did its job.',
+    value: 15,
     stackable: false,
   },
-  // The party's own starting gear, so what a swap sets aside has somewhere to go.
-  { id: 'hunting-bow', name: 'Hunting bow', kind: 'weapon', contentId: 'hunting-bow', stackable: false },
-  { id: 'ember-staff', name: 'Ember staff', kind: 'weapon', contentId: 'ember-staff', stackable: false },
-  { id: 'ringmail', name: 'Ringmail', kind: 'armor', contentId: 'ringmail', stackable: false },
-  { id: 'padded-coat', name: 'Padded coat', kind: 'armor', contentId: 'padded-coat', stackable: false },
+  // The party's own starting gear, so what a swap sets aside has somewhere to go - and something to sell for.
+  { id: 'hunting-bow', name: 'Hunting bow', kind: 'weapon', contentId: 'hunting-bow', stackable: false, value: 18 },
+  { id: 'ember-staff', name: 'Ember staff', kind: 'weapon', contentId: 'ember-staff', stackable: false, value: 20 },
+  { id: 'ringmail', name: 'Ringmail', kind: 'armor', contentId: 'ringmail', stackable: false, value: 20 },
+  { id: 'padded-coat', name: 'Padded coat', kind: 'armor', contentId: 'padded-coat', stackable: false, value: 12 },
 ].map((item) => itemSchema.parse(item));
 
 export const CHEST_LOOT = 'vault-chest';

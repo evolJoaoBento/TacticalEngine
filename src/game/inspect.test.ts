@@ -17,11 +17,13 @@ describe('what a right-click shows', () => {
     expect(card.text).toContain(' · ');
   });
 
-  it('reads a creature by its stat block, with the cards it prints', () => {
+  it('reads a creature by its own name and its stat block, with the cards it prints', () => {
     const foe = [...demo.state.allEntities()].find((e) => e.faction === 'adversary')!;
     const card = inspection(demo, foe.id, null)!;
     expect(card.kind).toBe('adversary');
-    expect(card.line).toMatch(/^Tier \d /);
+    // The demo's husks are named in the room and fight with the Hollow Knight's block: the card says both.
+    expect(card.name).toBe('Hollow Husk');
+    expect(card.line).toMatch(/^Hollow Knight · Tier \d /);
     expect(card.facts.some((f) => f.startsWith('Difficulty '))).toBe(true);
     expect(card.cards).toBeDefined();
   });

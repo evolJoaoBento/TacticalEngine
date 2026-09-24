@@ -43,7 +43,8 @@ export interface EncounterOptions {
 
 export type Side = 'party' | 'gm';
 
-export type EncounterOutcome = 'ongoing' | 'victory' | 'defeat';
+/** How a fight ended - `stopped` is a script's End a fight, with enemies still standing. */
+export type EncounterOutcome = 'ongoing' | 'victory' | 'defeat' | 'stopped';
 
 export interface EncounterView {
   /** Whose turn it is. */
