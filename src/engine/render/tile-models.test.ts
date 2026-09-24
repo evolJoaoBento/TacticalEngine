@@ -284,6 +284,48 @@ describe('the ground drawn as models', () => {
     expect(size(boxOf('rock'))).toEqual([1.2, 1.1, 1.2]);
   });
 
+  it('stands a wall on the inside of the edge it faces, as its box does, not through the middle of its cell', () => {
+    const kinds = new TerrainPalette([
+      terrain('floor', { name: 'Floor' }),
+      terrain('stone', { name: 'Stone Wall', model: 'slab', scale: 1, structure: 'wall' }),
+    ]);
+    const grid = new TileGrid({ width: 5, height: 5, palette: kinds });
+    // Each of the four quarter turns, a cell apart.
+    grid.pieces = [0, 1, 2, 3].map((rotation) => ({ x: 1 + rotation, y: 2, level: 0, rotation, index: kinds.require('stone') }));
+    // A thin slab of wall, seated the way the view seats a file: centred over its foot.
+    const slab = (id: string): BuiltModel => {
+      const group = new Group();
+      const mesh = new Mesh(new BoxGeometry(1, 1, 0.3), new MeshBasicMaterial());
+      mesh.position.y = 0.5;
+      group.add(mesh);
+      return { group, spec: { id } as BuiltModel['spec'], named: new Map(), hooks: new Map() };
+    };
+    const mesh = instancesIn(buildTileModels(grid, DEFAULT_LAYOUT, slab).find((g) => g.name === 'pieces:stone')!);
+    mesh.geometry.computeBoundingBox();
+    const drawn = (i: number): Box3 => {
+      const at = new Matrix4();
+      mesh.getMatrixAt(i, at);
+      return mesh.geometry.boundingBox!.clone().applyMatrix4(at);
+    };
+    const near = (a: number, b: number): void => expect(a).toBeCloseTo(b, 6);
+    for (const rotation of [0, 1, 2, 3]) {
+      const cell = placementCentre(grid, DEFAULT_LAYOUT, { x: 1 + rotation, y: 2, z: 0 });
+      const box = drawn(rotation);
+      // Inside its own cell whichever way it faces.
+      expect(box.min.x).toBeGreaterThanOrEqual(cell.x - 0.5 - 1e-6);
+      expect(box.max.x).toBeLessThanOrEqual(cell.x + 0.5 + 1e-6);
+      expect(box.min.z).toBeGreaterThanOrEqual(cell.z - 0.5 - 1e-6);
+      expect(box.max.z).toBeLessThanOrEqual(cell.z + 0.5 + 1e-6);
+    }
+    // Unturned, on the north edge: its outer face on the edge, 0.3 deep into the cell.
+    near(drawn(0).min.z, placementCentre(grid, DEFAULT_LAYOUT, { x: 1, y: 2, z: 0 }).z - 0.5);
+    near(drawn(0).max.z, placementCentre(grid, DEFAULT_LAYOUT, { x: 1, y: 2, z: 0 }).z - 0.2);
+    // A quarter turn takes it to the next edge round, and a half turn to the far one.
+    near(drawn(1).min.x, placementCentre(grid, DEFAULT_LAYOUT, { x: 2, y: 2, z: 0 }).x - 0.5);
+    near(drawn(2).max.z, placementCentre(grid, DEFAULT_LAYOUT, { x: 3, y: 2, z: 0 }).z + 0.5);
+    near(drawn(3).max.x, placementCentre(grid, DEFAULT_LAYOUT, { x: 4, y: 2, z: 0 }).x + 0.5);
+  });
+
   it('draws a piece standing outside the room, which the grid has no cell for', () => {
     const grid = new TileGrid({ width: 2, height: 2, palette: palette() });
     grid.pieces = [{ x: 500, y: -400, level: 0, rotation: 0, index: grid.palette.require('planks') }];

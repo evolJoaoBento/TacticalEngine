@@ -66,6 +66,7 @@ export function PropFunctionEditor(props: PropFunctionEditorProps): preact.JSX.E
       {value?.kind === 'container' ? <ContainerSettings {...props} value={value} /> : null}
       {value?.kind === 'trapped' ? <TrappedSettings {...props} value={value} /> : null}
       {value?.kind === 'portal' ? <PortalSettings {...props} value={value} /> : null}
+      {value?.kind === 'interaction' ? <InteractionSettings {...props} value={value} /> : null}
       {value?.kind === 'script' ? <ScriptSettings {...props} value={value} /> : null}
     </div>
   );
@@ -177,6 +178,32 @@ function TrappedSettings(props: Settings<'trapped'>): preact.JSX.Element {
  * The pair id, and who it pairs with. A pair is two: an id two other portals already hold is
  * refused as it is typed, and the panel asks for another rather than quietly taking it.
  */
+/** Which conversation using it opens. The conversation is written in Interaction mode. */
+function InteractionSettings(props: Settings<'interaction'>): preact.JSX.Element {
+  const prefix = props.prefix ?? '';
+  const known = props.dialogueIds.includes(props.value.dialogue);
+  return (
+    <div data-testid={`${prefix}interaction-settings`}>
+      <select
+        class="ph-select"
+        data-testid={`${prefix}interaction-dialogue`}
+        aria-label="Conversation it opens"
+        value={props.value.dialogue}
+        onChange={(e) => props.onChange({ ...props.value, dialogue: (e.target as HTMLSelectElement).value })}
+      >
+        <option value="">Pick a conversation</option>
+        {props.value.dialogue !== '' && !known ? <option value={props.value.dialogue}>{props.value.dialogue} (missing)</option> : null}
+        {props.dialogueIds.map((id) => (
+          <option key={id} value={id}>
+            {id}
+          </option>
+        ))}
+      </select>
+      {props.dialogueIds.length === 0 ? <div class="ph-note">No conversations yet: write one in Interaction mode, then pick it here.</div> : null}
+    </div>
+  );
+}
+
 function PortalSettings(props: Settings<'portal'>): preact.JSX.Element {
   const prefix = props.prefix ?? '';
   const [draft, setDraft] = useState<string | null>(null);

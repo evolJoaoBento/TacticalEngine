@@ -40,6 +40,10 @@ import { MODELS } from '../../engine/render/procedural/registry';
 import { Inspector } from './Inspector';
 import { TOOL_LABELS } from './ToolRail';
 import { PropFunctionEditor } from './PropFunctionEditor';
+import { SheetEditor } from './SheetEditor';
+import { setCreatureInteraction } from '../creature-edits';
+import type { AdversaryInteraction, AdversaryPlacement } from '../../engine/scene/schema';
+import type { ContentPack } from '../../engine/content/pack/import';
 import { portalPartner } from '../../engine/scene/prop-functions';
 
 /** The ids an effect list picks from rather than having them typed. */
@@ -87,14 +91,35 @@ export function InspectorSide(props: {
   controller: EditorController;
   ids: PickableIds;
   onChange: () => void;
+  /** What a character's sheet is written from: the Party panel's content and models. */
+  characterContent: ContentPack;
+  models: readonly string[];
 }): preact.JSX.Element {
   const { session, controller } = props;
   const object = controller.selectedInteractable();
   const prop = controller.selectedDeco;
+  const start = controller.selectedStart;
   const sceneId = controller.sceneId;
+  // Whoever begins on the start in hand: party member `i` stands on start `i % starts`.
+  const starts = controller.scene.spawns.length;
+  const starting = start === null ? [] : session.project.party.filter((_, i) => i % starts === start);
   return (
     <aside class="ph-side ph-panel" data-testid="inspector-side">
-      {object === null && prop !== null ? (
+      {object === null && prop === null && start !== null ? (
+        // A party start is a character: the Party panel's own form, for whoever begins there.
+        <div data-testid="start-inspector" style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <div class="ph-heading">Party start {start + 1}</div>
+          {starting.length === 0 ? (
+            <div class="ph-note">
+              Nobody begins here: the party has {session.project.party.length}, and this is start {start + 1}. Add a character in the Party workspace to fill it.
+            </div>
+          ) : (
+            starting.map((sheet) => (
+              <SheetEditor key={sheet.id} session={session} content={props.characterContent} models={props.models} sheetId={sheet.id} onChange={props.onChange} />
+            ))
+          )}
+        </div>
+      ) : object === null && prop !== null ? (
         // A door, a chest, a portal: what used to be an object is a prop with a function.
         <div data-testid="prop-inspector">
           <div class="ph-heading">{prop.id ?? prop.model}</div>
@@ -201,22 +226,26 @@ export function PlacementHeightControl(props: {
     { startY: number; startLevel: number; moved: boolean; captured: boolean } | null
   >(null);
   const justDragged = useRef(false);
+  // Select has the ladder too: it raises and lowers whatever Select took hold of, and is the build
+  // plane when it holds nothing.
+  const selecting = props.kind === 'terrain' && controller.state.tool === 'select';
   const visible = props.kind === 'creature'
     ? controller.state.tool === 'adversary'
-    : levelled(controller);
+    : levelled(controller) || selecting;
   if (!visible) return null;
-  const level = controller.state.buildLevel;
+  const level = (selecting ? controller.selectionLevel : null) ?? controller.state.buildLevel;
   const setLevel = (value: number): void => {
     const clamped = Math.max(-BUILD_LIMIT, Math.min(BUILD_LIMIT, value));
     if (!isBuildZ(clamped)) return;
-    if (clamped === controller.state.buildLevel) return;
-    controller.setBuildLevel(clamped);
+    if (clamped === level) return;
+    if (selecting) controller.setSelectionLevel(clamped);
+    else controller.setBuildLevel(clamped);
     props.onChange();
   };
   const stepBy = (by: number): void => {
     setLevel(roundToStep(level + by));
   };
-  const inputLabel = props.kind === 'creature' ? 'Creature Z' : 'Build level';
+  const inputLabel = props.kind === 'creature' ? 'Creature Z' : selecting && controller.selectionLevel !== null ? 'Selected Z' : 'Build level';
   const rungs: preact.JSX.Element[] = [];
   for (let offset = LADDER_REACH; offset >= -LADDER_REACH; offset -= 1) {
     const value = roundToStep(level + offset * Z_STEP);
@@ -698,6 +727,82 @@ function SelectedCreature(props: {
           }}
         />
       </label>
+      <CreatureInteraction
+        session={session}
+        placement={placement}
+        onChange={(interaction) => {
+          session.run(setCreatureInteraction(sceneId, encounterId, placement.id, interaction));
+          props.onChange();
+        }}
+      />
+    </div>
+  );
+}
+
+const INTERACTION_HINTS: Readonly<Record<AdversaryInteraction['kind'], string>> = {
+  friendly: "On nobody's side until the conversation says otherwise. Clicking it talks rather than attacks.",
+  threshold: 'Fights until a blow leaves it with this much of its Hit Points or less. Then it stops, the fight holds, and the conversation opens - once. Whatever the conversation leaves it as, it stays.',
+};
+
+/**
+ * What a creature says besides fighting: nothing, a conversation it opens friendly, or one it
+ * stops a fight for at a share of its Hit Points. A consequence node in the conversation, or a
+ * reply's effects, turn it hostile or friendly (`setAttitude`).
+ */
+function CreatureInteraction(props: {
+  session: EditorSession;
+  placement: AdversaryPlacement;
+  onChange: (interaction: AdversaryInteraction | null) => void;
+}): preact.JSX.Element {
+  const current = props.placement.interaction;
+  const dialogues = props.session.project.dialogues.map((d) => d.id);
+  const dialogue = current?.dialogue ?? dialogues[0] ?? '';
+  const percent = current?.kind === 'threshold' ? current.percent : 50;
+  const make = (kind: string, conversation = dialogue, share = percent): AdversaryInteraction | null =>
+    kind === 'friendly' ? { kind, dialogue: conversation } : kind === 'threshold' ? { kind, dialogue: conversation, percent: share } : null;
+  return (
+    <div data-testid="creature-interaction-editor">
+      <label class="ph-heading">
+        Interaction
+        <select class="ph-select" data-testid="creature-interaction" value={current?.kind ?? ''} onChange={(e) => props.onChange(make(e.currentTarget.value))}>
+          <option value="">None</option>
+          <option value="friendly" disabled={dialogues.length === 0}>Friendly</option>
+          <option value="threshold" disabled={dialogues.length === 0}>Threshold</option>
+        </select>
+      </label>
+      {dialogues.length === 0 ? <div class="ph-hint">Write a conversation in Interaction mode first; this is where it is given to a creature.</div> : null}
+      {current === undefined ? null : (
+        <>
+          <div class="ph-hint">{INTERACTION_HINTS[current.kind]}</div>
+          <label class="ph-heading">
+            Conversation
+            <select class="ph-select" data-testid="creature-dialogue" value={current.dialogue} onChange={(e) => props.onChange(make(current.kind, e.currentTarget.value))}>
+              {dialogues.includes(current.dialogue) ? null : <option value={current.dialogue}>{current.dialogue} (missing)</option>}
+              {dialogues.map((id) => (
+                <option key={id} value={id}>{id}</option>
+              ))}
+            </select>
+          </label>
+          {current.kind === 'threshold' ? (
+            <label class="ph-heading">
+              At or under, % of Hit Points
+              <input
+                class="ph-input"
+                data-testid="creature-threshold"
+                type="number"
+                min="1"
+                max="99"
+                step="1"
+                value={current.percent}
+                onChange={(e) => {
+                  const n = Math.round(Number(e.currentTarget.value));
+                  if (Number.isFinite(n)) props.onChange(make('threshold', current.dialogue, Math.min(99, Math.max(1, n))));
+                }}
+              />
+            </label>
+          ) : null}
+        </>
+      )}
     </div>
   );
 }

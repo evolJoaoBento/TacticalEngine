@@ -41,7 +41,7 @@
     },
     {
       "id": "platform",
-      "name": "Platform",
+      "name": "Grass Ground",
       "passable": true,
       "cost": 1,
       "providesCover": false,
@@ -53,7 +53,7 @@
     },
     {
       "id": "steps",
-      "name": "Steps",
+      "name": "Stone Stairs",
       "passable": true,
       "cost": 1,
       "providesCover": false,
@@ -65,7 +65,7 @@
     },
     {
       "id": "block",
-      "name": "Block",
+      "name": "Stone Block",
       "passable": true,
       "cost": 1,
       "providesCover": false,
@@ -77,7 +77,7 @@
     },
     {
       "id": "barrier",
-      "name": "Barrier",
+      "name": "Stone Wall",
       "passable": true,
       "cost": 1,
       "providesCover": true,
@@ -89,7 +89,7 @@
     },
     {
       "id": "rampart",
-      "name": "Rampart",
+      "name": "Stone Block (impassable)",
       "passable": false,
       "cost": 1,
       "providesCover": false,
@@ -101,7 +101,7 @@
     },
     {
       "id": "flagstone",
-      "name": "Flagstone",
+      "name": "Stone Block (floor)",
       "passable": true,
       "cost": 1,
       "providesCover": false,
@@ -113,27 +113,27 @@
     },
     {
       "id": "road",
-      "name": "Road",
+      "name": "Dirt Ground",
       "passable": true,
       "cost": 2,
       "providesCover": false,
       "blocksSight": false,
       "color": "#6b6350",
-      "structure": "floor",
       "model": "dirt-ground",
-      "scale": 1
+      "scale": 1,
+      "structure": "floor"
     },
     {
       "id": "grass-dirt",
-      "name": "Grass & dirt",
+      "name": "Grass Dirt Ground",
       "passable": true,
       "cost": 1,
       "providesCover": false,
       "blocksSight": false,
-      "structure": "floor",
+      "color": "#6f7a4c",
       "model": "grass-dirt-ground",
       "scale": 1,
-      "color": "#6f7a4c"
+      "structure": "floor"
     }
   ],
   "scenes": [
@@ -4609,7 +4609,7 @@
           "rotation": 0
         },
         {
-          "model": "rock",
+          "model": "rock-prop",
           "position": {
             "x": 1,
             "y": 5
@@ -4617,7 +4617,7 @@
           "rotation": 0
         },
         {
-          "model": "rock",
+          "model": "rock-prop",
           "position": {
             "x": 6,
             "y": 4
@@ -4625,7 +4625,7 @@
           "rotation": 0
         },
         {
-          "model": "rock",
+          "model": "rock-prop",
           "position": {
             "x": 3,
             "y": 14
@@ -4947,7 +4947,7 @@
           "rotation": 5.875
         },
         {
-          "model": "rock",
+          "model": "rock-prop",
           "position": {
             "x": 11,
             "y": 25
@@ -4955,7 +4955,7 @@
           "rotation": 1.6875
         },
         {
-          "model": "rock",
+          "model": "rock-prop",
           "position": {
             "x": 25,
             "y": 22
@@ -4963,7 +4963,7 @@
           "rotation": 2.5
         },
         {
-          "model": "rock",
+          "model": "rock-prop",
           "position": {
             "x": 38,
             "y": 19
@@ -4971,7 +4971,7 @@
           "rotation": 3.3125
         },
         {
-          "model": "rock",
+          "model": "rock-prop",
           "position": {
             "x": 17,
             "y": 30
@@ -4979,7 +4979,7 @@
           "rotation": 3.3125
         },
         {
-          "model": "rock",
+          "model": "rock-prop",
           "position": {
             "x": 5,
             "y": 19
@@ -4987,7 +4987,7 @@
           "rotation": 5.4375
         },
         {
-          "model": "campfire",
+          "model": "camp-fire-prop",
           "position": {
             "x": 4,
             "y": 22
@@ -5296,25 +5296,25 @@
             "y": 9
           },
           "rotation": 0,
+          "solid": true,
           "function": {
             "kind": "portal",
             "pair": "1"
-          },
-          "solid": true
+          }
         },
         {
+          "id": "portal-prop-21-22",
           "model": "portal-prop",
           "position": {
             "x": 21,
             "y": 22
           },
           "rotation": 0,
+          "solid": true,
           "function": {
             "kind": "portal",
             "pair": "1"
-          },
-          "id": "portal-prop-21-22",
-          "solid": true
+          }
         }
       ],
       "buildingTiles": {
@@ -8346,7 +8346,6 @@
           "x": 4,
           "y": 5,
           "level": 0.25,
-          "height": 0.5,
           "shape": "wall",
           "material": "stone",
           "rotation": 0,
@@ -9490,7 +9489,6 @@
           "x": 19,
           "y": 7,
           "level": 0.25,
-          "height": 0.5,
           "shape": "wall",
           "material": "stone",
           "rotation": 0,
@@ -10463,7 +10461,6 @@
           "x": 17,
           "y": 9,
           "level": 0.25,
-          "height": 0.5,
           "shape": "wall",
           "material": "stone",
           "rotation": 0,
@@ -11328,7 +11325,6 @@
           "x": 4,
           "y": 11,
           "level": 0.25,
-          "height": 0.5,
           "shape": "wall",
           "material": "stone",
           "rotation": 0,
@@ -11446,7 +11442,6 @@
           "x": 14,
           "y": 11,
           "level": 0.25,
-          "height": 0.5,
           "shape": "wall",
           "material": "stone",
           "rotation": 0,
@@ -21585,7 +21580,7 @@
           "rotation": 0
         },
         {
-          "model": "campfire",
+          "model": "camp-fire-prop",
           "position": {
             "x": 5,
             "y": 3
@@ -22374,6 +22369,57 @@
       "id": "wall-torch-prop",
       "kind": "gltf",
       "url": "/models/wall-torch-prop.glb",
+      "scale": 1,
+      "groundOffset": 0,
+      "rotationY": 0,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "banner-prop",
+      "kind": "gltf",
+      "url": "/models/banner-prop.glb",
+      "scale": 1,
+      "groundOffset": 0,
+      "rotationY": 0,
+      "offsetX": 0,
+      "offsetY": 0,
+      "pivot": "file"
+    },
+    {
+      "id": "grass-dirt-ground",
+      "kind": "gltf",
+      "url": "/models/grass-dirt-ground.glb",
+      "scale": 1,
+      "groundOffset": 0,
+      "rotationY": 0,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "rock-prop",
+      "kind": "gltf",
+      "url": "/models/rock-prop.glb",
+      "scale": 1,
+      "groundOffset": 0,
+      "rotationY": 0,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "camp-fire-prop",
+      "kind": "gltf",
+      "url": "/models/camp-fire-prop.glb",
+      "scale": 1,
+      "groundOffset": 0,
+      "rotationY": 0,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "merchant",
+      "kind": "gltf",
+      "url": "/models/merchant.glb",
       "scale": 1,
       "groundOffset": 0,
       "rotationY": 0,

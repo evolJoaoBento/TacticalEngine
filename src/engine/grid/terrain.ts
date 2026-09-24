@@ -110,15 +110,16 @@ export const DEFAULT_TERRAIN_TYPES: readonly TerrainType[] = [
   // Nothing costs less than 1 to enter. Pathfinding takes its A* heuristic from the
   // cheapest passable cost in the palette, so a kind cheaper than the ground would quietly
   // change how every search in the game explores.
-  // Each drawn with the file that is that thing, at one tile across. The colour stays as
+  // Each drawn with the file that is that thing, at one tile across, and named for it: the card in
+  // the strip says the model it puts down, not an idea of one. The colour stays as
   // what the strip shows on its card and as what stands in while the file is still on its
   // way - a kind of tile is never nothing on screen just because a load is slow.
-  terrain('platform', { name: 'Platform', structure: 'floor', model: 'grass-ground', scale: 1, color: '#618950' }),
-  terrain('steps', { name: 'Steps', structure: 'stairs', model: 'stone-stairs', scale: 1, color: '#9a958c' }),
+  terrain('platform', { name: 'Grass Ground', structure: 'floor', model: 'grass-ground', scale: 1, color: '#618950' }),
+  terrain('steps', { name: 'Stone Stairs', structure: 'stairs', model: 'stone-stairs', scale: 1, color: '#9a958c' }),
   // A block and a barrier are not impassable kinds: how high a piece stands is what stops a
   // walk or a line of sight, so a block is somewhere to climb to and a low wall is stepped over.
-  terrain('block', { name: 'Block', structure: 'block', model: 'stone-block', scale: 1, color: '#8a8994' }),
-  terrain('barrier', { name: 'Barrier', structure: 'wall', model: 'stone-wall', scale: 1, providesCover: true, color: '#6f6a63' }),
+  terrain('block', { name: 'Stone Block', structure: 'block', model: 'stone-block', scale: 1, color: '#8a8994' }),
+  terrain('barrier', { name: 'Stone Wall', structure: 'wall', model: 'stone-wall', scale: 1, providesCover: true, color: '#6f6a63' }),
 ];
 
 /**

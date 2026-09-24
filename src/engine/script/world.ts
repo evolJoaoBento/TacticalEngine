@@ -1744,6 +1744,7 @@ export class SceneScriptWorld implements ScriptWorld {
     this.state.interactable(id).used = true;
   }
 
+  setAttitude(id: string, attitude: 'friendly' | 'hostile'): boolean { return this.state.setAttitude(id, attitude); }
   startEncounter(id: string): void {
     this.state.encounter(id).started = true;
     this.state.encounter(id).triggered = true;

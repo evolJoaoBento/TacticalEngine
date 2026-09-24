@@ -446,7 +446,7 @@ function syncEditorContent(): void {
   view.setAuthoring(mode === 'edit' ? editor.scene : null, {
     ...DEMO_MODELS,
     ...session.project.adversaryModels,
-  });
+  }, session.project.party.map((sheet) => ({ model: sheet.model, definition: sheet.classId })));
 }
 
 /** A kebab-case id from a name, made unique against the scenes already there. */

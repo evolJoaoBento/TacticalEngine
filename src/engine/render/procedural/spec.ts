@@ -89,6 +89,11 @@ export interface ProceduralModelSpec {
    * else should sit at 0.
    */
   groundOffset?: number;
+  /**
+   * An imported model held from its file's own origin rather than seated on its base
+   * (`ModelAsset.pivot`). Carried so what places it can leave it where its maker put it.
+   */
+  pivot?: 'file';
   /** Idle animation the presentation layer may apply. */
   motion?: { idle: 'none' | 'hover'; amp?: number; hz?: number };
   /** Inspector text — the legacy DECO_INFO. */

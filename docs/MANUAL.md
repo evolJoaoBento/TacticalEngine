@@ -400,6 +400,16 @@ party knows something, shown but greyed ("Not available"), cost a roll (the roll
 inside the conversation), or end the conversation. A node's lines are also written to the log.
 Everything else — walking, using, saving, levelling — waits until the conversation ends.
 
+Some creatures talk. A **friendly** one stands on nobody's side - a grey rim, not red - and
+clicking it walks up and opens its conversation instead of attacking; stepping on its encounter's
+trigger wakes nothing while every creature in it is friendly. Another fights until a blow leaves it
+with its **threshold** share of Hit Points or less: then it lowers its guard ("Rot Hound lowers
+their guard."), the fight holds - nobody takes a turn - and its conversation opens. What the
+conversation decides stands. Spared, it stays out of the fight, and if it was the last who wanted
+one the fight is over ("Nobody is left who wants a fight. It is over."); turned back, it rejoins
+the fight ("… turns on the party!"), or starts one if none is running. A creature stops to talk
+at its threshold only once, and a blow that kills it outright is a defeat, not a surrender.
+
 ### Rolls
 
 An action roll is two d12: the Light die and the Shadow die, plus the trait modifier, against a
@@ -503,7 +513,7 @@ the room the party is in; browsing scenes never moves the party or abandons thei
 | Part | What it does |
 |---|---|
 | **Project ▾** | Save JSON · Load… · Import pack… · Export pack · Check (lists what the validator finds; a red badge counts errors) |
-| **Content ▾** | Party · Cards · Items & loot · Quests · Code · Models — each opens as a workspace under the bar; its **Close** button or `Esc` closes it |
+| **Content ▾** | Party · Cards · Items & loot · Quests · Code · Models — each opens as a workspace under the bar; the back arrow before its title, or `Esc`, returns to the board |
 | **Inspector · Terrain · Combat · Interaction** | The four modes, also on keys `1`–`4` |
 | **The scene button** (shows the room's name and size) ▾ | Every scene with its size; **▸** marks the one the project opens on and **●** the one the party is in. Click to edit it; **✎** renames, **▸** makes it the opening scene, **✕** deletes (refused for the opening scene or the last one); **+ New scene** adds a blank 12×10 room |
 | **Undo / Redo** | The same history as `Ctrl+Z` / `Ctrl+Shift+Z`; hover for what it would undo |
@@ -519,9 +529,9 @@ selection.
 
 | Mode | Around the board | What a click or drag does |
 |---|---|---|
-| **Inspector** (1) | The selected thing's properties, on the right | Click a prop to see what it is drawn with, what it does and whether it is solid (an object from an older project is shown as it always was). Press on anything placed, a creature, a prop, an object or a party start, and drag to move it: it lifts off the ground, hangs under the pointer with its bottom swinging behind the way it goes, and drops with a bump where you let go, at the height it stood. It never lands on another of its kind (props stack), and a party start stays in the room; one undo puts it back. The editor draws a party start as a blue pawn in a ring and an object with no model as a gold ring with a gem |
-| **Terrain** (2) | Tools on the left rail; **Tiles** and **Props** in the strip along the bottom; the tool's options on the right | Build stacked tiles anywhere (brush 1×1, 3×3, 5×5); erase tiles at a chosen level; raise/lower ground; place props; **Select** picks up a placed tile - the topmost on the cell - and carries it: the Z ladder goes to its level, the wheel lifts it while held, Alt turns it, and it lands where you let go, on top of whatever is there. One undo puts it back |
-| **Combat** (3) | Tools on the left rail; the SRD's creatures by tier in the strip, with a search; the encounter on the right | Place the picked creature in the encounter; press on a placed creature and drag to move it, as in the Inspector (Select carries party starts too); toggle trigger cells that start it; toggle party start tiles; erase a creature, then a trigger cell, then a party start (never the last one) |
+| **Inspector** (1) | The selected thing's properties, on the right | Click a prop to see what it is drawn with, what it does and whether it is solid (an object from an older project is shown as it always was). Press on anything placed, a creature, a prop, an object or a party start, and drag to move it: it lifts off the ground, hangs under the pointer with its bottom swinging behind the way it goes, and drops with a bump where you let go, at the height it stood. It never lands on another of its kind (props stack), and a party start stays in the room; one undo puts it back. The editor draws a party start as the character who begins there - party member 1 on start 1, and round again if the party outnumbers the starts - in the model play gives them, rimmed in gold; a start nobody fills is a blue pawn in a ring. Click a start and the side pane shows that character's sheet, the same form as the Party workspace, and an edit there is an edit to the party. An object with no model is a gold ring with a gem |
+| **Terrain** (2) | Tools on the left rail; **Tiles** and **Props** in the strip along the bottom; the tool's options on the right | Build stacked tiles anywhere (brush 1×1, 3×3, 5×5); erase tiles at a chosen level; raise/lower ground; place props; **Select** picks up a placed tile - the topmost on the cell - and carries it: the Z ladder goes to its level, the wheel lifts it while held, Alt turns it, and it lands where you let go, on top of whatever is there. One undo puts it back. With Select in hand the **Z ladder** stays out: it shows the height of the prop or tile Select last took hold of and raises or lowers it, a quarter tile a rung, each an undo step - or is the build plane when Select holds nothing. Kinds of tile are named for the model they are drawn with (Grass Ground, Stone Stairs, Stone Block, Stone Wall, Dirt Ground, Grass Dirt Ground; the three drawn with the stone block say which is which) |
+| **Combat** (3) | Tools on the left rail; the SRD's creatures by tier in the strip, with a search; the encounter on the right | Place the picked creature in the encounter; press on a placed creature and drag to move it, as in the Inspector (Select carries party starts too); toggle trigger cells that start it; toggle party start tiles; erase a creature, then a trigger cell, then a party start (never the last one). The selected creature's panel ends with **Interaction**: None, **Friendly** (on nobody's side until its conversation says otherwise; clicking it in play talks) or **Threshold** (fights until a blow leaves it at or under the **% of Hit Points** given, 50 to start, then stops the fight to talk - once), and the **Conversation** it opens. Friendly and Threshold need a conversation to exist first |
 | **Interaction** (4) | The conversations, on the left | Click one to open its graph |
 
 Opening a Terrain library tab chooses the placement action automatically: Tiles builds and Props
@@ -623,6 +633,8 @@ Any prop can **do something**. The Props panel's **Function** select, under Size
   end, in this room or any other. A pair is two: an id two other portals already hold is refused as
   it is typed ("… already pairs A and B. A pair is two - choose another id."), and a portal with
   nobody holding its id says it is waiting for its other end.
+- **Interaction** — opens a conversation, picked from the project's; its replies and consequence
+  nodes decide what comes of it. With none picked it says nothing, and Check says so.
 - **Script** — everything an object could be told: name, flavour, a key it needs, effects with no
   roll, a check with its five outcomes. The demo's quest things - the lever that starts a quest,
   the pillar that ends one - are Script props.
@@ -748,7 +760,9 @@ Remove it, Mark it used, Give loot, Deal damage, Heal, Start a fight, Travel to 
 conversation, Start a quest, Complete an objective, Complete a quest, Fail a quest, Level the
 party up — and the combat vocabulary a card is written in: Make an attack, Mark/Clear Stress,
 Mark/Clear Armor Slots, Gain/Spend Light, GM gains Shadow, Apply/Clear a condition, Put tokens on a
-card, Spend tokens on a card, Push them back, Ask for a reaction roll, and Run code. Scene,
+card, Spend tokens on a card, Push them back, Ask for a reaction roll, Run code, and **Change sides**
+(friendly or hostile - by default the creature a conversation is with; a party member is never
+turned, and a creature turned hostile with no fight running starts its encounter's fight). Scene,
 conversation, encounter and quest ids are dropdowns over what the project holds; the objective
 dropdown follows its quest. Flag, key and loot-table ids are typed.
 
@@ -786,8 +800,12 @@ over the whole view:
 
 - Node cards on a pannable surface (drag the background to pan, drag a card to move it; a
   position is only written to the document when a node is dragged). The start node has a
-  yellow border and ▸. **+ Node** adds one near the view; **Close** returns to Interaction
-  mode's conversation list.
+  yellow border and ▸. **+ Node** adds one near the view; **+ Consequence** adds a consequence
+  node, a dashed card with a gold label, which says nothing and does: its effects - **Run code**
+  with a Code entry, **Change sides**, a flag, a fight, anything an effect list offers - and then
+  goes on to the node its **then** names, or ends the conversation. A reply is pointed at it like
+  any other node. The back arrow before the conversation's name returns to Interaction mode's
+  conversation list.
 - Links curve from each reply's row to its target: grey for a node's own `goto`, blue for a
   reply, green / red for a check's success / failure route. A link to a node that does not
   exist is a red dashed stub labelled `id?`.
@@ -823,12 +841,12 @@ row reports the file by weight (`embedded · 2.4 MB`) rather than printing megab
 **✕** removes one. A model already sitting beside the app is still referenced by its path, and the
 row shows that path instead.
 
-Eleven of the built-in props have been **retired** for models in that folder: the pine is `tree-prop`,
+Thirteen of the built-in props have been **retired** for models in that folder: the pine is `tree-prop`,
 the dead tree `withering-tree-prop`, the barrel `barrel-prop`, the crate `crate-prop`, the brazier
 `standing-torch-prop`, the cart `cart-prop`, the training dummy `training-dummy-prop`, the banner
-`banner-prop`, and the door, chest and portal `door-prop`, `chest-prop` and `portal-prop`. A project that still names an old one
+`banner-prop`, the rock `rock-prop`, the campfire `camp-fire-prop`, and the door, chest and portal `door-prop`, `chest-prop` and `portal-prop`. A project that still names an old one
 is renamed as it opens, so nothing it placed turns into a placeholder; the next save writes the new
-names. Of the built-in props, the rock, the campfire and the pillar remain. The portal's opening glows and turns: the glow is in the file itself, an animated clip the board plays on a loop (`tools/add-portal-glow.mjs` put it there).
+names. Of the built-in props, only the pillar remains. The portal's opening glows and turns: the glow is in the file itself, an animated clip the board plays on a loop (`tools/add-portal-glow.mjs` put it there). The torches' and the campfire's flames glow the same way, from inside their files (`tools/add-flame-glow.mjs`), so they stay alight in shadow.
 
 The other way in is the folder: a `.glb` dropped into `public/models` is a model of every project
 the page opens - the built-in demo, the default project and any file loaded - named after the file
@@ -838,6 +856,14 @@ after adding one. A project that already lists a model of that id keeps its own 
 Each model carries three settings: **Scale** (a tile is one unit — most sample files are in metres,
 so 0.01 is a common answer), **Ground offset** to sit its feet on the tile, and **Rotation °** to
 turn it to face the way the built-in models do.
+
+**Use the model's own pivot** says where a model is held from. Off - the default - it is seated:
+centred on the base it stands on, its feet on the tile, whatever origin the file was exported
+around, which suits a figure or a crate modelled anywhere in its file. On, the file's own origin
+goes on the middle of the tile at ground level and the model stands exactly where its maker put
+it: a wall modelled against one edge, a sign on a post set to one side. Scale, rotation, the ground
+offset and the X and Y nudges apply either way; a wall held by its own pivot is not moved to its
+edge, since its file already says where it stands. **Reset** puts it back to seated.
 
 A rigged file's animations are chosen by name, from four dropdowns listing **the clips the file
 actually contains** — they fill in once it has loaded:
@@ -1099,7 +1125,8 @@ An **interactable**: `id`, `kind` (chest | door | pillar | portal | scripted), `
 `requiresKey?`, `lockedText`, `goto?`, `tags[]`, `data{}`.
 
 An **encounter**: `id`, `name`, `adversaries[]` (`id`, `adversary` = SRD adversary id,
-`position`, `name?`, `hitPoints?`), `triggerCells[]`, `startsOnTrigger`. A **deco**: `model`,
+`position`, `name?`, `hitPoints?`, `interaction?` - `{ kind: 'friendly', dialogue }` or
+`{ kind: 'threshold', dialogue, percent }`, 1 to 99), `triggerCells[]`, `startsOnTrigger`. A **deco**: `model`,
 `position`, `rotation` (radians), `id?`, `span?` (tiles across, from the north-west corner),
 `solid?`, and `function?` - one of `{kind:'container', items:[{item, count}]}`, `{kind:'door'}`,
 `{kind:'trapped', trait, difficulty, repeatable, success?, failure?}` (success and failure are
@@ -1182,6 +1209,7 @@ leaves the chosen target out — "all other targets within range").
 | `endEncounter` | `encounter` | marks the encounter ended |
 | `goto` | `scene` | travel, taken once the script has stopped asking |
 | `startDialogue` | `dialogue` | pauses the script, runs the conversation, then resumes |
+| `setAttitude` | `attitude` (`friendly` \| `hostile`), `target?` (the one a conversation is with) | a creature onto nobody's side, or back among the adversaries; a party member is never turned. Hostile with no fight running starts the fight of the encounter that placed it |
 | `startQuest` | `quest` | starts it (idempotent); logs "New quest: …" |
 | `completeObjective` | `quest`, `objective` | ticks a step (starts the quest if needed); logs "Objective complete: …" |
 | `revealObjective` | `quest`, `objective` | brings a hidden step into the journal (starts the quest if needed); logs "New objective: …" |
@@ -1357,7 +1385,9 @@ whoever bears one of those, character or creature, while it lasts. A file older 
 
 A **dialogue**: `id`, `start` (node id), `nodes[]`. A **node**: `id`, `position?` (canvas
 x/y), `lines[]` (`speaker?`, `text`), `onEnter[]?` (effects run before the lines show),
-`choices[]?`, `goto?` (next node when there are no choices; omitted ends). A **choice**: `text`,
+`choices[]?`, `goto?` (next node when there are no choices; omitted ends), `kind?`
+(`consequence`: never shown - its `onEnter` runs and the conversation goes to `goto`, or ends). A
+conversation opened with a creature binds it as the `target` of every effect inside. A **choice**: `text`,
 `detail?` (hint shown after a dash), `available?` (hidden when false), `enabled?` (greyed when
 false), `check?` (a check plus `gotoOnSuccess?` / `gotoOnFailure?`), `effects[]?`, `goto?`
 (omitted ends the conversation). Duplicate node ids and a `start` naming no node are rejected.
@@ -1435,8 +1465,8 @@ standing in for the prototype's homebrew Hollow Husks.
 
 1. **The Hollow Vault** (44×32, and relaid as tiles on the way
    in: grass outside, a dirt road that costs double, flagstone indoors, a wall two blocks high that
-   whoever is strong enough jumps onto - Kara is, and the drop inside is a fall - half-height
-   stone walls for cover, and the dais as blocks with its steps - or, in a fight with the steps a
+   whoever is strong enough jumps onto - Kara is, and the drop inside is a fall - stone walls
+   a block high standing along the edges of their tiles, and the dais as blocks with its steps - or, in a fight with the steps a
    move away, a jump). The vault door starts shut
    and in the way: using it is a Finesse 13 roll, a failure leaves it shut, and a door can be
    tried again. East of the door, trigger cells start the husk fight; a chest opens

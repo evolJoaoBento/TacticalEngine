@@ -77,7 +77,8 @@ describe('the demo, relaid as tiles', () => {
     expect(grid.topAt(grid.indexOf(16, 5)).id).toBe('steps');
     expect(grid.costAt(grid.indexOf(8, 5))).toBe(2); // the road
     expect(grid.providesCover(grid.indexOf(4, 5))).toBe(true);
-    expect(grid.isPassable(grid.indexOf(4, 5))).toBe(true); // half a block of wall: stepped over
+    // The legacy map's cover is a whole block of stone wall now, drawn along its tile's edge: it bars the tile.
+    expect(grid.isPassable(grid.indexOf(4, 5))).toBe(false);
   });
 
   it('walks onto the dais by its steps, as it always could', () => {
@@ -229,9 +230,12 @@ describe('the Jump button: aimed from where they stand', () => {
     demo.state.moveEntity('finn', demo.grid.indexOf(0, 0));
     demo.grid.lift[demo.grid.indexOf(5, 9)] = FLOOR + 2;
     expect(planJump(demo, 'kara', beyond)).toBeNull();
-    // Half a block of wall is under the arc: the cover at (4, 11) does not stop a jump over it.
+    // Half a block is under the arc: a low wall on open ground does not stop a jump over it.
+    demo.grid.lift[demo.grid.indexOf(5, 9)] = FLOOR + 0.5;
+    expect(planJump(demo, 'kara', beyond)).not.toBeNull();
+    // A whole block of stone wall is not: the cover at (4, 11) stands higher than the arc.
     demo.state.moveEntity('kara', demo.grid.indexOf(4, 10));
-    expect(planJump(demo, 'kara', demo.grid.indexOf(4, 12))).not.toBeNull();
+    expect(planJump(demo, 'kara', demo.grid.indexOf(4, 12))).toBeNull();
   });
 
   it('does not clear the vault wall in one jump, or a shut door at all - but the strong jump onto the wall, and down the far side', () => {

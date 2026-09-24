@@ -44,6 +44,8 @@ import {
 import { inCombat, scriptPending } from './moment';
 import { aimOfMove, closeToStrike, walkTheMove, type MoveResult } from './movement';
 import { interactablesOf, nearestCovered, reactToThings } from './prop-use';
+import { fightOverLine, playTurnings, reactToAttitudes, talkTo, talksTo } from './interaction';
+import { cuesFrom } from './cues';
 import { bandFromSpot, standingIn } from './reach';
 import { runForIt } from './rolled-move';
 import {
@@ -460,6 +462,8 @@ export interface PendingScript {
   recorded: number;
   /** The conversation this script opened, while it is being had. */
   dialogue: PendingDialogue | null;
+  /** The creature a conversation is with, bound as the `target` of everything said in it. */
+  with?: string;
   /**
    * What to do once the script finishes: an ability's turn is spent here,
    * because whether the spotlight passes is known only after the roll it
@@ -880,6 +884,8 @@ export function attackWithSelected(
   const target = demo.state.entity(targetId);
   if (character === undefined || attacker === undefined || target === undefined) return null;
   if (inCombat(demo) && !demo.encounter!.canAct(id!)) return null;
+  // A creature on nobody's side with something to say is talked to, not struck.
+  if (talksTo(demo, targetId)) return { hit: false, refused: null, hitPointsMarked: 0, waiting: talkTo(demo, id!, targetId).status === 'waiting' };
 
   const profile = attackProfile(character);
   // The first thing a player does is click the enemy across the room. Out of
@@ -1262,6 +1268,8 @@ export function runGmTurn(demo: DemoScene): number {
 
   while (turn.remaining.length > 0 && demo.pending === null && encounter.outcome === 'ongoing') {
     const id = turn.remaining[0]!;
+    // One talked round since the turn began is on nobody's side, and takes no turn of the GM's.
+    if (demo.state.entity(id)?.faction !== 'adversary') { turn.remaining.shift(); continue; }
     const again = (turn.spotlights[id] ?? 0) > 0;
     // A spotlight an ally was handed is already paid for, and has to be taken
     // before the Shadow is read: a Leader that spent its last Shadow rallying the
@@ -1678,6 +1686,7 @@ export function settleFight(demo: DemoScene): void {
   // hears about both together.
   playZoneEntries(demo);
   playDamageReactions(demo);
+  playTurnings(demo); // a creature a wound left at its threshold stops to talk, before anybody counts the fight
   playDefeatReactions(demo);
   // The party's half of the same moment, and the reason it is here rather than
   // at the end of the turn: a character who Risks It All and stands is one the
@@ -1715,7 +1724,7 @@ export function settleFight(demo: DemoScene): void {
   }
   note(
     demo,
-    encounter.outcome === 'victory' ? 'The last of them falls. The fight is over.' : 'The party falls.',
+    encounter.outcome === 'victory' ? fightOverLine(demo) : 'The party falls.',
     encounter.outcome === 'victory' ? 'success' : 'bad',
   );
 }
@@ -4274,7 +4283,7 @@ export function settle(demo: DemoScene, lines: LogLine[]): UseOutcome {
     return resumeOuter(demo, [...lines, ...missing]);
   }
 
-  const runner = new DialogueRunner(dialogue, demo.world, demo.rng);
+  const runner = new DialogueRunner(dialogue, demo.world, demo.rng, waiting.with === undefined ? {} : { targets: [waiting.with] });
   const status = runner.start();
   const started = record(demo, status.journal);
   const opened: PendingDialogue = {
@@ -4341,37 +4350,8 @@ export function record(demo: DemoScene, journal: readonly JournalEntry[]): LogLi
  */
 function react(demo: DemoScene, journal: readonly JournalEntry[]): void {
   reactToThings(demo, journal);
+  reactToAttitudes(demo, journal);
   syncPools(demo);
   for (const { roller, roll } of rollsFrom(demo, journal)) playPartyRolled(demo, roller, roll);
   for (const cue of cuesFrom(demo, journal)) tickCountdowns(demo, cue);
-}
-
-/**
- * What a script did that a countdown might be waiting for: a party member's
- * action roll, and any Hit Points anyone marked.
- *
- * A check is rolled by whoever the script is acting as, so it counts as the
- * party's only when the party is acting; an attack names its own roller. Hit
- * Points are nobody's side - "when they mark HP, tick down this countdown by
- * the number of HP marked" is written about the countdown's owner, and the
- * board only hands the cue to the countdown whose owner marked them.
- */
-function cuesFrom(demo: Pick<DemoScene, 'state' | 'scenario'>, journal: readonly JournalEntry[]): CountdownCue[] {
-  const isParty = (id: string | null): boolean =>
-    id !== null && demo.state.entity(id)?.faction === 'party';
-  const cues: CountdownCue[] = [];
-  for (const entry of journal) {
-    if (entry.kind === 'check' && isParty(demo.scenario.actorId)) {
-      cues.push({ kind: 'actionRoll', attack: false, outcome: entry.roll.outcome });
-    }
-    if (entry.kind === 'attack') {
-      if (entry.roll !== undefined && isParty(entry.attacker)) {
-        cues.push({ kind: 'actionRoll', attack: true, outcome: entry.roll.outcome });
-      }
-      if (entry.hitPointsMarked > 0) {
-        cues.push({ kind: 'hpMarked', id: entry.target, marked: entry.hitPointsMarked });
-      }
-    }
-  }
-  return cues;
 }

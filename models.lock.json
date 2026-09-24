@@ -1,7 +1,7 @@
 {
   "repo": "JunjiBento/tactical-engine-models",
   "repoType": "model",
-  "revision": "0a088a71b65ac0ba7eff30c27460cb3be05f0e87",
+  "revision": "14ddb8a6d80426106f6c1b57b4159fec81be34b4",
   "files": [
     {
       "path": "Arty.glb",
@@ -25,8 +25,8 @@
     },
     {
       "path": "banner-prop.glb",
-      "bytes": 1441508,
-      "sha256": "390076f5ef45548be5d208eb5d47b32e593f086c2dc8ad035457e63c6b501f88"
+      "bytes": 1441640,
+      "sha256": "bb719caa165542f4558f064202d3a880bd2512a8cc2ac98918f7fd573ec85f3a"
     },
     {
       "path": "barrel-prop.glb",
@@ -37,6 +37,11 @@
       "path": "briar-wraith.glb",
       "bytes": 3223112,
       "sha256": "9baf40375661cc06980678c7f5760fc3dc6627abcefa4ec9ccade6a6af362068"
+    },
+    {
+      "path": "camp-fire-prop.glb",
+      "bytes": 2514196,
+      "sha256": "69caac1fc3d58208aac28d8893d39fee7372977c1cf38bdb7593116a0f7fe0d9"
     },
     {
       "path": "cart-prop.glb",
@@ -94,6 +99,11 @@
       "sha256": "4beba7931e642d1bbe7a9dbdbd035a66d3624d45d07f225529e69e8b6376e817"
     },
     {
+      "path": "merchant.glb",
+      "bytes": 1841284,
+      "sha256": "c8ca48a68494160893e132429e70e49d79467bbb77cb439ae5f64c405a8963ed"
+    },
+    {
       "path": "Pint.glb",
       "bytes": 3287784,
       "sha256": "d635295de343897a8f0442439cfc3f0a531f236d850c62239788f10b077ab286"
@@ -107,6 +117,11 @@
       "path": "Quim.glb",
       "bytes": 4124176,
       "sha256": "a80fecc9b0f62cd9e3f50cb6728874f480d5f7d894bc429670e316c224c33ddb"
+    },
+    {
+      "path": "rock-prop.glb",
+      "bytes": 852888,
+      "sha256": "6b901b52b6151aa9bbe2caa30b0da7c88451e432b54c8096ba157b048696e0b4"
     },
     {
       "path": "roof-stairs.glb",
@@ -130,8 +145,8 @@
     },
     {
       "path": "standing-torch-prop.glb",
-      "bytes": 1536300,
-      "sha256": "34351d71f71f32291346dd52b1d7f90235f6fac62f3cc55c8fbefa24559e3a97"
+      "bytes": 1718636,
+      "sha256": "e29384af2d54cbc99084712c844e4a52dcf338ec6a3d4419975ef3f75d0993c3"
     },
     {
       "path": "stone_golem.glb",
@@ -170,8 +185,8 @@
     },
     {
       "path": "wall-torch-prop.glb",
-      "bytes": 1105380,
-      "sha256": "b72ca8cfabb6dba923503c569106e644e76751529c8a13e674357ef08537a50a"
+      "bytes": 1270568,
+      "sha256": "d0edc5fc3df71ffe8893f543b8177db8b1a8a48982ebb8372f502d6c601768f5"
     },
     {
       "path": "wandering-hedge-priest.glb",

@@ -106,10 +106,31 @@ test('a model picked in this browser is there again after a reload, until it is 
   /** What the project declares right now, by id. */
   const declared = (): Promise<string[]> =>
     page.evaluate(() => (JSON.parse(window.__engine!.exportProject()) as { assets: { id: string }[] }).assets.map((a) => a.id));
+  /**
+   * Whether this browser's model store holds the fox yet. The panel shows a model the moment it is
+   * added, and the store is written after, in the background: a reload straight after the panel
+   * changes can beat the write on a busy machine, and then the test is of the race, not the memory.
+   * Opened as `model-memory.ts` opens it, shelf and all, so asking never leaves a store it cannot use.
+   */
+  const remembered = (): Promise<boolean> =>
+    page.evaluate(() => new Promise<boolean>((resolve) => {
+      const request = indexedDB.open('tactical-engine', 1);
+      request.onupgradeneeded = () => {
+        if (!request.result.objectStoreNames.contains('models')) request.result.createObjectStore('models', { keyPath: 'id' });
+      };
+      request.onerror = () => resolve(false);
+      request.onsuccess = () => {
+        const database = request.result;
+        const got = database.transaction('models', 'readonly').objectStore('models').get('fox');
+        got.onsuccess = () => { database.close(); resolve(got.result !== undefined); };
+        got.onerror = () => { database.close(); resolve(false); };
+      };
+    }));
 
   await openModels();
   await page.locator('[data-testid="add-model"] input[type="file"]').setInputFiles('tests/fixtures/models/Fox.glb');
   await expect(page.locator('[data-asset="fox"]')).toBeVisible();
+  await expect.poll(remembered, { timeout: 15_000 }).toBe(true);
 
   // Closing the tab is what used to lose it: the file rides inside the project,
   // and the project itself is not kept.
@@ -132,6 +153,7 @@ test('a model picked in this browser is there again after a reload, until it is 
   // only one the moment a second was added beside it.
   await page.locator('[data-testid="asset-remove-fox"]').click();
   await expect(page.locator('[data-asset="fox"]')).toHaveCount(0);
+  await expect.poll(remembered, { timeout: 15_000 }).toBe(false);
   await reopen();
   await page.waitForTimeout(1500);
   expect(await declared()).not.toContain('fox');
@@ -310,4 +332,77 @@ test('a character added in the Party panel is standing with the party when Play 
 
   await page.screenshot({ path: 'test-results/editor-joined.png' });
   expect(errors, `console errors: ${errors.join(' | ')}`).toEqual([]);
+});
+
+test("a model can keep its file's own pivot, from the Models panel, and one undo puts it back on its base", async ({ page }) => {
+  const errors = await editing(page);
+  await page.locator('[data-testid="open-content"]').click();
+  await page.locator('[data-testid="open-models"]').click();
+  await page.locator('[data-testid="add-model"] input[type="file"]').setInputFiles('tests/fixtures/models/Fox.glb');
+  const pivot = page.getByTestId('asset-pivot-fox');
+  // Seated is the default, and it says so beside the box.
+  await expect(pivot).not.toBeChecked();
+  const pivotOf = (): Promise<string | null> =>
+    page.evaluate(() => (JSON.parse(window.__engine!.exportProject()) as { assets: { id: string; pivot?: string }[] }).assets.find((a) => a.id === 'fox')?.pivot ?? null);
+  expect(await pivotOf()).toBeNull();
+
+  await pivot.check();
+  expect(await pivotOf()).toBe('file');
+  await expect(page.locator('[data-asset="fox"]')).toContainText("Held where the file's origin is.");
+
+  await page.locator('[data-testid="undo"]').click();
+  expect(await pivotOf()).toBeNull();
+  await expect(pivot).not.toBeChecked();
+  expect(errors, `console errors: ${errors.join(' | ')}`).toEqual([]);
+});
+
+test('the Models page keeps Close in view however far down its list is scrolled', async ({ page }) => {
+  const errors = await editing(page);
+  await page.locator('[data-testid="open-content"]').click();
+  await page.locator('[data-testid="open-models"]').click();
+  const list = page.getByTestId('asset-list');
+  // Long enough to scroll: every shipped model has a row.
+  expect(await list.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(true);
+  await list.evaluate((el) => { el.scrollTop = el.scrollHeight; });
+  const close = page.getByTestId('close-models');
+  await expect(close).toBeInViewport();
+  // Not only drawn: the thing on top at its middle is the button, so a click reaches it.
+  const box = (await close.boundingBox())!;
+  expect(await page.evaluate(([x, y]) => document.elementFromPoint(x!, y!)?.closest('[data-testid="close-models"]') !== null, [box.x + box.width / 2, box.y + box.height / 2])).toBe(true);
+  await close.click();
+  await expect(page.getByTestId('models-panel')).toHaveCount(0);
+  expect(errors, `console errors: ${errors.join(' | ')}`).toEqual([]);
+});
+
+test("a party start taken hold of in the Inspector shows that character's sheet, and edits it", async ({ page }) => {
+  const errors = await editing(page);
+  await page.getByTestId('mode-inspect').click();
+  const { tile, name } = await page.evaluate(() => {
+    const a = window.__engine!;
+    const project = JSON.parse(a.exportProject()) as { party: { name: string }[]; scenes: { width: number; spawns: { x: number; y: number }[] }[] };
+    const [scene] = project.scenes;
+    const start = scene!.spawns[0]!;
+    return { tile: start.y * scene!.width + start.x, name: project.party[0]!.name };
+  });
+  await page.evaluate((t) => window.__engine!.editAt(t), tile);
+  const pane = page.getByTestId('start-inspector');
+  await expect(pane).toBeVisible();
+  // The Party panel's own form, for whoever begins on the first start: the first of the party.
+  await expect(pane.getByTestId('character-name')).toHaveValue(name);
+  await expect(pane.getByTestId('character-derived')).toBeVisible();
+  await pane.getByTestId('character-name').fill('Renamed');
+  await pane.getByTestId('character-name').blur();
+  const renamed = await page.evaluate(() => (JSON.parse(window.__engine!.exportProject()) as { party: { name: string }[] }).party[0]!.name);
+  expect(renamed).toBe('Renamed');
+
+  // And the Party panel says the same, since it is the same sheet. Its way back is an arrow, not a word.
+  await page.locator('[data-testid="open-content"]').click();
+  await page.locator('[data-testid="open-party"]').click();
+  await expect(page.getByTestId('party-panel').getByTestId('character-name')).toHaveValue('Renamed');
+  const back = page.getByTestId('close-party');
+  await expect(back).toHaveAttribute('aria-label', 'Back');
+  await expect(back).not.toContainText('Close');
+  await back.click();
+  await expect(page.getByTestId('party-panel')).toHaveCount(0);
+  expect(errors).toEqual([]);
 });

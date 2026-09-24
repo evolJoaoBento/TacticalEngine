@@ -756,8 +756,8 @@ describe('the demo renders', () => {
     // The ground and most of the dressing are shipped files, which are imports: a view handed no
     // asset library has none of them, and everything else the room names is in the procedural one.
     expect(view.registry.missing()).toEqual([
-      'banner-prop', 'barrel-prop', 'cart-prop', 'chest-prop', 'crate-prop', 'dirt-ground', 'door-prop', 'grass-ground', 'portal-prop',
-      'standing-torch-prop', 'stone-block', 'stone-stairs', 'stone-wall', 'training-dummy-prop', 'tree-prop', 'withering-tree-prop',
+      'banner-prop', 'barrel-prop', 'camp-fire-prop', 'cart-prop', 'chest-prop', 'crate-prop', 'dirt-ground', 'door-prop', 'grass-ground',
+      'portal-prop', 'rock-prop', 'standing-torch-prop', 'stone-block', 'stone-stairs', 'stone-wall', 'training-dummy-prop', 'tree-prop', 'withering-tree-prop',
     ]);
     view.dispose();
   });

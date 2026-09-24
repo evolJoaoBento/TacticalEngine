@@ -16,6 +16,7 @@
 
 import type { Amount, CountName, Effect, PoolName, TargetSelector } from '../../engine/script/schema';
 import { COUNT_NAMES } from '../../engine/script/schema';
+import { ADVANCES, describe, parseArgs } from './effect-list-parts';
 import type { QuestDef } from '../../engine/content/quests';
 import { RANGE_BANDS, type RangeBand } from '../../engine/rules/range';
 import { ConditionEditor, COUNT_LABELS } from './ConditionEditor';
@@ -73,6 +74,7 @@ const ADDABLE = [
   'addItem',
   'removeItem',
   'endEncounter',
+  'setAttitude',
   // What a card does to a creature.
   'attack',
   'markStress',
@@ -125,6 +127,7 @@ const LABELS: Readonly<Record<Addable, string>> = {
   damage: 'Deal damage',
   heal: 'Heal',
   startEncounter: 'Start a fight',
+  setAttitude: 'Change sides',
   goto: 'Travel to a scene',
   startDialogue: 'Start a conversation',
   startQuest: 'Start a quest',
@@ -306,6 +309,8 @@ function blank(kind: Addable, props: EffectListProps): Effect {
     case 'vaultCard':
     case 'maxOneDie':
       return { kind };
+    case 'setAttitude':
+      return { kind, attitude: 'hostile' };
     case 'boostDamage':
       return { kind, dice: '1d6' };
     case 'forceHitPoints':
@@ -330,57 +335,6 @@ function blank(kind: Addable, props: EffectListProps): Effect {
       return { kind, difficulty: 12, trait: 'agility' };
     case 'run':
       return { kind, hook: props.hookIds?.[0] ?? '' };
-  }
-}
-
-/**
- * `name=value` pairs for a hook's arguments. Numbers and booleans are read as
- * such — a hook that asks for `ctx.args.amount` wants a number, and typing one
- * should not hand it the string.
- */
-function parseArgs(raw: string): Record<string, string | number | boolean> | undefined {
-  const args: Record<string, string | number | boolean> = {};
-  for (const pair of raw.split(',')) {
-    const at = pair.indexOf('=');
-    if (at < 0) continue;
-    const name = pair.slice(0, at).trim();
-    const value = pair.slice(at + 1).trim();
-    if (name === '') continue;
-    const asNumber = Number(value);
-    args[name] = value === 'true' ? true : value === 'false' ? false : value !== '' && !Number.isNaN(asNumber) ? asNumber : value;
-  }
-  return Object.keys(args).length === 0 ? undefined : args;
-}
-
-/** What moves a countdown, in the words a designer would use for it. */
-const ADVANCES: readonly (readonly [string, string])[] = [
-  ['standard', 'on any PC roll'],
-  ['attackRoll', 'on a PC attack roll'],
-  ['withBad', 'on a PC roll with Shadow'],
-  ['hpMarked', 'by the HP they mark'],
-  ['progress', 'progress (dynamic)'],
-  ['consequence', 'consequence (dynamic)'],
-];
-
-/** A one-line summary of an effect this cannot edit. */
-function describe(effect: Effect): string {
-  switch (effect.kind) {
-    case 'branch':
-      return `If ${effect.when.kind}: ${effect.then.length} effect(s), else ${effect.otherwise?.length ?? 0}`;
-    case 'diceCheck':
-      return `Roll ${effect.dice} for a ${effect.atLeast}: ${effect.then.length} effect(s), else ${effect.otherwise?.length ?? 0}`;
-    case 'choice':
-      return `Ask the player (${effect.options.length} options)`;
-    case 'check':
-      return `Roll ${effect.check.trait} ${effect.check.difficulty}`;
-    case 'story':
-      return `Story panel: ${effect.title}`;
-    case 'setVar':
-      return `Set ${effect.name} = ${String(effect.value)}`;
-    case 'addVar':
-      return `Add ${effect.by} to ${effect.name}`;
-    default:
-      return effect.kind;
   }
 }
 
@@ -1074,6 +1028,16 @@ function renderBody(
             ...effect,
             halfDamage: on ? true : undefined,
           }))}
+        </>
+      );
+    case 'setAttitude':
+      return (
+        <>
+          <select style={{ ...field, flex: 'none', width: '96px' }} data-role="attitude" value={effect.attitude} onChange={(e) => onChange({ ...effect, attitude: (e.target as HTMLSelectElement).value as 'friendly' | 'hostile' })}>
+            <option value="hostile">hostile</option>
+            <option value="friendly">friendly</option>
+          </select>
+          {who(effect.target, 'the one talked to', (target) => ({ ...effect, target }))}
         </>
       );
     case 'endSpotlight':

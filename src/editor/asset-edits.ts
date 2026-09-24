@@ -64,6 +64,8 @@ export function updateAsset(
     offsetX?: number;
     offsetY?: number;
     clips?: ModelAsset['clips'] | null;
+    /** `file` to hold it by the file's own origin; anything else, named, puts it back on its base. */
+    pivot?: ModelAsset['pivot'] | null;
   },
 ): Edit {
   let before: ModelAsset | null = null;
@@ -84,6 +86,11 @@ export function updateAsset(
       if ('clips' in changes) {
         if (changes.clips === null || changes.clips === undefined) delete asset.clips;
         else asset.clips = changes.clips;
+      }
+      // Seated is the default and says nothing: only a model held by its own pivot says so.
+      if ('pivot' in changes) {
+        if (changes.pivot === 'file') asset.pivot = 'file';
+        else delete asset.pivot;
       }
     },
     undo(project) {

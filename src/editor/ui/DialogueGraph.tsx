@@ -32,6 +32,7 @@ import {
   updateNode,
 } from '../session';
 import { EffectList } from './EffectList';
+import { Icon } from './icons';
 
 export interface DialogueGraphProps {
   session: EditorSession;
@@ -40,6 +41,8 @@ export interface DialogueGraphProps {
   dialogueIds: readonly string[];
   encounterIds: readonly string[];
   quests: readonly QuestDef[];
+  /** What a consequence's "Run code" can name: the engine's hooks and the project's code. */
+  hookIds?: readonly string[];
   onClose: () => void;
   /** Bump the panel's version counter. */
   onChange: () => void;
@@ -201,15 +204,18 @@ export function DialogueGraph(props: DialogueGraphProps): preact.JSX.Element {
     drag.current = null;
   };
 
-  const newNode = (): void => {
+  // A consequence says nothing - it does - so it starts with no line to fill in.
+  const newNode = (consequence = false): void => {
+    const stem = consequence ? 'consequence' : 'node';
     const taken = new Set(dialogue.nodes.map((n) => n.id));
     let n = dialogue.nodes.length + 1;
-    while (taken.has(`node-${n}`)) n++;
-    const id = `node-${n}`;
+    while (taken.has(`${stem}-${n}`)) n++;
+    const id = `${stem}-${n}`;
     run(
       addNode(dialogue.id, {
         id,
-        lines: [{ text: '' }],
+        ...(consequence ? { kind: 'consequence' as const } : {}),
+        lines: consequence ? [] : [{ text: '' }],
         position: { x: -pan.x + 420, y: -pan.y + 120 },
       }),
     );
@@ -219,18 +225,21 @@ export function DialogueGraph(props: DialogueGraphProps): preact.JSX.Element {
   return (
     <div style={surface} data-testid="dialogue-graph">
       <div style={bar}>
+        <button style={small} onClick={props.onClose} aria-label="Back" title="Back to the conversations">
+          <Icon name="back" size={16} />
+        </button>
         <strong>{dialogue.id}</strong>
         <span style={{ color: 'var(--ph-muted)' }}>
           {dialogue.nodes.length} nodes · opens on {dialogue.start}
         </span>
-        <button style={small} onClick={newNode}>
+        <button style={small} onClick={() => newNode()}>
           + Node
+        </button>
+        <button style={small} data-testid="add-consequence" title="A node that does rather than says: runs code or effects, then goes on" onClick={() => newNode(true)}>
+          + Consequence
         </button>
         <span style={{ flex: 1 }} />
         <span style={{ color: 'var(--ph-muted)', fontSize: '11px' }}>Drag the background to pan</span>
-        <button style={small} onClick={props.onClose}>
-          Close
-        </button>
       </div>
 
       <div
@@ -287,6 +296,7 @@ export function DialogueGraph(props: DialogueGraphProps): preact.JSX.Element {
               dialogueIds={props.dialogueIds}
               encounterIds={props.encounterIds}
               quests={props.quests}
+              {...(props.hookIds === undefined ? {} : { hookIds: props.hookIds })}
             />
           );
         })}
@@ -308,9 +318,11 @@ interface NodeCardProps {
   dialogueIds: readonly string[];
   encounterIds: readonly string[];
   quests: readonly QuestDef[];
+  hookIds?: readonly string[];
 }
 
 function NodeCard(props: NodeCardProps): preact.JSX.Element {
+  if (props.node.kind === 'consequence') return <ConsequenceCard {...props} />;
   const { node, dialogue, onRun } = props;
   const isStart = dialogue.start === node.id;
   const nodeIds = dialogue.nodes.map((n) => n.id);
@@ -600,9 +612,83 @@ function NodeCard(props: NodeCardProps): preact.JSX.Element {
             dialogueIds={props.dialogueIds}
             encounterIds={props.encounterIds}
             quests={props.quests}
+            {...(props.hookIds === undefined ? {} : { hookIds: props.hookIds })}
           />
         </div>
       ) : null}
+    </div>
+  );
+}
+
+/**
+ * A node that does rather than says: its effects - code to run, a creature turned friendly or
+ * hostile, a flag, a fight - and where the conversation goes after, or the end of it. Nothing on
+ * it is shown to the player; the conversation walks straight through.
+ */
+function ConsequenceCard(props: NodeCardProps): preact.JSX.Element {
+  const { node, dialogue, onRun } = props;
+  const effects = node.onEnter ?? [];
+  const isStart = dialogue.start === node.id;
+  return (
+    <div
+      style={{ ...card, left: `${props.left}px`, top: `${props.top}px`, borderColor: props.open ? 'var(--ph-accent)' : 'var(--ph-warm)', borderStyle: 'dashed', cursor: 'grab' }}
+      data-node={node.id}
+      data-consequence
+      onPointerDown={(e) => props.onPointerDown(e as unknown as PointerEvent)}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '4px' }}>
+        <span style={{ color: 'var(--ph-warm)', fontSize: '11px' }}>Consequence</span>
+        <strong style={{ flex: 1 }}>
+          {node.id}
+          {isStart ? <span style={{ color: 'var(--ph-warm)' }}> ▸</span> : null}
+        </strong>
+        <button style={small} title={props.open ? 'Collapse' : 'Edit this consequence'} onPointerDown={holdPointer} onClick={props.onSelect}>
+          {props.open ? '▾' : '▸'}
+        </button>
+      </div>
+      {props.open ? (
+        <div onPointerDown={holdPointer}>
+          <EffectList
+            testId={`consequence-effects-${node.id}`}
+            effects={effects}
+            onChange={(next: Effect[]) => onRun(updateNode(dialogue.id, node.id, { onEnter: next.length === 0 ? undefined : next }))}
+            sceneIds={props.sceneIds}
+            dialogueIds={props.dialogueIds}
+            encounterIds={props.encounterIds}
+            quests={props.quests}
+            {...(props.hookIds === undefined ? {} : { hookIds: props.hookIds })}
+          />
+          <label style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--ph-muted)', fontSize: '11px' }}>
+            then
+            <select
+              style={{ ...field, marginBottom: 0 }}
+              data-consequence-goto={node.id}
+              value={node.goto ?? ''}
+              onChange={(e) => {
+                const value = (e.target as HTMLSelectElement).value;
+                onRun(updateNode(dialogue.id, node.id, { goto: value === '' ? undefined : value }));
+              }}
+            >
+              <option value="">— the conversation ends —</option>
+              {dialogue.nodes.filter((n) => n.id !== node.id).map((n) => (
+                <option key={n.id} value={n.id}>
+                  → {n.id}
+                </option>
+              ))}
+            </select>
+          </label>
+          {!isStart ? (
+            <button style={{ ...small, color: 'var(--ph-bad)', marginTop: '4px' }} onClick={() => onRun(removeNode(dialogue.id, node.id))}>
+              Delete
+            </button>
+          ) : null}
+        </div>
+      ) : (
+        <div style={{ color: effects.length === 0 ? 'var(--ph-faint)' : 'var(--ph-text)' }}>
+          {effects.length === 0 ? <em>does nothing yet</em> : effects.map((effect) => effect.kind).join(', ')}
+          {node.goto === undefined ? <div style={{ color: 'var(--ph-muted)' }}>then ends</div> : null}
+        </div>
+      )}
     </div>
   );
 }

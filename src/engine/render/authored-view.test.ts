@@ -1,10 +1,11 @@
 import { expect, it } from 'vitest';
-import { Raycaster, Vector3 } from 'three';
+import { BoxGeometry, Group, Mesh, Raycaster, Vector3 } from 'three';
 import { NO_TILE } from '../grid/grid';
 import { blankScene, gridFromScene } from '../scene/grid-from-scene';
 import { SceneView } from './scene-view';
 import { createPartyEntity, sceneStateFromScene } from '../scene/state';
 import { interactableSchema } from '../scene/schema';
+import { AssetLibrary, modelAssetSchema } from './assets';
 
 it('renders authored creatures beyond the board at their Z and removes them on undo/rebind', () => {
   const scene = blankScene('room', 4, 4);
@@ -94,6 +95,61 @@ it('draws party starts and objects while authoring, and lifts and drops what the
   view.setAuthoring(null);
   expect(view.root.getObjectByName('spawn:0')).toBeUndefined();
   expect(view.root.getObjectByName('object:chest'), 'a chest is in the room in play').toBeDefined();
+  view.dispose();
+});
+
+it('draws a party start as the character who begins there, in the look play gives them', () => {
+  const scene = blankScene('room', 4, 4);
+  scene.spawns = [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 3, y: 3 }];
+  const grid = gridFromScene(scene).grid;
+  const view = new SceneView(grid);
+  // Kara wears a model of her own; Mira wears whatever her class is drawn with; start 3 has nobody.
+  view.setAuthoring(scene, { wizard: 'wizard-model' }, [{ model: 'kara-model', definition: 'guardian' }, { definition: 'wizard' }]);
+  const asked = view.registry.missing();
+  expect(asked).toContain('kara-model');
+  expect(asked).toContain('wizard-model');
+  expect(asked, "the sheet's own look beats the class's").not.toContain('guardian');
+  // Each still answers to its start, so a press takes hold of it and a drag carries it.
+  const kara = view.root.getObjectByName('spawn:0')!;
+  expect(kara.position.x).toBe(-1.5);
+  const rest = kara.position.y;
+  view.lift('spawn', '0');
+  for (let i = 0; i < 30; i++) view.tick(1 / 60);
+  expect(kara.position.y).toBeGreaterThan(rest + 0.3);
+  view.drop();
+  // A start nobody fills is still drawn - the pawn - so it can be seen and moved.
+  expect(view.root.getObjectByName('spawn:2')).toBeDefined();
+  expect(view.root.children.filter((c) => c.name.startsWith('spawn:'))).toHaveLength(3);
+  view.setAuthoring(null);
+  expect(view.root.getObjectByName('spawn:0')).toBeUndefined();
+  view.dispose();
+});
+
+it('draws a party start again when its model lands after the room was drawn', async () => {
+  const scene = blankScene('room', 4, 4);
+  scene.spawns = [{ x: 0, y: 0 }];
+  const grid = gridFromScene(scene).grid;
+  let land: (template: Group) => void = () => {};
+  const library = new AssetLibrary(() => new Promise<Group>((resolve) => { land = resolve; }), [modelAssetSchema.parse({ id: 'kara-model', url: '/kara.glb' })]);
+  const view = new SceneView(grid, { assets: library });
+  view.setAuthoring(scene, {}, [{ model: 'kara-model', definition: 'guardian' }]);
+  const kara = new BoxGeometry(1, 2, 1);
+  // A clone shares its geometry with the file it was cloned from, so this is how Kara is told apart.
+  const isKara = (): boolean => {
+    let found = false;
+    view.root.getObjectByName('spawn:0')!.traverse((part) => { if ((part as Mesh).geometry === kara) found = true; });
+    return found;
+  };
+  // On its way: a stand-in.
+  expect(isKara()).toBe(false);
+  const body = new Group();
+  body.add(new Mesh(kara));
+  land(body);
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  // Landed: the start is Kara now, and still the start a press takes hold of.
+  expect(isKara()).toBe(true);
+  expect(view.root.children.filter((c) => c.name.startsWith('spawn:'))).toHaveLength(1);
+  view.setAuthoring(null);
   view.dispose();
 });
 

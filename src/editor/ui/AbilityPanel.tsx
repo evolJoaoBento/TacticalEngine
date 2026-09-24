@@ -31,6 +31,7 @@ import type { QuestDef } from '../../engine/content/quests';
 import { RANGE_BANDS, type RangeBand } from '../../engine/rules/range';
 import { EffectList } from './EffectList';
 import { ConditionEditor } from './ConditionEditor';
+import { Icon } from './icons';
 
 /** What a card's token count can be: a number, a trait, or the Spellcast trait. */
 type TokenAmount = NonNullable<AbilityDef['tokens']>['amount'];
@@ -535,7 +536,12 @@ export function AbilityPanel(props: AbilityPanelProps): preact.JSX.Element {
       }}
     >
       <div style={{ width: '190px', display: 'flex', flexDirection: 'column', gap: '4px', overflow: 'auto' }}>
-        <div style={{ fontWeight: 600, marginBottom: '2px' }}>Cards</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
+          <button style={button(false)} data-testid="close-abilities" onClick={props.onClose} aria-label="Back" title="Back to the board">
+            <Icon name="back" size={16} />
+          </button>
+          <span style={{ fontWeight: 600 }}>Cards</span>
+        </div>
         {session.project.abilities.map((ability) => (
           <div key={ability.id} style={{ display: 'flex', gap: '4px' }}>
             <button
@@ -600,11 +606,6 @@ export function AbilityPanel(props: AbilityPanelProps): preact.JSX.Element {
 
         <div style={{ marginTop: '8px', color: 'var(--ph-muted)', fontSize: '11px' }}>
           The pack the app ships has {props.libraryAbilities.length} more, written in code rather than here.
-        </div>
-        <div style={{ marginTop: 'auto' }}>
-          <button style={button(false)} data-testid="close-abilities" onClick={props.onClose}>
-            Close
-          </button>
         </div>
       </div>
 

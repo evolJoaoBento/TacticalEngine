@@ -55,6 +55,7 @@ const extent = new Vector3();
 const ONE = new Vector3(1, 1, 1);
 const stretch = new Matrix4();
 const UP = new Vector3(0, 1, 0);
+const toEdge = new Matrix4();
 
 /**
  * The one mesh inside a built model, if it is the kind that can be instanced.
@@ -214,8 +215,11 @@ function buildPieceModels(grid: TileGrid, layout: TileLayout, build: BuildModel)
       for (const piece of pieces) {
         const extra = build(kind.model, kind.scale).group;
         const centre = placementCentre(grid, layout, { x: piece.x, y: piece.y, z: piece.level });
-        extra.position.set(centre.x, centre.y + lift, centre.z);
-        extra.rotation.y += piece.rotation * Math.PI / 2;
+        const edge = edgeOf(extra, kind, layout, build(kind.model, kind.scale).spec.pivot === 'file');
+        const angle = piece.rotation * Math.PI / 2;
+        // The edge offset turns with the piece, as it does for the instanced ones below.
+        extra.position.set(centre.x + edge.x * Math.cos(angle) + edge.z * Math.sin(angle), centre.y + lift, centre.z - edge.x * Math.sin(angle) + edge.z * Math.cos(angle));
+        extra.rotation.y += angle;
         group.add(extra);
       }
       made.push(group);
@@ -224,6 +228,11 @@ function buildPieceModels(grid: TileGrid, layout: TileLayout, build: BuildModel)
 
     built.group.updateWorldMatrix(true, true);
     fitted.copy(fitOf(built.group, kind)).multiply(mesh.matrixWorld);
+    // Where in its cell the model stands: the middle, for a structure that fills the cell, and
+    // flush against the edge for one that stands on it. Turned with the piece, so a wall goes
+    // round the four edges as its box does.
+    const edge = edgeOf(built.group, kind, layout, built.spec.pivot === 'file');
+    toEdge.makeTranslation(edge.x, 0, edge.z);
 
     const instances = new InstancedMesh(mesh.geometry, mesh.material, pieces.length);
     instances.name = `pieces:${typeId}:instances`;
@@ -243,7 +252,7 @@ function buildPieceModels(grid: TileGrid, layout: TileLayout, build: BuildModel)
       // The file's own transform goes through the turn whole, so a model that stands off its
       // centre turns about the cell rather than swinging out of it.
       position.set(centre.x, centre.y + lift, centre.z);
-      matrix.compose(position, turn, ONE).multiply(stretch.makeScale(1, piece.height ?? 1, 1)).multiply(fitted);
+      matrix.compose(position, turn, ONE).multiply(toEdge).multiply(stretch.makeScale(1, piece.height ?? 1, 1)).multiply(fitted);
       instances.setMatrixAt(i, matrix);
     });
     instances.instanceMatrix.needsUpdate = true;
@@ -252,6 +261,41 @@ function buildPieceModels(grid: TileGrid, layout: TileLayout, build: BuildModel)
     made.push(group);
   }
   return made;
+}
+
+/**
+ * Where a model stands in its cell, before the piece turns it: the structure's own boxes say.
+ *
+ * Every model is seated centred over its footprint (`seatOnTile`), which is right for a block or
+ * a floor, which fill the cell, and wrong for a wall, whose box is a thin slab along one edge -
+ * seated, a wall was drawn through the middle of its tile while it barred the edge. So along each
+ * axis where the structure's boxes do not reach across the cell, the model is moved to the side
+ * they stand on, with its outer face on the cell's edge: inside its own square, flush with the
+ * square it faces. A structure that fills the cell, or declares no boxes, stays in the middle, and
+ * so does a model that keeps its file's own pivot: its maker has already said where it stands.
+ */
+function edgeOf(model: Object3D, kind: TileKind, layout: TileLayout, ownPivot = false): { x: number; z: number } {
+  if (kind.structure === undefined || ownPivot) return { x: 0, z: 0 };
+  const parts = buildingParts(kind.structure);
+  if (parts.length === 0) return { x: 0, z: 0 };
+  let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+  for (const [x, , z, sx, , sz] of parts) {
+    minX = Math.min(minX, x - sx / 2);
+    maxX = Math.max(maxX, x + sx / 2);
+    minZ = Math.min(minZ, z - sz / 2);
+    maxZ = Math.max(maxZ, z + sz / 2);
+  }
+  model.updateWorldMatrix(true, true);
+  bounds.setFromObject(model, true).getSize(extent);
+  const size = layout.tileSize;
+  const EDGE = 0.5 - 1e-6;
+  const along = (lo: number, hi: number, depth: number): number => {
+    const half = Math.min(depth, size) / 2;
+    if (lo <= -EDGE && hi < EDGE) return -size / 2 + half;
+    if (hi >= EDGE && lo > -EDGE) return size / 2 - half;
+    return 0;
+  };
+  return { x: along(minX, maxX, extent.x), z: along(minZ, maxZ, extent.z) };
 }
 
 /**

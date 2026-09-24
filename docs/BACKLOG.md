@@ -4,6 +4,57 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## Creatures and props that talk — done
+
+A creature placed in Combat mode can be given an **Interaction**: **Friendly** (it stands on
+nobody's side, and a click talks rather than swings) or **Threshold** (it fights until a blow
+leaves it at or under a share of its Hit Points, then turns friendly, holds the fight and talks -
+once), with the conversation it opens. The conversation is an ordinary dialogue, bound to the
+creature as its `target`, so **Change sides** (`setAttitude`) in a reply or in a new **consequence
+node** - a node that runs effects, **Run code** among them, and walks on unseen - turns it back.
+Hostile with no fight running starts its encounter's fight; the last hostile talked round ends the
+fight ("Nobody is left who wants a fight."). A prop can be given the **Interaction** function.
+Runtime in `game/interaction.ts`; the edit in `editor/creature-edits.ts`; the node in
+`DialogueGraph.tsx`. Unit: `game/interaction.test.ts`, `dialogue/consequence.test.ts`,
+`editor/interaction-edits.test.ts`; e2e: `tests/e2e/interaction.spec.ts`.
+
+`demo-scene.ts` and `EffectList.tsx` had no room: `cuesFrom` moved to `game/cues.ts` and the
+effect list's pure helpers to `ui/effect-list-parts.ts`, which took `EffectList.tsx` under the
+ceiling and off the pin table.
+
+## The rock and the campfire retire, and the campfire burns — done
+
+The author made `rock-prop` and `camp-fire-prop` (the campfire a ring of the rock's stones round a
+fire of its own), and the procedural rock and campfire retired for them as the other eleven did:
+`RETIRED_MODELS` renames them as a project opens, and the demo and the default project name the new
+ones. The pillar is the last prop the procedural library draws. The campfire's flames glow the way
+the torches' do; `add-flame-glow.mjs` now leaves a texture with no fire in it without a map, so the
+stones got none. The author also re-exported the banner taller. All three arrived as 2048-pixel
+JPEGs, 6 to 14 MB, and went through `shrink-textures.mjs` to 0.9, 2.2 and 1.4 MB; the originals are
+in the ignored `public/models/heavy/`.
+
+## The torches burn — done
+
+The flames of the standing and wall torches glow, in the files themselves: an emissive map made from
+each one's own texture (`tools/add-flame-glow.mjs`), where only the fire-coloured pixels - bright,
+saturated, red-orange to yellow - count, pushed to 3 with KHR_materials_emissive_strength. A lit
+flame already looked bright; the difference is a flame in shadow or a dark room, which stays alight
+now. It throws no light on the room - that would be a point light per torch, which is the engine's
+to add, not the file's.
+
+## A party start is the character who begins there — done
+
+The editor drew every party start as the same blue pawn. It draws the character now: party member
+`i` on start `i % starts`, in the look play gives them (the sheet's own model, else the class's), with
+the party's gold rim. A start the party does not fill is still the pawn, so it can be seen and carried.
+`SceneView.setAuthoring` takes the party as a third argument, and draws what it drew again when one
+of its models lands after the room was drawn - before this a creature placed while its model was
+loading stayed the magenta placeholder until the next edit.
+
+Taking hold of a start with the Inspector's Select (`EditorController.selectedStart`) shows that
+character's sheet in the side pane - the Party panel's own form, `ui/SheetEditor.tsx`, which both now
+render, so the two cannot drift apart. The workspaces' **Close** is a back arrow before the title.
+
 ## The models leave git for Hugging Face — done
 
 Every model version ever committed was in every clone: 60 of them, about 490 MB, where the
@@ -50,8 +101,11 @@ ground was turned greener - its browns towards its own grass, hue only - the dir
 to the dirt showing through the grass (`recolour-model.mjs match`: 66% of its saturation, 91% of its
 lightness, a degree of hue) and then greyed further (`saturation 0.7`), which read better beside it
 on the board than a lighter dirt did, and a `grass-dirt` kind, drawn with the grass as it was before, sits
-between the two. The demo's `low-wall` kind is gone: its five pieces are half-height stone walls,
-the engine's `barrier`, in the demo and in the default project. The stone wall's texture, olive and
+between the two. The demo's `low-wall` kind is gone: its five pieces are stone walls a block high,
+the engine's `barrier`, in the demo and in the default project. A wall's model stands on the inside
+of the edge its rotation faces, as its box does (`edgeOf` in `render/tile-models.ts`), not through the
+middle of the tile - though a wall a block high still bars its whole tile to a walk, since the grid
+bars tiles and not edges. The stone wall's texture, olive and
 dark beside every other stone, was matched to the stone block and stairs (`match-all`) and set a
 little darker, so the walls sit in the vault as its own stone.
 
@@ -76,8 +130,8 @@ rather than the dummy.
   `public/models`, not code, so they must be committed with it: a clone without them draws every
   one as the placeholder. They arrived at 7 to 9 MB each - lighten them (`tools/lighten-model.py`)
   before they go in.
-- **A test that needs a prop the procedural library draws** uses `rock`, `banner`, `campfire` or
-  `pillar`: a node test has no asset library, so an imported model is only ever `missing()` there.
+- **A test that needs a prop the procedural library draws** uses `pillar`, the only one left: a
+  node test has no asset library, so an imported model is only ever `missing()` there.
 
 ## Objects are props that do something — done
 

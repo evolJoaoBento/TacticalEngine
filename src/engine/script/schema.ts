@@ -743,6 +743,13 @@ export const effectSchema = z.discriminatedUnion('kind', [
    */
   z.object({ kind: z.literal('slay'), target: targetSelectorSchema.optional() }),
   /**
+   * A creature changes sides: `friendly` stands it on nobody's side, so no fight counts it and a
+   * click on it talks; `hostile` puts it back among the adversaries, and starts its fight when
+   * none is running. Whom it means is the one a conversation is with unless `target` says.
+   * A party member is never turned.
+   */
+  z.object({ kind: z.literal('setAttitude'), attitude: z.enum(['friendly', 'hostile']), target: targetSelectorSchema.optional() }),
+  /**
    * A weapon attack as an effect — "make an attack with your primary weapon".
    * A full action roll: Light or Shadow, the spotlight, a critical's extra dice.
    */

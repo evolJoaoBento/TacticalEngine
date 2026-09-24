@@ -24,6 +24,7 @@ const PATHS = {
   redo: 'M15 7l5 5-5 5M20 12H9a5 5 0 000 10h2',
   search: 'M11 5a6 6 0 110 12 6 6 0 010-12zM20 20l-4.5-4.5',
   close: 'M6 6l12 12M18 6L6 18',
+  back: 'M10 5l-7 7 7 7M3 12h18',
 } as const;
 
 /** Every name `Icon` can draw. A typo here is a compile error, not a blank icon. */

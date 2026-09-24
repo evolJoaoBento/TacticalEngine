@@ -96,8 +96,18 @@ script that opened it carry on. Both runners keep cumulative journals, so both n
 node's effects — a reply that starts a conversation nobody wrote is an error before it is a
 crash.
 
-**Still open:** nothing. A dialogue is written in the editor's Dialogue panel — nodes, replies,
-conditions and the effects a reply runs — and validated with everything else.
+**Talking to creatures (2026-09-24).** A placed creature can carry a conversation
+(`game/interaction.ts`): friendly ones stand on nobody's side and are talked to when clicked; a
+threshold one stops the fight when a blow leaves it low enough, turns friendly, and talks - once.
+A consequence node does rather than says, and **Change sides** (`setAttitude`) turns a creature
+friendly or hostile from a reply or a consequence; a conversation opened with a creature binds it
+as the target throughout. A prop can be given the **Interaction** function, which opens one.
+
+**Still open:** a reply's own effects are still JSON-only in the graph (a consequence node is the
+editor's way to the same thing), and a `startEncounter` effect only marks an encounter started -
+it does not begin the fight the way a trigger or a creature turned hostile does. A dialogue is
+otherwise written in the editor's graph — nodes, replies, conditions, consequences — and validated
+with everything else.
 
 ### ~~3. The turn loop~~ — done
 
@@ -374,9 +384,9 @@ while it is waiting for its other end.
 
 **Carrying (2026-09-15).** Anything placed in a room -- a creature, a prop, an object, a party start --
 is taken by a press on what is drawn rather than the ground behind it, carried hanging from the
-pointer, and dropped on release as one undo step. The editor draws party starts, and objects with no
-model, as marks. Objects are still drawn nowhere in play, and a prop or a party start has no panel
-of its own in the Inspector.
+pointer, and dropped on release as one undo step. The editor draws a party start as the character who
+begins there (a pawn when nobody does), and an object with no model as a mark. Taking hold of a start
+in the Inspector shows that character's sheet, the Party panel's own form.
 
 **Sparse construction (2026-09-11).** Terrain now offers stackable block, floor, wall and stair
 pieces, three materials, quarter turns, a level plane with placement preview, square brushes,

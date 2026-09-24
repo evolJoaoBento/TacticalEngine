@@ -86,11 +86,16 @@ export class ClickRipples {
     return this.live.length;
   }
 
-  /** Move every ripple on by `dt` seconds, and let go of the ones that are over. */
+  /**
+   * Move every ripple on by `dt` seconds, and let go of the ones that are over. A tenth of a second
+   * at most a frame: a hitch longer than a ripple's whole life would otherwise make and end one
+   * between two frames, and the click would go unanswered just when the game was slowest to answer.
+   */
   tick(dt: number): void {
+    const step = Math.min(dt, 0.1);
     for (let i = this.live.length - 1; i >= 0; i--) {
       const ripple = this.live[i]!;
-      ripple.elapsed += dt;
+      ripple.elapsed += step;
       if (ripple.elapsed >= (ripple.kind === 'go' ? RIPPLE_SECONDS : REFUSAL_SECONDS)) {
         this.live.splice(i, 1);
         this.finish(ripple);

@@ -19,6 +19,7 @@ import { evaluateOptional } from '../script/conditions';
 import type { CheckRequest, Effect } from '../script/effects';
 import {
   ScriptRunner,
+  type ScriptRunnerOptions,
   type JournalEntry,
   type Prompt,
   type Response,
@@ -87,11 +88,17 @@ export class DialogueRunner {
   /** The choice whose check is being rolled, so its outcome can route. */
   private pendingCheck: DialogueChoice | null = null;
   private ended = false;
+  /**
+   * Who the conversation is with, handed to every script inside it: a creature talked to is the
+   * `target` of its replies and consequences, so "turn them hostile" knows whom it means.
+   */
+  private readonly with: ScriptRunnerOptions;
 
-  constructor(dialogue: Dialogue, world: ScriptWorld, rng: Rng) {
+  constructor(dialogue: Dialogue, world: ScriptWorld, rng: Rng, options: Pick<ScriptRunnerOptions, 'targets' | 'subject'> = {}) {
     this.dialogue = dialogue;
     this.world = world;
     this.rng = rng;
+    this.with = options;
     const byId = new Map<string, DialogueNode>();
     for (const node of dialogue.nodes) {
       if (byId.has(node.id)) throw new Error(`dialogue "${dialogue.id}" repeats node "${node.id}"`);
@@ -158,6 +165,8 @@ export class DialogueRunner {
    * would silently swallow every closing line.
    */
   private afterEnter(node: DialogueNode): DialogueStatus {
+    // A consequence is done, not said: on to what follows it, or the end.
+    if (node.kind === 'consequence') return node.goto === undefined ? this.finish() : this.enter(node.goto);
     const options = this.visibleChoices(node);
     if (options.length === 0 && node.goto !== undefined) return this.enter(node.goto);
     return this.talking(node);
@@ -182,7 +191,7 @@ export class DialogueRunner {
   ): DialogueStatus {
     this.pendingGoto = goto;
     this.enteringNode = enteringNode ?? null;
-    this.script = new ScriptRunner(this.world, this.rng);
+    this.script = new ScriptRunner(this.world, this.rng, this.with);
     return this.afterScript(this.script.run(effects));
   }
 

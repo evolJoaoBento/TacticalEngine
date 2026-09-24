@@ -201,6 +201,8 @@ export interface ScriptWorld extends ConditionContext {
   revive(target: TargetSelector, bindings?: TargetBindings): string[];
   /** Killed outright, past the veil. Returns who actually went. */
   slay(target: TargetSelector, bindings?: TargetBindings): string[];
+  /** A creature onto nobody's side, or back among the adversaries. False when it changed nothing. */
+  setAttitude(id: string, attitude: 'friendly' | 'hostile'): boolean;
   proficiencyOf(id: string): number;
   /** Tokens sitting on a card this creature holds. */
   tokensOn(id: string, ability: string): number;
@@ -310,6 +312,7 @@ export type JournalEntry =
   | { kind: 'encounter'; id: string; change: 'started' | 'ended'; intro?: string }
   | { kind: 'goto'; scene: string }
   | { kind: 'dialogue'; dialogue: string }
+  | { kind: 'attitude'; id: string; attitude: 'friendly' | 'hostile' }
   | { kind: 'quest'; quest: string; change: 'started' | 'completed' | 'failed' }
   | { kind: 'levelUp'; level: number }
   /** `id` is set when the Light went to someone other than the actor. */
@@ -1228,6 +1231,12 @@ export class ScriptRunner {
       case 'slay': {
         const killed = world.slay(effect.target ?? { kind: 'hit' }, this.bindings());
         for (const id of killed) this.journal.push({ kind: 'slain', id });
+        return null;
+      }
+      case 'setAttitude': {
+        for (const id of this.resolve(effect.target ?? { kind: 'target' })) {
+          if (world.setAttitude(id, effect.attitude)) this.journal.push({ kind: 'attitude', id, attitude: effect.attitude });
+        }
         return null;
       }
       case 'revive': {

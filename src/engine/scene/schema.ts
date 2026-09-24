@@ -116,6 +116,29 @@ export const interactableSchema = z.object({
 });
 export type Interactable = z.infer<typeof interactableSchema>;
 
+/**
+ * What a placed creature does besides fight: a conversation, and when it is had.
+ *
+ * - `friendly`: it stands up on nobody's side, and a click on it talks rather than swings. The
+ *   conversation can turn it hostile (the `setAttitude` effect), which starts its fight.
+ * - `threshold`: it stands up hostile, and the first time a blow leaves it with `percent` of its
+ *   Hit Points or fewer, it stops: it turns friendly, the fight holds, and the conversation opens.
+ *   Whatever the conversation leaves it as it stays - hostile again rejoins the fight - and the
+ *   threshold never fires twice.
+ *
+ * Absent is neither: an ordinary creature, which is the "none" of the editor.
+ */
+export const adversaryInteractionSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('friendly'), dialogue: contentIdSchema }),
+  z.object({
+    kind: z.literal('threshold'),
+    dialogue: contentIdSchema,
+    /** Of its Hit Points, whole per cent: at or under this many left, it stops to talk. */
+    percent: z.number().int().min(1).max(99).default(50),
+  }),
+]);
+export type AdversaryInteraction = z.infer<typeof adversaryInteractionSchema>;
+
 /** One adversary placed in a scene, referring to imported adversary content. */
 export const adversaryPlacementSchema = z.object({
   id: contentIdSchema,
@@ -131,6 +154,8 @@ export const adversaryPlacementSchema = z.object({
    * failing that the adversary's own id.
    */
   model: z.string().min(1).optional(),
+  /** A conversation it can be talked into or out of a fight with. */
+  interaction: adversaryInteractionSchema.optional(),
 });
 export type AdversaryPlacement = z.infer<typeof adversaryPlacementSchema>;
 

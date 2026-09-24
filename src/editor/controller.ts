@@ -221,6 +221,17 @@ export class EditorController {
    * through `selectedDeco`, which checks it still names a prop before answering.
    */
   selectedProp: number | null = null;
+  /**
+   * The piece of building Select last took hold of, by its key in `buildingTiles`: what the Z
+   * ladder raises and lowers while Select is in hand. Followed when it moves, since its key is its
+   * place; read through `selectedPieceTile`, which checks it is still there.
+   */
+  selectedPiece: string | null = null;
+  /**
+   * The party start Select last took hold of, by its index in `scene.spawns`: whose sheet the
+   * Inspector shows. Read through `selectedStart`, which checks the start is still there.
+   */
+  selectedSpawn: number | null = null;
   /** The remix whose settings are in hand, when the strip's pick came from one. */
   pickedPreset: string | null = null;
   /**
@@ -338,6 +349,8 @@ export class EditorController {
     this.selected = null;
     this.selectedAdversary = null;
     this.selectedProp = null;
+    this.selectedPiece = null;
+    this.selectedSpawn = null;
   }
 
   set<K extends keyof EditorToolState>(key: K, value: EditorToolState[K]): void {
@@ -547,6 +560,10 @@ export class EditorController {
         // hold of anything else lets go of it, so the panel never shows a prop nobody chose.
         const prop = held?.kind === 'prop' ? Number(held.key) : null;
         const next = held?.kind === 'object' ? held.key : null;
+        // And a piece taken hold of is the one the ladder works on until something else is. The panel
+        // is drawn again after every press, so that alone is no change the board has to hear about.
+        this.selectedPiece = held?.kind === 'piece' ? held.key : null;
+        this.selectedSpawn = held?.kind === 'spawn' ? Number(held.key) : null;
         if (next === this.selected && prop === this.selectedProp) return 'none';
         this.selected = next;
         this.selectedProp = prop;
@@ -827,7 +844,9 @@ export class EditorController {
   private landPiece(held: Carry): void {
     const level = this.state.buildLevel;
     const quarter = held.rotation === undefined ? undefined : ((Math.round(held.rotation / (Math.PI / 2)) % 4) + 4) % 4;
-    if (!isBuildZ(level) || !this.session.run(new MovePiece(this.sceneId, held.key, { x: held.to.x, y: held.to.y, level }, quarter))) return;
+    const move = new MovePiece(this.sceneId, held.key, { x: held.to.x, y: held.to.y, level }, quarter);
+    if (!isBuildZ(level) || !this.session.run(move)) return;
+    if (this.selectedPiece === held.key) this.selectedPiece = move.landedKey;
     if (held.piece?.tile !== undefined) this.strokeReach = { minX: held.to.x, minY: held.to.y, maxX: held.to.x, maxY: held.to.y };
     this.onChange('terrain');
   }
@@ -999,6 +1018,50 @@ export class EditorController {
     if (this.selectedProp === null || deco === null) return false;
     const id = deco.id ?? this.newThingId(deco.model, deco.position);
     return this.runOnBoard(functionDeco(this.sceneId, this.selectedProp, fn === undefined ? undefined : structuredClone(fn), id));
+  }
+
+  /** The piece of building Select holds, if it is still there. */
+  /**
+   * The party start in hand, or null when none is or it has gone - taken away by the Party start
+   * tool, or undone. Party member `i` begins on start `i % starts`, as the table places them.
+   */
+  get selectedStart(): number | null {
+    const at = this.selectedSpawn;
+    return at !== null && at < this.scene.spawns.length ? at : null;
+  }
+
+  private get selectedPieceTile(): BuildingTile | null {
+    return this.selectedPiece === null ? null : this.scene.buildingTiles?.[this.selectedPiece] ?? null;
+  }
+
+  /** How high what Select holds stands - a prop's Z, a piece's level - or null with nothing held. */
+  get selectionLevel(): number | null {
+    const deco = this.selectedDeco;
+    if (deco !== null) return deco.position.z ?? 0;
+    return this.selectedPieceTile?.level ?? null;
+  }
+
+  /**
+   * The Z ladder with Select in hand: put what it holds at this height - a prop's Z, a piece of
+   * building's level - as one undoable edit. With nothing held it is the build plane, as for every
+   * other tool; and the plane goes with the thing either way, so the view follows the storey it
+   * now stands on. A prop at ground level says nothing about Z, as one placed there never did.
+   */
+  setSelectionLevel(z: number): boolean {
+    if (!isBuildZ(z)) return false;
+    this.setBuildLevel(z);
+    const deco = this.selectedDeco;
+    if (deco !== null && this.selectedProp !== null) {
+      const { z: _was, ...flat } = deco.position;
+      return this.runOnBoard(moveDeco(this.sceneId, this.selectedProp, z === 0 ? flat : { ...flat, z }), this.propChange(deco));
+    }
+    const piece = this.selectedPieceTile;
+    if (piece === null || this.selectedPiece === null) return false;
+    const move = new MovePiece(this.sceneId, this.selectedPiece, { x: piece.x, y: piece.y, level: z });
+    if (!this.session.run(move)) return false;
+    this.selectedPiece = move.landedKey;
+    this.onChange('terrain');
+    return true;
   }
 
   /** Draw the prop the panel is showing with another model. */

@@ -75,6 +75,11 @@ export interface EntityState {
    * written before death moves existed says.
    */
   dead?: boolean;
+  /**
+   * A creature whose conversation has already been had at its threshold (`AdversaryInteraction`),
+   * so a second blow under it does not stop the fight again. Absent on everyone else.
+   */
+  interacted?: boolean;
 }
 
 /** When a condition ends. The SRD's "temporary" plus the engine's scopes. */
@@ -130,6 +135,7 @@ export const sceneSnapshotSchema = z.object({
         .default({}),
       alive: z.boolean(),
       dead: z.boolean().optional(),
+      interacted: z.boolean().optional(),
     }),
   ),
   interactables: z.record(
@@ -241,6 +247,19 @@ export class SceneState {
 
   entitiesOf(faction: Faction): EntityState[] {
     return this.allEntities().filter((e) => e.faction === faction);
+  }
+
+  /**
+   * A creature onto nobody's side (`friendly`) or back among the adversaries (`hostile`). Every
+   * count of who is fighting reads `faction` as it goes, so the fight hears of it at once. A party
+   * member is never turned. False when nothing changed.
+   */
+  setAttitude(id: string, attitude: 'friendly' | 'hostile'): boolean {
+    const entity = this.entities.get(id);
+    const faction: Faction = attitude === 'friendly' ? 'neutral' : 'adversary';
+    if (entity === undefined || entity.faction === 'party' || entity.faction === faction) return false;
+    (entity as { faction: Faction }).faction = faction;
+    return true;
   }
 
   /** Put an entity down at a tile's centre, keeping the occupancy index in step. */
@@ -722,8 +741,9 @@ export function sceneStateFromScene(
             hitPoints: placement.hitPoints ?? definition.hitPoints,
             stress: definition.stress,
             ...(placement.model === undefined ? {} : { model: placement.model }),
-            // Bystanders are on nobody's side, so no fight counts them in or waits for them to fall.
-            ...(encounter.bystanders === true ? { faction: 'neutral' as const } : {}),
+            // Bystanders are on nobody's side, so no fight counts them in or waits for them to fall;
+            // nor is a creature that starts out friendly, until something turns it.
+            ...(encounter.bystanders === true || placement.interaction?.kind === 'friendly' ? { faction: 'neutral' as const } : {}),
           },
         ),
       );

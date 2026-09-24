@@ -10,8 +10,9 @@ import { useState } from 'preact/hooks';
 import { questSchema } from '../../engine/content/quests';
 import { addQuest, removeQuest, type EditorSession } from '../session';
 import { QuestEditor } from './QuestEditor';
+import { Icon } from './icons';
 
-/** The small text button every workspace closes with, styled like the other four's. */
+/** The back arrow every workspace returns to the board with, before its title, styled like the others'. */
 const CLOSE_BUTTON: Record<string, string | number> = {
   padding: '3px 8px',
   border: '1px solid var(--ph-line)',
@@ -36,10 +37,10 @@ export function QuestsWorkspace(props: {
     <div class="ph-workspace-panel" data-testid="quests-panel">
       <div class="ph-workspace-list" data-testid="quest-list">
         <div class="ph-row">
-          <strong style={{ flex: 1 }}>Quests</strong>
-          <button style={CLOSE_BUTTON} data-testid="close-quests" onClick={props.onClose}>
-            Close
+          <button style={CLOSE_BUTTON} data-testid="close-quests" onClick={props.onClose} aria-label="Back" title="Back to the board">
+            <Icon name="back" size={16} />
           </button>
+          <strong style={{ flex: 1 }}>Quests</strong>
         </div>
         {session.project.quests.map((q) => (
           <div key={q.id} class="ph-row">

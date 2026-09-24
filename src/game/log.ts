@@ -415,6 +415,10 @@ function describeEntry(
         text: `${who(entry.id)} reacts: ${entry.total} against ${entry.difficulty} — ${entry.success ? 'holds' : 'fails'}.`,
         tone: entry.success ? 'system' : 'success',
       };
+    case 'attitude':
+      return entry.attitude === 'friendly'
+        ? { text: `${who(entry.id)} lowers their guard.`, tone: 'good' }
+        : { text: `${who(entry.id)} turns on the party!`, tone: 'bad' };
     case 'refused':
       return { text: `That cannot happen: ${entry.reason}.`, tone: 'system' };
     case 'defended': {

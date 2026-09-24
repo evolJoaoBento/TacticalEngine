@@ -11,8 +11,9 @@ import { useEffect } from 'preact/hooks';
 import { modelAssetSchema, type ModelAsset } from '../../engine/render/assets';
 import { addAsset, removeAsset, updateAsset, type EditorSession } from '../session';
 import { memory } from '../model-memory';
+import { Icon } from './icons';
 
-/** The small text button every workspace closes with, styled like the other four's. */
+/** The back arrow every workspace returns to the board with, before its title, styled like the others'. */
 const CLOSE_BUTTON: Record<string, string | number> = {
   padding: '3px 8px',
   border: '1px solid var(--ph-line)',
@@ -132,11 +133,12 @@ export function ModelsWorkspace(props: {
   return (
     <div class="ph-workspace-panel" data-testid="models-panel">
       <div class="ph-workspace-body" data-testid="asset-list">
-        <div class="ph-row">
-          <strong style={{ flex: 1 }}>Models</strong>
-          <button style={CLOSE_BUTTON} data-testid="close-models" onClick={props.onClose}>
-            Close
+        {/* Pinned: the list scrolls under it, so Close is there however far down it is read. */}
+        <div class="ph-row ph-workspace-head">
+          <button style={CLOSE_BUTTON} data-testid="close-models" onClick={props.onClose} aria-label="Back" title="Back to the board">
+            <Icon name="back" size={16} />
           </button>
+          <strong style={{ flex: 1 }}>Models</strong>
         </div>
 
         {session.project.assets.map((asset) => {
@@ -170,7 +172,7 @@ export function ModelsWorkspace(props: {
                   class="ph-mini"
                   data-testid={`asset-reset-${asset.id}`}
                   title="Put scale, rotation and offsets back to what the file itself says"
-                  onClick={() => edit(asset.id, { scale: 1, groundOffset: 0, rotationY: 0, offsetX: 0, offsetY: 0 })}
+                  onClick={() => edit(asset.id, { scale: 1, groundOffset: 0, rotationY: 0, offsetX: 0, offsetY: 0, pivot: undefined })}
                 >
                   Reset
                 </button>
@@ -271,6 +273,21 @@ export function ModelsWorkspace(props: {
                     }}
                   />
                 </label>
+              </div>
+
+              <div class="ph-row">
+                <label class="ph-heading" style={{ ...FIELD, flexDirection: 'row', alignItems: 'center', gap: '6px' }} title="Seated: centred on the base it stands on, feet on the tile, whatever origin the file has. Own pivot: the file's origin goes on the middle of the tile, as its maker placed it.">
+                  <input
+                    type="checkbox"
+                    data-testid={`asset-pivot-${asset.id}`}
+                    checked={asset.pivot === 'file'}
+                    onChange={(e) => edit(asset.id, { pivot: e.currentTarget.checked ? 'file' : undefined })}
+                  />
+                  Use the model's own pivot
+                </label>
+                <span class="ph-note" style={{ margin: 0 }}>
+                  {asset.pivot === 'file' ? "Held where the file's origin is." : 'Seated on its base, centred on the tile.'}
+                </span>
               </div>
 
               <div class="ph-row">

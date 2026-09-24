@@ -19,7 +19,7 @@ function old() {
       spawns: [{ x: 0, y: 0 }],
       decos: [
         { model: 'pine', position: { x: 1, y: 0 }, rotation: 0 },
-        { model: 'rock', position: { x: 1, y: 1 }, rotation: 0 },
+        { model: 'pillar', position: { x: 1, y: 1 }, rotation: 0 },
       ],
       interactables: [{ id: 'gate', kind: 'door', position: { x: 0, y: 1 }, model: 'door' }],
       encounters: [{ id: 'e', name: '', adversaries: [{ id: 'a', adversary: 'husk', position: { x: 1, y: 1 }, model: 'dummy' }], triggerCells: [], startsOnTrigger: true }],
@@ -37,12 +37,13 @@ describe('retired models', () => {
       expect(drawn.has(retired), retired).toBe(false);
       expect(now).toMatch(/-prop$/);
     }
-    expect(Object.keys(RETIRED_MODELS).sort()).toEqual(['banner', 'barrel', 'brazier', 'cart', 'chest', 'crate', 'deadTree', 'door', 'dummy', 'pine', 'portal']);
+    expect(Object.keys(RETIRED_MODELS).sort()).toEqual(['banner', 'barrel', 'brazier', 'campfire', 'cart', 'chest', 'crate', 'deadTree', 'door', 'dummy', 'pine', 'portal', 'rock']);
   });
 
   it('gives the replacement for a retired name and leaves any other name alone', () => {
     expect(currentModel('pine')).toBe('tree-prop');
-    expect(currentModel('rock')).toBe('rock');
+    expect(currentModel('rock')).toBe('rock-prop');
+    expect(currentModel('pillar')).toBe('pillar');
     // Not fooled by what every object has.
     expect(currentModel('toString')).toBe('toString');
   });
@@ -51,7 +52,7 @@ describe('retired models', () => {
     const project = old();
     expect(renameRetiredModels(project)).toBe(6);
     const room = project.scenes[0]!;
-    expect(room.decos.map((deco) => deco.model)).toEqual(['tree-prop', 'rock']);
+    expect(room.decos.map((deco) => deco.model)).toEqual(['tree-prop', 'pillar']);
     expect(room.interactables[0]!.model).toBe('door-prop');
     expect(room.encounters[0]!.adversaries[0]!.model).toBe('training-dummy-prop');
     expect(project.propPresets![0]!.model).toBe('crate-prop');

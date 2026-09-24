@@ -39,6 +39,14 @@ export const modelAssetSchema = z.object({
   offsetX: z.number().default(0),
   offsetY: z.number().default(0),
   /**
+   * Where the model is held from. Left out - `base` - it is seated: centred over the base it stands
+   * on, its feet on the tile (`seatOnTile`), whatever origin the file was exported around. `file`
+   * keeps the file's own pivot instead: its origin goes on the middle of the tile at ground level,
+   * so a model built to stand off its centre - a wall against one edge, a sign on a post - stands
+   * where its maker put it. Scale, rotation, ground offset and the nudges apply either way.
+   */
+  pivot: z.enum(['base', 'file']).optional(),
+  /**
    * Which of the file's clips plays for each state, by the clip's own name.
    * Left out, the first clip in the file loops as the idle and nothing else
    * changes what plays - which is what every sample set does. A state with
@@ -76,7 +84,8 @@ export type ModelAsset = z.infer<typeof modelAssetSchema>;
  * middle of that slice is what goes over the middle of the tile.
  *
  * Call it once the rotation and the scale are on, because it measures what it is
- * given. A model with nothing in it to measure is left where it is.
+ * given. A model with nothing in it to measure is left where it is. A model whose
+ * asset says `pivot: 'file'` is never seated: its own origin is where it stands.
  */
 export function seatOnTile(model: Object3D): void {
   const box = new Box3().setFromObject(model);

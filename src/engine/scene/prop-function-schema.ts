@@ -44,6 +44,12 @@ const doorFunction = z.object({ kind: z.literal('door') });
 const portalFunction = z.object({ kind: z.literal('portal'), pair: z.string().trim().default('') });
 
 /**
+ * A conversation: using it opens the dialogue, whose replies and consequence nodes do the rest.
+ * Empty while it is being set up, and an empty one says nothing.
+ */
+const interactionFunction = z.object({ kind: z.literal('interaction'), dialogue: z.string().trim().default('') });
+
+/**
  * A check before anything happens: roll the trait against the difficulty, then run one function on
  * a success and another on a failure. Neither has to be anything.
  */
@@ -88,6 +94,7 @@ export const propFunctionSchema = z.discriminatedUnion('kind', [
   containerFunction,
   doorFunction,
   portalFunction,
+  interactionFunction,
   trappedFunction,
   scriptFunction,
 ]);

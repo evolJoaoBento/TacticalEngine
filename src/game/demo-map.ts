@@ -176,8 +176,8 @@ function woods(at: (x: number, y: number) => Tile, decos: Deco[]): void {
   const standing: readonly (readonly [string, number, number])[] = [
     ['tree-prop', 12, 20], ['tree-prop', 27, 19], ['tree-prop', 36, 30], ['tree-prop', 2, 26],
     ['withering-tree-prop', 15, 28], ['withering-tree-prop', 31, 29], ['withering-tree-prop', 24, 17],
-    ['rock', 11, 25], ['rock', 25, 22], ['rock', 38, 19], ['rock', 17, 30], ['rock', 5, 19],
-    ['campfire', 4, 22], ['cart-prop', 2, 21], ['crate-prop', 3, 24], ['barrel-prop', 5, 25], ['withering-tree-prop', 13, 24],
+    ['rock-prop', 11, 25], ['rock-prop', 25, 22], ['rock-prop', 38, 19], ['rock-prop', 17, 30], ['rock-prop', 5, 19],
+    ['camp-fire-prop', 4, 22], ['cart-prop', 2, 21], ['crate-prop', 3, 24], ['barrel-prop', 5, 25], ['withering-tree-prop', 13, 24],
   ];
   for (const [type, x, y] of standing) {
     const tile = at(x, y);

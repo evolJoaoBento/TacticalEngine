@@ -931,6 +931,7 @@ function validateScene(scene: SceneDoc, context: Context, problems: Problem[]): 
       else if (holders.length < 2) add('warning', `Portal "${name}" has no other end: no other portal has the pair id "${pair}".`, deco.id);
     }
     if (findFunction(deco.function, 'portal')?.pair === '') add('warning', `Portal "${name}" has no pair id, so it leads nowhere.`, deco.id);
+    if (findFunction(deco.function, 'interaction')?.dialogue === '') add('warning', `"${name}" is an interaction with no conversation picked, so using it says nothing.`, deco.id);
   }
 
   // --- decos --------------------------------------------------------------
@@ -994,6 +995,10 @@ function validateScene(scene: SceneDoc, context: Context, problems: Problem[]): 
         !context.options.knownAdversaries.has(placement.adversary)
       ) {
         add('error', `"${placement.id}" uses adversary "${placement.adversary}", which has no stat block.`, placement.id);
+      }
+      const talk = placement.interaction;
+      if (talk !== undefined && !context.project.dialogues.some((d) => d.id === talk.dialogue)) {
+        add('error', `"${placement.id}" talks with conversation "${talk.dialogue}", which does not exist.`, placement.id);
       }
     }
   }
@@ -1221,6 +1226,11 @@ function checkDialogues(
     }
     for (const stranded of unreachableNodes(dialogue)) {
       add('warning', `Conversation "${dialogue.id}" has a node nothing reaches: "${stranded}".`, dialogue.id);
+    }
+    for (const node of dialogue.nodes) {
+      if (node.kind === 'consequence' && (node.onEnter ?? []).length === 0) {
+        add('warning', `Conversation "${dialogue.id}" has a consequence that does nothing: "${node.id}".`, dialogue.id);
+      }
     }
 
     // Everything a reply or an entered node can do, including inside a branch,

@@ -22,10 +22,13 @@ export interface TriggerHit {
 /** Which encounter, if any, each trigger cell belongs to. */
 export class TriggerIndex {
   private readonly byTile = new Map<number, string>();
+  /** The creatures each encounter placed, to tell a fight from a room of friends. */
+  private readonly placed = new Map<string, readonly string[]>();
 
   constructor(scene: SceneDoc, grid: TileGrid) {
     for (const encounter of scene.encounters) {
       if (!encounter.startsOnTrigger) continue;
+      this.placed.set(encounter.id, encounter.adversaries.map((placement) => placement.id));
       for (const cell of encounter.triggerCells) {
         const tile = grid.indexOf(cell.x, cell.y);
         // The first encounter to claim a cell keeps it; overlapping triggers are
@@ -57,6 +60,10 @@ export class TriggerIndex {
       if (encounter === null) continue;
       const status = state.encounter(encounter);
       if (status.triggered || status.started || status.ended) continue;
+      // Every creature it placed is standing on nobody's side - friendly, or talked round - so
+      // there is nobody to fight, and stepping here wakes nothing. One turned hostile wakes it.
+      const placed = this.placed.get(encounter) ?? [];
+      if (placed.length > 0 && placed.every((id) => state.entity(id)?.faction === 'neutral')) continue;
       return { encounter, tile };
     }
     return null;

@@ -215,6 +215,11 @@ export class SceneView {
   private hoverTile: number | null = null;
   private lastObjects: readonly Interactable[] = [];
   private readonly authoredCreatures: Group[] = [];
+  /**
+   * What the editor last drew and the models it drew them with, so a model that lands after the
+   * room was drawn - a party start or a creature stood in for by the placeholder - is drawn again.
+   */
+  private lastAuthoring: { args: Parameters<SceneView['setAuthoring']>; models: Set<string> } | null = null;
   /** Party starts and objects, drawn only while authoring (`authoring-marks.ts`). */
   private readonly marks: Group[] = [];
   /** What the editor's pointer carries: lifted, swinging, landing. */
@@ -228,6 +233,8 @@ export class SceneView {
   private stopListening: (() => void) | null = null;
   /** Which model id each token and deco was drawn from, so a late asset can find them. */
   private readonly tokenModels = new Map<string, string>();
+  /** The side each token's rim was drawn for: a creature talked round is drawn again in its new colour. */
+  private readonly tokenFactions = new Map<string, string>();
   private lastDecos: readonly Deco[] = [];
   private lastState: SceneState | null = null;
   /** One mixer per animated clone, advanced by `tick`. */
@@ -499,7 +506,7 @@ export class SceneView {
       // What an entity is drawn with can change under it — a creature re-skinned in
       // the editor — and the token standing there was built from the old id.
       const wanted = this.drawnModel(this.modelForEntity(entity), entity);
-      if (this.tokens.has(entity.id) && this.tokenModels.get(entity.id) !== wanted) this.dropToken(entity.id);
+      if (this.tokens.has(entity.id) && (this.tokenModels.get(entity.id) !== wanted || this.tokenFactions.get(entity.id) !== entity.faction)) this.dropToken(entity.id);
       let token = this.tokens.get(entity.id);
       // A move waiting on a roll that is still being read: the token stays put, what it was
       // handed stays queued, and it goes when the card is accepted.
@@ -520,6 +527,7 @@ export class SceneView {
         token.group.name = `token:${entity.id}`;
         this.tokens.set(entity.id, token);
         this.tokenModels.set(entity.id, wanted);
+        this.tokenFactions.set(entity.id, entity.faction);
         this.root.add(token.group);
         // Built dim, so whoever is already selected - or already under the pointer - has to
         // be given their colour back. A token is rebuilt when its file lands, too.
@@ -571,6 +579,7 @@ export class SceneView {
       this.clipSets.delete(token.group);
       this.tokens.delete(id);
       this.tokenModels.delete(id);
+      this.tokenFactions.delete(id);
       this.tokenSpots.delete(id);
       this.tokenStanding.delete(id);
       this.glides.delete(id);
@@ -753,7 +762,7 @@ export class SceneView {
     clone.rotation.y = spec.rotationY;
     // Seated like everything else the room stands up: feet on the tile, centred over
     // it, and then nudged by however much the asset says it should stand off centre.
-    seatOnTile(clone);
+    if (spec.pivot !== 'file') seatOnTile(clone); // or held where the file's own origin is
     clone.position.x += spec.offsetX * this.layout.tileSize;
     clone.position.z += spec.offsetY * this.layout.tileSize;
     // A file with clips plays one on a loop - the one the asset names as its
@@ -791,7 +800,7 @@ export class SceneView {
     // drawn round it by `syncTokens` instead.
     return {
       group,
-      spec: { ...placeholderSpec, id: modelId, groundOffset: spec.groundOffset },
+      spec: { ...placeholderSpec, id: modelId, groundOffset: spec.groundOffset, ...(spec.pivot === 'file' ? { pivot: 'file' as const } : {}) },
       named: new Map(),
       hooks: new Map(),
     };
@@ -844,6 +853,7 @@ export class SceneView {
     }
     this.tokens.delete(entityId);
     this.tokenModels.delete(entityId);
+    this.tokenFactions.delete(entityId);
     // No history, so the one that replaces it is put down rather than walking in.
     this.tokenSpots.delete(entityId);
     this.tokenStanding.delete(entityId);
@@ -859,6 +869,8 @@ export class SceneView {
     if (this.lastDecos.some((deco) => deco.model === id)) redraw = true;
     if (this.lastObjects.some((object) => object.model === id)) redraw = true;
     if (drawsTileModel(this.grid, id)) redraw = true;
+    // Not a redraw of the rest: the room's own drawing goes back up as it was, with the model in it.
+    if (this.lastAuthoring?.models.has(id) === true) this.setAuthoring(...this.lastAuthoring.args);
     if (!redraw) return;
     for (const [entityId, modelId] of [...this.tokenModels]) {
       if (modelId === id) this.dropToken(entityId);
@@ -1077,9 +1089,14 @@ export class SceneView {
   }
 
   /** Editor creatures come from authored placements, including ones outside the play grid. */
-  setAuthoring(scene: SceneDoc | null, models: Readonly<Record<string, string>> = {}): void {
+  setAuthoring(
+    scene: SceneDoc | null,
+    models: Readonly<Record<string, string>> = {},
+    party: readonly { model?: string | undefined; definition: string }[] = [],
+  ): void {
     this.takeDown(this.authoredCreatures, this.marks);
     this.authoring = scene !== null;
+    this.lastAuthoring = scene === null ? null : { args: [scene, models, party], models: new Set() };
     // The editor's viewport wears Blender's grey, like the panels round it; play keeps its dark ground.
     (this.scene.background as Color).set(this.authoring ? '#393939' : '#1b1520');
     if (this.authoring) {
@@ -1099,6 +1116,7 @@ export class SceneView {
       // with, and failing both the adversary's own id.
       const wanted = placement.model ?? models[placement.adversary] ?? placement.adversary;
       const modelId = this.drawnModel(wanted, { definition: placement.adversary, faction: 'adversary' });
+      this.lastAuthoring!.models.add(modelId);
       const model = this.build(modelId);
       // The editor is where creatures are placed, so it is the mode that most needs to say
       // which side one is on. Layer 0, which is why it shows here at all.
@@ -1112,7 +1130,22 @@ export class SceneView {
     // The bodies as well as the marks: an object drawn in play is drawn here too, or
     // the editor would show a room missing the very things a press takes hold of.
     this.setObjects(scene.interactables);
-    for (const [i, spawn] of scene.spawns.entries()) this.mark(buildModel(PARTY_START_MARK, this.resources).group, `spawn:${i}`, spawn);
+    // A party start is drawn as whoever begins on it - member `i` on start `i % starts`, the first
+    // of them if the party outnumbers the starts - wearing the look play gives them. A start nobody
+    // fills is the pawn, so it can still be seen and taken hold of.
+    for (const [i, spawn] of scene.spawns.entries()) {
+      const member = party[i];
+      if (member === undefined) {
+        this.mark(buildModel(PARTY_START_MARK, this.resources).group, `spawn:${i}`, spawn);
+        continue;
+      }
+      const modelId = this.drawnModel(member.model ?? models[member.definition] ?? member.definition, { definition: member.definition, faction: 'party' });
+      this.lastAuthoring!.models.add(modelId);
+      const body = this.build(modelId);
+      outline(body.group, modelId, DEFAULT_FACTION_COLORS.party!);
+      this.mark(body.group, `spawn:${i}`, spawn);
+      body.group.position.y += body.spec.groundOffset ?? 0;
+    }
     // An object with a body draws itself in both modes (`setObjects`); this is the
     // mark for one that has none, so an author still has something to take hold of.
     for (const object of scene.interactables) {

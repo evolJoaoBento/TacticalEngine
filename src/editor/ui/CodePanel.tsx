@@ -18,6 +18,7 @@ import { addCode, removeCode, updateCode } from '../session';
 import { codeSchema, type CodeDef } from '../../engine/scene/schema';
 import { compileHooks } from '../../engine/script/hooks';
 import { walkEffects } from '../../engine/script/schema';
+import { Icon } from './icons';
 
 export interface CodePanelProps {
   session: EditorSession;
@@ -96,7 +97,12 @@ export function CodePanel(props: CodePanelProps): preact.JSX.Element {
       }}
     >
       <div style={{ width: '180px', display: 'flex', flexDirection: 'column', gap: '4px', overflow: 'auto' }}>
-        <div style={{ fontWeight: 600, marginBottom: '2px' }}>Code</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
+          <button style={button(false)} data-testid="close-code" onClick={props.onClose} aria-label="Back" title="Back to the board">
+            <Icon name="back" size={16} />
+          </button>
+          <span style={{ fontWeight: 600 }}>Code</span>
+        </div>
         {session.project.code.map((entry) => (
           <div key={entry.id} style={{ display: 'flex', gap: '4px' }}>
             <button
@@ -137,11 +143,6 @@ export function CodePanel(props: CodePanelProps): preact.JSX.Element {
         >
           + Code
         </button>
-        <div style={{ marginTop: 'auto' }}>
-          <button style={button(false)} data-testid="close-code" onClick={props.onClose}>
-            Close
-          </button>
-        </div>
       </div>
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px', minWidth: 0 }}>

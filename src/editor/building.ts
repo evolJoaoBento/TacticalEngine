@@ -136,6 +136,11 @@ export class MovePiece implements Edit {
     this.mergeKey = BuildingEdit.placingKey(sceneId);
   }
 
+  /** The key the piece stands at once applied: its move can change it, a level being part of it. */
+  get landedKey(): string | null {
+    return this.toKey;
+  }
+
   /** What the piece becomes: where it was carried to, turned if it was turned. */
   private moved(piece: BuildingTile): BuildingTile {
     return { ...piece, x: this.to.x, y: this.to.y, level: this.to.level, rotation: this.rotation ?? piece.rotation };

@@ -19,8 +19,9 @@ import type { EditorController } from '../controller';
 import type { EditorSession } from '../session';
 import { defaultPalette, tileIdTaken, tilesStandingOn, type TileType } from '../terrain-edits';
 import { JumpRulesEditor } from './JumpRulesEditor';
+import { Icon } from './icons';
 
-/** The small text button every workspace closes with, styled like the other five's. */
+/** The back arrow every workspace returns to the board with, before its title, styled like the others'. */
 const CLOSE_BUTTON: Record<string, string | number> = {
   padding: '3px 8px',
   border: '1px solid var(--ph-line)',
@@ -92,10 +93,10 @@ export function TilesWorkspace(props: {
     <div class="ph-workspace-panel" data-testid="tiles-panel">
       <div class="ph-workspace-list" data-testid="tile-list">
         <div class="ph-row">
-          <strong style={{ flex: 1 }}>Tiles</strong>
-          <button style={CLOSE_BUTTON} data-testid="close-tiles" onClick={props.onClose}>
-            Close
+          <button style={CLOSE_BUTTON} data-testid="close-tiles" onClick={props.onClose} aria-label="Back" title="Back to the board">
+            <Icon name="back" size={16} />
           </button>
+          <strong style={{ flex: 1 }}>Tiles</strong>
         </div>
 
         {types.map((type) => (

@@ -539,3 +539,31 @@ test('a prop keeps its size, its solidity and its remixes when the project is sa
   const inside = stopped.x >= 5.5 && stopped.x <= 8.5 && stopped.y >= 19.5 && stopped.y <= 22.5;
   expect(inside, `walked into a reloaded solid prop at ${stopped.x},${stopped.y}`).toBe(false);
 });
+
+test('with Select in hand the ladder raises what it took hold of: a prop, as one undo step', async ({ page }) => {
+  await page.goto('/');
+  await page.waitForFunction(() => (window.__engine?.frames ?? 0) > 5);
+  await page.evaluate(() => window.__engine!.setMode('edit'));
+  await page.getByTestId('mode-terrain').click();
+  // A prop down on open ground, then Select from the rail, pressed on it.
+  const at = 20 * 44 + 6;
+  const count = await page.evaluate((tile) => {
+    const api = window.__engine!;
+    api.setTool('prop');
+    api.editAt(tile);
+    return api.propCount();
+  }, at);
+  await page.locator('[data-testid="tool-rail"] [data-tool="select"]').click();
+  await page.evaluate((tile) => window.__engine!.editAt(tile), at);
+
+  const height = page.getByTestId('placement-height');
+  await expect(height).toBeVisible();
+  // It reads the prop's own height, not the plane's.
+  await expect(height.getByLabel('Selected Z')).toHaveValue('0');
+  for (let i = 0; i < 4; i++) await height.getByRole('button', { name: 'Raise build level' }).click();
+  const z = (): Promise<number | undefined> => page.evaluate((n) => (JSON.parse(window.__engine!.exportProject()) as { scenes: { decos: { position: { z?: number } }[] }[] }).scenes[0]!.decos[n - 1]!.position.z, count);
+  expect(await z()).toBe(1);
+  await expect(height.getByLabel('Selected Z')).toHaveValue('1');
+  await page.locator('[data-testid="undo"]').click();
+  expect(await z()).toBe(0.75);
+});

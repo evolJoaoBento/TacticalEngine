@@ -34,6 +34,8 @@ export const parts = {
   showContents: (self: string): Effect => ({ kind: 'openContainer', interactable: self }),
   /** Send whoever used it to the other end of a pair. */
   teleport: (pair: string): Effect => ({ kind: 'teleport', pair }),
+  /** A conversation to open, or nothing while none is picked. */
+  talk: (dialogue: string): Effect[] => (dialogue === '' ? [] : [{ kind: 'startDialogue', dialogue }]),
   /** Dealt with: it will not do this again unless it is repeatable. */
   usedUp: (self: string): Effect => ({ kind: 'markUsed', interactable: self }),
   /** Roll a trait against a difficulty; one list on a success, one on a failure. */
@@ -119,6 +121,14 @@ export const PROP_FUNCTIONS: { readonly [K in PropFunctionKind]: PropFunctionDef
     opens: () => false,
     fresh: () => ({ kind: 'portal', pair: '' }),
   },
+  interaction: {
+    label: 'Interaction',
+    summary: 'Opens a conversation. Its replies, and its consequence nodes, decide what comes of it.',
+    object: (fn, _self, prop) => ({ kind: 'scripted', blocksMovement: prop.solid === true, repeatable: true, effects: parts.talk(fn.dialogue) }),
+    steps: (fn) => parts.talk(fn.dialogue),
+    opens: () => false,
+    fresh: () => ({ kind: 'interaction', dialogue: '' }),
+  },
   script: {
     label: 'Script',
     summary: 'Anything the engine can do, written out: effects, a check with its outcomes, a key.',
@@ -147,7 +157,7 @@ export function definitionOf<F extends PropFunction>(fn: F): PropFunctionDef<F> 
 }
 
 /** The functions in the order the editor offers them. Script last: it is the one to reach for when nothing else fits. */
-export const FUNCTION_KINDS: readonly PropFunctionKind[] = ['container', 'door', 'trapped', 'portal', 'script'];
+export const FUNCTION_KINDS: readonly PropFunctionKind[] = ['container', 'door', 'trapped', 'portal', 'interaction', 'script'];
 
 /** A prop that can be used: one with a function and the id its state is kept by. */
 export type UsableProp = Deco & { id: string; function: PropFunction };

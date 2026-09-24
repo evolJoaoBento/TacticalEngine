@@ -26,6 +26,7 @@ import { itemSchema, lootTableSchema, type ItemDef, type LootTable } from '../..
 import type { QuestDef } from '../../engine/content/quests';
 import type { ContentPack } from '../../engine/content/pack/import';
 import { EffectList } from './EffectList';
+import { Icon } from './icons';
 
 export interface ItemPanelProps {
   session: EditorSession;
@@ -139,7 +140,12 @@ export function ItemPanel(props: ItemPanelProps): preact.JSX.Element {
       }}
     >
       <div style={{ width: '180px', display: 'flex', flexDirection: 'column', gap: '4px', overflow: 'auto' }}>
-        <div style={{ fontWeight: 600, marginBottom: '2px' }}>Items</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
+          <button style={button(false)} data-testid="close-items" onClick={props.onClose} aria-label="Back" title="Back to the board">
+            <Icon name="back" size={16} />
+          </button>
+          <span style={{ fontWeight: 600 }}>Items</span>
+        </div>
         {session.project.items.map((entry) =>
           listButton(entry.id, entry.name, { kind: 'item', id: entry.id }, () => {
             if (!confirm(`Delete "${entry.name}"?`)) return;
@@ -190,12 +196,6 @@ export function ItemPanel(props: ItemPanelProps): preact.JSX.Element {
         >
           + Loot table
         </button>
-
-        <div style={{ marginTop: 'auto' }}>
-          <button style={button(false)} data-testid="close-items" onClick={props.onClose}>
-            Close
-          </button>
-        </div>
       </div>
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px', minWidth: 0, overflow: 'auto' }}>

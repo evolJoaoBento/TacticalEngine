@@ -11,6 +11,10 @@ import { ClickRipples, REFUSAL_SECONDS, RIPPLE_SECONDS, ripplesIn } from './clic
 
 const opacity = (mesh: Mesh): number => (mesh.material as MeshBasicMaterial).opacity;
 const ripples = (): ClickRipples => new ClickRipples(() => 1);
+/** Time passing as it does in play, a frame at a time, rather than in one leap a frame would never make. */
+const play = (tick: (dt: number) => void, seconds: number): void => {
+  for (let t = 0; t < seconds - 1e-9; t += 1 / 60) tick(Math.min(1 / 60, seconds - t));
+};
 
 describe('a ripple', () => {
   it('spreads and fades where it landed, the second ring a beat behind the first, and is gone at the end', () => {
@@ -24,16 +28,16 @@ describe('a ripple', () => {
     expect(group!.position.y).toBeGreaterThan(0.5);
     const [first, second] = ripplesIn(group!);
 
-    r.tick(RIPPLE_SECONDS * 0.1);
+    play((dt) => r.tick(dt), RIPPLE_SECONDS * 0.1);
     const early = { size: first!.scale.x, seen: opacity(first!) };
     // The second has not started yet.
     expect(opacity(second!)).toBe(0);
-    r.tick(RIPPLE_SECONDS * 0.4);
+    play((dt) => r.tick(dt), RIPPLE_SECONDS * 0.4);
     expect(first!.scale.x).toBeGreaterThan(early.size);
     expect(opacity(first!)).toBeLessThan(early.seen);
     expect(opacity(second!)).toBeGreaterThan(0);
 
-    r.tick(RIPPLE_SECONDS);
+    play((dt) => r.tick(dt), RIPPLE_SECONDS);
     expect(r.count).toBe(0);
     expect(r.group.children).toHaveLength(0);
   });
@@ -52,7 +56,17 @@ describe('a ripple', () => {
     // Side to side, not a spread: it went both ways about where it landed.
     expect(Math.min(...moved)).toBeLessThan(1);
     expect(Math.max(...moved)).toBeGreaterThan(1);
-    r.tick(REFUSAL_SECONDS);
+    play((dt) => r.tick(dt), REFUSAL_SECONDS);
+    expect(r.count).toBe(0);
+  });
+
+  it('outlives a frame longer than its whole life, so a hitch never swallows the answer to a click', () => {
+    const r = ripples();
+    r.add({ x: 0, y: 0, z: 0 }, 'go');
+    r.tick(5);
+    expect(r.count).toBe(1);
+    // And is gone in a handful of ordinary frames after.
+    for (let i = 0; i < 10; i++) r.tick(RIPPLE_SECONDS / 5);
     expect(r.count).toBe(0);
   });
 
@@ -76,7 +90,7 @@ describe('the view', () => {
     // The middle tile of a 5 by 3 room is the middle of the world.
     expect(group.position.x).toBeCloseTo(0, 6);
     expect(group.position.z).toBeCloseTo(0, 6);
-    view.tick(RIPPLE_SECONDS * 2);
+    play((dt) => view.tick(dt), RIPPLE_SECONDS * 2);
     expect(view.rippleCount).toBe(0);
     view.dispose();
   });

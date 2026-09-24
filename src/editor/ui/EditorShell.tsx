@@ -286,7 +286,7 @@ export function EditorShell(props: EditorShellProps): preact.JSX.Element {
   let body: preact.JSX.Element | preact.JSX.Element[] | null = null;
   if (workspace === null && openGraph === null) {
     if (mode === 'inspect') {
-      body = <InspectorSide session={session} controller={controller} ids={ids} onChange={bump} />;
+      body = <InspectorSide session={session} controller={controller} ids={ids} onChange={bump} characterContent={props.characterContent} models={[...props.knownModels].sort()} />;
     } else if (mode === 'terrain') {
       body = [
         <ToolRail key="rail" mode={mode} tools={TERRAIN_RAIL[controller.terrainTab]} current={tool} onTool={useTool} />,
@@ -438,7 +438,7 @@ export function EditorShell(props: EditorShellProps): preact.JSX.Element {
       {body}
       {openGraph !== null ? (
         <div class="ph-workspace">
-          <DialogueGraph session={session} dialogue={openGraph} {...ids} onClose={() => setGraph(null)} onChange={bump} />
+          <DialogueGraph session={session} dialogue={openGraph} {...ids} hookIds={hookIds} onClose={() => setGraph(null)} onChange={bump} />
         </div>
       ) : null}
       {workspaceBody === null ? null : <div class="ph-workspace">{workspaceBody}</div>}

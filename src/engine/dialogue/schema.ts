@@ -57,6 +57,12 @@ export const canvasPointSchema = z.object({ x: z.number(), y: z.number() });
 
 export const dialogueNodeSchema = z.object({
   id: z.string().min(1),
+  /**
+   * A `consequence` says nothing: it runs its `onEnter` - a script, a function, a creature turned
+   * friendly or hostile - and goes on to its `goto`, or ends the conversation. Absent is the
+   * ordinary node, which is said.
+   */
+  kind: z.literal('consequence').optional(),
   position: canvasPointSchema.optional(),
   lines: z.array(dialogueLineSchema).default([]),
   /** Run when the node is entered, before its lines are shown. */

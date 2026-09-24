@@ -37,7 +37,6 @@ const PINNED: Record<string, number> = {
   'src/editor/session.ts': 1631,
   'tests/fixtures/cards.ts': 1652,
   'src/editor/validate.test.ts': 1526,
-  'src/editor/ui/EffectList.tsx': 1521,
 };
 
 /** How far a pinned file may sit under its pin before the pin has to come down. */
