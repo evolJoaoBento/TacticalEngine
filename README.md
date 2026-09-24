@@ -15,8 +15,14 @@ writing any engine code.
 
 ```bash
 npm install
+npm run models     # the 3D models, from Hugging Face (about 80 MB)
 npm run dev        # http://127.0.0.1:8420
 ```
+
+The models are not in this repository: they live at
+[JunjiBento/tactical-engine-models](https://huggingface.co/JunjiBento/tactical-engine-models), and
+`models.lock.json` names the exact revision and every file's hash. `npm run models` downloads them
+into `public/models/` and checks each one; run it again after pulling a change to the list.
 
 That opens the default project, `projects/default.json`: six characters, woods leading into a
 vault, and adversaries waiting past the door. Change it in the editor and press `Ctrl+S` and the

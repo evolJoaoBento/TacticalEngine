@@ -14,6 +14,14 @@ Thumbs.db
 # tests/unit/licensing-boundary.test.ts.
 public/models/heavy/
 
+# The models themselves. They live in a Hugging Face repo, named with every file's size and hash in
+# models.lock.json, and `npm run models` brings them down into this folder: every version ever
+# committed stays in every clone, and they were nearly all of this repository's weight. Guarded by
+# tests/unit/models-lock.test.ts.
+public/models/*.glb
+public/models/*.gltf
+public/models/*.part
+
 # Card illustrations fetched by tools/download-card-art.mjs from a third-party
 # mirror. They are Critical Role artwork, NOT SRD content: the DPCGL licenses
 # the System Reference Document's text and mechanics and does not cover

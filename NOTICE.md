@@ -18,7 +18,9 @@ If not, see <https://www.gnu.org/licenses/>. The full text is in `LICENSE`.
 
 The project's own work, which is nearly all of it: the engine, the editor, the starter content
 pack, the models and art authored for it, the tests, the documentation, and the `legacy/` prototype
-this grew out of.
+this grew out of. The models are distributed from a Hugging Face repository,
+[JunjiBento/tactical-engine-models](https://huggingface.co/JunjiBento/tactical-engine-models), under
+the same licence; `models.lock.json` names them.
 
 ## What it does not cover
 

@@ -4,6 +4,36 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## The models leave git for Hugging Face — done
+
+Every model version ever committed was in every clone: 60 of them, about 490 MB, where the
+current set is 80. The models now live at `JunjiBento/tactical-engine-models` on Hugging Face,
+`models.lock.json` pins its revision and every file's size and SHA-256, and `npm run models`
+(`tools/fetch-models.mjs`) brings them into `public/models/`, where the game has always read them.
+The model files were purged from the git history with `git filter-repo`, and `main` and
+`play-mode-paper` were force-pushed; any clone from before that has to be cloned again.
+
+**Working rules this leaves:**
+
+- **A fresh clone runs `npm run models` before anything draws.** Without it the room is placeholders.
+  Unit tests do not need the files; the dev server and Playwright do.
+- **A model is added or changed on Hugging Face, then locked.** Shrink it (`shrink-textures.mjs`),
+  upload the folder with `hf upload`, run `tools/lock-models.mjs` with the revision the upload
+  printed, and commit `models.lock.json`. Never `git add` a `.glb`: `models-lock.test.ts` fails.
+- **The `hf` CLI is the Python `huggingface_hub` package** (`pip install --user huggingface_hub`);
+  its `hf.exe` is in the user Scripts folder, not on PATH. `hf auth login` signs it in through the
+  browser.
+
+## The models go on a diet — done
+
+The thirteen heaviest models - the dirt ground, Ganja and the roof stairs at 19 to 25 MB, and every
+new prop at 6 to 9 - were heavy in their maps, not their triangles: 2048-pixel PNGs and top-quality
+JPEGs. `tools/shrink-textures.mjs` re-encoded the maps as WebP at 2048 for colour and 1024 for the
+rest and left everything else byte for byte: 143 MB became 20, `public/models` 74 in all.
+
+**Working rule this leaves:** a model that arrives from outside goes through `shrink-textures.mjs`
+before it is committed. The repository keeps every byte it is ever handed.
+
 ## A click answers, the banner retires, and the portal glows — done
 
 A click on the ground that orders a walk now ripples there (`render/click-ripple.ts`), and one that

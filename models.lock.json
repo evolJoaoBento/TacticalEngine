@@ -1,0 +1,187 @@
+{
+  "repo": "JunjiBento/tactical-engine-models",
+  "repoType": "model",
+  "revision": "0a088a71b65ac0ba7eff30c27460cb3be05f0e87",
+  "files": [
+    {
+      "path": "Arty.glb",
+      "bytes": 3814928,
+      "sha256": "7adbe6f51ff71e50a0da8469042ff09011b47d88ba82ed04b16571f2b921f4ee"
+    },
+    {
+      "path": "bandit-archer.glb",
+      "bytes": 2564596,
+      "sha256": "26b2e08ad3a5f539d5d9e1964059ef13e6ce15543b9fc1b82f5d60c946820887"
+    },
+    {
+      "path": "bandit-captain.glb",
+      "bytes": 3001108,
+      "sha256": "ab88929dc3a1312dfba53e4a648f5f82056c995eea820dde891c09ac33924853"
+    },
+    {
+      "path": "bandit-cutter.glb",
+      "bytes": 2652012,
+      "sha256": "63b6cb90fbdad39e5291415aedab07bf1a5ed3b40617cd3b5be0c731e3ab1c8c"
+    },
+    {
+      "path": "banner-prop.glb",
+      "bytes": 1441508,
+      "sha256": "390076f5ef45548be5d208eb5d47b32e593f086c2dc8ad035457e63c6b501f88"
+    },
+    {
+      "path": "barrel-prop.glb",
+      "bytes": 1344952,
+      "sha256": "7b6577822fd8d1c44d1a5582213ad1e5fbd28e90241c2a1456c6149a244ece7a"
+    },
+    {
+      "path": "briar-wraith.glb",
+      "bytes": 3223112,
+      "sha256": "9baf40375661cc06980678c7f5760fc3dc6627abcefa4ec9ccade6a6af362068"
+    },
+    {
+      "path": "cart-prop.glb",
+      "bytes": 1759464,
+      "sha256": "1106ec25d7074e122e3bb2fc36fa7e5419ba4a6c43ff1d6d8cd30d26b5188c45"
+    },
+    {
+      "path": "chest-prop.glb",
+      "bytes": 1174996,
+      "sha256": "9dd09a730253409fa205b67ad6ca7f3fd00e87e83b1d6483e1b478a5ed0c53f3"
+    },
+    {
+      "path": "crate-prop.glb",
+      "bytes": 1184720,
+      "sha256": "1510efd72936e9c6d681278205f05b1e336a90d52222a65247ae406b53b26425"
+    },
+    {
+      "path": "dirt-ground.glb",
+      "bytes": 1543160,
+      "sha256": "3b48cef00a6d9e1baf55063afee629842acf974322968630c8a2e4b04dce606c"
+    },
+    {
+      "path": "door-prop.glb",
+      "bytes": 1429400,
+      "sha256": "7c15dffa986f69e4db5db309dfbe93f1b272d6a3957192c23d4a3c7685abb966"
+    },
+    {
+      "path": "fen-lurker.glb",
+      "bytes": 3160004,
+      "sha256": "907d6bbc744bc069a7035e8cb6bc824da2a70263ba2d4b8447fdeb7786453962"
+    },
+    {
+      "path": "Ganja.glb",
+      "bytes": 3013020,
+      "sha256": "9eaac7e6d9ca680318eb9b923bf8c150dbe77dddf1e04b16f17efc5c1382e847"
+    },
+    {
+      "path": "grass-dirt-ground.glb",
+      "bytes": 911344,
+      "sha256": "1c5e0fd04a076eaba85d9deaf6854ad136126c7338a7bcc0838c33766a4cf8f6"
+    },
+    {
+      "path": "grass-ground.glb",
+      "bytes": 933264,
+      "sha256": "8c575d4644c18e74618d3865e7ae4a4db8c184a30680c120cb4c9ec327884e0b"
+    },
+    {
+      "path": "grave-moth.glb",
+      "bytes": 3045912,
+      "sha256": "ccb9c77a6d9352654e95c72a2bedaa13dfb8d55b1cd949aa801a044f9eefc270"
+    },
+    {
+      "path": "hollow-knight.glb",
+      "bytes": 3228892,
+      "sha256": "4beba7931e642d1bbe7a9dbdbd035a66d3624d45d07f225529e69e8b6376e817"
+    },
+    {
+      "path": "Pint.glb",
+      "bytes": 3287784,
+      "sha256": "d635295de343897a8f0442439cfc3f0a531f236d850c62239788f10b077ab286"
+    },
+    {
+      "path": "portal-prop.glb",
+      "bytes": 1590988,
+      "sha256": "fa890aea351a8d11ce5d507f3eb33d1edbe1a169bad81ab080a1363a89e04ca4"
+    },
+    {
+      "path": "Quim.glb",
+      "bytes": 4124176,
+      "sha256": "a80fecc9b0f62cd9e3f50cb6728874f480d5f7d894bc429670e316c224c33ddb"
+    },
+    {
+      "path": "roof-stairs.glb",
+      "bytes": 966892,
+      "sha256": "cf486dd3490dabd71c61d445dd8ee9e547b5737ffe1970103ffa8eefa3b138b2"
+    },
+    {
+      "path": "rot-hound.glb",
+      "bytes": 2941080,
+      "sha256": "06b6b741a3794257b37b380aede9788b590c08eac568c9c1dcfce7e2d8a5ef8b"
+    },
+    {
+      "path": "Scarlet.glb",
+      "bytes": 4096204,
+      "sha256": "3b7f8953966b533fbb78aafd7662a25137db2a9d3eaa2ec931c8d7aa6493a0d5"
+    },
+    {
+      "path": "smooth-stone-block.glb",
+      "bytes": 1919088,
+      "sha256": "a0dd5564ba09b023b39ff8343c25e8b3e645466a9057d4dd9617c0686ad9afe8"
+    },
+    {
+      "path": "standing-torch-prop.glb",
+      "bytes": 1536300,
+      "sha256": "34351d71f71f32291346dd52b1d7f90235f6fac62f3cc55c8fbefa24559e3a97"
+    },
+    {
+      "path": "stone_golem.glb",
+      "bytes": 3231156,
+      "sha256": "16d88a954d185d661bb0533c99c7e09e2a2c3deeeeac4e961b1adf82cecc3d06"
+    },
+    {
+      "path": "stone-block.glb",
+      "bytes": 760916,
+      "sha256": "5a3dd09c29a05885789f4f19317410c754992ca61ea52a2c9e6d9e606c14a1eb"
+    },
+    {
+      "path": "stone-stairs.glb",
+      "bytes": 862072,
+      "sha256": "82490fdcc1f374ba78c41840c2dca97d18528386ff8d099e3fb63ef83f9fcc1f"
+    },
+    {
+      "path": "stone-wall.glb",
+      "bytes": 1695544,
+      "sha256": "61c03d8b99f339766629ae011c92a3d0c0400c28c0c59f18072f0ccd9b37b63d"
+    },
+    {
+      "path": "training-dummy-prop.glb",
+      "bytes": 1604748,
+      "sha256": "4a3d62be2352524b7164d65196165e6102ade210fccea03dfbbd4953cf56c4d8"
+    },
+    {
+      "path": "tree-prop.glb",
+      "bytes": 1433228,
+      "sha256": "4e61738d5a03f8cae30bfa362f602e3a291b9ec4aa948c29b67a20ba7153295d"
+    },
+    {
+      "path": "Violet.glb",
+      "bytes": 3917912,
+      "sha256": "2746a1f192d0ceae2f6775a684ba075f664e412cf19a0667015f512737dbe389"
+    },
+    {
+      "path": "wall-torch-prop.glb",
+      "bytes": 1105380,
+      "sha256": "b72ca8cfabb6dba923503c569106e644e76751529c8a13e674357ef08537a50a"
+    },
+    {
+      "path": "wandering-hedge-priest.glb",
+      "bytes": 3048672,
+      "sha256": "71a1fac4ece803c8c613483ea25dd9c0751ce4461a44828ec888a91597b167e2"
+    },
+    {
+      "path": "withering-tree-prop.glb",
+      "bytes": 2978008,
+      "sha256": "9b3b4bf4fd631afcd990fc9ffcc0e1284cfd9ef6364489753075be9cf8e1acfe"
+    }
+  ]
+}
