@@ -20,8 +20,8 @@ import { EDITOR_MODES, type EditorMode } from './editor/modes';
 import { EditorSession, addAsset, removeAsset, addScene, removeScene, renameScene, setStartScene, updateInteractable, importPack, packChanges, withoutUnusedEmbedded } from './editor/session';
 import { EditorShell } from './editor/ui/EditorShell';
 import { PlayPanel, TONE, type Inspection } from './game/ui/PlayPanel';
-import { containerView, hudMembers, journalEntries } from './game/ui/play-views';
-import { interactablesOf, takeFromContainer, withinReach } from './game/prop-use';
+import { carriedItems, containerView, hudMembers, journalEntries, talkingTo, talkingView } from './game/ui/play-views';
+import { closeContainer, interactablesOf, shopOpen, takeFromContainer, withinReach } from './game/prop-use';
 import { driveFloaters, type LiveFloater } from './game/ui/floaters';
 import { PartyHud } from './game/ui/PartyHud';
 import { bootDemo, saveDefault, savesToDefault } from './game/project-store';
@@ -64,7 +64,8 @@ import { AUTO_SLOT, QUICK_SLOT, SaveSlots, browserStore } from './game/save-slot
 import { CardArtImports, loadCardArtIndex, useCardArtImports, useCardArtIndex } from './game/ui/card-art';
 import { DEMO_REACH, answerPending, attackWithSelected, moveSelectedTo, endTurn, refreshWorld, syncPools, syncRoster, gatherParty, reachableInteractable, useSelectedOn, buildProjectScene, setSheet, type DemoScene } from './game/demo-scene';
 import { inCombat, scriptPending } from './game/moment';
-import { underPressureTiles, arrive, previewWalk, startEncounter, reachableTiles, JUMP_ID, aimedArc, jumpAim, jumpOffered, jumpReaches, jumpTo, closeToUse } from './game/movement';
+import { underPressureTiles, arrive, previewWalk, startEncounter, reachableTiles, JUMP_ID, aimedArc, jumpAim, jumpOffered, jumpReaches, jumpTo } from './game/movement';
+import { approachThenUse, arrived, cancelApproach } from './game/arrival';
 import { DEMO_ADVERSARY_ID, DEMO_MODELS, DEMO_CHARACTERS } from './game/demo-rules';
 import { travelTo, characterContentFor, adversaryDefsFor, syncAuthoredEncounters, takeGround } from './game/room';
 import { reachRings } from './game/circle';
@@ -875,7 +876,7 @@ const camera = new PerspectiveCamera(45, window.innerWidth / window.innerHeight,
  */
 const orbit = new OrbitCamera({ yaw: 0, pitch: 0.85 });
 /** Over whoever is selected, and whoever comes out of a portal (`game/camera-focus.ts`). */
-const focus = new CameraFocus(orbit, view, () => ({ grid: demo.grid, at: (id) => { const who = demo.state.entity(id); return who === undefined || who.tile === NO_TILE ? null : who.at; } }));
+const focus = new CameraFocus(orbit, view, () => ({ grid: demo.grid, at: (id) => { const who = demo.state.entity(id); return who === undefined || who.tile === NO_TILE ? null : who.at; }, talking: mode === 'play' ? talkingTo(demo) : null }));
 
 /** Put the camera over a coordinate the designer typed, at the level they are building on. */
 function navigateBuilding(x: number, y: number): void {
@@ -1138,11 +1139,9 @@ function objectOn(tile: number): string | null {
   return interactablesOf(demo.scene).find((i) => demo.state.interactableCovers(i.id).includes(tile))?.id ?? null;
 }
 
-/** Use a thing clicked on, walking up to it first when it is out of reach and this move gets there. */
+/** Use a thing clicked on, walking up to it first when it is out of reach - used once the walk ends (`game/arrival.ts`). */
 function approachAndUse(id: string): string {
-  const who = demo.party.selected;
-  if (who !== null && demo.pending === null && demo.ambush === null && demo.party.canCommand(who)) closeToUse(demo, who, id, DEMO_REACH);
-  return useSelectedOn(demo, id).status;
+  return approachThenUse(demo, id);
 }
 
 /** The living entity standing on a tile — a click on a token, not the ground. */
@@ -1266,23 +1265,6 @@ function aimingHighlights(armed: NonNullable<typeof targeting>): number[] {
   if (ability === undefined || aimed === undefined || !armed.tiles.includes(aimed)) return armed.tiles;
   const caught = shapeAt(demo, armed.characterId, ability, aimed).map(tileOf).filter((t) => t !== NO_TILE);
   return [...armed.tiles, ...caught];
-}
-
-/** The party's pack, joined to the project's item names - and worths, so a player knows what a thing fetches. */
-function carriedItems(): { id: string; name: string; quantity: number; wearable: boolean; usable: boolean; value?: number }[] {
-  const items = new Map(demo.project.items.map((item) => [item.id, item]));
-  return [...demo.scenario.items]
-    .filter(([, quantity]) => quantity > 0)
-    .map(([id, quantity]) => {
-      const item = items.get(id);
-      return {
-        id,
-        name: item?.name ?? id,
-        quantity,
-        wearable: (item?.kind === 'weapon' || item?.kind === 'armor') && item.contentId !== undefined,
-        usable: (item?.use.length ?? 0) > 0, ...(item?.value === undefined ? {} : { value: item.value }),
-      };
-    });
 }
 
 /**
@@ -1460,6 +1442,8 @@ function renderPlayPanel(): void {
           ? null
           : { abilityId: targeting.abilityId, name: targeting.name, ...(targeting.tiles === undefined ? {} : { spot: true }) },
       jump: jumpOffered(demo),
+      // While a conversation is open it takes the cards' place, and the keys and the cards step aside.
+      talking: talkingView(demo), onAnswer: (response: Response) => { answerPending(demo, response); refreshPlay(); },
       onUse: (id: string) => { if (id !== JUMP_ID) return beginAbility(id); targeting = jumpAim(demo); refreshPlay(); },
       onCancelTargeting: () => { targeting = null; refreshPlay(); },
       onPassToGm: () => {
@@ -1533,7 +1517,7 @@ function renderPlayPanel(): void {
         const tile = id === null ? NO_TILE : demo.state.entity(id)?.tile ?? NO_TILE;
         view.showCursor(tile);
       },
-      carried: carriedItems(),
+      carried: carriedItems(demo),
       pending: demo.pending,
       // One at a time, in the order they were rolled: a feature that catches the
       // whole party rolls several in one burst, and they queue.
@@ -1667,6 +1651,7 @@ function clickAt(event: PointerEvent): void {
   // A new order interrupts the walk in flight: whoever is still moving is put down where they have
   // got to, and everything below is measured from there, not from the tile the document moved them to.
   landWalkers(demo.party, view);
+  cancelApproach(demo); // a new order replaces what the walk in flight was for
   const occupant = lit !== null ? null : entityNear(spot) ?? [entityOn(tile)].find((id) => id !== demo.party.selected) ?? null;
   if (occupant !== null) {
     const entity = demo.state.entity(occupant)!;
@@ -1776,6 +1761,8 @@ canvas.addEventListener('pointerup', (event) => {
     drag = null;
     steering = null;
     if (wasClick && button === 0) clickAt(event);
+    // A right-click on the way to use something, or to talk to somebody, calls it off: they stop where they have got to.
+    if (wasClick && button === 2 && cancelApproach(demo)) { landWalkers(demo.party, view); refreshPlay(); return; }
     if (wasClick && button === 2) {
       // A still right-click puts down whatever was being aimed - a jump, a card - and otherwise looks at what is there.
       const tile = tileUnderPointer(event);
@@ -1849,6 +1836,9 @@ window.addEventListener('keydown', (event) => {
   if (event.key === 'Escape' && (inspecting !== null || targeting !== null || loadoutOpen !== null || restOpen)) {
     inspecting = targeting = loadoutOpen = null;
     restOpen = false;
+    refreshPlay();
+  } else if (event.key === 'Escape' && shopOpen(demo)) {
+    closeContainer(demo);
     refreshPlay();
   } else if (event.key === 'Tab') {
     event.preventDefault();
@@ -2008,6 +1998,7 @@ const state = {
   pathPoints: (): number => view.pathPointCount,
   attack: (id: string): boolean => {
     const result = attackWithSelected(demo, id);
+    arrived(demo); // a creature walked up to, to talk: the driver does not wait for the walk to be drawn
     refreshPlay();
     return result !== null && result.refused === null;
   },
@@ -2032,7 +2023,9 @@ const state = {
     return result.status;
   },
   approach: (id: string): string => {
-    const status = approachAndUse(id);
+    const first = approachAndUse(id);
+    // The driver does not wait for the walk to be drawn: what it was for happens now.
+    const status = first === 'walking' ? (arrived(demo), demo.pending === null ? 'done' : 'waiting') : first;
     refreshPlay();
     return status;
   },
@@ -2247,7 +2240,7 @@ const state = {
   dialogueNodes: (dialogue: string): string[] =>
     session.project.dialogues.find((d) => d.id === dialogue)?.nodes.map((n) => n.id) ?? [],
 
-  carried: (): { id: string; name: string; quantity: number }[] => carriedItems(),
+  carried: (): { id: string; name: string; quantity: number }[] => carriedItems(demo),
   inspect: (tile: number): { kind: string; id: string; name: string; facts: string[] } | null => {
     inspecting = inspectTile(tile);
     refreshPlay();
@@ -2433,7 +2426,8 @@ function frame(now = performance.now()): void {
   steerWalk(now);
   view.tick(dt);
   // The last token stops: the ambush the walk woke begins.
-  if (demo.ambush !== null && view.glidingCount === 0 && arrive(demo)) refreshPlay();
+  if (demo.ambush !== null && view.glidingCount === 0 && arrive(demo)) { cancelApproach(demo); refreshPlay(); } // a walk that woke a fight is not a walk to use something
+  if (demo.approaching !== null && view.glidingCount === 0 && arrived(demo)) refreshPlay(); // there: now what it was for
   followSelected(now);
   focus.tick();
   // The line is drawn from the figure, so a figure that is walking changes it even though the

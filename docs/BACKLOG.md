@@ -4,6 +4,62 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## A shop in the middle of the screen, and the party walks up together — done
+
+A shop's window opened in the play panel's stack on the right while its conversation went on
+beside it. Now it opens in the middle of the screen over everything, the room dimmed behind it
+(`ContainerWindow`, `shop-backdrop` in `hud.css`), and has to be closed - ✕ or Esc - before anything
+goes on: the conversation that opened it waits, its replies shut under "Close the shop to go on."
+(`TalkingView.held` from `talkingView`), and `answerPending` refuses a conversation's answer while a
+shop is open (`shopOpen` in `prop-use.ts`), the driver's included. The Loadout book is lifted above
+the dimming, and its binder opens over the shop. A chest's window is unchanged. And a walk up to
+talk to somebody, or to use a thing, brought only the one walking: `walkSelected` now brings the
+followers out of a fight, as any other walk does. Unit `game/shop.test.ts`, `game/arrival.test.ts`;
+e2e in `merchant.spec.ts` (the window centred, the replies shut, the loadout opened over it; the
+whole party down the trail to Tobin).
+
+## Walk first, then use: an interaction waits for its walk — done
+
+A click on a thing out of reach, or on somebody to talk to, walked the party there in the document
+and used the thing - or opened the conversation - in the same instant, while the tokens were still
+walking on screen. Now the interaction waits (`game/arrival.ts`): the walk is drawn, and only when
+the walkers have stopped does the chest open or the conversation begin. A right-click on the way
+calls it off - they stop where they have got to (`landWalkers`) and nothing happens - and so does any
+new order, or a walk that wakes an ambush. Headless nothing waits. Every thing that is used by a
+click goes this way: props of every function, and friendly creatures. Attacks already walk and swing
+as one action and are unchanged. Unit `game/arrival.test.ts`; e2e in `merchant.spec.ts` with real
+clicks: a click on Tobin across the map, and the same click called off by a right-click.
+
+## A conversation has the screen: bottom-centre, and the camera on who is talking — done
+
+A conversation now sits where the cards do, across the bottom (`game/ui/Conversation.tsx`, shown by
+`ActionBar` while `talking`): what is said on the left, the replies on the right. The Jump and Rest
+keys and the cards step aside for it; the Light and Shadow dice, the round and the Loadout stay. The
+camera is held on whoever is talked to - or the thing used - at its closest (`OrbitCamera.hold`,
+driven by `CameraFocus` off `talkingTo`): no zoom, no pan, no following the selected, but the angle
+still turns; the talk over, it goes back to where it was. `carriedItems` moved out of `main.ts` into
+`play-views.ts` to make the room. Unit `game/conversation-camera.test.ts`; e2e in `merchant.spec.ts`.
+
+## A camp where the pieces meet: Wren the bard, and Tobin's own rate — done
+
+The default project's camp now shows conversation, consequence and trade together. **Wren the
+Wandering Bard** (`traveling-bard.glb`, shrunk from 25.6 MB of PNG maps to 3.1, a `bard` stat block
+the project carries) sits by the fire beside Tobin. Her conversation offers **The Lost Verse**: a
+consequence node starts it; her songbook waits in a crate inside the vault (`crate-prop-15-14`);
+"We found your songbook." shows only once the quest is on and the book is carried, and a second
+consequence takes the book, ticks both objectives, completes the quest and pays 15 gold - gold to
+spend at Tobin's. Tobin buys back at **40%** now, and says so. Unit `tests/unit/default-camp.test.ts`
+plays it from the file; e2e in `merchant.spec.ts`.
+
+**Found on the way, still open:** a dialogue node with lines, a `goto` and no replies is walked
+straight through without its lines ever being shown (`DialogueRunner.afterEnter`, pinned by "walks
+through a node that only narrates") - so such a node's lines are lost. Wren's were given her replies
+instead; the Warden's "Then you know what I am owed" (`known`) is still never shown. Showing such a
+node with a Continue, as `advance()` already expects, is the fix, and changes what that test pins.
+Also: the driver's `answer({ kind: 'choose', index })` takes a reply's index among all of a node's
+replies, hidden ones included, so a spec picking by position among `dialogueOptions()` picks wrong
+once a reply is hidden - click the reply's button by name instead.
+
 ## Every side has its own colour: party white, friends green, stood-down yellow — done
 
 The line round a creature was gold for the party and grey for anybody on nobody's side, so a

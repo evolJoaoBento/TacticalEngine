@@ -221,11 +221,14 @@ function strikeTile(demo: Pick<DemoScene, 'grid' | 'state' | 'party' | 'encounte
   return best;
 }
 
-/** Walk the selected member to a tile, and tell the board the line they took. */
+/** Walk the selected member to a tile, the rest of the party behind them out of a fight, and tell the board the lines they took. */
 function walkSelected(demo: Pick<DemoScene, 'state' | 'sheets' | 'party' | 'motions' | 'world' | 'log' | 'encounter'>, id: string, tile: number, fighting: boolean): void {
   const walk = demo.party.walkTo(id, tile, fighting ? fightWalk(demo, id) : { inCombat: false });
   if (walk !== null && demo.world.clearCondition(id, 'prone')) note(demo, `${nameOf(demo, id)} gets up.`, fighting ? 'combat' : 'system');
-  if (walk !== null) demo.motions.push({ id, path: walk.path, route: walk.route });
+  if (walk === null) return;
+  demo.motions.push({ id, path: walk.path, route: walk.route });
+  // Out of a fight the rest of the party comes along, as on any other walk.
+  if (!fighting && walk.path.length > 1) for (const [follower, along] of demo.party.followAlong(id, walk.path, walk.route)) demo.motions.push({ id: follower, path: along.path, route: along.route });
 }
 
 /**

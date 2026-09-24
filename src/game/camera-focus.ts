@@ -26,9 +26,10 @@ export class CameraFocus {
   private afterWalk: string | null = null;
 
   constructor(
-    private readonly camera: Pick<OrbitCamera, 'follow'>,
+    private readonly camera: Pick<OrbitCamera, 'follow' | 'hold' | 'release' | 'held' | 'limits'>,
     private readonly view: FocusView,
-    private readonly world: () => { grid: TileGrid; at: (id: string) => Spot | null },
+    /** `talking`: where whoever a conversation is with stands, while one is open. */
+    private readonly world: () => { grid: TileGrid; at: (id: string) => Spot | null; talking?: Spot | null },
   ) {}
 
   /** Slide over where this member stands. False when they stand nowhere on the board. */
@@ -46,8 +47,15 @@ export class CameraFocus {
     this.tick();
   }
 
-  /** Each frame: the slide a portal was holding, when the walk it waited on is over. */
+  /**
+   * Each frame: a conversation's hold - the camera centred and drawn in on whoever is being talked
+   * to, kept there while it lasts, and let go when it ends - and the slide a portal was holding,
+   * when the walk it waited on is over.
+   */
   tick(): void {
+    const { grid, talking } = this.world();
+    if (talking !== undefined && talking !== null) this.camera.hold(spotToWorld(grid, talking, this.view.layout), this.camera.limits.minDistance);
+    else if (this.camera.held) this.camera.release();
     if (this.afterWalk === null || this.view.hasWalk(this.afterWalk)) return;
     const id = this.afterWalk;
     this.afterWalk = null;

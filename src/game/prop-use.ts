@@ -63,6 +63,12 @@ export function closeContainer(demo: Demo): void {
   opened.delete(demo);
 }
 
+/** Whether what is open is a shop: its window is over everything, and a conversation waits on it. */
+export function shopOpen(demo: Demo): boolean {
+  const id = openContainer(demo);
+  return id !== null && shopOf(demo, id) !== null;
+}
+
 /**
  * What is still inside a container: what was put in it, less what has been taken.
  *

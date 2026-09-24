@@ -75,6 +75,12 @@ export class OrbitCamera {
    * pulled back the camera is held above it, and it is handed back on the way in.
    */
   private wanted: number;
+  /**
+   * Where the camera was looking, and from how far, before something held it - a conversation, on
+   * whoever is being talked to. While held the camera turns but does not pan, zoom or follow;
+   * released, it goes back to this.
+   */
+  private before: { target: CameraPose['target']; distance: number } | null = null;
 
   constructor(pose: Partial<CameraPose> = {}, limits: CameraLimits = DEFAULT_LIMITS) {
     this.limits = limits;
@@ -112,6 +118,7 @@ export class OrbitCamera {
    * are world units along the camera's own right and forward-on-the-ground.
    */
   pan(right: number, forward: number): void {
+    if (this.before !== null) return;
     const sin = Math.sin(this.goal.yaw);
     const cos = Math.cos(this.goal.yaw);
     // The camera sits at +sin/+cos of the yaw from the target, so "forward" on
@@ -122,6 +129,7 @@ export class OrbitCamera {
 
   /** Move in or out. `factor > 1` moves away. */
   zoom(factor: number): void {
+    if (this.before !== null) return;
     this.goal.distance = clamp(this.goal.distance * factor, this.limits.minDistance, this.limits.maxDistance);
     this.seat();
   }
@@ -155,6 +163,7 @@ export class OrbitCamera {
    * step. Angle and distance are untouched. Returns whether it moved.
    */
   follow(point: { x: number; z: number }, slack: number): boolean {
+    if (this.before !== null) return false;
     const dx = point.x - this.goal.target.x;
     const dz = point.z - this.goal.target.z;
     const away = Math.hypot(dx, dz);
@@ -163,6 +172,32 @@ export class OrbitCamera {
     this.goal.target.x += dx * pull;
     this.goal.target.z += dz * pull;
     return true;
+  }
+
+  /**
+   * Hold the camera on a point from a distance: centred there and drawn in, and kept - pan, zoom
+   * and follow do nothing until `release` - while the angle stays the player's to turn. Held again
+   * while held, it moves to the new point and still goes back to where it was first.
+   */
+  hold(target: CameraPose['target'], distance: number): void {
+    if (this.before === null) this.before = { target: { ...this.goal.target }, distance: this.goal.distance };
+    this.goal.target = { ...target };
+    this.goal.distance = clamp(distance, this.limits.minDistance, this.limits.maxDistance);
+    this.seat();
+  }
+
+  /** Let go of a hold: back to where the camera was looking, and from how far. Nothing if not held. */
+  release(): void {
+    if (this.before === null) return;
+    this.goal.target = this.before.target;
+    this.goal.distance = this.before.distance;
+    this.before = null;
+    this.seat();
+  }
+
+  /** Whether something is holding the camera. */
+  get held(): boolean {
+    return this.before !== null;
   }
 
   /** Jump the drawn pose to the goal, skipping the easing. */

@@ -2,7 +2,8 @@
  * Buying (`game/shop.ts`): a merchant's conversation opens his shop, the window lists what he sells
  * with its price, and buying pays from the party pack - refused when it cannot pay, a line with a
  * count sold out for good, across a save. A prop with the Shop function sells the same way. And
- * he buys back what he sells, for half his price.
+ * he buys back what he sells, for half his price. A conversation that opened his shop waits until it
+ * is closed.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -16,7 +17,8 @@ import { EditorSession, addAdversary, addDeco, addDialogue, addEncounter, addIte
 import { FIXTURE_ADVERSARIES, FIXTURE_FOE } from '../../tests/fixtures/adversaries';
 import { answerPending, attackWithSelected, buildProjectScene, useSelectedOn, type DemoScene } from './demo-scene';
 import { scriptPending } from './moment';
-import { containerContents, openContainer, takeFromContainer } from './prop-use';
+import { closeContainer, containerContents, openContainer, takeFromContainer } from './prop-use';
+import { talkingView } from './ui/play-views';
 import { buyBackPrice, offerFor, sellTo, sellables, shopOf } from './shop';
 
 const KARA = characterSheetSchema.parse(
@@ -111,6 +113,23 @@ describe("a merchant's shop", () => {
     expect(takeFromContainer(demo, 'tobin', 'shield')).toBe(false);
     demo.state.restore(JSON.parse(JSON.stringify(demo.state.snapshot())));
     expect(containerContents(demo, 'tobin').map((line) => line.item)).toEqual(['draught']);
+  });
+});
+
+describe('a conversation that opened a shop', () => {
+  it('waits for the shop to be closed before it goes on', () => {
+    const demo = room();
+    browse(demo);
+    expect(openContainer(demo)).toBe('tobin');
+    // Still talking, on the line after the wares - held, and nothing answers it.
+    expect(talkingView(demo)).toMatchObject({ lines: [{ text: 'Safe roads.' }], held: 'Close the shop to go on.' });
+    expect(answerPending(demo, { kind: 'continue' }).status).toBe('refused');
+    expect(demo.pending).not.toBeNull();
+
+    closeContainer(demo);
+    expect(talkingView(demo)?.held).toBeUndefined();
+    answerPending(demo, { kind: 'continue' });
+    expect(demo.pending).toBeNull();
   });
 });
 

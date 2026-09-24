@@ -14,6 +14,8 @@
  * why, and this lays it out. The look is `hud.css`.
  */
 
+import type { Response } from '../../engine/script/runner';
+import { Conversation, type TalkingView } from './Conversation';
 import { useState } from 'preact/hooks';
 import type { AbilityView } from '../demo-abilities';
 import { CardArtwork } from './CardFace';
@@ -43,6 +45,12 @@ export interface ActionBarProps {
   targeting: { abilityId: string; name: string; spot?: boolean } | null;
   /** Whether the selected character is offered a jump: somebody who can act, in a project that has jumping. */
   jump?: boolean;
+  /**
+   * The conversation being had, if one is: it takes the cards' place along the bottom, and the
+   * Jump and Rest keys and the cards step aside for it. The Light, the Shadow and the Loadout stay.
+   */
+  talking?: TalkingView | null;
+  onAnswer?: (response: Response) => void;
   onUse: (abilityId: string) => void;
   onCancelTargeting: () => void;
   onPassToGm: () => void;
@@ -250,6 +258,9 @@ export function ActionBar(props: ActionBarProps): preact.JSX.Element | null {
             <em className="pool-round">{props.round === null ? 'Exploring' : `Round ${props.round}`}</em>
           </div>
         )}
+        {props.talking !== undefined && props.talking !== null ? (
+          <Conversation view={props.talking} onAnswer={(response) => props.onAnswer?.(response)} />
+        ) : (<>
         {/* The keys, side by side next to the Light: what the body does, as the hand is what the cards do. */}
         <div className="hand-keys">
           {props.jump === true ? <JumpButton armed={armed?.abilityId === JUMP_ID} off={gmTurn} onJump={() => (armed?.abilityId === JUMP_ID ? props.onCancelTargeting() : props.onUse(JUMP_ID))} /> : null}
@@ -311,6 +322,7 @@ export function ActionBar(props: ActionBarProps): preact.JSX.Element | null {
             );
           })}
         </div>
+        </>)}
 
         <div className="hand-verbs">
           {props.fighting ? (

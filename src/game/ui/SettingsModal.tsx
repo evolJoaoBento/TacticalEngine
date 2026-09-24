@@ -26,7 +26,7 @@ import { onUserSettings, setUserSetting, userSettingSections, userSettings, type
 /**
  * What Escape already closes when it is on the page. While any of these is, the key is not ours:
  * the loadout binder, a rest being chosen, a card or a jump being aimed, the facts about a
- * creature, a roll being asked for or read, a level being taken, a conversation.
+ * creature, a roll being asked for or read, a level being taken, a conversation, a shop.
  */
 export const ESCAPE_IS_TAKEN = [
   '[data-testid="loadout-backdrop"]',
@@ -36,6 +36,7 @@ export const ESCAPE_IS_TAKEN = [
   '.roll-backdrop',
   '[data-testid="level-up"]',
   '[data-testid="dialogue"]',
+  '[data-testid="shop-backdrop"]',
 ].join(',');
 
 /** Whether an Escape pressed now belongs to something else on the page. */

@@ -47,7 +47,7 @@ switches between play and edit at any time.
 | Left drag | Walk the selected character towards the pointer in play; orbit the camera in the editor. Turning the view in play is the **middle** drag | Drag with the current tool — erase, raise and lower follow the pointer; the placer puts one piece where it is clicked |
 | Middle drag | Orbit the camera | Orbit the camera |
 | Right drag | Pan the camera | Pan the camera |
-| Right click (still) | Inspect what is under the pointer: a card with a character's pools, Evasion and gear, an adversary's tier, role, Difficulty and the cards its stat block prints, or an object's kind, state and the roll it asks for | — |
+| Right click (still) | Inspect what is under the pointer: a card with a character's pools, Evasion and gear, an adversary's tier, role, Difficulty and the cards its stat block prints, or an object's kind, state and the roll it asks for. On the way to use something or talk to somebody, it calls that off instead: whoever is walking stops where they have got to, and nothing is used or said | — |
 | `Escape` | Close the inspect card | — |
 | Mouse wheel | Zoom | Zoom; with `Ctrl` held and a placing tool in hand, a quarter tile of build level a notch |
 | `W A S D` / arrow keys | Pan (held; smooth) | — |
@@ -95,8 +95,7 @@ Q/E) are ignored while a text field has focus; the other keys are not (see Limit
   - **Carried**: the party's shared pack, with counts (×N) and what each thing is worth. A weapon or armor item that points
     at SRD gear shows an **Equip** button.
   - **Log**: the narrative log, most recent twelve lines, coloured by tone (see tones in §4).
-  - **Conversation**: speaker-tagged lines and reply buttons when a conversation is open;
-    a **Continue** button when a node has no replies.
+  - The conversation itself is not here: it is along the bottom, where the cards are (below).
   - **Roll prompt**: "Roll finesse +2" / **Step back** when a script is waiting on a roll;
     a list of option buttons when a script asks for a choice.
   - **Use what is in reach**: shown when the selected character stands next to an object.
@@ -377,8 +376,12 @@ them; a domain filter puts them away, since none of them has a domain.
 
 Stand next to the object (one tile, diagonals count) and either click it or press **Use what
 is in reach**. Clicking one that is further off walks the selected character up to the nearest tile
-it is in reach from, and uses it from there - out of a fight anywhere the floor goes, in a fight
-only as far as the turn's move, the same as a click on an adversary walks up to swing. When nowhere
+it is in reach from, and uses it from there once the walk has ended - a chest opens, a door swings,
+a conversation begins only when they are standing there; the same for a click on somebody to talk
+to. Out of a fight the rest of the party walks up behind them, as on any other walk; in a fight
+they go alone. A right-click on the way, or a new order, calls it off: they stop where they have got to, and
+nothing is used or said. Out of a fight they walk anywhere the floor goes, in a fight only as far
+as the turn's move, the same as a click on an adversary walks up to swing. When nowhere
 they could walk is in reach of it, nobody moves and it reads "It is out of reach." Using something in a fight spends that
 character's action ("There is no time — you have acted."). An object that needs a key the party
 lacks prints its locked text. Otherwise its roll-free effects run, then its check, if any, asks
@@ -399,7 +402,12 @@ the party travels there and arrives beside it.
 
 ### Conversations
 
-A conversation shows its lines and the replies you may give. A reply can be hidden until the
+A conversation takes the place of the cards along the bottom of the screen - what is said on the
+left, the replies on the right - and the Jump and Rest keys and the cards step aside until it ends;
+the Light, the Shadow, the round and the Loadout stay. The camera centres and draws in on whoever
+(or whatever) you are talking to and is held there: the wheel does not zoom and a drag does not pan,
+but you can still turn it (Q / E, or a drag with the left or middle button). When the conversation
+ends the camera goes back to where it was looking. A conversation shows its lines and the replies you may give. A reply can be hidden until the
 party knows something, shown but greyed ("Not available"), cost a roll (the roll prompt appears
 inside the conversation), or end the conversation. A node's lines are also written to the log.
 Everything else — walking, using, saving, levelling — waits until the conversation ends.
@@ -447,13 +455,19 @@ each thing with its price and a **Buy** button, and a line saying how much the p
 is paid in ("You have 20 gold."). Buying takes the price out of the shared pack and puts the thing
 in it ("Quim buys Healing Draught for 6 gold."); a Buy the party cannot afford is greyed out, and a
 thing a shop has only so many of is gone once they are bought - still gone after a save. The window
-stays open while the conversation that opened it goes on, and shuts when the party walks away from
-the seller. **Selling:** the window's **Sell** list is what the party carries that the seller will
+opens in the middle of the screen, over everything, with the room dimmed behind it, and has to be
+closed - its ✕, or Esc - before anything else goes on: the conversation that opened it waits, its
+replies greyed under "Close the shop to go on.", and the board cannot be clicked through it. The
+**Loadout** book stays above the dimming, so the party's cards can still be looked at mid-shop.
+**Selling:** the window's **Sell** list is what the party carries that the seller will
 buy, and what it pays ("Sell · 3 gold") - its share of its own price for something it sells, which
 goes back on its shelf if it had only so many, and of an item's worth for anything else. The share
 is half unless the shop says otherwise: a fence may pay a quarter, a temple the whole worth. Always
 rounded down, never nothing; a key, a quest's token, the coin itself - anything without a worth -
-it will not buy. In the default project a husk carapace fetches 2 gold, a longsword 7. The
+it will not buy. In the default project Tobin pays four in ten (a husk carapace fetches 1 gold, a
+longsword 6), and says so; beside him **Wren the Wandering Bard** gives the party a quest, The Lost
+Verse - her songbook, in a crate inside the vault - and pays 15 gold for it through a consequence
+in her conversation: conversation, consequence and trade in one camp. The
 **Carried** list says what each thing is worth ("Healing draught · worth 6"), so a player knows what
 it will fetch before walking up to anybody. In the default project Tobin the Pedlar sits by the
 camp fire south of the vault, and the camp's crate holds 20 gold to spend with him.

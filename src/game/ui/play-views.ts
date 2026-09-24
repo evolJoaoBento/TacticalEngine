@@ -14,9 +14,12 @@ import { inCombat } from '../moment';
 import { characterContentFor } from '../room';
 import type { HudMember } from './PartyHud';
 import type { JournalQuest, OpenContainer } from './PlayPanel';
-import { closeContainer, containerContents, openContainer, takeFromContainer } from '../prop-use';
+import { closeContainer, containerContents, openContainer, shopOpen, takeFromContainer } from '../prop-use';
 import { nameOf } from '../log';
 import { purse, sellTo, sellables, shopOf } from '../shop';
+import { interactablesOf } from '../../engine/scene/prop-functions';
+import type { Spot } from '../../engine/grid/grid';
+import type { TalkingView } from './Conversation';
 
 /** The journal: every quest the party has been given, joined to its words. */
 export function journalEntries(demo: DemoScene): JournalQuest[] {
@@ -106,4 +109,46 @@ export function containerView(demo: DemoScene, reach: (id: string) => boolean, r
       refresh();
     },
   };
+}
+
+/** The party's pack, joined to the project's item names - and worths, so a player knows what a thing fetches. */
+export function carriedItems(demo: Pick<DemoScene, 'project' | 'scenario'>): { id: string; name: string; quantity: number; wearable: boolean; usable: boolean; value?: number }[] {
+  const items = new Map(demo.project.items.map((item) => [item.id, item]));
+  return [...demo.scenario.items]
+    .filter(([, quantity]) => quantity > 0)
+    .map(([id, quantity]) => {
+      const item = items.get(id);
+      return {
+        id,
+        name: item?.name ?? id,
+        quantity,
+        wearable: (item?.kind === 'weapon' || item?.kind === 'armor') && item.contentId !== undefined,
+        usable: (item?.use.length ?? 0) > 0,
+        ...(item?.value === undefined ? {} : { value: item.value }),
+      };
+    });
+}
+
+/**
+ * The conversation on screen, if one is: what is being said and what can be answered - held, the
+ * replies shut, while a shop it opened is still open.
+ */
+export function talkingView(demo: DemoScene): TalkingView | null {
+  const pending = demo.pending;
+  const view = pending !== null && pending.kind === 'script' ? (pending.dialogue?.view ?? null) : null;
+  return view === null || !shopOpen(demo) ? view : { ...view, held: 'Close the shop to go on.' };
+}
+
+/**
+ * Where whoever the party is talking to stands, while a conversation is open: the creature it is
+ * with, or the thing that was used to open it. The camera is held there (`CameraFocus`). Null when
+ * nothing is being said, or it was opened by something that stands nowhere - an item in the pack.
+ */
+export function talkingTo(demo: Pick<DemoScene, 'pending' | 'state' | 'scene' | 'grid'>): Spot | null {
+  const pending = demo.pending;
+  if (pending === null || pending.kind !== 'script' || pending.dialogue === null) return null;
+  if (pending.with !== undefined) return demo.state.entity(pending.with)?.at ?? null;
+  if (pending.interactable === null) return null;
+  const thing = interactablesOf(demo.scene).find((object) => object.id === pending.interactable);
+  return thing === undefined ? null : demo.grid.spotOf(demo.grid.indexOf(thing.position.x, thing.position.y));
 }

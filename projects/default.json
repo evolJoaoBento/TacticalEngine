@@ -4590,8 +4590,23 @@
                       "price": 18,
                       "count": 1
                     }
-                  ]
+                  ],
+                  "buysAt": 40
                 }
+              }
+            },
+            {
+              "id": "wren",
+              "adversary": "bard",
+              "position": {
+                "x": 5,
+                "y": 21
+              },
+              "name": "Wren the Wandering Bard",
+              "model": "traveling-bard",
+              "interaction": {
+                "kind": "friendly",
+                "dialogue": "the-bard"
               }
             }
           ]
@@ -4700,7 +4715,17 @@
             "x": 15,
             "y": 14
           },
-          "rotation": 0
+          "rotation": 0,
+          "id": "crate-prop-15-14",
+          "function": {
+            "kind": "container",
+            "items": [
+              {
+                "item": "wrens-songbook",
+                "count": 1
+              }
+            ]
+          }
         },
         {
           "model": "barrel-prop",
@@ -21942,7 +21967,7 @@
           "lines": [
             {
               "speaker": "Tobin",
-              "text": "Take your time. Everything is honest. Mostly."
+              "text": "Take your time. Everything is honest. Mostly. And I buy, too - four in ten of what a thing is worth, which is generous, this far from a town."
             }
           ],
           "choices": [
@@ -21981,6 +22006,384 @@
             {
               "speaker": "Tobin",
               "text": "Mind the husks."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "the-bard",
+      "start": "hello",
+      "nodes": [
+        {
+          "id": "hello",
+          "lines": [
+            {
+              "speaker": "Wren",
+              "text": "Travellers! Sit, sit. You have the look of people about to do something foolish in that vault."
+            }
+          ],
+          "choices": [
+            {
+              "text": "Who are you?",
+              "goto": "who"
+            },
+            {
+              "text": "Is something wrong?",
+              "available": {
+                "kind": "quest",
+                "quest": "the-lost-verse",
+                "status": "inactive"
+              },
+              "goto": "trouble"
+            },
+            {
+              "text": "We found your songbook.",
+              "available": {
+                "kind": "all",
+                "of": [
+                  {
+                    "kind": "quest",
+                    "quest": "the-lost-verse",
+                    "status": "active"
+                  },
+                  {
+                    "kind": "hasItem",
+                    "item": "wrens-songbook"
+                  }
+                ]
+              },
+              "goto": "returned"
+            },
+            {
+              "text": "What of the pedlar?",
+              "goto": "tobin"
+            },
+            {
+              "text": "Farewell.",
+              "goto": "bye"
+            }
+          ]
+        },
+        {
+          "id": "hub",
+          "lines": [
+            {
+              "speaker": "Wren",
+              "text": "Anything else, while the fire lasts?"
+            }
+          ],
+          "choices": [
+            {
+              "text": "Who are you?",
+              "goto": "who"
+            },
+            {
+              "text": "Is something wrong?",
+              "available": {
+                "kind": "quest",
+                "quest": "the-lost-verse",
+                "status": "inactive"
+              },
+              "goto": "trouble"
+            },
+            {
+              "text": "We found your songbook.",
+              "available": {
+                "kind": "all",
+                "of": [
+                  {
+                    "kind": "quest",
+                    "quest": "the-lost-verse",
+                    "status": "active"
+                  },
+                  {
+                    "kind": "hasItem",
+                    "item": "wrens-songbook"
+                  }
+                ]
+              },
+              "goto": "returned"
+            },
+            {
+              "text": "What of the pedlar?",
+              "goto": "tobin"
+            },
+            {
+              "text": "Farewell.",
+              "goto": "bye"
+            }
+          ]
+        },
+        {
+          "id": "who",
+          "lines": [
+            {
+              "speaker": "Wren",
+              "text": "Wren. I sing for my supper, and Tobin there sells it back to me at a mark-up."
+            }
+          ],
+          "choices": [
+            {
+              "text": "Who are you?",
+              "goto": "who"
+            },
+            {
+              "text": "Is something wrong?",
+              "available": {
+                "kind": "quest",
+                "quest": "the-lost-verse",
+                "status": "inactive"
+              },
+              "goto": "trouble"
+            },
+            {
+              "text": "We found your songbook.",
+              "available": {
+                "kind": "all",
+                "of": [
+                  {
+                    "kind": "quest",
+                    "quest": "the-lost-verse",
+                    "status": "active"
+                  },
+                  {
+                    "kind": "hasItem",
+                    "item": "wrens-songbook"
+                  }
+                ]
+              },
+              "goto": "returned"
+            },
+            {
+              "text": "What of the pedlar?",
+              "goto": "tobin"
+            },
+            {
+              "text": "Farewell.",
+              "goto": "bye"
+            }
+          ]
+        },
+        {
+          "id": "trouble",
+          "lines": [
+            {
+              "speaker": "Wren",
+              "text": "My songbook. Forty years of verses. I left it in a crate in the vault when the husks came up the stairs. Bring it back and I will pay you for it."
+            }
+          ],
+          "choices": [
+            {
+              "text": "We will find it.",
+              "goto": "accept"
+            },
+            {
+              "text": "Not our business.",
+              "goto": "hub"
+            }
+          ]
+        },
+        {
+          "id": "accept",
+          "kind": "consequence",
+          "lines": [],
+          "onEnter": [
+            {
+              "kind": "startQuest",
+              "quest": "the-lost-verse"
+            }
+          ],
+          "goto": "accepted"
+        },
+        {
+          "id": "accepted",
+          "lines": [
+            {
+              "speaker": "Wren",
+              "text": "The crate by the east wall, past the door. Mind the husks, and mind the pages."
+            }
+          ],
+          "choices": [
+            {
+              "text": "Who are you?",
+              "goto": "who"
+            },
+            {
+              "text": "Is something wrong?",
+              "available": {
+                "kind": "quest",
+                "quest": "the-lost-verse",
+                "status": "inactive"
+              },
+              "goto": "trouble"
+            },
+            {
+              "text": "We found your songbook.",
+              "available": {
+                "kind": "all",
+                "of": [
+                  {
+                    "kind": "quest",
+                    "quest": "the-lost-verse",
+                    "status": "active"
+                  },
+                  {
+                    "kind": "hasItem",
+                    "item": "wrens-songbook"
+                  }
+                ]
+              },
+              "goto": "returned"
+            },
+            {
+              "text": "What of the pedlar?",
+              "goto": "tobin"
+            },
+            {
+              "text": "Farewell.",
+              "goto": "bye"
+            }
+          ]
+        },
+        {
+          "id": "returned",
+          "kind": "consequence",
+          "lines": [],
+          "onEnter": [
+            {
+              "kind": "removeItem",
+              "item": "wrens-songbook",
+              "quantity": 1
+            },
+            {
+              "kind": "completeObjective",
+              "quest": "the-lost-verse",
+              "objective": "find-the-songbook"
+            },
+            {
+              "kind": "completeObjective",
+              "quest": "the-lost-verse",
+              "objective": "bring-it-back"
+            },
+            {
+              "kind": "completeQuest",
+              "quest": "the-lost-verse"
+            },
+            {
+              "kind": "addItem",
+              "item": "gold",
+              "quantity": 15
+            }
+          ],
+          "goto": "thanks"
+        },
+        {
+          "id": "thanks",
+          "lines": [
+            {
+              "speaker": "Wren",
+              "text": "Every page! Here - fifteen gold, and Tobin will have it off you soon enough."
+            }
+          ],
+          "choices": [
+            {
+              "text": "Who are you?",
+              "goto": "who"
+            },
+            {
+              "text": "Is something wrong?",
+              "available": {
+                "kind": "quest",
+                "quest": "the-lost-verse",
+                "status": "inactive"
+              },
+              "goto": "trouble"
+            },
+            {
+              "text": "We found your songbook.",
+              "available": {
+                "kind": "all",
+                "of": [
+                  {
+                    "kind": "quest",
+                    "quest": "the-lost-verse",
+                    "status": "active"
+                  },
+                  {
+                    "kind": "hasItem",
+                    "item": "wrens-songbook"
+                  }
+                ]
+              },
+              "goto": "returned"
+            },
+            {
+              "text": "What of the pedlar?",
+              "goto": "tobin"
+            },
+            {
+              "text": "Farewell.",
+              "goto": "bye"
+            }
+          ]
+        },
+        {
+          "id": "tobin",
+          "lines": [
+            {
+              "speaker": "Wren",
+              "text": "Tobin pays four in ten of what a thing is worth, and calls it generous. Sell him what you must, and buy the draughts."
+            }
+          ],
+          "choices": [
+            {
+              "text": "Who are you?",
+              "goto": "who"
+            },
+            {
+              "text": "Is something wrong?",
+              "available": {
+                "kind": "quest",
+                "quest": "the-lost-verse",
+                "status": "inactive"
+              },
+              "goto": "trouble"
+            },
+            {
+              "text": "We found your songbook.",
+              "available": {
+                "kind": "all",
+                "of": [
+                  {
+                    "kind": "quest",
+                    "quest": "the-lost-verse",
+                    "status": "active"
+                  },
+                  {
+                    "kind": "hasItem",
+                    "item": "wrens-songbook"
+                  }
+                ]
+              },
+              "goto": "returned"
+            },
+            {
+              "text": "What of the pedlar?",
+              "goto": "tobin"
+            },
+            {
+              "text": "Farewell.",
+              "goto": "bye"
+            }
+          ]
+        },
+        {
+          "id": "bye",
+          "lines": [
+            {
+              "speaker": "Wren",
+              "text": "Safe roads, and bring me a story."
             }
           ]
         }
@@ -22102,6 +22505,14 @@
       "stackable": false,
       "use": [],
       "value": 12
+    },
+    {
+      "id": "wrens-songbook",
+      "name": "Wren's songbook",
+      "kind": "trinket",
+      "description": "Forty years of verses, most of them rude.",
+      "stackable": false,
+      "use": []
     }
   ],
   "lootTables": [
@@ -22181,6 +22592,25 @@
           "text": "Open the strongbox in the pit.",
           "hidden": true,
           "summary": ""
+        }
+      ]
+    },
+    {
+      "id": "the-lost-verse",
+      "name": "The Lost Verse",
+      "summary": "Wren the Wandering Bard left her songbook in a crate in the vault when the husks came up the stairs.",
+      "objectives": [
+        {
+          "id": "find-the-songbook",
+          "text": "Find Wren's songbook in the vault.",
+          "hidden": false,
+          "summary": "It was in the crate by the east wall, a little chewed."
+        },
+        {
+          "id": "bring-it-back",
+          "text": "Bring it back to Wren at the camp.",
+          "hidden": false,
+          "summary": "Every page. She paid in gold, and in a verse nobody asked for."
         }
       ]
     }
@@ -22586,6 +23016,16 @@
       "rotationY": 0,
       "offsetX": 0,
       "offsetY": 0
+    },
+    {
+      "id": "traveling-bard",
+      "kind": "gltf",
+      "url": "/models/traveling-bard.glb",
+      "scale": 1,
+      "groundOffset": 0,
+      "rotationY": 0,
+      "offsetX": 0,
+      "offsetY": 0
     }
   ],
   "adversaryModels": {},
@@ -22768,6 +23208,38 @@
       "hitPoints": 3,
       "stress": 3,
       "attackName": "Walking Stick",
+      "attackModifier": {
+        "count": 0,
+        "sides": 0,
+        "modifier": 0
+      },
+      "attackRange": "melee",
+      "attackDamage": {
+        "count": 1,
+        "sides": 4,
+        "modifier": 0,
+        "types": [
+          "physical"
+        ]
+      },
+      "experiences": [],
+      "features": []
+    },
+    {
+      "id": "bard",
+      "name": "Bard",
+      "tier": 1,
+      "role": "social",
+      "description": "A travelling singer with a lute, a sharp tongue and a better memory.",
+      "motivesAndTactics": "Talk, sing, and be somewhere else when the singing stops.",
+      "difficulty": 11,
+      "thresholds": {
+        "major": 4,
+        "severe": 9
+      },
+      "hitPoints": 3,
+      "stress": 4,
+      "attackName": "Lute Neck",
       "attackModifier": {
         "count": 0,
         "sides": 0,

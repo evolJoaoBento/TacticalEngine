@@ -270,64 +270,7 @@ export function PlayPanel(props: PlayPanelProps): preact.JSX.Element | null {
         </div>
       ) : null}
 
-      {props.container ? (
-        <div className="play-box panel-box is-fixed" data-testid="container" data-container={props.container.id}>
-          <div className="panel-head">
-            <span className="play-name">{props.container.name}</span>
-            <button type="button" className="play-btn is-ghost panel-x" title="Close" data-testid="container-close" onClick={props.container.onClose}>
-              ✕
-            </button>
-          </div>
-          {props.container.paidIn === undefined ? null : (
-            <div className="panel-prose" data-testid="shop-purse">
-              You have {props.container.paidIn.held} {props.container.paidIn.name.toLowerCase()}.
-            </div>
-          )}
-          {props.container.lines.length === 0 ? (
-            <div className="panel-prose" data-testid="container-empty">{props.container.paidIn === undefined ? 'Nothing left in it.' : 'Sold out.'}</div>
-          ) : (
-            props.container.lines.map((line) => (
-              <div key={line.item} className="panel-row" data-item={line.item}>
-                <span>{line.name}</span>
-                <span className="panel-detail">
-                  {line.count > 1 && Number.isFinite(line.count) ? `×${line.count}` : ''}
-                  {line.price === undefined ? (
-                    <button className="play-btn is-primary" data-testid="container-take" onClick={() => props.container!.onTake(line.item)}>
-                      Take
-                    </button>
-                  ) : (
-                    <button
-                      className="play-btn is-primary"
-                      data-testid="shop-buy"
-                      disabled={line.price > (props.container!.paidIn?.held ?? 0)}
-                      title={line.price > (props.container!.paidIn?.held ?? 0) ? 'Not enough to pay for it' : undefined}
-                      onClick={() => props.container!.onTake(line.item)}
-                    >
-                      Buy · {line.price} {props.container!.paidIn?.name.toLowerCase()}
-                    </button>
-                  )}
-                </span>
-              </div>
-            ))
-          )}
-          {props.container.selling === undefined || props.container.selling.length === 0 ? null : (
-            <div data-testid="shop-selling">
-              <div className="play-eyebrow panel-heading">Sell</div>
-              {props.container.selling.map((line) => (
-                <div key={line.item} className="panel-row" data-sell={line.item}>
-                  <span>{line.name}</span>
-                  <span className="panel-detail">
-                    {line.held > 1 ? `×${line.held}` : ''}
-                    <button className="play-btn" data-testid="shop-sell" onClick={() => props.container!.onSell?.(line.item)}>
-                      Sell · {line.price} {props.container!.paidIn?.name.toLowerCase()}
-                    </button>
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      ) : null}
+      {props.container ? <ContainerWindow container={props.container} /> : null}
 
       {props.journal.length > 0 ? (
         <div className="play-box panel-box is-fixed" data-testid="journal">
@@ -413,33 +356,7 @@ export function PlayPanel(props: PlayPanelProps): preact.JSX.Element | null {
         </div>
       ) : null}
 
-      {talking !== null && talking.view !== null ? (
-        <div className="play-box panel-box" data-testid="dialogue">
-          {talking.view.lines.map((line, i) => (
-            <div key={i} style={{ marginBottom: '6px' }}>
-              {line.speaker !== undefined ? <span className="panel-speaker">{line.speaker}: </span> : null}
-              <span className="panel-prose">{line.text}</span>
-            </div>
-          ))}
-          {talking.view.options.map((option) => (
-            <button
-              key={option.index}
-              disabled={!option.enabled}
-              title={option.enabled ? undefined : 'Not available'}
-              className="play-btn panel-option"
-              onClick={() => props.onAnswer({ kind: 'choose', index: option.index })}
-            >
-              {option.text}
-              {option.detail !== undefined ? <span className="panel-detail"> — {option.detail}</span> : null}
-            </button>
-          ))}
-          {talking.view.options.length === 0 ? (
-            <button className="play-btn is-primary" onClick={() => props.onAnswer({ kind: 'continue' })}>
-              Continue
-            </button>
-          ) : null}
-        </div>
-      ) : null}
+      {/* The conversation itself is along the bottom, where the cards were (`Conversation`, `ActionBar`). */}
 
       {choice !== null ? (
         <div data-testid="choice-prompt" className="play-box panel-box">
@@ -468,4 +385,73 @@ export function PlayPanel(props: PlayPanelProps): preact.JSX.Element | null {
       ) : null}
     </div>
   );
+}
+
+/**
+ * An open container, in the panel stack - or a shop, in the middle of the screen over everything,
+ * with the room dimmed behind it. A shop is closed before anything else goes on: the board cannot
+ * be clicked through it, and a conversation that opened it waits (`answerPending`). The loadout's
+ * book is lifted above the dimming (`hud.css`), and its binder opens over the shop.
+ */
+function ContainerWindow({ container }: { container: OpenContainer }): preact.JSX.Element {
+  const shop = container.paidIn !== undefined;
+  const box = (
+    <div className={`play-box panel-box ${shop ? 'shop-window' : 'is-fixed'}`} data-testid="container" data-container={container.id}>
+      <div className="panel-head">
+        <span className="play-name">{container.name}</span>
+        <button type="button" className="play-btn is-ghost panel-x" title="Close" data-testid="container-close" onClick={container.onClose}>
+          ✕
+        </button>
+      </div>
+      {container.paidIn === undefined ? null : (
+        <div className="panel-prose" data-testid="shop-purse">
+          You have {container.paidIn.held} {container.paidIn.name.toLowerCase()}.
+        </div>
+      )}
+      {container.lines.length === 0 ? (
+        <div className="panel-prose" data-testid="container-empty">{container.paidIn === undefined ? 'Nothing left in it.' : 'Sold out.'}</div>
+      ) : (
+        container.lines.map((line) => (
+          <div key={line.item} className="panel-row" data-item={line.item}>
+            <span>{line.name}</span>
+            <span className="panel-detail">
+              {line.count > 1 && Number.isFinite(line.count) ? `×${line.count}` : ''}
+              {line.price === undefined ? (
+                <button className="play-btn is-primary" data-testid="container-take" onClick={() => container.onTake(line.item)}>
+                  Take
+                </button>
+              ) : (
+                <button
+                  className="play-btn is-primary"
+                  data-testid="shop-buy"
+                  disabled={line.price > (container.paidIn?.held ?? 0)}
+                  title={line.price > (container.paidIn?.held ?? 0) ? 'Not enough to pay for it' : undefined}
+                  onClick={() => container.onTake(line.item)}
+                >
+                  Buy · {line.price} {container.paidIn?.name.toLowerCase()}
+                </button>
+              )}
+            </span>
+          </div>
+        ))
+      )}
+      {container.selling === undefined || container.selling.length === 0 ? null : (
+        <div data-testid="shop-selling">
+          <div className="play-eyebrow panel-heading">Sell</div>
+          {container.selling.map((line) => (
+            <div key={line.item} className="panel-row" data-sell={line.item}>
+              <span>{line.name}</span>
+              <span className="panel-detail">
+                {line.held > 1 ? `×${line.held}` : ''}
+                <button className="play-btn" data-testid="shop-sell" onClick={() => container.onSell?.(line.item)}>
+                  Sell · {line.price} {container.paidIn?.name.toLowerCase()}
+                </button>
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+  return shop ? <div className="shop-backdrop" data-testid="shop-backdrop">{box}</div> : box;
 }

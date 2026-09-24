@@ -43,9 +43,10 @@ import {
 } from './log';
 import { inCombat, scriptPending } from './moment';
 import { aimOfMove, beginScriptedFights, closeToStrike, walkTheMove, type MoveResult } from './movement';
-import { interactablesOf, nearestCovered, reactToThings } from './prop-use';
+import { interactablesOf, nearestCovered, reactToThings, shopOpen } from './prop-use';
 import { fightOverLine, playTurnings, reactToAttitudes, resumeOnBlow, stopScriptedFights, talkTo, talksTo } from './interaction';
 import { cuesFrom } from './cues';
+import type { Approach } from './arrival';
 import { bandFromSpot, standingIn } from './reach';
 import { runForIt } from './rolled-move';
 import {
@@ -182,6 +183,8 @@ export interface DemoScene {
    * swings in between.
    */
   ambush: string | null;
+  /** A thing to use or somebody to talk to once the walk up to them ends (`game/arrival.ts`). */
+  approaching: Approach | null;
   /** Waiting on the player: a script's roll or choice, or a defender's answer. */
   pending: Pending | null;
   /** Set while a fight is running. */
@@ -820,6 +823,7 @@ export function buildProjectScene(project: ProjectDoc, seed = 'project'): DemoSc
     motions: [],
     animated: false,
     ambush: null,
+    approaching: null,
     pending: null,
     encounter: null,
     gmTurn: null,
@@ -4149,7 +4153,8 @@ export function useSelectedOn(demo: DemoScene, interactableId: string): UseOutco
  */
 export function answerPending(demo: DemoScene, response: Response): UseOutcome {
   const waiting = demo.pending;
-  if (waiting === null) return { status: 'refused', lines: [] };
+  // A conversation that opened a shop waits for the shop to be closed before it goes on.
+  if (waiting === null || (waiting.kind === 'script' && waiting.dialogue !== null && shopOpen(demo))) return { status: 'refused', lines: [] };
 
   // A hit waiting on the defender. Stepping back from the question is taking
   // it as it comes — the first choice is always "take it".

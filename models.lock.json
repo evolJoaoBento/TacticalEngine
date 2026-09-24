@@ -1,7 +1,7 @@
 {
   "repo": "JunjiBento/tactical-engine-models",
   "repoType": "model",
-  "revision": "59fc3b276ea2f5f509aa865ae5374d9a41382e58",
+  "revision": "dc3d5fa94b27526865715674ec7e2a37285c7a87",
   "files": [
     {
       "path": "Arty.glb",
@@ -177,6 +177,11 @@
       "path": "training-dummy-prop.glb",
       "bytes": 1604748,
       "sha256": "4a3d62be2352524b7164d65196165e6102ade210fccea03dfbbd4953cf56c4d8"
+    },
+    {
+      "path": "traveling-bard.glb",
+      "bytes": 3147708,
+      "sha256": "33bea1004d6f3978be733dd46bbcf2e0505666314c47072cbbf633519641de72"
     },
     {
       "path": "tree-prop.glb",

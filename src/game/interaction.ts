@@ -40,14 +40,26 @@ export function talksTo(demo: Pick<DemoScene, 'scene' | 'state'>, id: string): b
 }
 
 /**
- * Walk up to a creature on nobody's side and talk to it. In a fight the talk is the action, as
- * opening a chest is; a walk that falls short is the action instead, and nothing is said.
+ * Walk up to a creature on nobody's side and talk to it: at once when it is already close, and
+ * when the walk there ends when it is not (`game/arrival.ts`) - a right-click on the way calls it
+ * off. A walk that falls short is the move, and nothing is said.
  */
 export function talkTo(demo: DemoScene, actor: string, id: string): UseOutcome {
-  const interaction = interactionOf(demo.scene, id);
   const target = demo.state.entity(id);
-  if (interaction === null || target === undefined) return { status: 'missing', lines: [] };
-  if (closeToStrike(demo, actor, target, 'melee') === 'short') return { status: 'unreachable', lines: [] };
+  if (interactionOf(demo.scene, id) === null || target === undefined) return { status: 'missing', lines: [] };
+  const walk = closeToStrike(demo, actor, target, 'melee');
+  if (walk === 'short') return { status: 'unreachable', lines: [] };
+  if (walk === 'closed' && demo.animated) {
+    demo.approaching = { kind: 'talk', id, who: actor };
+    return { status: 'done', lines: [] };
+  }
+  return talkNow(demo, actor, id);
+}
+
+/** Talk, standing where they can: in a fight the talk is the action, as opening a chest is. */
+export function talkNow(demo: DemoScene, actor: string, id: string): UseOutcome {
+  const interaction = interactionOf(demo.scene, id);
+  if (interaction === null || demo.state.entity(id)?.alive !== true) return { status: 'missing', lines: [] };
   if (inCombat(demo)) demo.encounter!.act(actor);
   return converse(demo, actor, id, interaction.dialogue);
 }
