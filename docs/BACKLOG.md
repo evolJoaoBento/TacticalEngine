@@ -4,6 +4,69 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## The Combat workspace is Encounters, with a figure for its icon — done
+
+The editor's third mode reads **Encounters** on its tab and in its tooltip (`MODE_LABELS` in
+`editor/modes.ts`), and its icon is a standing figure rather than crossed swords (`icons.tsx`) - a
+head and shoulders is already the creature tool's, on the same rail. Only what is shown changed:
+the mode's id is still `combat`, so `mode-combat`, the tool lists and every test that picks it are
+as they were. Older entries below still say Combat. Unit `editor/modes.test.ts`.
+
+## The passives' emblems are gone from the top of the screen — done
+
+The row of round emblems at the top centre (`.relics` in `ActionBar.tsx`) showed the selected
+character's passives, which the hand already deals as cards - every ability a character has comes
+from a card they hold, are granted or are lent, so none was only there. The user asked for it out.
+
+## Equipment is cards: the loot cards shipped, a card inventory in the loadout, cards in the shops — done
+
+The user's loot-card export (633 cards, core and expansion) is the engine's equipment now. By the
+user's choice (25 September 2026) its stats and text ship in the repository as SRD Public Game
+Content under the DPCGL - `src/engine/content/equipment/catalogue.json`, written by
+`tools/loot-cards.mjs` - and its pictures, the user's own AI-generated art, are 44 MB of WebP at 750×1050
+(620 MB of PNG; the art was regenerated the same day, the data unchanged) on Hugging Face beside the models, named in `equipment.lock.json` and fetched by
+`npm run models` into `public/equipment/`, never in git (`models-lock.test.ts`). CONTEXT, AGENTS,
+NOTICE and CLAUDE say so.
+
+- **Content.** `itemOf` / `itemsFor` lay a project's items over the catalogue's, and every lookup
+  goes through them, so any project can stock, loot or hand out a card by id; the catalogue's
+  weapons and armour join the starter pack's in `DEMO_CHARACTERS`. A weapon swings with its card's
+  numbers; `trait: 'spellcast'` (the Arcane-Frame Wheelchair) swings with the wielder's.
+- **Mechanics.** Hands are counted (`equipItem`); `unequipItem` takes a piece off. A feature that is
+  a plain number counts while worn (`features.ts`: Reliable, Heavy, Flexible, Protective,
+  Cumbersome, Barrier, Padded, Very Heavy…: 68 cards wholly, 13 in part). The six health and stamina
+  potions are scripted.
+- **The card inventory.** The side panel's Carried list is gone. The loadout's sheet has an
+  **Equipment** button: plastic over the sheet with a labelled sleeve per slot, the pack in sleeves
+  on the page opposite, a card dragged onto its sleeve put on and dragged back taken off
+  (`gear.ts`, `ui/GearBinder.tsx`, `ui/gear.css`); Equip, Take off and Use buttons for keyboards.
+  Getting there is the binder's **Equipment divider**: black card under the card pages, its tab out
+  past the right edge (`gear-tab`, `open-gear`). The tab turns the card pages - all of them, as one
+  stack, `.deck-leafstack` - up off the right leaf while the divider's back (`.gear-divider`) comes
+  down on the left, meeting edge-on over the rings, the pack uncovered beneath (`leaf-away`,
+  `divider-down`, `GEAR_TURN_MS` in `LoadoutPanel.tsx`, the two agreeing). On the left the tab reads
+  **Back** (`close-gear`) and turns them home; `gear-turning` is on screen while a turn is under way.
+  Each sheet is a sheet protector - a white strip punched where the rings go. The
+  binder has no Close button any more: a click on the table round it, or Esc, puts it away, and the
+  specs do that through `closeLoadout` in `tests/e2e/pack.ts`. `characterContentFor` keeps its
+  merge per project until a list changes, which the catalogue's four hundred weapons and armours
+  made worth doing (a fight test had drifted to its five-second limit).
+- **Shops sell cards** (`ContainerWindow`): each line a card with its price and Buy, the Sell list
+  the party's cards.
+- **The default project wears them**: Quim a Mace and a Round Shield in Chainmail (the same numbers as
+  the Longsword and Ringmail he had), Violet a Crossbow, Scarlet a Greatstaff, the rest Gambeson or
+  Chainmail; Tobin sells potions, a shield, a coat, a dagger and a bow; the pit strongbox pays cards.
+
+Unit `equipment/catalogue.test.ts`, `equipment/features.test.ts`, `game/gear.test.ts`,
+`ui/equipment-art.test.ts`, `models-lock.test.ts`; e2e `gear.spec.ts` (a real mouse drag), and the
+merchant, readout, between-fights and demo specs read the pack through `tests/e2e/pack.ts`.
+
+**Still open:** the 51 features that are more than a number (Versatile's second profile, Quick's
+Stress for a second target, Paired, Powerful's extra die, Reloading…) and 114 consumables and 120
+items are text; the editor's Items workspace lists only a project's own items, not the catalogue
+(its pickers do list it); the SRD's loot tables by roll are not built from the cards' `roll`; a
+feature's attack bonus counts on any swing, not only that weapon's.
+
 ## A conversation is its speaker's: Tab leaves them talking while the rest go on — done
 
 A conversation held the whole party: nothing else could happen until it ended. Now it is the

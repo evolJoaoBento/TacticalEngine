@@ -29,7 +29,7 @@ const ALL_TOOLS: readonly EditorTool[] = [
 describe('editor modes', () => {
   it('are the four the user named, in their order', () => {
     expect(EDITOR_MODES).toEqual(['inspect', 'terrain', 'combat', 'interaction']);
-    expect(EDITOR_MODES.map((mode) => MODE_LABELS[mode])).toEqual(['Inspector', 'Terrain', 'Combat', 'Interaction']);
+    expect(EDITOR_MODES.map((mode) => MODE_LABELS[mode])).toEqual(['Inspector', 'Terrain', 'Encounters', 'Interaction']);
   });
 
   it('give every tool a home', () => {

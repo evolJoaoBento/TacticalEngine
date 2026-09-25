@@ -27,6 +27,7 @@ import type { QuestDef } from '../../engine/content/quests';
 import type { ContentPack } from '../../engine/content/pack/import';
 import { EffectList } from './EffectList';
 import { Icon } from './icons';
+import { itemsFor } from '../../engine/content/equipment/catalogue';
 
 export interface ItemPanelProps {
   session: EditorSession;
@@ -91,7 +92,7 @@ export function ItemPanel(props: ItemPanelProps): preact.JSX.Element {
 
   const item = open?.kind === 'item' ? (session.project.items.find((i) => i.id === open.id) ?? null) : null;
   const table = open?.kind === 'table' ? (session.project.lootTables.find((t) => t.id === open.id) ?? null) : null;
-  const itemIds = session.project.items.map((i) => i.id);
+  const itemIds = itemsFor(session.project).map((i) => i.id);
 
   const editItem = (changes: Partial<ItemDef>): void => {
     if (item === null) return;
@@ -353,7 +354,7 @@ export function ItemPanel(props: ItemPanelProps): preact.JSX.Element {
                       }
                     >
                       {itemIds.length === 0 ? <option value="">(no items yet)</option> : null}
-                      {session.project.items.map((candidate) => (
+                      {itemsFor(session.project).map((candidate) => (
                         <option key={candidate.id} value={candidate.id}>
                           {candidate.name}
                         </option>

@@ -17,6 +17,7 @@ import { findFunction } from '../engine/scene/prop-functions';
 import type { Shop } from '../engine/scene/prop-function-schema';
 import type { DemoScene } from './demo-scene';
 import { nameOf, note } from './log';
+import { itemOf, itemsFor } from '../engine/content/equipment/catalogue';
 
 type Demo = Pick<DemoScene, 'project' | 'scene' | 'state' | 'party' | 'world' | 'log' | 'characters' | 'sheets'>;
 
@@ -52,7 +53,7 @@ export function shopContents(demo: Demo, id: string): ShopLine[] {
   return shop.stock
     .map((line) => ({
       item: line.item,
-      name: demo.project.items.find((known) => known.id === line.item)?.name ?? line.item,
+      name: itemOf(demo.project, line.item)?.name ?? line.item,
       price: line.price,
       left: line.count === undefined ? null : line.count - boughtOf(bought, line.item),
     }))
@@ -74,7 +75,7 @@ export function buyFrom(demo: Demo, id: string, item: string): boolean {
   const shop = shopOf(demo, id);
   const line = shopContents(demo, id).find((candidate) => candidate.item === item);
   if (shop === null || line === undefined) return false;
-  const currency = demo.project.items.find((known) => known.id === shop.currency)?.name ?? shop.currency;
+  const currency = itemOf(demo.project, shop.currency)?.name ?? shop.currency;
   if (!demo.world.hasItem(shop.currency, line.price)) {
     note(demo, `Not enough ${currency.toLowerCase()} for ${line.name}: it costs ${line.price}.`, 'system');
     return false;
@@ -106,7 +107,7 @@ export interface SaleLine {
 export function offerFor(demo: Pick<DemoScene, 'project' | 'scene'>, shop: Shop, item: string): number {
   if (item === shop.currency) return 0;
   const stocked = shop.stock.find((line) => line.item === item);
-  const worth = stocked !== undefined ? stocked.price : demo.project.items.find((known) => known.id === item)?.value ?? 0;
+  const worth = stocked !== undefined ? stocked.price : itemOf(demo.project, item)?.value ?? 0;
   return buyBackPrice(worth, shop.buysAt ?? 50);
 }
 
@@ -117,7 +118,7 @@ export function offerFor(demo: Pick<DemoScene, 'project' | 'scene'>, shop: Shop,
 export function sellables(demo: Demo, id: string): SaleLine[] {
   const shop = shopOf(demo, id);
   if (shop === null) return [];
-  const order = [...new Set([...shop.stock.map((line) => line.item), ...demo.project.items.map((item) => item.id)])];
+  const order = [...new Set([...shop.stock.map((line) => line.item), ...itemsFor(demo.project).map((item) => item.id)])];
   const lines: SaleLine[] = [];
   for (const item of order) {
     const price = offerFor(demo, shop, item);
@@ -125,7 +126,7 @@ export function sellables(demo: Demo, id: string): SaleLine[] {
     let held = 0;
     while (demo.world.hasItem(item, held + 1)) held++;
     if (held === 0) continue;
-    lines.push({ item, name: demo.project.items.find((known) => known.id === item)?.name ?? item, held, price });
+    lines.push({ item, name: itemOf(demo.project, item)?.name ?? item, held, price });
   }
   return lines;
 }
@@ -144,7 +145,7 @@ export function sellTo(demo: Demo, id: string, item: string): boolean {
     const state = demo.state.interactable(id);
     state.data[`bought:${item}`] = boughtOf(state.data, item) - 1;
   }
-  const currency = demo.project.items.find((known) => known.id === shop.currency)?.name ?? shop.currency;
+  const currency = itemOf(demo.project, shop.currency)?.name ?? shop.currency;
   const who = demo.party.selected;
   note(demo, `${who === null ? 'The party' : nameOf(demo, who)} sells ${line.name} for ${line.price} ${currency.toLowerCase()}.`, 'success');
   return true;

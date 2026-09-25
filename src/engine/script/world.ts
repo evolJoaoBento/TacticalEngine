@@ -49,7 +49,7 @@ import {
 } from '../rules/range';
 import { applyAttack, conditionModifiers, resolveAttack, type AttackProfile } from '../combat/attack';
 import { resolveDefense, type Defense, type DefensePolicy } from '../combat/defense';
-import { attackProfile, grantedCards, lentCards, traitPart, UNARMED, type DerivedCharacter } from '../character/sheet';
+import { attackProfile, grantedCards, lentCards, traitPart, UNARMED, wieldedTrait, type DerivedCharacter } from '../character/sheet';
 import { abilitiesFor, cardOf, loadoutOf, statBlocksOf, type AbilityDef, type AbilityModifier } from '../content/abilities';
 import type { ConditionBlock, ConditionDef } from '../content/conditions';
 import { formatDice, parseDice, type DamageType, type ParsedDamage } from '../rules/dice';
@@ -780,7 +780,7 @@ export class SceneScriptWorld implements ScriptWorld {
     if (trait === 'weapon') {
       if (character === undefined || actor === null) return null;
       const weapon = character.primaryWeapon;
-      return character.traits[weapon?.trait ?? UNARMED.trait] + this.rollBonus(actor, 'attackRoll', { melee: (weapon?.range ?? UNARMED.range) === 'melee' });
+      return character.traits[weapon === undefined ? UNARMED.trait : wieldedTrait(character, weapon)] + this.rollBonus(actor, 'attackRoll', { melee: (weapon?.range ?? UNARMED.range) === 'melee' });
     }
     if (as === 'actor' && character !== undefined) return character.traits[trait] + any;
     return this.traitModifier(trait) + any;

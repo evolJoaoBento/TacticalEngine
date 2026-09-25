@@ -1,0 +1,3172 @@
+{
+  "repo": "JunjiBento/tactical-engine-models",
+  "repoType": "model",
+  "revision": "a35fc807215f6f319fe60f3c6483f9c0b63ab1c2",
+  "files": [
+    {
+      "path": "equipment/armor-advanced-chainmail-armor.webp",
+      "bytes": 98330,
+      "sha256": "f9bcd11bf046b3eac85062248c4a4bcf27910e4133fb152f419ca7dba6798d33"
+    },
+    {
+      "path": "equipment/armor-advanced-full-plate-armor.webp",
+      "bytes": 85864,
+      "sha256": "1d6aeff58015c067f369e3d24435ab902e5401655317a8802f5ffcd68ef0e296"
+    },
+    {
+      "path": "equipment/armor-advanced-gambeson-armor.webp",
+      "bytes": 81850,
+      "sha256": "d35690e4eb28c5ff4a7017e071dc65c108fc7b7f34efebf02bf7edf86621094a"
+    },
+    {
+      "path": "equipment/armor-advanced-leather-armor.webp",
+      "bytes": 79978,
+      "sha256": "ed8b0c489b8bca3bf6239d7a5f66106985d813070d12ee30a1a5edb517e193c3"
+    },
+    {
+      "path": "equipment/armor-bellamoi-fine-armor.webp",
+      "bytes": 96076,
+      "sha256": "8dfad5ceb16f348f842f5df971714d8a818e3e7663c5f816d04a31e9b3c243d4"
+    },
+    {
+      "path": "equipment/armor-bladefare-armor.webp",
+      "bytes": 98498,
+      "sha256": "6bdada2062fd2371a7236e69968150d2359f15b80243d817b68ecd82ffaa2f28"
+    },
+    {
+      "path": "equipment/armor-chainmail-armor.webp",
+      "bytes": 97012,
+      "sha256": "4256f74e829f0cc48e52ff3c198ed829fd77aedafd95d7f97dac24cf66ccb2df"
+    },
+    {
+      "path": "equipment/armor-channeling-armor.webp",
+      "bytes": 100836,
+      "sha256": "a964836988f7476c0007db25d4765c6c81ef8747fb1b175aa8af1785e5859397"
+    },
+    {
+      "path": "equipment/armor-dragonscale-armor.webp",
+      "bytes": 111926,
+      "sha256": "09e4713af958af45baa428c03cf44131c9725602fb997cd7e276ece0edb75447"
+    },
+    {
+      "path": "equipment/armor-dunamis-silkchain.webp",
+      "bytes": 114300,
+      "sha256": "11cc201ef0aeca65bdf6995a112a2e471a0e8e4b71f8cc67fd4b0cb96cb16a56"
+    },
+    {
+      "path": "equipment/armor-elundrian-chain-armor.webp",
+      "bytes": 112094,
+      "sha256": "11ccc413abd81693623574f431471eed6f873c58780ff574c89c8e1bbb89cbeb"
+    },
+    {
+      "path": "equipment/armor-emberwoven-armor.webp",
+      "bytes": 113466,
+      "sha256": "567c54ca48d97f8569ee12d3b105d03d54e6458518502ddd68f44beac60abd74"
+    },
+    {
+      "path": "equipment/armor-full-fortified-armor.webp",
+      "bytes": 105348,
+      "sha256": "adf295b9afe89eb43cb2f40580eeb5e6d81d47b01715088f31591d48370f1a4d"
+    },
+    {
+      "path": "equipment/armor-full-plate-armor.webp",
+      "bytes": 84308,
+      "sha256": "9c5b9d1ee85a8c980c1845cb2310d823eb3134d34f542ede2a88333463d4da41"
+    },
+    {
+      "path": "equipment/armor-gambeson-armor.webp",
+      "bytes": 80440,
+      "sha256": "ce0d7fbb8e7bf9b793f4496d004cc3e26e4235738f472dfdc08f39c2a3ca3f0d"
+    },
+    {
+      "path": "equipment/armor-harrowbone-armor.webp",
+      "bytes": 110400,
+      "sha256": "bfa72deb23fe731926783b916342a796c89e564db6932dbefa32b20456221074"
+    },
+    {
+      "path": "equipment/armor-improved-chainmail-armor.webp",
+      "bytes": 98032,
+      "sha256": "9585ce76b749bcd3862e593bc281631ba55d656041fa0872a729e1d845dedee2"
+    },
+    {
+      "path": "equipment/armor-improved-full-plate-armor.webp",
+      "bytes": 85572,
+      "sha256": "d9223a79790924e8fae415437245a49544b79f628d410cd22ac92bf5d912c5ae"
+    },
+    {
+      "path": "equipment/armor-improved-gambeson-armor.webp",
+      "bytes": 81106,
+      "sha256": "5920e4c447169dd6e3b7e20816b9a38885cfbe7d65dd53ea213725ae7cab7dc4"
+    },
+    {
+      "path": "equipment/armor-improved-leather-armor.webp",
+      "bytes": 80592,
+      "sha256": "73099a0e98bcb12eaacc676469dc902c61dcf923127fd8fba3aa140f557732ec"
+    },
+    {
+      "path": "equipment/armor-irontree-breastplate-armor.webp",
+      "bytes": 111626,
+      "sha256": "e75cd30eb45611eb46cc169b0a4a4959e586120e1e7fa8a712fb6913ce2336a6"
+    },
+    {
+      "path": "equipment/armor-leather-armor.webp",
+      "bytes": 78522,
+      "sha256": "071953d82ba55b509b080e8373d1c7ebce27338ec39ce7c9c27b3f02b6852938"
+    },
+    {
+      "path": "equipment/armor-legendary-chainmail-armor.webp",
+      "bytes": 100680,
+      "sha256": "c219e2fd0fa3ccbdea43c43e30e93247c7db202f0e36a1ca09d6d2fd02b8e629"
+    },
+    {
+      "path": "equipment/armor-legendary-full-plate-armor.webp",
+      "bytes": 86810,
+      "sha256": "2a3754e0d60dd76d02bc53e9b9d84c022b281f86fd68b5a3f8d6c774eb53b73a"
+    },
+    {
+      "path": "equipment/armor-legendary-gambeson-armor.webp",
+      "bytes": 81214,
+      "sha256": "eb129f9d0874f292bf7d12c049319698f01d2e991172026e5af20dcc7e6db77d"
+    },
+    {
+      "path": "equipment/armor-legendary-leather-armor.webp",
+      "bytes": 80650,
+      "sha256": "50204b695b98240e0a7765c952a313410973d6d1d4ad0688739716fbbee61f8e"
+    },
+    {
+      "path": "equipment/armor-monett-s-cloak.webp",
+      "bytes": 87932,
+      "sha256": "f5bc8eb66e23cfdad3f5425dcce0a187154885a5c519a8ed4885330f5cf8d820"
+    },
+    {
+      "path": "equipment/armor-rosewild-armor.webp",
+      "bytes": 113782,
+      "sha256": "e6fc54d481ccab909e608177ed7f07510256d86c296ed8942d193f00015bc0ee"
+    },
+    {
+      "path": "equipment/armor-runes-of-fortification.webp",
+      "bytes": 106884,
+      "sha256": "ff751e823b50da520b453872ce143f1d0b107072f88e9c5e586db0029461adc3"
+    },
+    {
+      "path": "equipment/armor-runetan-floating-armor.webp",
+      "bytes": 106996,
+      "sha256": "cd04f7ce803ee623903f911cc700f651c61a5d0613266542dbdb47f4aea894e8"
+    },
+    {
+      "path": "equipment/armor-savior-chainmail.webp",
+      "bytes": 119416,
+      "sha256": "b0b94d4cf0359d3750571087c39518574e24a11f01316e7042508f29813bc0d5"
+    },
+    {
+      "path": "equipment/armor-spiked-plate-armor.webp",
+      "bytes": 101770,
+      "sha256": "64e018515a452957006729676336eef32d4441b6e54e1baef119b4f7f6a64af3"
+    },
+    {
+      "path": "equipment/armor-tyris-soft-armor.webp",
+      "bytes": 81386,
+      "sha256": "57e5c3cd8e7480538461971c9cd9c13ef6326352574d1cca865dc359f166f1f9"
+    },
+    {
+      "path": "equipment/armor-veritas-opal-armor.webp",
+      "bytes": 101682,
+      "sha256": "64eb73d8d9e6b11c8feec76821a87d0629dff1ab69849554367ef4ce2c0597f6"
+    },
+    {
+      "path": "equipment/consumable-acidpaste.webp",
+      "bytes": 81692,
+      "sha256": "6a276f2e662df9d0ab73e865b9b04e6217e701269282ab845b322349e1c5ae27"
+    },
+    {
+      "path": "equipment/consumable-armor-stitcher.webp",
+      "bytes": 86040,
+      "sha256": "45102c319d4302d814f54702e82e72a8c7dca43461eb76eab63520835058745d"
+    },
+    {
+      "path": "equipment/consumable-attune-potion.webp",
+      "bytes": 73216,
+      "sha256": "36d69221bf4214df81998c996412b9b3117ad6489bcb9e756a22ccb16ee19df1"
+    },
+    {
+      "path": "equipment/consumable-blinding-orb.webp",
+      "bytes": 74992,
+      "sha256": "f79cf9397e8a36808cc55ee9ac74f3dedac5371ac7133768760216649e3c2391"
+    },
+    {
+      "path": "equipment/consumable-blood-of-the-yorgi.webp",
+      "bytes": 75232,
+      "sha256": "2c33b329ce4b427e5c5713e45b123df7ce8136549402e6500071016c701809d9"
+    },
+    {
+      "path": "equipment/consumable-bolster-potion.webp",
+      "bytes": 73730,
+      "sha256": "8d31cfdc29df77e03ac6f091e51804e43e129ee4a45ca3203bea1f4eb134b6e3"
+    },
+    {
+      "path": "equipment/consumable-bonding-honey.webp",
+      "bytes": 78248,
+      "sha256": "b0b2c0a12d28b0d87542cf764e8da699404df0128feede8a542fac6b7ceb5d1b"
+    },
+    {
+      "path": "equipment/consumable-bridge-seed.webp",
+      "bytes": 84990,
+      "sha256": "de7e9365a3f0784659fe019d726e63839730fad9c7763d8ee49f179cfbbd206c"
+    },
+    {
+      "path": "equipment/consumable-channelstone.webp",
+      "bytes": 76678,
+      "sha256": "0cf691e3c85d2edcfd1e4fe31e612cc1e723cd6684ab1b86f605b64fcd256371"
+    },
+    {
+      "path": "equipment/consumable-charm-potion.webp",
+      "bytes": 73898,
+      "sha256": "d0497672c8500c9e656697cb1771ff91050af2be41302f8ee561629d9921e4a6"
+    },
+    {
+      "path": "equipment/consumable-circle-of-the-void.webp",
+      "bytes": 87476,
+      "sha256": "c00f48085a742eca7fe974f3cf4ebf827dbccdb13d33ab728e39c9b564f58226"
+    },
+    {
+      "path": "equipment/consumable-control-potion.webp",
+      "bytes": 75316,
+      "sha256": "87ff8bd928327c0d45d54e73a3766e71b78b4575fc1b81432267fb5ab6bfab89"
+    },
+    {
+      "path": "equipment/consumable-death-tea.webp",
+      "bytes": 96178,
+      "sha256": "c0d76c1cf0f96358e1bbd14dc2f2a78ab4e020cad39f0a31c0e53eb9aa4a1f65"
+    },
+    {
+      "path": "equipment/consumable-dragonbloom-tea.webp",
+      "bytes": 101112,
+      "sha256": "dd55168f32af238b798a28b5618dc8a6763379c48fbe76ab6d45849a7af216e5"
+    },
+    {
+      "path": "equipment/consumable-dripfang-poison.webp",
+      "bytes": 75766,
+      "sha256": "39454b3baf26441d5b5cdaf23318f179b66173e51741f5c1fd049b0671dd2d1c"
+    },
+    {
+      "path": "equipment/consumable-enlighten-potion.webp",
+      "bytes": 67578,
+      "sha256": "71a3af3ec7dfaadb62a270f7f6bba168c1ab824618334b9a9d28dbac81ef11f6"
+    },
+    {
+      "path": "equipment/consumable-feast-of-xuria.webp",
+      "bytes": 106970,
+      "sha256": "346795ec21cc8300b72a3aeff4d4c872802761a67de1209ca64d8a94c5c8360a"
+    },
+    {
+      "path": "equipment/consumable-featherbone.webp",
+      "bytes": 72220,
+      "sha256": "902adcf7285deed6cd227a1c85bbf92f76839bd5b9c05481d11af07019d569c4"
+    },
+    {
+      "path": "equipment/consumable-gill-salve.webp",
+      "bytes": 87276,
+      "sha256": "c5d3f012fd0ed6efca501d8d268d7b25972b5295e86fbcb7346eef6b4878eb2b"
+    },
+    {
+      "path": "equipment/consumable-grindletooth-venom.webp",
+      "bytes": 80954,
+      "sha256": "c0e94da8659f0e0516575075a2d1fc73a4a8091f23dd7af59a93a3d9dff5e9c4"
+    },
+    {
+      "path": "equipment/consumable-growing-potion.webp",
+      "bytes": 86168,
+      "sha256": "d0ca0c31b012a6ccb08cec95d0a23688af533788da08cb745589cbdc6ef4ef1e"
+    },
+    {
+      "path": "equipment/consumable-health-potion.webp",
+      "bytes": 71686,
+      "sha256": "f277e1fa901e46f346d5bd7d90f211730a1a51d2a113f67f2f6e68315a190d6c"
+    },
+    {
+      "path": "equipment/consumable-homet-s-secret-potion.webp",
+      "bytes": 78532,
+      "sha256": "e7dfe6818d0f6299034305327fae4c03db6ada7fdb257ecce97d1a0ac71d5dbc"
+    },
+    {
+      "path": "equipment/consumable-hopehold-flare.webp",
+      "bytes": 82392,
+      "sha256": "f140ec2281f16169c6802993b6ff7da52965e94d025addc4a56ca54c02350b95"
+    },
+    {
+      "path": "equipment/consumable-improved-arcane-shard.webp",
+      "bytes": 82448,
+      "sha256": "bcde4dd2e983bd20bd84d757b8708ca6e2ae88983288f97a2c1586f25a3f0fb6"
+    },
+    {
+      "path": "equipment/consumable-improved-grindletooth-venom.webp",
+      "bytes": 85606,
+      "sha256": "0310fe58ca45a5dbd92a5551f34c6db04b3592fdd7b20958e00c27cc3881f5f7"
+    },
+    {
+      "path": "equipment/consumable-jar-of-lost-voices.webp",
+      "bytes": 83208,
+      "sha256": "13fb679edc3eed3f1bfdf55af6498b581c98d8656b7c628500e2e7741241f565"
+    },
+    {
+      "path": "equipment/consumable-jumping-root.webp",
+      "bytes": 84772,
+      "sha256": "5f003a2e262050403b6cb858c331bfbbd290732de7b95cf2e7fbcc2d8f0863ef"
+    },
+    {
+      "path": "equipment/consumable-knowledge-stone.webp",
+      "bytes": 85706,
+      "sha256": "91b7b91b02c848ef374c69a7e19e8d1924acb7c21596798ccb0528077402a29f"
+    },
+    {
+      "path": "equipment/consumable-major-arcane-shard.webp",
+      "bytes": 86614,
+      "sha256": "6516452b5217777a4f55344827c74c723c52b68f84ba16cdc6ade470b5734687"
+    },
+    {
+      "path": "equipment/consumable-major-attune-potion.webp",
+      "bytes": 77100,
+      "sha256": "9ec154b50702c0f2a5fda709c2138c0da7c7ec476d866a181bfd5e46721d75e2"
+    },
+    {
+      "path": "equipment/consumable-major-bolster-potion.webp",
+      "bytes": 79616,
+      "sha256": "62841269a810eecafcbfbca76e387b51e5adcae1ffef11aeea4f892c080f82b8"
+    },
+    {
+      "path": "equipment/consumable-major-charm-potion.webp",
+      "bytes": 77876,
+      "sha256": "17c79e946b88af77474789ff3ce997a18134a8cdab1b212ad6434e6b1b9d4a4c"
+    },
+    {
+      "path": "equipment/consumable-major-control-potion.webp",
+      "bytes": 80322,
+      "sha256": "70c13069c524e731fa77a2228372a415ebf767244637149bff76fb13f1a83965"
+    },
+    {
+      "path": "equipment/consumable-major-enlighten-potion.webp",
+      "bytes": 73278,
+      "sha256": "17d78ff57a4d7451b738eebd3de6eee369dbff20013a1ffdc32f206d0ca73b80"
+    },
+    {
+      "path": "equipment/consumable-major-health-potion.webp",
+      "bytes": 80592,
+      "sha256": "cc8cfc28d8acfbcdbb85b65485463b7bb3da74ca736f61e0d8af8449f46b91b7"
+    },
+    {
+      "path": "equipment/consumable-major-stamina-potion.webp",
+      "bytes": 83490,
+      "sha256": "4165703b776996aec1611873b7f74dbaa6bae57ff1636c95d3dcf3254afdb9aa"
+    },
+    {
+      "path": "equipment/consumable-major-stride-potion.webp",
+      "bytes": 79558,
+      "sha256": "d801ac78c8162eb279a41e788c86216f45c819ebb9753b71b80ea356880fc1f9"
+    },
+    {
+      "path": "equipment/consumable-minor-health-potion.webp",
+      "bytes": 74488,
+      "sha256": "88069bafe4c7e4a84fe623f71913b9d9df3346b3bf58b29b439d3de1a78dd954"
+    },
+    {
+      "path": "equipment/consumable-minor-stamina-potion.webp",
+      "bytes": 74596,
+      "sha256": "50d7da2ebb0118f61b4c2172eb6a72766e21f750ae431580f4a0b566b10b1052"
+    },
+    {
+      "path": "equipment/consumable-mirror-of-marigold.webp",
+      "bytes": 93080,
+      "sha256": "7c7915bb12e405a7c12cdaa7d378523648d2a6ca1271f1bd11f750aa5a96f2ec"
+    },
+    {
+      "path": "equipment/consumable-morphing-clay.webp",
+      "bytes": 78364,
+      "sha256": "324e75593100ecb1b4103f17072203d0ebf227517335582095ee59237be4d5ea"
+    },
+    {
+      "path": "equipment/consumable-mythic-dust.webp",
+      "bytes": 82242,
+      "sha256": "15638097a90fdbdc14743dedbb0788538f1b120db49f24155c1c8c7fe1c65046"
+    },
+    {
+      "path": "equipment/consumable-ogre-musk.webp",
+      "bytes": 79648,
+      "sha256": "f20c5688a50fe02d3d9b58aa5b60d24cc2de933743d5fc1cb18567b5d9277305"
+    },
+    {
+      "path": "equipment/consumable-potion-of-stability.webp",
+      "bytes": 74190,
+      "sha256": "de6a7347c8a004586b01f0ad55456b4dba5703b21c5091c71f61d66a6be1a9aa"
+    },
+    {
+      "path": "equipment/consumable-redthorn-saliva.webp",
+      "bytes": 86542,
+      "sha256": "067f9e310334bf82e163aa12e2a0680fd5b0fdb82567594fdfb9155fb1300d1f"
+    },
+    {
+      "path": "equipment/consumable-replication-parchment.webp",
+      "bytes": 83734,
+      "sha256": "d4a51d26f3f86e91fd35f9f29e15e30a889b042e53e4a6d327c25d914223b21d"
+    },
+    {
+      "path": "equipment/consumable-shrinking-potion.webp",
+      "bytes": 81790,
+      "sha256": "ca0d400ad221fc12220bcf47c520aabbe644a5c29aabd6b5252d77d5106d7301"
+    },
+    {
+      "path": "equipment/consumable-sleeping-sap.webp",
+      "bytes": 71404,
+      "sha256": "904a4f3124cc2573a14e8618ffca27ac02d2eba369acf071f6f0be18be0042b3"
+    },
+    {
+      "path": "equipment/consumable-snap-powder.webp",
+      "bytes": 84702,
+      "sha256": "bfc997f6c835d7b9b3752e28154d69ffe773c7deed732fe33ada53cad0e45d29"
+    },
+    {
+      "path": "equipment/consumable-stamina-potion.webp",
+      "bytes": 74350,
+      "sha256": "00dafc166dc148a97705d82db7471cec39d3b7a426978b74abc1f1f07039eb43"
+    },
+    {
+      "path": "equipment/consumable-stardrop.webp",
+      "bytes": 87836,
+      "sha256": "dea0fe328acc7e8b52b217a71679da2d801647dc423c2fa7922726a354b83c08"
+    },
+    {
+      "path": "equipment/consumable-stride-potion.webp",
+      "bytes": 71354,
+      "sha256": "c95c06c8cafe57b35274d707d45e537d3f20aecd207b5a9cd7dffdec102bd560"
+    },
+    {
+      "path": "equipment/consumable-sun-tree-sap.webp",
+      "bytes": 100694,
+      "sha256": "6b84e08d1a12641386f783afba5ed9829bf8409033c15f888b1946699d0b36d0"
+    },
+    {
+      "path": "equipment/consumable-sweet-moss.webp",
+      "bytes": 105290,
+      "sha256": "9defae1ebcf44f077d759573211f3868ad657dc1505959b3b9a7b33de170f6ee"
+    },
+    {
+      "path": "equipment/consumable-unstable-arcane-shard.webp",
+      "bytes": 79826,
+      "sha256": "22014f482e8d7348a94ab3dcfca61488b8aae10f3fe3ae8beaae7f1aeac86cb0"
+    },
+    {
+      "path": "equipment/consumable-varik-leaves.webp",
+      "bytes": 72824,
+      "sha256": "f29a934e709ca519ca9db7b3996101cb3ec3be3dfb95be3cb4b54a350926c7f4"
+    },
+    {
+      "path": "equipment/consumable-vial-of-darksmoke.webp",
+      "bytes": 79798,
+      "sha256": "59cd3af4845185ab6131b501a60e183c9f65017d9dd7731da7a857aff37c09b4"
+    },
+    {
+      "path": "equipment/consumable-vial-of-moondrip.webp",
+      "bytes": 73958,
+      "sha256": "0acef6d841fea91a2ec9e50688ddc316b2b4cbb3e37ec533d0a55c51e191cd09"
+    },
+    {
+      "path": "equipment/consumable-wingsprout.webp",
+      "bytes": 71740,
+      "sha256": "fcac39d4613e3b673c941a9b7e2fcd49beecbf0afcc3fba8cf887a502e163fa8"
+    },
+    {
+      "path": "equipment/item-airblade-charm.webp",
+      "bytes": 75930,
+      "sha256": "85c9f611f93858189f7273fc951aa850d9fb57acefb616c9b0357ef0b124eaf2"
+    },
+    {
+      "path": "equipment/item-alistair-s-torch.webp",
+      "bytes": 73506,
+      "sha256": "cd2bc593f7eead11e6d5116511171882214a23a4d3b9e9d653164a8868b5cf25"
+    },
+    {
+      "path": "equipment/item-arcane-cloak.webp",
+      "bytes": 84630,
+      "sha256": "4c37272a854e786de6107caf6fd8265b7a0d4722a0d7f1e51c6865c35b46f1e4"
+    },
+    {
+      "path": "equipment/item-arcane-prism.webp",
+      "bytes": 87444,
+      "sha256": "c702fcb82269a8af93382794fd1c61d22e45f240903c2976772abcbec5ab6e82"
+    },
+    {
+      "path": "equipment/item-attune-relic.webp",
+      "bytes": 74298,
+      "sha256": "ae02089f795cabef1ab6b98f2276861cebe1258bb4a8ffb3ec6b624557488af6"
+    },
+    {
+      "path": "equipment/item-bag-of-ficklesand.webp",
+      "bytes": 106060,
+      "sha256": "f62c2d0aea596829b40c4ba1c13b5e8cb393701575c9ff6a1254968cc11458e1"
+    },
+    {
+      "path": "equipment/item-belt-of-unity.webp",
+      "bytes": 76364,
+      "sha256": "473151ebdc7ce89d9106fd465a81552e06b7b53a7f90c8abfb83786b722f8686"
+    },
+    {
+      "path": "equipment/item-bloodstone.webp",
+      "bytes": 85336,
+      "sha256": "2760b656719cb9c0ad16a5b2b4d5d42b36ea4abbcb1563effefb1cb710af9d23"
+    },
+    {
+      "path": "equipment/item-bolster-relic.webp",
+      "bytes": 81632,
+      "sha256": "6ea746cce4804a32d6af18c2eae49b334941ed02610ff4f8b6472aa8477b1ed5"
+    },
+    {
+      "path": "equipment/item-box-of-many-goods.webp",
+      "bytes": 106304,
+      "sha256": "23ab42cba1f8118097f095c07f76fb5693dae2f82cecfee427dcbb77cb1840a0"
+    },
+    {
+      "path": "equipment/item-calming-pendant.webp",
+      "bytes": 68322,
+      "sha256": "b6a3979c736c72ae07845458d2d1daddb29f43ae8f9f4b9f2e5d8a00e4139e2b"
+    },
+    {
+      "path": "equipment/item-charging-quiver.webp",
+      "bytes": 84044,
+      "sha256": "c761551c9860bccb1a3bea611ce6d2ce04d5edf75399bbf11040d3c0602d45e1"
+    },
+    {
+      "path": "equipment/item-charm-relic.webp",
+      "bytes": 81476,
+      "sha256": "9fd2e4e0671df980df7fcfbe98e75e70b743b18f8bc6641c4f921a021f560ed3"
+    },
+    {
+      "path": "equipment/item-clay-companion.webp",
+      "bytes": 104928,
+      "sha256": "47a74780f0d7dab283ced46aab5504a838b17688cdca9c6107b1f02fae17d761"
+    },
+    {
+      "path": "equipment/item-companion-case.webp",
+      "bytes": 104034,
+      "sha256": "567c23885793cbb35aa15222dd7a8680466046af7394b6d92d23baa5ab529443"
+    },
+    {
+      "path": "equipment/item-control-relic.webp",
+      "bytes": 74536,
+      "sha256": "5f83afecf348bffb40a34ff65eee7dd88f94ec832331ab021acbf2fcdb70973e"
+    },
+    {
+      "path": "equipment/item-corrector-sprite.webp",
+      "bytes": 67822,
+      "sha256": "036e504c0d37fc16f36f31556fc65d2919d90e3f3d8aa611a21f01b8f571dfbd"
+    },
+    {
+      "path": "equipment/item-dual-flask.webp",
+      "bytes": 86578,
+      "sha256": "e5069e02f7a1143b2fc5c7c737f1fee640eab8843e8a6c72a6ddd30c1ee7c8b9"
+    },
+    {
+      "path": "equipment/item-elusive-amulet.webp",
+      "bytes": 88906,
+      "sha256": "5af33b8f020be4f437a56142fdee86f58b8aa23e8d67fe12d40b92b93c163db4"
+    },
+    {
+      "path": "equipment/item-empty-chest.webp",
+      "bytes": 91002,
+      "sha256": "2fe6c734f12b93080c63e9733a973fdf2b5ebc6866cf7496dcb39c3ec30e1d80"
+    },
+    {
+      "path": "equipment/item-enlighten-relic.webp",
+      "bytes": 71196,
+      "sha256": "37861ee1e8d7a5eb9252a6b989e97045d84b9aa35c47f49650e6f91b11cdafc0"
+    },
+    {
+      "path": "equipment/item-fire-jar.webp",
+      "bytes": 81254,
+      "sha256": "3127dee4a209117ab5ed7a341421c90d0d6e6c4a7d6d8b5488a21bf8cb79b2c3"
+    },
+    {
+      "path": "equipment/item-flickerfly-pendant.webp",
+      "bytes": 90746,
+      "sha256": "445ecd2222ebff708826f982327ce733ea79bf0eae4ad9da2c7534aeaf9fa193"
+    },
+    {
+      "path": "equipment/item-gecko-gloves.webp",
+      "bytes": 83198,
+      "sha256": "f7c84c064c8460113c7772074b89f78bc901804ce9e92103847ecdb41b58c4a7"
+    },
+    {
+      "path": "equipment/item-gem-of-alacrity.webp",
+      "bytes": 74636,
+      "sha256": "24953fddf3ec4c415ddfecb827d5c80ecf2279c855ecfab2d4f59f93f881fd62"
+    },
+    {
+      "path": "equipment/item-gem-of-audacity.webp",
+      "bytes": 79000,
+      "sha256": "b784bdfc71de81cdc6a0ce66951959ab52d2a966237e6267c2becad5f19b37bd"
+    },
+    {
+      "path": "equipment/item-gem-of-insight.webp",
+      "bytes": 78288,
+      "sha256": "cea626e1064cd522e5533b9446d1ab28a5e3435c4b9a99972de4316c2109a9a2"
+    },
+    {
+      "path": "equipment/item-gem-of-might.webp",
+      "bytes": 78978,
+      "sha256": "d4c84b5ad64173b03ed7fe8e2d2bc76efffeb31f9ae5f3114cc897144fe3a5c3"
+    },
+    {
+      "path": "equipment/item-gem-of-precision.webp",
+      "bytes": 71272,
+      "sha256": "e67d1e774ac12d06192d8eee65770fa9dbeb8dbd965d349e69b33f64b9e0481f"
+    },
+    {
+      "path": "equipment/item-gem-of-sagacity.webp",
+      "bytes": 72208,
+      "sha256": "a39bc74744868d37cbda58af7558048db11eaf98ae05d02b07d3a163da6b6823"
+    },
+    {
+      "path": "equipment/item-glamour-stone.webp",
+      "bytes": 75298,
+      "sha256": "78e179f2e14e4cdcefd4926f1b1afc3163d2e68f3be458ec6d1338f16cb53ef3"
+    },
+    {
+      "path": "equipment/item-glider.webp",
+      "bytes": 81302,
+      "sha256": "fd6ebfd35209a6c149969ce83d875e9391f4244c67bb2921d9aebc8a6479000e"
+    },
+    {
+      "path": "equipment/item-greatstone.webp",
+      "bytes": 106916,
+      "sha256": "7ed933627f7dc51b0a197cf9942e9c6801cce10f304d6d84f339f49870583740"
+    },
+    {
+      "path": "equipment/item-homing-compasses.webp",
+      "bytes": 83206,
+      "sha256": "4e03c81fe102539c0649ab8730504c6601346f0840d373d742033c7bb0121394"
+    },
+    {
+      "path": "equipment/item-honing-relic.webp",
+      "bytes": 80658,
+      "sha256": "576faeb78ed2bd206ea75700975305554d75b216c5728d361a6376c6aa7cd48c"
+    },
+    {
+      "path": "equipment/item-hopekeeper-locket.webp",
+      "bytes": 99646,
+      "sha256": "e41b50769ea2edd2df9d55e5e95cdfd98f56a78a7668fb1c93357f9703c476bd"
+    },
+    {
+      "path": "equipment/item-infinite-bag.webp",
+      "bytes": 79032,
+      "sha256": "e2e39a459bdd3585d10c5c9a214cf2676ba225308bfb7af1089f32e0104bd676"
+    },
+    {
+      "path": "equipment/item-lakestrider-boots.webp",
+      "bytes": 98070,
+      "sha256": "d57115256afe96bad5a824f84c3bc8719362c9e7cdc6158e0388e974093bac4d"
+    },
+    {
+      "path": "equipment/item-lorekeeper.webp",
+      "bytes": 99568,
+      "sha256": "1b60dd55c34b7f8181baa012d62013125091f1219d46827635e018c2d23eb700"
+    },
+    {
+      "path": "equipment/item-manacles.webp",
+      "bytes": 77354,
+      "sha256": "e0be47ace389506069a15b2af221b3076967537dfa5a0e27fc7d871b09c22dfa"
+    },
+    {
+      "path": "equipment/item-minor-health-potion-recipe.webp",
+      "bytes": 82062,
+      "sha256": "08e9b19e6a5d9038f3b77f13087ca9f58a3066ec15d18f5e41ce62dc3ea61cac"
+    },
+    {
+      "path": "equipment/item-minor-stamina-potion-recipe.webp",
+      "bytes": 92736,
+      "sha256": "897cdc50022bedb140e90098e895d337040b99a926c149a5fd5e7e86fe372059"
+    },
+    {
+      "path": "equipment/item-mythic-dust-recipe.webp",
+      "bytes": 90796,
+      "sha256": "41a9b15311966dd00797da8c4d0ff3f975a09ff648c8dd8c7e645ce94429367e"
+    },
+    {
+      "path": "equipment/item-paragon-s-chain.webp",
+      "bytes": 102692,
+      "sha256": "375997c0b72d785c8f8f30171144e75eb75b60453c113a6a0bc98be7eedf2dcf"
+    },
+    {
+      "path": "equipment/item-phoenix-feather.webp",
+      "bytes": 90980,
+      "sha256": "6ba775f8a11be3814a592566233d630f8c0f65b855d57a8094fb90ae24bfa5d3"
+    },
+    {
+      "path": "equipment/item-piercing-arrows.webp",
+      "bytes": 72192,
+      "sha256": "732b4cfb52cec8c32b54818db0b096eeac28883f8a49c9984eefd855a2cc8d26"
+    },
+    {
+      "path": "equipment/item-piper-whistle.webp",
+      "bytes": 73358,
+      "sha256": "81e90ecdda4b0c2bbabf197d363a18e46aa90c137401e7f4f63ebbb0bc8aa787"
+    },
+    {
+      "path": "equipment/item-portal-seed.webp",
+      "bytes": 103436,
+      "sha256": "00de2faaa99710d083d5177abfc0a65aa6cfe6d12a354d4ed24956f712cf4495"
+    },
+    {
+      "path": "equipment/item-premium-bedroll.webp",
+      "bytes": 70246,
+      "sha256": "3f316b2b63ad02a1918a25100cfb437bc940e44003fdbab7dfceabb59007f613"
+    },
+    {
+      "path": "equipment/item-ring-of-resistance.webp",
+      "bytes": 77610,
+      "sha256": "e99e7ec7f7290ef885595814099544f9ae3d0484188f4ae65a40a5cdfa9f8764"
+    },
+    {
+      "path": "equipment/item-ring-of-silence.webp",
+      "bytes": 69820,
+      "sha256": "9ee6a0299b98cf65f7765099e0b56e2af2d7ab2c8db1f762e5e128657ee3d25c"
+    },
+    {
+      "path": "equipment/item-ring-of-unbreakable-resolve.webp",
+      "bytes": 89280,
+      "sha256": "883cfd340591cbbf9c7eb1a9d6edd8220f43d30efd787021fc6e8d5ff1f1ed4d"
+    },
+    {
+      "path": "equipment/item-shard-of-memory.webp",
+      "bytes": 78802,
+      "sha256": "e08ae784a59686dfc74609db01b5bd077120ff4b804f918458fd578f7d743763"
+    },
+    {
+      "path": "equipment/item-skeleton-key.webp",
+      "bytes": 71928,
+      "sha256": "bab88c0a98e7313e0f5598f0ef3a6c53b8820e85602804134173d49c4f3aa2ae"
+    },
+    {
+      "path": "equipment/item-speaking-orbs.webp",
+      "bytes": 80822,
+      "sha256": "07efdf362c9f093438b1c8f271ec57eac63b1f16dfdfc940827677ec77238a3a"
+    },
+    {
+      "path": "equipment/item-stride-relic.webp",
+      "bytes": 74290,
+      "sha256": "9fc8c3013ed71849eecdd9c79313766087c209e09ec3601ffeb6332b5abd97da"
+    },
+    {
+      "path": "equipment/item-suspended-rod.webp",
+      "bytes": 80652,
+      "sha256": "0ea0eb24de534799db046650c4bf1c16c4d30d9476394763b1791527c36ab6a4"
+    },
+    {
+      "path": "equipment/item-valorstone.webp",
+      "bytes": 86450,
+      "sha256": "42a487d90e810d0ecefa14450d7dc95724c80f62175d23b9a986d287bc3f7454"
+    },
+    {
+      "path": "equipment/item-vial-of-darksmoke-recipe.webp",
+      "bytes": 93154,
+      "sha256": "1aefff13dff8f2ec1864fadc06dd3dfff79eef0e892c7928741bfddd2ba84e28"
+    },
+    {
+      "path": "equipment/item-woven-net.webp",
+      "bytes": 103126,
+      "sha256": "ea3faf00b6ab02e902b83f020dad1dbfe3a6159ba2bf5573c9119ea76155152a"
+    },
+    {
+      "path": "equipment/primary-aantari-bow.webp",
+      "bytes": 64968,
+      "sha256": "869195f0567477f498d4eb23ed9a3eb5b0b4e7a5c9ba5a0fb9871ed4457a3a60"
+    },
+    {
+      "path": "equipment/primary-advanced-arcane-frame-wheelchair.webp",
+      "bytes": 37676,
+      "sha256": "39a95296b4d8448f35a5ee22616c7551f0b57083c1fa8bc2affaf34ba5fb83ec"
+    },
+    {
+      "path": "equipment/primary-advanced-arcane-gauntlets.webp",
+      "bytes": 76548,
+      "sha256": "b51883cfb0e3deca6695efefe57ca6c3d29942cfaadf749a4021fdd5a8f51799"
+    },
+    {
+      "path": "equipment/primary-advanced-battleaxe.webp",
+      "bytes": 68430,
+      "sha256": "01af3d046759e4d0222da35d943194d36e96fb6fddd92b3dd59be774c9bed84e"
+    },
+    {
+      "path": "equipment/primary-advanced-broadsword.webp",
+      "bytes": 66332,
+      "sha256": "e299cad91cfbd81214fb5c22de8fdf5f0c4263233fd70c7d1a2815963a2396d1"
+    },
+    {
+      "path": "equipment/primary-advanced-crossbow.webp",
+      "bytes": 66616,
+      "sha256": "c6f35b23aacc4d75c6e0754e6d810e5d1270d21191043b8223bfb54b0228c67d"
+    },
+    {
+      "path": "equipment/primary-advanced-cutlass.webp",
+      "bytes": 61230,
+      "sha256": "5ab973ca4a6dceec7fa46c37c8ca8859e3add56c34db4f3ae3248b8e5dfe06ff"
+    },
+    {
+      "path": "equipment/primary-advanced-dagger.webp",
+      "bytes": 59478,
+      "sha256": "02cc5b7288de0c4d96f5da622e95f8bcd206cd1a632bec1a5f90e686fc60de46"
+    },
+    {
+      "path": "equipment/primary-advanced-dualstaff.webp",
+      "bytes": 53242,
+      "sha256": "7997df24dc5a0c622fc897171c29ec40be0a3f2cce39db9e5f44c4e567e97e18"
+    },
+    {
+      "path": "equipment/primary-advanced-glowing-rings.webp",
+      "bytes": 61890,
+      "sha256": "9e79499a18c423236899245cd76084992d9b6efc8ce19752f005301da868f0cc"
+    },
+    {
+      "path": "equipment/primary-advanced-greatstaff.webp",
+      "bytes": 64398,
+      "sha256": "cc2511435edad379ef18eb8b2f23bdc09ef7fadb3dd9727053ee301f50fe53e6"
+    },
+    {
+      "path": "equipment/primary-advanced-greatsword.webp",
+      "bytes": 73188,
+      "sha256": "836829184ed066a70797b13c1e9b3b079d2dec97f9dcfa4e7d3abd5ab6805436"
+    },
+    {
+      "path": "equipment/primary-advanced-halberd.webp",
+      "bytes": 60408,
+      "sha256": "4ac875efc6d8b1eb7d16a25d5d4f4424ab0a604191428514aa934be2ff38adcb"
+    },
+    {
+      "path": "equipment/primary-advanced-hallowed-axe.webp",
+      "bytes": 63866,
+      "sha256": "91d98288ff173cfb32ba30a88940967ddcaf096c18e4db1bd1a4f14ea5426ca7"
+    },
+    {
+      "path": "equipment/primary-advanced-hand-runes.webp",
+      "bytes": 69994,
+      "sha256": "65b7228b546af220a02a9a151231e97d81e8ea6fe70c8f5a2febd40415a4d5e9"
+    },
+    {
+      "path": "equipment/primary-advanced-heavy-frame-wheelchair.webp",
+      "bytes": 34628,
+      "sha256": "a4ab9690138d44b51b2231b4e97369b67f10274d123d4b12c912f86c39dc8919"
+    },
+    {
+      "path": "equipment/primary-advanced-light-frame-wheelchair.webp",
+      "bytes": 41720,
+      "sha256": "336b33362b2813892cb845e6878bc82814f5e812b5d973268062f4bf59f0b89a"
+    },
+    {
+      "path": "equipment/primary-advanced-longbow.webp",
+      "bytes": 58396,
+      "sha256": "1d8512f869beb4152ad18bb344076cf01c51dac59e8359e6b7c080577e8a3b8b"
+    },
+    {
+      "path": "equipment/primary-advanced-longsword.webp",
+      "bytes": 57682,
+      "sha256": "dc5750555edc86b76748632ba852651814eb10e0e9cac50f8090bcea26dbc3c0"
+    },
+    {
+      "path": "equipment/primary-advanced-mace.webp",
+      "bytes": 67578,
+      "sha256": "11cc8c9fd01946c8dc1d71f4f23bd39ee280f74f2a2f5ae87a81d577ccef60dc"
+    },
+    {
+      "path": "equipment/primary-advanced-quarterstaff.webp",
+      "bytes": 57134,
+      "sha256": "fc72f963683e805bb2d1bc04a5cde9d759f83f79a0f68885c002ff73c0db8dd8"
+    },
+    {
+      "path": "equipment/primary-advanced-rapier.webp",
+      "bytes": 66378,
+      "sha256": "b925a42be95d2ab151e37140057b7783ca2b93ca983e8152ea88f53fc77c76c3"
+    },
+    {
+      "path": "equipment/primary-advanced-returning-blade.webp",
+      "bytes": 62802,
+      "sha256": "1393383cb5652e38030515aa5ccdf4f3b4b80307f9a023a5a487305e362b9be2"
+    },
+    {
+      "path": "equipment/primary-advanced-scepter.webp",
+      "bytes": 66136,
+      "sha256": "aec0919ee98b00bae397342e4eb2890e49bb7ccfb00960677f60f4f10d43a231"
+    },
+    {
+      "path": "equipment/primary-advanced-shortbow.webp",
+      "bytes": 58572,
+      "sha256": "05f5cd8d5ca89a700bac922d95977a5c1133ad7c32d7e9c60342177ed3cb60a3"
+    },
+    {
+      "path": "equipment/primary-advanced-shortstaff.webp",
+      "bytes": 55390,
+      "sha256": "cf8aaac4d298e481d4f58504693b2b0ce28c1202abebfaf2ad14b96903bbb746"
+    },
+    {
+      "path": "equipment/primary-advanced-spear.webp",
+      "bytes": 51544,
+      "sha256": "11c72c2218183f07e823faae443e0ad1ee98bf9896b85afcd3823d2d71163d75"
+    },
+    {
+      "path": "equipment/primary-advanced-wand.webp",
+      "bytes": 52192,
+      "sha256": "d9b770e37a6a566557f6e49fac8e5bd96c2ef18d7e9b84ee77e60d0cb365b2c6"
+    },
+    {
+      "path": "equipment/primary-advanced-warhammer.webp",
+      "bytes": 66866,
+      "sha256": "431ddb73a25bdab170cdda4c196366aed357f9715bff6bbd1e261e9b868736d6"
+    },
+    {
+      "path": "equipment/primary-arcane-frame-wheelchair.webp",
+      "bytes": 81208,
+      "sha256": "c70a1240a332c91c8e9b994546106aa519c74760cae2750b7e1413370398bbf4"
+    },
+    {
+      "path": "equipment/primary-arcane-gauntlets.webp",
+      "bytes": 75006,
+      "sha256": "98e5615e29bfb904e89a46e34f312e2cbae7bc2986fc17240321cda409383b5e"
+    },
+    {
+      "path": "equipment/primary-axe-of-fortunis.webp",
+      "bytes": 87510,
+      "sha256": "7e0a5afcf2e135b0b40ea0487134dfaa8cb10a33b2deccd47ca0a12a2728432a"
+    },
+    {
+      "path": "equipment/primary-battleaxe.webp",
+      "bytes": 66262,
+      "sha256": "a1efe260f2c1ee3b5f2b3e509823e12b2be0ce5008a74899c8d0677dd4fda9f6"
+    },
+    {
+      "path": "equipment/primary-black-powder-revolver.webp",
+      "bytes": 88762,
+      "sha256": "c7114ec6c910a1cd2c9c25e7e36bd3814ba8b5ce62e7d6f7935fc68690a28697"
+    },
+    {
+      "path": "equipment/primary-bladed-whip.webp",
+      "bytes": 83650,
+      "sha256": "510dc29a8e262b79352669fe5a2fc4def2776caa5efc94006aa0292e765d751b"
+    },
+    {
+      "path": "equipment/primary-blessed-anlace.webp",
+      "bytes": 81968,
+      "sha256": "0d009fde1420804ad953620b22b2ca54637edf62794c68f1c607c35160cd4e96"
+    },
+    {
+      "path": "equipment/primary-bloodstaff.webp",
+      "bytes": 83864,
+      "sha256": "0a4118f39374d81d4e3f6af3cff5949291c9473702ce2b42116851883e88678a"
+    },
+    {
+      "path": "equipment/primary-blunderbuss.webp",
+      "bytes": 86510,
+      "sha256": "ca86775163826f1c4a2fa22748efe60239b627bebd7b0c8518f894468d756b4e"
+    },
+    {
+      "path": "equipment/primary-bravesword.webp",
+      "bytes": 73346,
+      "sha256": "06ee699cf999cefb78b8a96d9f1bc71134b3bd8c8d88f6489c7f8c0e3be62260"
+    },
+    {
+      "path": "equipment/primary-broadsword.webp",
+      "bytes": 64470,
+      "sha256": "1ab230ed2882c3f36ea20d6b9953e428590d1d8647cf92cc9d1472e3f0c4a9e8"
+    },
+    {
+      "path": "equipment/primary-casting-sword.webp",
+      "bytes": 73950,
+      "sha256": "553db85b1c137909078401934b7cca7dd219c59f41a52e0dddcf7645c1b0e2dd"
+    },
+    {
+      "path": "equipment/primary-crossbow.webp",
+      "bytes": 64536,
+      "sha256": "d1a467b6281c376899c66a67c275a9c0be65f2603fde7f37f76275e5939dffb7"
+    },
+    {
+      "path": "equipment/primary-curved-dagger.webp",
+      "bytes": 69998,
+      "sha256": "b27b970499f1b2447e51872e89b32a3fab937ba83b7958f97c7d4da224e7560e"
+    },
+    {
+      "path": "equipment/primary-cutlass.webp",
+      "bytes": 59138,
+      "sha256": "6d279040e789b9578ad0a59212f5c5861116a836144ba7fa5a6c8860b13b9922"
+    },
+    {
+      "path": "equipment/primary-dagger.webp",
+      "bytes": 57232,
+      "sha256": "396e6f2c5d13d5c701f6a59c78335b996f1d7d871cf2874e327777ff5148569f"
+    },
+    {
+      "path": "equipment/primary-devouring-dagger.webp",
+      "bytes": 78080,
+      "sha256": "e9c0bf48e88a49c672234712a599c8ada9f1c8affe9e205ff8bb268ec39c5948"
+    },
+    {
+      "path": "equipment/primary-double-flail.webp",
+      "bytes": 88498,
+      "sha256": "51ebb100577c12532f20ae24c5030eb5de060c6c24ed9bc006a1b5c32225b04a"
+    },
+    {
+      "path": "equipment/primary-dual-ended-sword.webp",
+      "bytes": 74450,
+      "sha256": "0ac7eae36c29d9a51f7aa0fccfd28ec0489749060d0800f23b512d5d53a96e6f"
+    },
+    {
+      "path": "equipment/primary-dualstaff.webp",
+      "bytes": 48364,
+      "sha256": "9ae24394124e17d79701eec08e58d1da8c1c1a3dd527e82f526593ba727b8615"
+    },
+    {
+      "path": "equipment/primary-ego-blade.webp",
+      "bytes": 68924,
+      "sha256": "3f885ab52a9151705ead98ae469e5bcea684a6c2b4c734682299e238ce09dfb6"
+    },
+    {
+      "path": "equipment/primary-elder-bow.webp",
+      "bytes": 77990,
+      "sha256": "0289cfad748e76f3116fbf1535c4063ce2f806ab5d29f21fdec70549ae4549fb"
+    },
+    {
+      "path": "equipment/primary-extended-polearm.webp",
+      "bytes": 67334,
+      "sha256": "082fc976aecd02b8c450a1a19db0dd56e2ccc4ae7bd3a7ba48f4051a66cecc34"
+    },
+    {
+      "path": "equipment/primary-finehair-bow.webp",
+      "bytes": 60124,
+      "sha256": "e2edb060a89fefde423ed5b00e1e01f573a64c7dfb15da1b25d7cdd3e6a0f477"
+    },
+    {
+      "path": "equipment/primary-firestaff.webp",
+      "bytes": 78414,
+      "sha256": "7ae2e2333f6dc22aa23c569c40cad0723b45e7eb6bdd3764e567a426892768f0"
+    },
+    {
+      "path": "equipment/primary-flickerfly-blade.webp",
+      "bytes": 74456,
+      "sha256": "7bca85f8dca1d3849ff6ffd94b88050569f2aef2daa2850a41673513049b852d"
+    },
+    {
+      "path": "equipment/primary-floating-bladeshards.webp",
+      "bytes": 85836,
+      "sha256": "c9bb59d7123af9ebfbdd709ca821fcfa4d675b1ce55e201079dd6223d261cca6"
+    },
+    {
+      "path": "equipment/primary-fusion-gloves.webp",
+      "bytes": 93696,
+      "sha256": "c52aac61a493490e8e00012b00ee55aab609608f3fa7b1fdcd61555f1047536c"
+    },
+    {
+      "path": "equipment/primary-ghostblade.webp",
+      "bytes": 65954,
+      "sha256": "799b40832773452072d61d998c52aefe4f0a401f44a9e7a8f039a59ade0dc5c1"
+    },
+    {
+      "path": "equipment/primary-gilded-bow.webp",
+      "bytes": 71120,
+      "sha256": "e8ea6aebc402238465fb495000de2226b126213cc4914c94978a317028f2b9bd"
+    },
+    {
+      "path": "equipment/primary-gilded-falchion.webp",
+      "bytes": 78088,
+      "sha256": "f1b0a736841d702ba0433e5cea33d8dc368db7f00477110ce0a2b2632d984d99"
+    },
+    {
+      "path": "equipment/primary-glowing-rings.webp",
+      "bytes": 59878,
+      "sha256": "2d9ed884892cfbbb2f2bda1fa810ee732850d68a5d0e236a7930bd21cae70d11"
+    },
+    {
+      "path": "equipment/primary-greatbow.webp",
+      "bytes": 73118,
+      "sha256": "0c25e0d2204963340dc831be6ca683a1487778ba252c416e7770866d5f3e8dc9"
+    },
+    {
+      "path": "equipment/primary-greatstaff.webp",
+      "bytes": 62470,
+      "sha256": "d6b20e12ba9668757f6de64c6ead82ba4e1f581c6be4923b552eb353c010069f"
+    },
+    {
+      "path": "equipment/primary-greatsword.webp",
+      "bytes": 70926,
+      "sha256": "ac7ca543f04b4525ef25785fcc0322ecb1abc88afad1b93bc176cb22371b4ef6"
+    },
+    {
+      "path": "equipment/primary-halberd.webp",
+      "bytes": 58304,
+      "sha256": "3aac9659dd61dfa730fa830679e4118edd8a05eac13f2998122b6dcfe6875810"
+    },
+    {
+      "path": "equipment/primary-hallowed-axe.webp",
+      "bytes": 62530,
+      "sha256": "43bd293ce1f1b6af1a8ad062bce1fbd05ffc7e5fc7cae063b3057035b477a476"
+    },
+    {
+      "path": "equipment/primary-hammer-of-exota.webp",
+      "bytes": 99822,
+      "sha256": "4804851ecb289f8d70844604f46449f33186463a4569c92b2d007191a8add417"
+    },
+    {
+      "path": "equipment/primary-hammer-of-wrath.webp",
+      "bytes": 90470,
+      "sha256": "362136a64ee7d67cfeaa17f4ff504d1068fa038c74ddf21dbc95b172f1f75176"
+    },
+    {
+      "path": "equipment/primary-hand-cannon.webp",
+      "bytes": 84190,
+      "sha256": "762b65878f04888744c001475c40ab67eddcae36dcd03a9d792bb42bf0524067"
+    },
+    {
+      "path": "equipment/primary-hand-runes.webp",
+      "bytes": 67646,
+      "sha256": "abe7fd0381fae8bf9d70d6fe4b9d2d4086f5bd498dc5b998440542d22670dcad"
+    },
+    {
+      "path": "equipment/primary-heavy-frame-wheelchair.webp",
+      "bytes": 79958,
+      "sha256": "195b1e0a50f86e50b485d19e30c037757073fde9bd5318012f06b3ef82150876"
+    },
+    {
+      "path": "equipment/primary-ilmari-s-rifle.webp",
+      "bytes": 84012,
+      "sha256": "8d376741f75b70dc9d1edc0092eece3da1b6b56af571e3ba78dab4d55d68cd3e"
+    },
+    {
+      "path": "equipment/primary-impact-gauntlet.webp",
+      "bytes": 97342,
+      "sha256": "ecc020f0da9f002af91f7a1d706e6e4a655365f60415f61bebe907de98838127"
+    },
+    {
+      "path": "equipment/primary-improved-arcane-frame-wheelchair.webp",
+      "bytes": 35428,
+      "sha256": "1feb7de9f1a1edaf8a7a8809345979ec0d408738739ec0dd29273db57d828f53"
+    },
+    {
+      "path": "equipment/primary-improved-arcane-gauntlets.webp",
+      "bytes": 76180,
+      "sha256": "f7e106a017b6363e524238def1a27fde9525417644a488dd3a40b54af70f4e2e"
+    },
+    {
+      "path": "equipment/primary-improved-battleaxe.webp",
+      "bytes": 68206,
+      "sha256": "8ddbcdf4029d8d2854b1c9c262ee7c371baeec0972b66455a76316b18f368791"
+    },
+    {
+      "path": "equipment/primary-improved-broadsword.webp",
+      "bytes": 66232,
+      "sha256": "372ad75ec2b9bddb0b318685ce85de1cb36c26dc85cddf429c2df5705871b8a1"
+    },
+    {
+      "path": "equipment/primary-improved-crossbow.webp",
+      "bytes": 66462,
+      "sha256": "d77bc938dae2d70c637119f110758026b200d60bae76c553de8fab667747a904"
+    },
+    {
+      "path": "equipment/primary-improved-cutlass.webp",
+      "bytes": 60988,
+      "sha256": "74e7b4eb0f802441c94c956ea08347aa4b831c553424031e846336bbe76ee4f6"
+    },
+    {
+      "path": "equipment/primary-improved-dagger.webp",
+      "bytes": 59206,
+      "sha256": "a55e1533e5b406fd5c383fcc2fd203dba2fd702265839b51e3982a5f6a8df6ab"
+    },
+    {
+      "path": "equipment/primary-improved-dualstaff.webp",
+      "bytes": 53230,
+      "sha256": "7692a979adfc826b2b272b891e138b14043b7b6dadbf08ef6463832d48502252"
+    },
+    {
+      "path": "equipment/primary-improved-glowing-rings.webp",
+      "bytes": 61716,
+      "sha256": "cf3e24533d47be9d65889ef8cbbc3c62b5c9bfb5b0cbe61135a5113fccfb46a8"
+    },
+    {
+      "path": "equipment/primary-improved-greatstaff.webp",
+      "bytes": 64186,
+      "sha256": "f6947c3ff0da94a9c71afe74923e3f19d171d3fed35d03dabff42966afd5e11f"
+    },
+    {
+      "path": "equipment/primary-improved-greatsword.webp",
+      "bytes": 73252,
+      "sha256": "af6250560fb2098aea280d7f9429a518fe2d23c5e362a8f3993ddcddba1bb2d8"
+    },
+    {
+      "path": "equipment/primary-improved-halberd.webp",
+      "bytes": 60056,
+      "sha256": "06961c42bae660adf6e9bef6d75baf9eda64cdfd328ded6b510b1388238c5c5c"
+    },
+    {
+      "path": "equipment/primary-improved-hallowed-axe.webp",
+      "bytes": 63756,
+      "sha256": "6b97a47e51bbcbd978ea9f0bcea492c417c1d18d1e18dfdfbe1fd921f3ef8cab"
+    },
+    {
+      "path": "equipment/primary-improved-hand-runes.webp",
+      "bytes": 69588,
+      "sha256": "57fdd8241dce1d9b5269a376f7ed1c4daeeca7c592b9b0670a3b92caa5c2e83f"
+    },
+    {
+      "path": "equipment/primary-improved-heavy-frame-wheelchair.webp",
+      "bytes": 34510,
+      "sha256": "194c29a99011f9bede39d76178c872908a2b35272a03c36022f295fd389b1132"
+    },
+    {
+      "path": "equipment/primary-improved-light-frame-wheelchair.webp",
+      "bytes": 41316,
+      "sha256": "0e4d6eae439b28e02183da312b00b8ca1681849578ccfb60bb36c7edc3e80019"
+    },
+    {
+      "path": "equipment/primary-improved-longbow.webp",
+      "bytes": 58136,
+      "sha256": "2621a6b09a1fec4e1094ed0a8ce81704302fe0be41683ecce2ab4651ddee2ea1"
+    },
+    {
+      "path": "equipment/primary-improved-longsword.webp",
+      "bytes": 57220,
+      "sha256": "85a77fe746d47575f7a1bc33aa2012dfa296c8816e01efe0756aae2750531eb5"
+    },
+    {
+      "path": "equipment/primary-improved-mace.webp",
+      "bytes": 67212,
+      "sha256": "547a82eb767ab2396d782207648e0822b459f846afb008ed881bb491c5ac951d"
+    },
+    {
+      "path": "equipment/primary-improved-quarterstaff.webp",
+      "bytes": 56554,
+      "sha256": "16c9a77d7bf7cc40c8912cf455b642e1647464cf572caddd3cc92bb10eba18e2"
+    },
+    {
+      "path": "equipment/primary-improved-rapier.webp",
+      "bytes": 66190,
+      "sha256": "d018ae076be08d015656ecd33fc529d81ae5f260a5b7990195f371dee3c87db6"
+    },
+    {
+      "path": "equipment/primary-improved-returning-blade.webp",
+      "bytes": 62366,
+      "sha256": "842d2c2b1af34e626e996395a22ac04fd6caffc1814a103e9c6de5880120e553"
+    },
+    {
+      "path": "equipment/primary-improved-scepter.webp",
+      "bytes": 65780,
+      "sha256": "e8b40ccad8ce9d712d7e9bc16bfdece8bfb094f79f8bb9b8b1fecc7691a9d5e6"
+    },
+    {
+      "path": "equipment/primary-improved-shortbow.webp",
+      "bytes": 58342,
+      "sha256": "2ef6ed2262f0f73805f57ba7e1e8a82d8d5afe346f8561b1cef982ec96c960eb"
+    },
+    {
+      "path": "equipment/primary-improved-shortstaff.webp",
+      "bytes": 55222,
+      "sha256": "a6143b286b63305ead0e4826074eae253997493512520650aa5e6f6df75f97ad"
+    },
+    {
+      "path": "equipment/primary-improved-spear.webp",
+      "bytes": 51198,
+      "sha256": "e1f4321e81f33098f57e8649e42195c19fb31420b7e9c51bf7ceaf07726513b8"
+    },
+    {
+      "path": "equipment/primary-improved-wand.webp",
+      "bytes": 51988,
+      "sha256": "eb9f1f356c8c94d269ce4c9835693fafd679bdd5fb4d6d3fdff15f6ec0f49a56"
+    },
+    {
+      "path": "equipment/primary-improved-warhammer.webp",
+      "bytes": 66134,
+      "sha256": "5b163b438f7b37bf9b50064a09ba309d2713f21b541caffd34b162cf3280f68c"
+    },
+    {
+      "path": "equipment/primary-keeper-s-staff.webp",
+      "bytes": 68348,
+      "sha256": "01e0072c8eb6d957f884e42aaf6aa26aba2806b4c93b6aeaf64d7ab3393cf831"
+    },
+    {
+      "path": "equipment/primary-knuckle-blades.webp",
+      "bytes": 89386,
+      "sha256": "dd0dc1c87be07cc08ad723029de61c61f6b0d89be4792b6e65524533362f6455"
+    },
+    {
+      "path": "equipment/primary-labrys-axe.webp",
+      "bytes": 76124,
+      "sha256": "4e5b28f38035c3082b883222f9d38068a9d38190ecee3ab6d44cb5d850f8a5f6"
+    },
+    {
+      "path": "equipment/primary-legendary-arcane-frame-wheelchair.webp",
+      "bytes": 37456,
+      "sha256": "9de69bde6099d054a7b923409e4462a99fc1d98885eb9ac87829f649242a0018"
+    },
+    {
+      "path": "equipment/primary-legendary-arcane-gauntlets.webp",
+      "bytes": 76704,
+      "sha256": "e93f4a25075d80bb779e31357156db01358758a82940e84dac8a8a0daad5639e"
+    },
+    {
+      "path": "equipment/primary-legendary-battleaxe.webp",
+      "bytes": 68184,
+      "sha256": "e4e7116c289d2ca1ac7580f8801be281688ff22742d72a858a6b8639dac30923"
+    },
+    {
+      "path": "equipment/primary-legendary-broadsword.webp",
+      "bytes": 65800,
+      "sha256": "4c0d34befd2c841ed671f32b1729a8161eabb2376f94ef796b0b2597c6c0e517"
+    },
+    {
+      "path": "equipment/primary-legendary-crossbow.webp",
+      "bytes": 66466,
+      "sha256": "1264e4ea22e53a4b43d36431910f98e197a74c63b54fbe022395f644c2e2db51"
+    },
+    {
+      "path": "equipment/primary-legendary-cutlass.webp",
+      "bytes": 60850,
+      "sha256": "a454dc06366c89d478e7397ee7a249300db94da0f4c9748d017f40b3b4f2d0cf"
+    },
+    {
+      "path": "equipment/primary-legendary-dagger.webp",
+      "bytes": 59428,
+      "sha256": "f220cf286d51a31e2eada93e8a7044e6a0293818939a64e5e4fd0f93bd8a98ff"
+    },
+    {
+      "path": "equipment/primary-legendary-dualstaff.webp",
+      "bytes": 53378,
+      "sha256": "bb3249c3e36a392685d5f30dc4d6288ba59babd83ece369e1e060932bdc304e0"
+    },
+    {
+      "path": "equipment/primary-legendary-glowing-rings.webp",
+      "bytes": 60656,
+      "sha256": "6efd7c553feb77db7e78e18ca225abcfd6005c41ae47652c5c5b83c670e05e3b"
+    },
+    {
+      "path": "equipment/primary-legendary-greatstaff.webp",
+      "bytes": 65006,
+      "sha256": "3aea7f81ea78fc2b19348ad272ce139d5d536d128e5fc51f575b87e43db2b5ca"
+    },
+    {
+      "path": "equipment/primary-legendary-greatsword.webp",
+      "bytes": 72300,
+      "sha256": "b7d2e241535c5b3a3d31589cd4258771c2ce22eb2ad0b8cffea79358715630ad"
+    },
+    {
+      "path": "equipment/primary-legendary-halberd.webp",
+      "bytes": 60300,
+      "sha256": "7ba0acf91a05fc075dee3a697b517422ab4a9c6755ec2209ffd145a9299c2af4"
+    },
+    {
+      "path": "equipment/primary-legendary-hallowed-axe.webp",
+      "bytes": 64532,
+      "sha256": "e29a9b46eef57931ac5e1c91b8c73d84a0a87f53a8d6fdc33993b41298e67137"
+    },
+    {
+      "path": "equipment/primary-legendary-hand-runes.webp",
+      "bytes": 69866,
+      "sha256": "7aa976ad3569a6fe4506807b9e534b8aea61c13d6fbac4da9b1543ab8c913a41"
+    },
+    {
+      "path": "equipment/primary-legendary-heavy-frame-wheelchair.webp",
+      "bytes": 36502,
+      "sha256": "63b141099130b05ee3609ff229c4cdbc5716e205470c9242f97cb1b56510fff8"
+    },
+    {
+      "path": "equipment/primary-legendary-light-frame-wheelchair.webp",
+      "bytes": 41546,
+      "sha256": "58105cc475e91c870deab6f62e1a942e79a419c739ca3c0fa38020e9879a243c"
+    },
+    {
+      "path": "equipment/primary-legendary-longbow.webp",
+      "bytes": 58410,
+      "sha256": "6df65c94c09e141f085b84b8b07cd1d6f0faf701da0e9a035d5e577a4d103059"
+    },
+    {
+      "path": "equipment/primary-legendary-longsword.webp",
+      "bytes": 57278,
+      "sha256": "760c29aed7252422b7f4b9dfdf3793e8ee4a890387d4e3bc288a7ad9ee941879"
+    },
+    {
+      "path": "equipment/primary-legendary-mace.webp",
+      "bytes": 67394,
+      "sha256": "b2b81ca97a7073586f96723adbfc0d666a6c64dc758c75091e630a4e8bfde2ce"
+    },
+    {
+      "path": "equipment/primary-legendary-quarterstaff.webp",
+      "bytes": 57522,
+      "sha256": "38454d8a27e7a7db2f2ec28ba2e2fbf0d0519d1c63820d99bd60b0eca3dfed9d"
+    },
+    {
+      "path": "equipment/primary-legendary-rapier.webp",
+      "bytes": 66246,
+      "sha256": "6171076ea9cd74a6d2ddde2e310a3d9e9c0d24128d17216d93a0fb3e7bc5204e"
+    },
+    {
+      "path": "equipment/primary-legendary-returning-blade.webp",
+      "bytes": 62590,
+      "sha256": "82f19eb2bb7ccd9da0a699426af03c3c8685c718117d7577bd093de1e20cc266"
+    },
+    {
+      "path": "equipment/primary-legendary-scepter.webp",
+      "bytes": 66184,
+      "sha256": "5d069a91154a9e00c142b4568d1c231c0d231a717893001389012921582892cd"
+    },
+    {
+      "path": "equipment/primary-legendary-shortbow.webp",
+      "bytes": 58238,
+      "sha256": "8f68709e37e6c896db50dbdf3e7be9d669bcd398330937492f240241b5a3207d"
+    },
+    {
+      "path": "equipment/primary-legendary-shortstaff.webp",
+      "bytes": 55412,
+      "sha256": "fb3d4b6a5eb1d90789f7aa87b46fe09803d58e209b6f1d399d0b47255ab0dd94"
+    },
+    {
+      "path": "equipment/primary-legendary-spear.webp",
+      "bytes": 51434,
+      "sha256": "f0ae80148be833fb7043277139172fb533f1fc4c63bd4a22b3dee3bce9ca425a"
+    },
+    {
+      "path": "equipment/primary-legendary-wand.webp",
+      "bytes": 48836,
+      "sha256": "bfdc8f5b4357d8a285329f98c19004d7371667c7b6f177c022f8187c9dd45881"
+    },
+    {
+      "path": "equipment/primary-legendary-warhammer.webp",
+      "bytes": 66126,
+      "sha256": "bc02e32057e5ab40dae5464ba1df695445680283523c2cd3b0c286e8ac39098c"
+    },
+    {
+      "path": "equipment/primary-light-frame-wheelchair.webp",
+      "bytes": 87942,
+      "sha256": "9b7675fdb8b4633695a60e5da568efe9b62c049cfdf174cee48be906e11add47"
+    },
+    {
+      "path": "equipment/primary-longbow.webp",
+      "bytes": 56442,
+      "sha256": "60f6d3437bb91b5a3b183a9a60962e4eb4c761e541deb76271dfcab4b1cbb2e9"
+    },
+    {
+      "path": "equipment/primary-longsword.webp",
+      "bytes": 55624,
+      "sha256": "fc4154577acd3ea71517aa5a904e20e8ff736060043d2e911811e6d9170123b5"
+    },
+    {
+      "path": "equipment/primary-mace.webp",
+      "bytes": 65708,
+      "sha256": "14405184b2cfe5d0f6b608d2cffaaa267e1deda52ac5db66921afaf2ce233429"
+    },
+    {
+      "path": "equipment/primary-mage-orb.webp",
+      "bytes": 87738,
+      "sha256": "ee3a10312b2f21c8a9e839e6ce945d6b17cc2888c5d099814a4aacc45f3ef528"
+    },
+    {
+      "path": "equipment/primary-magus-revolver.webp",
+      "bytes": 94486,
+      "sha256": "22e150e12ed3aa110c62aee0b4adb33cd29c1d98206da93d4b474c2b1546565b"
+    },
+    {
+      "path": "equipment/primary-meridian-cutlass.webp",
+      "bytes": 80286,
+      "sha256": "b6acf942767f96fb207e7b023733f97b0eb380f4091415627212e2e61fbb50ae"
+    },
+    {
+      "path": "equipment/primary-midas-scythe.webp",
+      "bytes": 76452,
+      "sha256": "85f990e096aa8f24d68447772eff3c63fedc2bef2d3f7901f0deedf5b761aeb6"
+    },
+    {
+      "path": "equipment/primary-quarterstaff.webp",
+      "bytes": 55010,
+      "sha256": "d0b9f336bda57e28dee123ec32a4a1a55ea6af7ae5cde7a9f01455e8e00b7601"
+    },
+    {
+      "path": "equipment/primary-rapier.webp",
+      "bytes": 64532,
+      "sha256": "741345791328e70e4d18067bba548abe7329b2a18b9df67e47437e0e587231ef"
+    },
+    {
+      "path": "equipment/primary-retractable-saber.webp",
+      "bytes": 77440,
+      "sha256": "a7ab3ae3113e40121a3e1a9f38adf92f7e66866987504c70d697c8c37d79cb91"
+    },
+    {
+      "path": "equipment/primary-returning-blade.webp",
+      "bytes": 61508,
+      "sha256": "f1035ff5f414253b1be361af699c9a0b4801c14e08bd6de0ce312bd9f828cae5"
+    },
+    {
+      "path": "equipment/primary-ricochet-axes.webp",
+      "bytes": 88034,
+      "sha256": "31abd2186f4da4c07eaca07c4b4235d022243ad63a6c7b10a4b4954d10b4b8fc"
+    },
+    {
+      "path": "equipment/primary-runes-of-ruination.webp",
+      "bytes": 93104,
+      "sha256": "d1e2e2330e92152eb786195ec07697a01f2d59a16e3e21d294d4a66af0664f05"
+    },
+    {
+      "path": "equipment/primary-scepter-of-elias.webp",
+      "bytes": 77738,
+      "sha256": "90405b9dc690f75a7a4fafa818e21d2db6914103c52a0ca52cb1ffefa30438c7"
+    },
+    {
+      "path": "equipment/primary-scepter.webp",
+      "bytes": 63872,
+      "sha256": "fa8b77e26e77b5ee002be16c0c5ee57703071524141585463bead855f64cc2c2"
+    },
+    {
+      "path": "equipment/primary-shortbow.webp",
+      "bytes": 56610,
+      "sha256": "9c3696c1f757064dd3d5d5ac416a7ee96cf3017d43debbe3dcb1cca0dcfbe5db"
+    },
+    {
+      "path": "equipment/primary-shortstaff.webp",
+      "bytes": 53338,
+      "sha256": "5fdf34aecbe2d260fae947bcddd2160f70cd179b084d0623abe711af80e69d4a"
+    },
+    {
+      "path": "equipment/primary-siphoning-gauntlets.webp",
+      "bytes": 107336,
+      "sha256": "1db37864f55d0f9e429c1b003591de0b4cd2eb04fc9890b3b2f09495a65e9939"
+    },
+    {
+      "path": "equipment/primary-sledge-axe.webp",
+      "bytes": 82856,
+      "sha256": "2360df924afad2964261606d60c0534bcc418f860e126153dfcdf0065b08967f"
+    },
+    {
+      "path": "equipment/primary-spear.webp",
+      "bytes": 49162,
+      "sha256": "ed3e73a9295ca82a502d12b0820b964c0645d78bae82a88d752149388dcff782"
+    },
+    {
+      "path": "equipment/primary-spiked-bow.webp",
+      "bytes": 76972,
+      "sha256": "dfbba8670aacb718eeb97e0e202da48b6e3bb47a1d4353d936ccf18d4c27128a"
+    },
+    {
+      "path": "equipment/primary-steelforged-halberd.webp",
+      "bytes": 72562,
+      "sha256": "ef90094b8556aff62ca7a3a24480934281e9f00fb12117998e2c75462831a3e4"
+    },
+    {
+      "path": "equipment/primary-swinging-ropeblade.webp",
+      "bytes": 91540,
+      "sha256": "2f3588cc1b13a47e713fbaf2cb8090173203f7b6c4f4659b5bccd2e850c2b802"
+    },
+    {
+      "path": "equipment/primary-sword-of-light-and-flame.webp",
+      "bytes": 80256,
+      "sha256": "2455b2a44e75ffcf0f3962649d0f08ab9bca2d1fc7a17d3897eaa23acfbb5663"
+    },
+    {
+      "path": "equipment/primary-talon-blades.webp",
+      "bytes": 91498,
+      "sha256": "349ba87af13268ee21f804758b22e61ad68cbb98159444f36f36387e421b3d9d"
+    },
+    {
+      "path": "equipment/primary-thistlebow.webp",
+      "bytes": 72952,
+      "sha256": "a1937a1d30a2f0706d2c9ef62975aa535c6f136ac12c2104d159ad942da02c67"
+    },
+    {
+      "path": "equipment/primary-urok-broadsword.webp",
+      "bytes": 75598,
+      "sha256": "e58c3273dce9fd0226277712c3eb65067986892b7b2e665145d73f6280d2108d"
+    },
+    {
+      "path": "equipment/primary-wand-of-enthrallment.webp",
+      "bytes": 85778,
+      "sha256": "5147150da8929fbe352788cbdd3382ec01bebb573e386ed944a50dd4b2d7a2f7"
+    },
+    {
+      "path": "equipment/primary-wand-of-essek.webp",
+      "bytes": 76986,
+      "sha256": "d53bfee36855fbd4ca2292d811915bbb809b890a955ecf46db631e4b693c7cc1"
+    },
+    {
+      "path": "equipment/primary-wand.webp",
+      "bytes": 47262,
+      "sha256": "7f605d0855787d0decc250bfc4f248e066481987f3a440dcabd227bff814e6a1"
+    },
+    {
+      "path": "equipment/primary-war-scythe.webp",
+      "bytes": 70352,
+      "sha256": "11d195df12a98b3ad67e9ecc037eb996873cfaad966712380c7b752f45aacbb6"
+    },
+    {
+      "path": "equipment/primary-warhammer.webp",
+      "bytes": 64290,
+      "sha256": "bf6ba51d9f91b9d1ec266a1586287a208c86906a9e35758fe745a8b08b9db083"
+    },
+    {
+      "path": "equipment/primary-widogast-pendant.webp",
+      "bytes": 100594,
+      "sha256": "2eee00378606d0217297da904a18edd52f1b0b6e9017487446a07f28b8c0fd39"
+    },
+    {
+      "path": "equipment/primary-yutari-bloodbow.webp",
+      "bytes": 80840,
+      "sha256": "86a3290bd53f1ad86cd823ad920c873e041494f2ed328f4572a5ed713e367215"
+    },
+    {
+      "path": "equipment/secondary-advanced-grappler.webp",
+      "bytes": 71916,
+      "sha256": "1e875a3842d99a85cc43d8fcd67945ca93f4533882fc6f7fa603dca521bda9c9"
+    },
+    {
+      "path": "equipment/secondary-advanced-hand-crossbow.webp",
+      "bytes": 61622,
+      "sha256": "2a6439628c90817e0db39c78c3915ec3d16826b12e73e71030f3ae761d5bad09"
+    },
+    {
+      "path": "equipment/secondary-advanced-round-shield.webp",
+      "bytes": 72778,
+      "sha256": "b27cd0ddc02323c28a1dae09c50bd72fa33dbdbf689a2d46b2da15254fffcb66"
+    },
+    {
+      "path": "equipment/secondary-advanced-shortsword.webp",
+      "bytes": 63166,
+      "sha256": "edf6e87bd62f534446807520cce9ac7d9d631db17447a917abae708f09d84d47"
+    },
+    {
+      "path": "equipment/secondary-advanced-small-dagger.webp",
+      "bytes": 58650,
+      "sha256": "95d436be59e84a76774e12aca85be5d6aeb334b976bbfaf4e7d7325f87410812"
+    },
+    {
+      "path": "equipment/secondary-advanced-tower-shield.webp",
+      "bytes": 69734,
+      "sha256": "22e5608e3b5bed0dbbbfb5efeb65090aa249e2e885d29e306e26d08ca78fc41e"
+    },
+    {
+      "path": "equipment/secondary-advanced-whip.webp",
+      "bytes": 69194,
+      "sha256": "da8c0e0520bbd143c6ca26a1bfdecaa64921d6824d2cda15ff3ecc50adcf9197"
+    },
+    {
+      "path": "equipment/secondary-braveshield.webp",
+      "bytes": 83610,
+      "sha256": "55fafc2aa58afcdf1282eb926631c330e758c46e38d478217f09fd0c1a09e95b"
+    },
+    {
+      "path": "equipment/secondary-buckler.webp",
+      "bytes": 89688,
+      "sha256": "cbb452004fcc04f7a75bcb974e58002f4badf32387ad481ad54dbbabe5422780"
+    },
+    {
+      "path": "equipment/secondary-grappler.webp",
+      "bytes": 69872,
+      "sha256": "b46eead157cf0c53933ba2cfd3cfb2b5021f3016f957939867be43d8707becc7"
+    },
+    {
+      "path": "equipment/secondary-hand-crossbow.webp",
+      "bytes": 60596,
+      "sha256": "fd15fe540e5017fceffc9ee2709c58da356a5026bc707084c09e7bbaa31eb6c5"
+    },
+    {
+      "path": "equipment/secondary-hand-sling.webp",
+      "bytes": 80932,
+      "sha256": "c6278561831918e88d7f625e26881843009cd9af3a188887b2e52c7f5d37bd7e"
+    },
+    {
+      "path": "equipment/secondary-improved-grappler.webp",
+      "bytes": 71632,
+      "sha256": "9b17d7b0b5beb9332108ad99c398e4cd0e37a36c26456111e6458d3804c4df57"
+    },
+    {
+      "path": "equipment/secondary-improved-hand-crossbow.webp",
+      "bytes": 61994,
+      "sha256": "24ae8f0f1d063df86c0af5e4f418bbfdfd741878fab96211eec8d99d72c715d8"
+    },
+    {
+      "path": "equipment/secondary-improved-round-shield.webp",
+      "bytes": 73012,
+      "sha256": "1adff2abb4ff7ef10835e391fd636a6874c5cea2752bd6e51ec9b929d3dd0f03"
+    },
+    {
+      "path": "equipment/secondary-improved-shortsword.webp",
+      "bytes": 62672,
+      "sha256": "fa0a183a47bd29546e4def39320fa308d9fc29431db6838728ba59f39cc9b871"
+    },
+    {
+      "path": "equipment/secondary-improved-small-dagger.webp",
+      "bytes": 58370,
+      "sha256": "44c6a754bb1758df5c38387f0e443a69a1fb7f96f835d2919395e997c154ca8a"
+    },
+    {
+      "path": "equipment/secondary-improved-tower-shield.webp",
+      "bytes": 69978,
+      "sha256": "b5abc38faf8c000b8344def2dc1d2f45580f116e0e19dd6f37c240328cce184b"
+    },
+    {
+      "path": "equipment/secondary-improved-whip.webp",
+      "bytes": 69690,
+      "sha256": "28d4c4779caf6c5a1b38aa31a6d18bbb97437dbcfe90f3b6c4fe76fb9a161447"
+    },
+    {
+      "path": "equipment/secondary-knuckle-claws.webp",
+      "bytes": 88918,
+      "sha256": "9d75df44b06389e5a663ba26c6c5dc489e1179d4f511af010909f98d8f0298de"
+    },
+    {
+      "path": "equipment/secondary-legendary-grappler.webp",
+      "bytes": 71774,
+      "sha256": "5600ebc0918382a9c4ebc5abb06b68464fbd4b2b4e2b7bef820873e9358f0267"
+    },
+    {
+      "path": "equipment/secondary-legendary-hand-crossbow.webp",
+      "bytes": 61464,
+      "sha256": "0c003e66ac7ff347eb2754180b47c637ae593f27bc4bfe12018671b5fbca5085"
+    },
+    {
+      "path": "equipment/secondary-legendary-round-shield.webp",
+      "bytes": 72834,
+      "sha256": "993100c134eebf816e773cfa2173ac2527e056643f758f0a698d8c74e2a307dc"
+    },
+    {
+      "path": "equipment/secondary-legendary-shortsword.webp",
+      "bytes": 62586,
+      "sha256": "f4b34be95f31268751525dc214d5a8742ebe36236c38cbf62150a4ab589c448f"
+    },
+    {
+      "path": "equipment/secondary-legendary-small-dagger.webp",
+      "bytes": 58572,
+      "sha256": "97a2b9f2673c9c64fe4b138230873a2c41503ee6b4ea29c7e62eeb5145223eac"
+    },
+    {
+      "path": "equipment/secondary-legendary-tower-shield.webp",
+      "bytes": 69826,
+      "sha256": "9068c898ce0c7aa89c0e27424190ffabcf3bfaa2935f74bce756970286fb7e31"
+    },
+    {
+      "path": "equipment/secondary-legendary-whip.webp",
+      "bytes": 69770,
+      "sha256": "d91e06c479915d47363cacfbe7cf8ff753ff2ede3e330e581a6cd2da326baf57"
+    },
+    {
+      "path": "equipment/secondary-parrying-dagger.webp",
+      "bytes": 87740,
+      "sha256": "efcd472333fdf9f17b3d0f36a9ac7d1b0580c186d48fff68520566b5542fec91"
+    },
+    {
+      "path": "equipment/secondary-powered-gauntlet.webp",
+      "bytes": 95558,
+      "sha256": "fc6699127ae4e17f9f5aadd7f7c358951130df541546599ef54cd070a296ed67"
+    },
+    {
+      "path": "equipment/secondary-primer-shard.webp",
+      "bytes": 84416,
+      "sha256": "02a30a5fd09c795228761463246a92e935073878ed7f1c0d86e18d5795df1e02"
+    },
+    {
+      "path": "equipment/secondary-returning-axe.webp",
+      "bytes": 87514,
+      "sha256": "2b50a81d3436a3347e1deb81df0429109c837b06a8f160fa88498ecaf6b65f47"
+    },
+    {
+      "path": "equipment/secondary-round-shield.webp",
+      "bytes": 70956,
+      "sha256": "b8d8578d1b37b5ccf2fc940843022a2717f842d4a1b074f1d051be3ce1fba35e"
+    },
+    {
+      "path": "equipment/secondary-shortsword.webp",
+      "bytes": 61178,
+      "sha256": "4fd90fbb2fa8c452c01ac206f1a814b66416df7ce762568bbae03c8fff3be0da"
+    },
+    {
+      "path": "equipment/secondary-small-dagger.webp",
+      "bytes": 56996,
+      "sha256": "b18367f4344abae2fc4dce5393d4fcc4f80540281a3e9886f16be13cbe4deb46"
+    },
+    {
+      "path": "equipment/secondary-spiked-shield.webp",
+      "bytes": 80744,
+      "sha256": "c6b4786c3f211243e0c327f52150500cb36b651442d183268cca2de0376219a9"
+    },
+    {
+      "path": "equipment/secondary-tower-shield.webp",
+      "bytes": 67928,
+      "sha256": "2b434a238740cfe4b083f78e4abf2a1affb8b41f35e237ae38aeff2cd754caff"
+    },
+    {
+      "path": "equipment/secondary-whip.webp",
+      "bytes": 67168,
+      "sha256": "7438eef755f5ee051f625bb9e95056ab2d81a954fb5af49b5da1039dd65de635"
+    },
+    {
+      "path": "equipment/x-armor-advanced-banded-armor.webp",
+      "bytes": 89532,
+      "sha256": "5296a1fade279d37178780a4274b934bc002441c316928cc8e05bbce6879ca1e"
+    },
+    {
+      "path": "equipment/x-armor-advanced-brigandine-armor.webp",
+      "bytes": 87528,
+      "sha256": "89c134f29d0e3e564adf41addb3284d3077f871fbbaf54324d790a7ee2ae0987"
+    },
+    {
+      "path": "equipment/x-armor-advanced-mage-robes.webp",
+      "bytes": 82092,
+      "sha256": "57678bdc9a59fd29887d2e401fb109c7c2c439bcabeb5843058c0839301584e9"
+    },
+    {
+      "path": "equipment/x-armor-advanced-scale-mail-armor.webp",
+      "bytes": 89148,
+      "sha256": "d6b3fbc89ae2e768b38e166027f01d5a5b62635e26c36e63f51c88dc085be462"
+    },
+    {
+      "path": "equipment/x-armor-astral-raiment.webp",
+      "bytes": 100268,
+      "sha256": "f5c993611e83d9c9fa414d99f3954a07cea5d15cc92116a90ee4bc7f1c62bd5d"
+    },
+    {
+      "path": "equipment/x-armor-banded-armor.webp",
+      "bytes": 86310,
+      "sha256": "8fe991f6c981036ad3d249dbbac77090ee27ba06522430c580fa0f8aec4f810a"
+    },
+    {
+      "path": "equipment/x-armor-bloodstone-plate-armor.webp",
+      "bytes": 107860,
+      "sha256": "bcdc0be6728804f7ee9826b142f6d5ff21788d70440a8d73fb65f688e455b395"
+    },
+    {
+      "path": "equipment/x-armor-brigandine-armor.webp",
+      "bytes": 85468,
+      "sha256": "840fdb7498f994c5d6e4c790020c6286e7ccc01b99699e9c5d1f8fdc64f77d44"
+    },
+    {
+      "path": "equipment/x-armor-circle-forged-dreadplate.webp",
+      "bytes": 112112,
+      "sha256": "594f8cfa89429ea63c9a46b0bb2331557ff6afbff518542206788add0848a911"
+    },
+    {
+      "path": "equipment/x-armor-cloverweave-cloak.webp",
+      "bytes": 89624,
+      "sha256": "19311a2eeb55576fb082ef4ce78f2bbd129dae51553d96fc80340b461a368e81"
+    },
+    {
+      "path": "equipment/x-armor-darkweave-shroud.webp",
+      "bytes": 101386,
+      "sha256": "e0c222a734d21369cc79281f6efb77e4a7c8780c411460795cafaf8534034114"
+    },
+    {
+      "path": "equipment/x-armor-deep-forged-coral-armor.webp",
+      "bytes": 124672,
+      "sha256": "79331b12157f68676ff37fe38c0f0f8b7b8cd87fc75299da682f3b541c1d9563"
+    },
+    {
+      "path": "equipment/x-armor-enchanter-s-robes.webp",
+      "bytes": 100042,
+      "sha256": "abf341b10be16b9783f869395317d5e4e1a4859284001a96e37423b89ee6b08a"
+    },
+    {
+      "path": "equipment/x-armor-gilded-sunplate.webp",
+      "bytes": 103100,
+      "sha256": "c8bbaffca5fbc833d94b239b4d122286da70db1c03f7a6a358e16dda687e48f0"
+    },
+    {
+      "path": "equipment/x-armor-godbound-laminar.webp",
+      "bytes": 89596,
+      "sha256": "315d24bb55dff4fc6de264252b48b9e86b65fef5acc432a0fa2531d87531b329"
+    },
+    {
+      "path": "equipment/x-armor-granminster-s-finery.webp",
+      "bytes": 102222,
+      "sha256": "6434c891777c5ba83126aa844d2851c55a520edca02cb93ff690d5a254545edc"
+    },
+    {
+      "path": "equipment/x-armor-hallowed-heroplate.webp",
+      "bytes": 106700,
+      "sha256": "bc46a169db360eadf7eee766ea43561c1a0bdc341c77d8c14057f423e60699fd"
+    },
+    {
+      "path": "equipment/x-armor-hawkguard-s-mantle.webp",
+      "bytes": 84558,
+      "sha256": "a299d76a7fbab9da1e7784f2083a2d843be98fabae5c2c78392dc2cdb06fc372"
+    },
+    {
+      "path": "equipment/x-armor-improved-banded-armor.webp",
+      "bytes": 89680,
+      "sha256": "ad0963f8fe03b55366c594629d711a58987c64e3af96e7a71152dd28085fa851"
+    },
+    {
+      "path": "equipment/x-armor-improved-brigandine-armor.webp",
+      "bytes": 86428,
+      "sha256": "b30a6380c2c20adb6f53a67603ccfbed64799a7418d9f3ed287bea930a3b7e45"
+    },
+    {
+      "path": "equipment/x-armor-improved-mage-robes.webp",
+      "bytes": 81832,
+      "sha256": "9083a3cfbd5bde651d25701945ae67083c97e50b0fc3343375d34fe79e6f42a4"
+    },
+    {
+      "path": "equipment/x-armor-improved-scale-mail-armor.webp",
+      "bytes": 88812,
+      "sha256": "02801db51ac36ccf67ba1a9b199fbcb3a045ade2f9eca214c2801a77b10ac150"
+    },
+    {
+      "path": "equipment/x-armor-legendary-banded-armor.webp",
+      "bytes": 88744,
+      "sha256": "00473db5bcd394258e3c03e0005193ec5b30b21a6a20316ab54c20d186939bff"
+    },
+    {
+      "path": "equipment/x-armor-legendary-brigandine-armor.webp",
+      "bytes": 87350,
+      "sha256": "858560c86927f4a9cfe2f94b44f05d60175c01e56e0b264d73c43c1f8fa64596"
+    },
+    {
+      "path": "equipment/x-armor-legendary-mage-robes.webp",
+      "bytes": 82530,
+      "sha256": "0e5cd4ca7eb0a6d497745e37c2c92812def6647e5605f59a38235352b7954d10"
+    },
+    {
+      "path": "equipment/x-armor-legendary-scale-mail-armor.webp",
+      "bytes": 89100,
+      "sha256": "4a67fbc45a3e45fc36889384215c34a4836ae483665f793b5a7f45ef8185f4d8"
+    },
+    {
+      "path": "equipment/x-armor-mage-robes.webp",
+      "bytes": 80016,
+      "sha256": "198dbd8b5048119733c5f9127b83550cc8988f0481261cbb9157ef4983e035cf"
+    },
+    {
+      "path": "equipment/x-armor-resonant-harness.webp",
+      "bytes": 102404,
+      "sha256": "3c732501417ab5c9251e67cba4ca575e76a88c87e3d47bc2d309e231bf90dc0e"
+    },
+    {
+      "path": "equipment/x-armor-rune-forged-exosuit.webp",
+      "bytes": 110016,
+      "sha256": "3411757ac8b701aaad145e92379ecc56fa931b8a96e056f5064aacb558bcc9fb"
+    },
+    {
+      "path": "equipment/x-armor-scale-mail-armor.webp",
+      "bytes": 87630,
+      "sha256": "d71f7261cc1f1d433aeace836bc503e56bcd68c24349a919bd56128374308ce5"
+    },
+    {
+      "path": "equipment/x-armor-skywarden-s-lamellar.webp",
+      "bytes": 92656,
+      "sha256": "292f282d3427492648eac3d5c3b2fec2fc3b40ca95e217278cae3f0414a8f0fb"
+    },
+    {
+      "path": "equipment/x-armor-spidersilk-tunic.webp",
+      "bytes": 84366,
+      "sha256": "eab7c4334304cc35e91b63777d260af6e89023e0e060f6ee38f2a6aba24e0504"
+    },
+    {
+      "path": "equipment/x-armor-stormthread-habit.webp",
+      "bytes": 97238,
+      "sha256": "6c3fe31842fde5574ac57b2f2bfef06e30df335efa691c5b6c14186a9e99c1a9"
+    },
+    {
+      "path": "equipment/x-armor-trollhide-cuirass.webp",
+      "bytes": 96532,
+      "sha256": "c2aaddcc13d2e409ffd8d72fd593560fe670ee9f0786d93bebfff71d6d5d847a"
+    },
+    {
+      "path": "equipment/x-armor-wyrdwood-splint-armor.webp",
+      "bytes": 98968,
+      "sha256": "1e718b3c46605189c8ad76824d3d68f579e54a99884b33bf5112f114efe02af0"
+    },
+    {
+      "path": "equipment/x-consumable-arcticite-shard.webp",
+      "bytes": 86656,
+      "sha256": "ce17616859c02bde283d327f6408c38d5a9e614e5578c4941953d5399621c1c4"
+    },
+    {
+      "path": "equipment/x-consumable-berserker-s-brew.webp",
+      "bytes": 101924,
+      "sha256": "31ba278a5b9deb42345706daff4f42a0d6cde66e060797b77369bff9af9d27aa"
+    },
+    {
+      "path": "equipment/x-consumable-bundle-of-spiderlegs.webp",
+      "bytes": 84398,
+      "sha256": "3db92e7d02381ee630c90f77518b9094cece63b96ce0b016899a545f2c13563f"
+    },
+    {
+      "path": "equipment/x-consumable-cacophonous-concoction.webp",
+      "bytes": 105582,
+      "sha256": "935330eb33707567a3f05fbadddf9bf3f8a70a16918139dbb7a7584e42a586f0"
+    },
+    {
+      "path": "equipment/x-consumable-chimeric-saliva.webp",
+      "bytes": 78110,
+      "sha256": "e07ac21bbcf744824d2aae6c42ca86d219365d90587c6dfbb5c2c0c70ecc033a"
+    },
+    {
+      "path": "equipment/x-consumable-ciscan-fog-bottle.webp",
+      "bytes": 78338,
+      "sha256": "3382226728dc955f415418c5d2da846495676d6d4d932a2ebf01abcd0890fcc9"
+    },
+    {
+      "path": "equipment/x-consumable-cockerel-claw-tea.webp",
+      "bytes": 102786,
+      "sha256": "f2709aab99420a2cee160288bc4b10ed8acf03fdf9f87824b1004282baf56e6f"
+    },
+    {
+      "path": "equipment/x-consumable-cupbearer-s-bezoar.webp",
+      "bytes": 74712,
+      "sha256": "d148ecb8c1e52b3c822dd220fbc77f5eb553f5a1f82ece86c5b77cf5aa9ffe08"
+    },
+    {
+      "path": "equipment/x-consumable-deathseer-s-powder.webp",
+      "bytes": 102736,
+      "sha256": "b9bf5625cca45af5cea00852f79d05e993c856c775093bf900de9cae76308b78"
+    },
+    {
+      "path": "equipment/x-consumable-demiurge-s-draught.webp",
+      "bytes": 85158,
+      "sha256": "036689805688da7f27d6e139bf03b86c922fa9027a8e8406793849c0f92fde65"
+    },
+    {
+      "path": "equipment/x-consumable-displacement-token.webp",
+      "bytes": 80662,
+      "sha256": "9db70bcd7c2fe3b99d24a366711a7588fd1d8fc53387d84af8a8545e692a850b"
+    },
+    {
+      "path": "equipment/x-consumable-drakemantle.webp",
+      "bytes": 108042,
+      "sha256": "378ad480e75c927268b9bc81853ea8a3b4f87b435d17e4765c0ed257b08b98f4"
+    },
+    {
+      "path": "equipment/x-consumable-emberite-shard.webp",
+      "bytes": 100770,
+      "sha256": "362fdc034beb9bea71de0dec523018e9195e047a6f6c90c292ef0acaa390ed8d"
+    },
+    {
+      "path": "equipment/x-consumable-featherstep-potion.webp",
+      "bytes": 79802,
+      "sha256": "801390b62f1b75398cf301289f3e28e72c21a55b1817eb0a1c0bd4aaa07955ad"
+    },
+    {
+      "path": "equipment/x-consumable-formoid-serum.webp",
+      "bytes": 80928,
+      "sha256": "efe65cf2f90c27c7fc028cf9ed8dd253705aae6987353b41b385605f26b50193"
+    },
+    {
+      "path": "equipment/x-consumable-fulgurite-shard.webp",
+      "bytes": 93386,
+      "sha256": "75a154ac4b669b738f2ae902836cdab00f1a2d6b518d8904feaddd15f37cd833"
+    },
+    {
+      "path": "equipment/x-consumable-gambler-s-fallacy.webp",
+      "bytes": 104712,
+      "sha256": "d48a5254dbad1c292db148e248bd612780013d35f2e4cde62cea4ad66beba93c"
+    },
+    {
+      "path": "equipment/x-consumable-glowmoss-mushroom.webp",
+      "bytes": 99458,
+      "sha256": "bde1e74629e92c99b7d62408431b842f42314330bfd66eb23b72f0981accde6d"
+    },
+    {
+      "path": "equipment/x-consumable-godling-s-pomelo.webp",
+      "bytes": 84950,
+      "sha256": "a285287764f38ebbc4b94e574f897fcb91768d3375055b1f62746fe273925c6a"
+    },
+    {
+      "path": "equipment/x-consumable-gossip-flower.webp",
+      "bytes": 84610,
+      "sha256": "6fa35f5d40dc40dfa2a35dc1b984dcb6ecd95a1b3b098f7e7e0904330538ad10"
+    },
+    {
+      "path": "equipment/x-consumable-gravity-bomb.webp",
+      "bytes": 90218,
+      "sha256": "f1667fd43b134f169373576543edf25a72008a99ee24f57fb1c7032d43e93472"
+    },
+    {
+      "path": "equipment/x-consumable-green-ooze-oil.webp",
+      "bytes": 93794,
+      "sha256": "e8ec2989b3223a4b07481f9fdadced4907df4fbe32ee8cdddaadb57a4b91e833"
+    },
+    {
+      "path": "equipment/x-consumable-instant-camp.webp",
+      "bytes": 97612,
+      "sha256": "60a3caed38db62efb2fd1838e0bdf0c65142ab9544aa9dd126814d0387d6b977"
+    },
+    {
+      "path": "equipment/x-consumable-invisibility-potion.webp",
+      "bytes": 61398,
+      "sha256": "c2d139ca12ce735c79084c14fb6b3c8bc1f9a0f05a348ae310cdc992208e2617"
+    },
+    {
+      "path": "equipment/x-consumable-iridian-dust.webp",
+      "bytes": 95792,
+      "sha256": "1b431bcc2ce792d8c600e2e43509966bd0a07ad36517c3cfdf65f97b5ece377a"
+    },
+    {
+      "path": "equipment/x-consumable-lionheart-tonic.webp",
+      "bytes": 84974,
+      "sha256": "bcf67e12c306414c95571f5af66a039a05bc6ceb450d414a1dc48e5f8020396f"
+    },
+    {
+      "path": "equipment/x-consumable-lyrebird-lozenge.webp",
+      "bytes": 90242,
+      "sha256": "e244e5b6fd850aff35eab53c3f8d8a847d1a429d62ed3b2629b83a9b30ed8496"
+    },
+    {
+      "path": "equipment/x-consumable-magic-user-s-malison.webp",
+      "bytes": 91390,
+      "sha256": "683d101dc7825eafbe3567faac70af4494c985fb7990306a853b65632298bde6"
+    },
+    {
+      "path": "equipment/x-consumable-mask-of-the-echoed-self.webp",
+      "bytes": 85192,
+      "sha256": "d3f99ee274e4c891b475f49739ff54aaa8aa50b6e96495790b4de2bc6e9743ce"
+    },
+    {
+      "path": "equipment/x-consumable-mesmer-s-tonic.webp",
+      "bytes": 84386,
+      "sha256": "a76ffd0032bcfbed6b3128d1206fc4c33af249eb9936b8c786c76a524f8b2873"
+    },
+    {
+      "path": "equipment/x-consumable-midas-flask.webp",
+      "bytes": 76894,
+      "sha256": "10dba0a1150fce5063d06e7b7ab603e5cd1910dde4b67787fb0e694b358da2a6"
+    },
+    {
+      "path": "equipment/x-consumable-mnemonic-potion.webp",
+      "bytes": 80938,
+      "sha256": "bc877637eb5fbbb520c7b24b36b53add6e102b403a8ea15cffc7c6dfe0c8d3b0"
+    },
+    {
+      "path": "equipment/x-consumable-moonlight-orb.webp",
+      "bytes": 73314,
+      "sha256": "d99751b198d3d3b822b4b300566f33d8a18efe2a76f0baea63bfa5f7411153de"
+    },
+    {
+      "path": "equipment/x-consumable-mossmantle-potion.webp",
+      "bytes": 84520,
+      "sha256": "da7f91350b84038440d70e95ebcf9c5e86bd4a992dc6cf35877cf4ed403304e0"
+    },
+    {
+      "path": "equipment/x-consumable-necroprancer-s-bell.webp",
+      "bytes": 88468,
+      "sha256": "3ae02b4252ed53cfb2138e3f6e7748317670d6a83f329942ba23bd66d6094c48"
+    },
+    {
+      "path": "equipment/x-consumable-night-hag-s-dust.webp",
+      "bytes": 93354,
+      "sha256": "1aecb1ee38c713505cb65a4f002192a5f93e5ad07c3f74f654dad9a4bd615204"
+    },
+    {
+      "path": "equipment/x-consumable-nightmare-mead.webp",
+      "bytes": 83688,
+      "sha256": "42084326ea077d96f2a36c29b038c585bb42c4ac3fd37bdd4b7308bce46f8697"
+    },
+    {
+      "path": "equipment/x-consumable-packet-of-space-dust.webp",
+      "bytes": 93838,
+      "sha256": "831a7b8c96c51c34802c4e59d17f8b72ed685be2c6cc6693f05cde29d1fba2a7"
+    },
+    {
+      "path": "equipment/x-consumable-phial-of-deep-ink.webp",
+      "bytes": 79524,
+      "sha256": "ecab43037cf7d7defd89c84811e4644db3318b98dcdfb53b4e4abac1f49ce382"
+    },
+    {
+      "path": "equipment/x-consumable-pipeweed.webp",
+      "bytes": 94366,
+      "sha256": "65467bc58bf004694fbe082e5a78170db77cc67b2df29f47552190b6bb51107e"
+    },
+    {
+      "path": "equipment/x-consumable-potion-of-vigilance.webp",
+      "bytes": 79818,
+      "sha256": "e176fb270b978cc2733dee6932630542a451e189f4de540c877eb0b582b5d995"
+    },
+    {
+      "path": "equipment/x-consumable-psychopomp-s-shroud.webp",
+      "bytes": 93528,
+      "sha256": "f753f3040eddb7096b5c39eb5dec9a8887819d8678a518a71fc96c8aa117bc8c"
+    },
+    {
+      "path": "equipment/x-consumable-quintessential-severant.webp",
+      "bytes": 81190,
+      "sha256": "f87aa9d8e1460ecf1ef703bef73a7d233173db855907f9de9c1a1f9c9f7b5a5d"
+    },
+    {
+      "path": "equipment/x-consumable-red-ooze-oil.webp",
+      "bytes": 90086,
+      "sha256": "82a67f36ef0f6bea3656ee9a8fcb8c44efcae9fb7c9d9a0f0a6d4315af9e4762"
+    },
+    {
+      "path": "equipment/x-consumable-salamander-salve.webp",
+      "bytes": 85426,
+      "sha256": "ea54183c997f750f1d6172431820c959bc43881dbf77039ad28d7afb68fbcba6"
+    },
+    {
+      "path": "equipment/x-consumable-self-sewing-thread.webp",
+      "bytes": 73002,
+      "sha256": "ff3d92292a68a05f003226f2da1f0e218e4be1446624a4caf1be10cc9b594dc4"
+    },
+    {
+      "path": "equipment/x-consumable-slayer-s-salt.webp",
+      "bytes": 83644,
+      "sha256": "a4442ffdccad0acb0338ff11b2eddcf12ba5b746bed42de1a28729acf3318ab5"
+    },
+    {
+      "path": "equipment/x-consumable-snakeskin-spirit.webp",
+      "bytes": 77786,
+      "sha256": "2701c84d6b3155233fbd56a597090e02689d865c01f8cf2fd358c1712c1aea70"
+    },
+    {
+      "path": "equipment/x-consumable-snapthorn-seed.webp",
+      "bytes": 35310,
+      "sha256": "09eb49930410f8cd29ffebd6ac4831fa5540f0573900387fd94143e4f1b3108d"
+    },
+    {
+      "path": "equipment/x-consumable-sprite-bottle.webp",
+      "bytes": 33872,
+      "sha256": "1e0e262c8d389d4c2339c908008602907bc67b5589cb4fa9094d7f50047f3019"
+    },
+    {
+      "path": "equipment/x-consumable-staff-of-reversal.webp",
+      "bytes": 31336,
+      "sha256": "f834f072cb04b12eefbe722da0bba201f0da4ddb617bd01590c4ef8527ecf8fe"
+    },
+    {
+      "path": "equipment/x-consumable-stake-of-abjuration.webp",
+      "bytes": 41674,
+      "sha256": "13d4c2e9927e969ad61f7b49d651ceccfe3fd84bf7a4af79164df0526e21b208"
+    },
+    {
+      "path": "equipment/x-consumable-steelskin-salve.webp",
+      "bytes": 31724,
+      "sha256": "82693d2a28c0491177220ed0c941b5dc52e305021ad14f9d54275bcbf99271ba"
+    },
+    {
+      "path": "equipment/x-consumable-stonemason-s-fortune.webp",
+      "bytes": 34856,
+      "sha256": "4dc51068beefee72141e7cc4b587d60936b5f6f7c4d1ca91c199feb9bdefa3c1"
+    },
+    {
+      "path": "equipment/x-consumable-sunlight-orb.webp",
+      "bytes": 31192,
+      "sha256": "29dbe5ca532226ce4c0c44ed2414f770d76b986e31bd8dd10ba5fc4b445b4e14"
+    },
+    {
+      "path": "equipment/x-consumable-tears-of-the-undying-hero.webp",
+      "bytes": 46594,
+      "sha256": "f73afe2abcc8b2cecabaf5e13cab089973530e08914b3e4a304d1e5ea9a813fc"
+    },
+    {
+      "path": "equipment/x-consumable-verglasian-seed.webp",
+      "bytes": 29244,
+      "sha256": "686563c0470cdf4cc034fa7b761f2cfcc64bb8a8bde03bd244ec3317a25a39a4"
+    },
+    {
+      "path": "equipment/x-consumable-vial-of-featherfall.webp",
+      "bytes": 29224,
+      "sha256": "4a47b5bb205672ef25aaab8434d84e166db15292fa834739b65651fab8c0a0b6"
+    },
+    {
+      "path": "equipment/x-consumable-warding-candle.webp",
+      "bytes": 37080,
+      "sha256": "982dc99a2c5f3590998fa889bce3645d8f3366fde1ae2de3dec5d79d66c78c76"
+    },
+    {
+      "path": "equipment/x-consumable-yakamel-milk.webp",
+      "bytes": 29646,
+      "sha256": "20fb9b5d3b15e955c9296cbd84784c826c7332eab64ba33ac572963b36c3f228"
+    },
+    {
+      "path": "equipment/x-item-augur-s-relic.webp",
+      "bytes": 29802,
+      "sha256": "9eb1ed17e5c4de89ef181851515394c525b7ad32ec75c7dc6940876ad020f973"
+    },
+    {
+      "path": "equipment/x-item-ball-bearings.webp",
+      "bytes": 25974,
+      "sha256": "5b41074e53ad284fe6cec889df1e040bd9f9fb75860c64a6081d2cbbf617cf05"
+    },
+    {
+      "path": "equipment/x-item-blackwing-quill.webp",
+      "bytes": 27038,
+      "sha256": "34a07c4039724cfd4aa48e00ee9856fca14cdde2d45fcc8fa9e25c9a9cdaad01"
+    },
+    {
+      "path": "equipment/x-item-boots-of-supple-mystique.webp",
+      "bytes": 28644,
+      "sha256": "c761d0f3da8be64df745573e176970f9d70c6ec7dd216bcb1e3778bcfd73a16a"
+    },
+    {
+      "path": "equipment/x-item-box-of-dragon-dust.webp",
+      "bytes": 27050,
+      "sha256": "9841883b405b58a4631663a35510354165cbe8162c9b962c7bf1b4426606c016"
+    },
+    {
+      "path": "equipment/x-item-caltrops.webp",
+      "bytes": 30142,
+      "sha256": "7f3e2c4c2576567bc5260ab02d14625c21cc9d9ed4b17c4b296653d6d855e229"
+    },
+    {
+      "path": "equipment/x-item-cheater-s-coin.webp",
+      "bytes": 28300,
+      "sha256": "5ad123065929392cd401a1965afb3bbf07636ea90198d70f7c5161601888fcfc"
+    },
+    {
+      "path": "equipment/x-item-collapsible-pole.webp",
+      "bytes": 27772,
+      "sha256": "d4524a468cf25753e0d6bc085621e28bd057e79f067047d137ad0940352aac94"
+    },
+    {
+      "path": "equipment/x-item-collar-of-ascendancy.webp",
+      "bytes": 31150,
+      "sha256": "7fbc6731786de13bae583a8f404ea1ce294eeb242e1db3df757fe2ef668bc9a8"
+    },
+    {
+      "path": "equipment/x-item-communion-relic.webp",
+      "bytes": 30522,
+      "sha256": "f1d4802d3735a6fa88e850a1fed62349fedbb25669ff1a835287212e95e7f874"
+    },
+    {
+      "path": "equipment/x-item-crucible-frames.webp",
+      "bytes": 33606,
+      "sha256": "0e1e9bda413f182be6296a4b90a7cb41783c0c1fa9a2622542d303635b03f825"
+    },
+    {
+      "path": "equipment/x-item-dagginae-s-obsidian-slate.webp",
+      "bytes": 38364,
+      "sha256": "33a4cb44c24e2ee0b7e9fb7d0f5cfe99318644629c05cc904fe59f855596a7d8"
+    },
+    {
+      "path": "equipment/x-item-eclipse-coin.webp",
+      "bytes": 34550,
+      "sha256": "f9a37e212d4a9a414ab0911847273b010d56ab0dd010b44f720430aaff101135"
+    },
+    {
+      "path": "equipment/x-item-elven-spyglass.webp",
+      "bytes": 27068,
+      "sha256": "71a8d1baef1c4774151e923fdce199d09e99da5d37957d6a2b9525ce29d7b542"
+    },
+    {
+      "path": "equipment/x-item-enchanter-s-loupe.webp",
+      "bytes": 27478,
+      "sha256": "6af5d63a59af18d690a3314d69fb3436efe202f33a68277ba82a5671624fbc22"
+    },
+    {
+      "path": "equipment/x-item-escher-s-mirrorball.webp",
+      "bytes": 36276,
+      "sha256": "6e435634195298067580fca76825bc1acf47f20baed5e5e947a52c0a6f68aa29"
+    },
+    {
+      "path": "equipment/x-item-force-disc.webp",
+      "bytes": 44446,
+      "sha256": "293f020ac89283246ca9f57133b950417437ab4492cdc465073d235c936cd97e"
+    },
+    {
+      "path": "equipment/x-item-furball-bag.webp",
+      "bytes": 30800,
+      "sha256": "b9ee4497fc4110ae094d60111b74162784d713cfc5c42cef7c428065ff2f8449"
+    },
+    {
+      "path": "equipment/x-item-gadiman-s-backpack.webp",
+      "bytes": 31394,
+      "sha256": "536abe33ba47b9d50b6a8157cab34b3fee924e6ff03eacbbbfe39f755f722a0e"
+    },
+    {
+      "path": "equipment/x-item-ghoulskin-gloves.webp",
+      "bytes": 32838,
+      "sha256": "7987fb52fce33044ddaa33a3285b994096949497a5616d2e60c4ad553f48fb97"
+    },
+    {
+      "path": "equipment/x-item-gloves-of-alacrity.webp",
+      "bytes": 28108,
+      "sha256": "c4e573a4df7743963610999e36a492cf3f8a5718830863870566ed1c805042a7"
+    },
+    {
+      "path": "equipment/x-item-gourmet-granules.webp",
+      "bytes": 31564,
+      "sha256": "6583fbbdff3ae9eefb62bfeff87776daefb260c68607d7aa3e0d5c1812dbc58a"
+    },
+    {
+      "path": "equipment/x-item-grapnel.webp",
+      "bytes": 25238,
+      "sha256": "53de5c6f3d76ee65fe6da9cf0ff5172bbb1afe5680afe9fd7b5fb451b64aa1a3"
+    },
+    {
+      "path": "equipment/x-item-gravewarden-s-bell.webp",
+      "bytes": 28906,
+      "sha256": "86ea4d20b013866473c970fc8fc7be8aeb91a1a238240775313766baab28c9ec"
+    },
+    {
+      "path": "equipment/x-item-hero-s-helm.webp",
+      "bytes": 27380,
+      "sha256": "f89e0783becb0fb4ebe3f6757d09196395633ea051a2c4116a4482d504427503"
+    },
+    {
+      "path": "equipment/x-item-hollowbark-horn.webp",
+      "bytes": 29256,
+      "sha256": "5a68c35791fa9c4782ec712f1c5afa868b88bcb9b1ff0a290fbb6ddb667f95b9"
+    },
+    {
+      "path": "equipment/x-item-insomniac-s-periapt.webp",
+      "bytes": 32704,
+      "sha256": "78e6911567515aaa88cc5d1bcf092003073db7a6899ed315a70400edc9e307f3"
+    },
+    {
+      "path": "equipment/x-item-iron-dagger-pendant.webp",
+      "bytes": 36184,
+      "sha256": "c3a112b3ed6cd4d5c3a947408a7252968a482e5d7784a4f782ccf01f8e8d52ea"
+    },
+    {
+      "path": "equipment/x-item-iron-veil.webp",
+      "bytes": 26426,
+      "sha256": "c4727064f569e42612650ad3dd179b59c57ac1cde337a76492c2830f7ca197ed"
+    },
+    {
+      "path": "equipment/x-item-kingfisher-s-net.webp",
+      "bytes": 33138,
+      "sha256": "234ef3dc8296e3fed8fa14745a4781f04a549f737108deb23b6200247f381ad2"
+    },
+    {
+      "path": "equipment/x-item-knockback-bracelets.webp",
+      "bytes": 31892,
+      "sha256": "20f4104f09ed9afa4a0fd373dd6f26a025a5b21123a589762986684cd48b289a"
+    },
+    {
+      "path": "equipment/x-item-loaded-dice.webp",
+      "bytes": 33548,
+      "sha256": "57fe43f683b8f70a39349f3cbedf9618458c036ba932e9c377469c9a6c7b08df"
+    },
+    {
+      "path": "equipment/x-item-mandragorian-torch.webp",
+      "bytes": 27304,
+      "sha256": "705f9d9a6c4e5e323f012d8835aa01161c57e8eb9ec660fc6872d11f72343a8a"
+    },
+    {
+      "path": "equipment/x-item-map-of-revelation.webp",
+      "bytes": 30058,
+      "sha256": "467959299173752ea67954068d5c32dc7ef8a24a75d8c808bd185c92c171769c"
+    },
+    {
+      "path": "equipment/x-item-molepaw-mittens.webp",
+      "bytes": 28464,
+      "sha256": "e69846ca3840b4a59e60226d3c1614757253700beb829da9572d1d2916990c72"
+    },
+    {
+      "path": "equipment/x-item-namer-s-oracle.webp",
+      "bytes": 29890,
+      "sha256": "8f18a6069fbc05086e1c80067e1e196ac947f2594003221ede517255ccac8a9c"
+    },
+    {
+      "path": "equipment/x-item-nighthawker-s-ring.webp",
+      "bytes": 39036,
+      "sha256": "65e36ea977a42db6b229fa97d19544eb47527b61c5603c7650c3e0f9f9f24a70"
+    },
+    {
+      "path": "equipment/x-item-phobophage-s-circlet.webp",
+      "bytes": 29830,
+      "sha256": "41bf3d8e758730b52c274508a26423621e45620408245dc57bfc57d128e1e6b7"
+    },
+    {
+      "path": "equipment/x-item-portal-frames.webp",
+      "bytes": 30844,
+      "sha256": "6c72de5eb311efda126016a06e8ba4683fe72de0b9be0dad6c89cf6ec3cd131b"
+    },
+    {
+      "path": "equipment/x-item-quillshawl.webp",
+      "bytes": 29316,
+      "sha256": "31bb48c7d6e550767e814f557430f0c446e958dc9e791aa56db1d0fc67116a60"
+    },
+    {
+      "path": "equipment/x-item-reliquary-of-the-sightless-saint.webp",
+      "bytes": 29936,
+      "sha256": "0eb8478fdf4f37e6a70444603afa64df5f134031c34c0ed79ae1ce53303d1cd8"
+    },
+    {
+      "path": "equipment/x-item-returning-ring.webp",
+      "bytes": 31264,
+      "sha256": "e6d17fadb494f169238e2de39f64d543f4f98c65387527aa6b3b7a391fad192f"
+    },
+    {
+      "path": "equipment/x-item-rings-of-alliance.webp",
+      "bytes": 39156,
+      "sha256": "a39405260c9d07c585b74571fd463e3e65d98d7c1b7ab327af729adff6360e09"
+    },
+    {
+      "path": "equipment/x-item-rings-of-camaraderie.webp",
+      "bytes": 35036,
+      "sha256": "bc08d9d72d4ddf87b8674cc4d021ee6b05fb471ef93fab6e51ae07686d07dc2e"
+    },
+    {
+      "path": "equipment/x-item-rings-of-friendship.webp",
+      "bytes": 36018,
+      "sha256": "77c80f81306ae10fcb445341ddd431379691d91c848335ef5df09c788d7030c9"
+    },
+    {
+      "path": "equipment/x-item-self-tying-rope.webp",
+      "bytes": 25318,
+      "sha256": "d9eca13d8d1fa8632ecf17282fb1d9f1e2c1948d038bb0c696016cabe3465ec0"
+    },
+    {
+      "path": "equipment/x-item-silee-s-folding-knife.webp",
+      "bytes": 30350,
+      "sha256": "fb570be5e51fdd964c99ae41243714ddab13660c718889329b66c650c92daec9"
+    },
+    {
+      "path": "equipment/x-item-sorcerer-s-hat.webp",
+      "bytes": 36648,
+      "sha256": "3042bd328c5d746a725fc4613cc64c8b8cf57c69b41f8d322e8c10f78b912a4e"
+    },
+    {
+      "path": "equipment/x-item-soul-twin-circlets.webp",
+      "bytes": 32258,
+      "sha256": "3ed10626fdcb9f59550a773fc21c645dce8ff445133623fc2c9638ddc52a421d"
+    },
+    {
+      "path": "equipment/x-item-temporal-sanctuary.webp",
+      "bytes": 29848,
+      "sha256": "2f48445196eee21ee6378b085ebb6575208a2e198f99eb4ef66126a62e81ee7e"
+    },
+    {
+      "path": "equipment/x-item-thief-s-compass.webp",
+      "bytes": 30830,
+      "sha256": "b25025e3c7eb6ca256347695ba0ecba520a2e2530658d7148521e5fec875212e"
+    },
+    {
+      "path": "equipment/x-item-timekeeper-s-pendant.webp",
+      "bytes": 26838,
+      "sha256": "90bc652ec6b960085d6c9199759b2f397627e90bb9440be81c5552561c856ea7"
+    },
+    {
+      "path": "equipment/x-item-titan-s-girdle.webp",
+      "bytes": 29032,
+      "sha256": "c6d79d3b7f69bc16184d7fb2ca312804fc95eb4d8322355647b8b64c55d45e53"
+    },
+    {
+      "path": "equipment/x-item-traveler-s-bell.webp",
+      "bytes": 30012,
+      "sha256": "13d268de59d4276fb8139f437e9b8613cd02fdd73fe40ea5192ace4400cdac4a"
+    },
+    {
+      "path": "equipment/x-item-two-faced-aegis-brooch.webp",
+      "bytes": 35682,
+      "sha256": "e4594243b5a105c74563d0090e4e51b766e276e5aa2a8e83f5173f16d418f523"
+    },
+    {
+      "path": "equipment/x-item-warp-pendant.webp",
+      "bytes": 27336,
+      "sha256": "887c632d972cde484635bc660bca4078afb435e00632c67c51e807d912ca9119"
+    },
+    {
+      "path": "equipment/x-item-whisperstep-anklet.webp",
+      "bytes": 29372,
+      "sha256": "12866edec7d65972b562b479ee7859b5dffa142463f36116f980f315e1c14b7c"
+    },
+    {
+      "path": "equipment/x-item-wildrider-s-saddle.webp",
+      "bytes": 30118,
+      "sha256": "95897838749aa44ab5250556751d62cea1d8a05c3c7ff0add52f1429bccccf0a"
+    },
+    {
+      "path": "equipment/x-item-windup-toy.webp",
+      "bytes": 29676,
+      "sha256": "44e18cbed697e4e052a70a604a7884d3bec58a5ffa22efbbf7ec75f417d62951"
+    },
+    {
+      "path": "equipment/x-item-zephyr-s-jar.webp",
+      "bytes": 33506,
+      "sha256": "b96376dec14b8662dbc19fa04b9420369565d3f50d5d17715008fe36932ed53f"
+    },
+    {
+      "path": "equipment/x-primary-adder-s-fang.webp",
+      "bytes": 39350,
+      "sha256": "8d50a13dbcf19decc31fe59f6b4355fd3ffbe1f110e22535527383a3514b2d5d"
+    },
+    {
+      "path": "equipment/x-primary-advanced-arcane-rifle.webp",
+      "bytes": 74568,
+      "sha256": "3fb23ca5a7420df2999aac0001426f031294d4e99d37385a33f53eebba23d973"
+    },
+    {
+      "path": "equipment/x-primary-advanced-brass-knuckles.webp",
+      "bytes": 68628,
+      "sha256": "b8bfd2b4e2b273d84825908c390bb3f2917523a21f2c30141f536b8bef8b5705"
+    },
+    {
+      "path": "equipment/x-primary-advanced-brightsword.webp",
+      "bytes": 64634,
+      "sha256": "fffcc7ebae90c7b189715a3e2e250f31a987fec7da6e15960fc7cdf4e240618a"
+    },
+    {
+      "path": "equipment/x-primary-advanced-casting-dagger.webp",
+      "bytes": 65744,
+      "sha256": "6c22dcb62b1efbecdc7166ed876ec8808961e5adcbfc35ac97c69da953c365dd"
+    },
+    {
+      "path": "equipment/x-primary-advanced-enchanted-chakram.webp",
+      "bytes": 86242,
+      "sha256": "ff7521965cdcf1f0d0077f4a9eddeca021915001f0287ade4ec4958238ab5c35"
+    },
+    {
+      "path": "equipment/x-primary-advanced-katana.webp",
+      "bytes": 66206,
+      "sha256": "addf80a20a5b58c1b46abb0e9d7f8bf8dbbe435e62a0b9cd6cf46093d0136ddf"
+    },
+    {
+      "path": "equipment/x-primary-advanced-rope-dart.webp",
+      "bytes": 66118,
+      "sha256": "982820f6d9ecae8850369efd2955154100e1fd1a028fed3bf6ddc9b3eb3cf5d6"
+    },
+    {
+      "path": "equipment/x-primary-advanced-runelock-pistol.webp",
+      "bytes": 74524,
+      "sha256": "d54373d85631e31cb295996107e6728065a09c8d8c9aed7703abc41e0d9351f3"
+    },
+    {
+      "path": "equipment/x-primary-advanced-scimitar.webp",
+      "bytes": 54988,
+      "sha256": "bae13f3dc316dd31acb8887334987e8596981880361b15a1a6bfe5b2bd6fe7f6"
+    },
+    {
+      "path": "equipment/x-primary-advanced-shadowblade.webp",
+      "bytes": 70572,
+      "sha256": "1cd536ef5a133df52c8bbf43705d2c53880d84a49e66a7d2de5cdd5f541381b1"
+    },
+    {
+      "path": "equipment/x-primary-advanced-twisted-dagger.webp",
+      "bytes": 67078,
+      "sha256": "5d8a83242bc372819856fbbab8f3ee2f44a24e489c7e536e8f33f86914c82363"
+    },
+    {
+      "path": "equipment/x-primary-advanced-whipsword.webp",
+      "bytes": 72124,
+      "sha256": "811c5215aaac7997b2bb0210e9d59b255fdec7666c602071aa7b27f687439dd4"
+    },
+    {
+      "path": "equipment/x-primary-arc-wand.webp",
+      "bytes": 35500,
+      "sha256": "89678096db365798f4237cb906314b6a7fa4410e36e1fd658216d69df87ac549"
+    },
+    {
+      "path": "equipment/x-primary-arcane-rifle.webp",
+      "bytes": 72460,
+      "sha256": "706513f4c3796ce9b2a8d1d2a5a6c5ee65b2bf20d20ef37f3664150da80348f2"
+    },
+    {
+      "path": "equipment/x-primary-arquebus.webp",
+      "bytes": 39172,
+      "sha256": "979cfa9bdee8c17538fbf43d52901fa45678617d49939ea8e4e09a8a4b62f771"
+    },
+    {
+      "path": "equipment/x-primary-bec-de-corbin.webp",
+      "bytes": 37184,
+      "sha256": "61e428f3758409b690c9c9e8d79cc5de3a0c65fe950212f9aba099174706368b"
+    },
+    {
+      "path": "equipment/x-primary-black-powder-serpentine.webp",
+      "bytes": 40776,
+      "sha256": "e094bc505b5142d30ea3687bfa7abc2caea04356dd251f18afcfaae78da74a48"
+    },
+    {
+      "path": "equipment/x-primary-bladed-fan.webp",
+      "bytes": 45836,
+      "sha256": "bd8cdc24284d62a74bac5d0ee8346060f49610897171aefbc099922d969c26d0"
+    },
+    {
+      "path": "equipment/x-primary-bladed-star.webp",
+      "bytes": 38998,
+      "sha256": "2249b426d9aaf99c6a26b21e0e6edab9d89382babecf1e0c81715f8f08012f71"
+    },
+    {
+      "path": "equipment/x-primary-blitz-hammer.webp",
+      "bytes": 38904,
+      "sha256": "04352bae9168a2abb5cb7628943156822c7e9245d905edfcb5646583dcdfd4da"
+    },
+    {
+      "path": "equipment/x-primary-brass-knuckles.webp",
+      "bytes": 67136,
+      "sha256": "1ce3751be275031011df78deb0e131f6c12011e162b76a22166f34f64132de9c"
+    },
+    {
+      "path": "equipment/x-primary-brightsword.webp",
+      "bytes": 62792,
+      "sha256": "08c52131ff8aeaa3c9ef708d2cb08f7278b07bd7acfef2dfba0050897f61840b"
+    },
+    {
+      "path": "equipment/x-primary-cane-sword.webp",
+      "bytes": 33430,
+      "sha256": "c8a18da9ddd76bcb66efc97b5f3c11c6824e70ee4604edadeb3f9f24f4cc8bb7"
+    },
+    {
+      "path": "equipment/x-primary-casting-dagger.webp",
+      "bytes": 64054,
+      "sha256": "cd2f5e7e0a6d0af046f297172696198a50c381e6d2ae6d022165577505f8eff1"
+    },
+    {
+      "path": "equipment/x-primary-chained-scythe.webp",
+      "bytes": 36950,
+      "sha256": "68b538bb280484bd6c4511a60b856cbafbba7081fb25a184aa26c7bce35e6723"
+    },
+    {
+      "path": "equipment/x-primary-clockwork-crossbow.webp",
+      "bytes": 40652,
+      "sha256": "deeeba51976ebe088285fe37a9db2ef92572cf5ee598d9595d5e433362bf8552"
+    },
+    {
+      "path": "equipment/x-primary-crystal-spear.webp",
+      "bytes": 38160,
+      "sha256": "e31c3b23d0ae02dd73dded1d430e55fdc2091c3778a7447033a608f4888989af"
+    },
+    {
+      "path": "equipment/x-primary-cyrurgien-s-scalpel.webp",
+      "bytes": 33624,
+      "sha256": "731191727e06d8ca46ee334ddc653e154f15a2a8437162e963edd96db19c86a4"
+    },
+    {
+      "path": "equipment/x-primary-demon-s-edge.webp",
+      "bytes": 38306,
+      "sha256": "8995449b547d04b3e6314e05593191c0f83e12af83885e342bf5b9c044899eb1"
+    },
+    {
+      "path": "equipment/x-primary-displacement-razor.webp",
+      "bytes": 40052,
+      "sha256": "ca19b1c5e1dd0b2a08f18b7fe60f94044f2d443009ededb8bba7333b099cb211"
+    },
+    {
+      "path": "equipment/x-primary-enchanted-chakram.webp",
+      "bytes": 86812,
+      "sha256": "9e70d7cee261670c59bbd1951081172996bb058201841361773406ff8e647229"
+    },
+    {
+      "path": "equipment/x-primary-enchanted-lute.webp",
+      "bytes": 33628,
+      "sha256": "dd5c72f3c5984bd6e4c01c2bb6829aabf639c2b5892430c5be0e1648aeeb46a4"
+    },
+    {
+      "path": "equipment/x-primary-enchanted-shillelagh.webp",
+      "bytes": 31640,
+      "sha256": "4383ca3891153ddee88175c923f15435a50e4e74f5949f179f6dbc406728f8b8"
+    },
+    {
+      "path": "equipment/x-primary-ethereal-zweih-nder.webp",
+      "bytes": 37562,
+      "sha256": "f8674171254d58eff394f943795b7d5f1ef03692b3754c23ca9b0c3c380fbba6"
+    },
+    {
+      "path": "equipment/x-primary-fury-gem.webp",
+      "bytes": 34020,
+      "sha256": "7e1fd55d8894a66df52e5a6b63b7199dd0ffeed1ca266a4a836a811de23b97ed"
+    },
+    {
+      "path": "equipment/x-primary-gravity-arbalest.webp",
+      "bytes": 47946,
+      "sha256": "b01b59a820220d32167d8cf6af9cce344a93e1e7762d4867d424a938d80c8366"
+    },
+    {
+      "path": "equipment/x-primary-gunblade.webp",
+      "bytes": 34076,
+      "sha256": "892c6d23050d3ad2a7624521f21940f8fccc5e328b9d7249b632fa2f65360dbc"
+    },
+    {
+      "path": "equipment/x-primary-improved-arcane-rifle.webp",
+      "bytes": 74780,
+      "sha256": "9eaa4d709656f94c67bbb0fdf19f26f94db62c98d2d054c24309112575ebc583"
+    },
+    {
+      "path": "equipment/x-primary-improved-brass-knuckles.webp",
+      "bytes": 69178,
+      "sha256": "407fc880ca0c9a3a76fe462ed46f02c7f814371e4b534b7a2955860f17a2301a"
+    },
+    {
+      "path": "equipment/x-primary-improved-brightsword.webp",
+      "bytes": 64642,
+      "sha256": "b3b89aee8a4bf6f9c148d1d68e72cb3d9e641eedd3babd10e2ccc9f109d4deb1"
+    },
+    {
+      "path": "equipment/x-primary-improved-casting-dagger.webp",
+      "bytes": 64906,
+      "sha256": "ea9835e6f7365ae8286c72cd9c422549937149be9552570ff24fe1a4a242c836"
+    },
+    {
+      "path": "equipment/x-primary-improved-enchanted-chakram.webp",
+      "bytes": 86018,
+      "sha256": "7889d2c905423a9ec0156f290a75507c3a7e2ece2fb3f720f1b1ddf0d1924a6e"
+    },
+    {
+      "path": "equipment/x-primary-improved-katana.webp",
+      "bytes": 65960,
+      "sha256": "e621f6204d806d94cf4051b374e2a5cc699bc0f160da4b7364b0d9d6a7c7d9bc"
+    },
+    {
+      "path": "equipment/x-primary-improved-rope-dart.webp",
+      "bytes": 66012,
+      "sha256": "cfc7e3f3aa2481472db63ae219a92c56c2110ca030872b432e2148acb23e322e"
+    },
+    {
+      "path": "equipment/x-primary-improved-runelock-pistol.webp",
+      "bytes": 74046,
+      "sha256": "ab65634297f583104704445c06bd550954c4ebf15cdba5ef9c2b4911492ad931"
+    },
+    {
+      "path": "equipment/x-primary-improved-scimitar.webp",
+      "bytes": 54752,
+      "sha256": "d43f871dbdd670d9b0e3b3f36368384bcc49f80281173919709dcda9d5206360"
+    },
+    {
+      "path": "equipment/x-primary-improved-shadowblade.webp",
+      "bytes": 70294,
+      "sha256": "41659b9175b352891a4128d30f155f3e0937ada942fd80c830fce637dd17697d"
+    },
+    {
+      "path": "equipment/x-primary-improved-twisted-dagger.webp",
+      "bytes": 66018,
+      "sha256": "1568487854e26de61e05f6c56cf628c6595a3bd19cabad28b5ce84214d0f2428"
+    },
+    {
+      "path": "equipment/x-primary-improved-whipsword.webp",
+      "bytes": 71828,
+      "sha256": "eed1e7426fcfbf2cbb7e9053c5e8e7a2f9c7d51d803a9cd7b2178a61ccb35759"
+    },
+    {
+      "path": "equipment/x-primary-infinite-staff.webp",
+      "bytes": 44060,
+      "sha256": "0b256f47a196193470d3e6b4618d98c30ea159d519b28317a2e36b069eaa1399"
+    },
+    {
+      "path": "equipment/x-primary-javelins.webp",
+      "bytes": 41650,
+      "sha256": "6e172abd6c73cc43afea229b1ef82b8cb1af5a9fd881612c2e9e5218967e0b21"
+    },
+    {
+      "path": "equipment/x-primary-katana.webp",
+      "bytes": 64178,
+      "sha256": "bd60021516ee0c403ee873a9fa76ccff0cbd9c7aaff040b18c6d3b502d96cead"
+    },
+    {
+      "path": "equipment/x-primary-lance.webp",
+      "bytes": 28152,
+      "sha256": "e995012304742e10cd6acc494a65c84eca31510ee0ab111994e874841d594638"
+    },
+    {
+      "path": "equipment/x-primary-legendary-arcane-rifle.webp",
+      "bytes": 74020,
+      "sha256": "fd553a5c3272517abd7a9bf17ade802385d9b11200bd4fc8ec4257877c59a439"
+    },
+    {
+      "path": "equipment/x-primary-legendary-brass-knuckles.webp",
+      "bytes": 68678,
+      "sha256": "6545cc02ccefc247b070bfa7c1b4a1afb8ccde8d462b73184a72043dcd57b08e"
+    },
+    {
+      "path": "equipment/x-primary-legendary-brightsword.webp",
+      "bytes": 64828,
+      "sha256": "a81cd7b0a83af23eee07967b7f20178ecf464a8e4dac9a2d4eeefaa170ba80f9"
+    },
+    {
+      "path": "equipment/x-primary-legendary-casting-dagger.webp",
+      "bytes": 65540,
+      "sha256": "fa7d66e0d9e6b9659f9413aa96fdf1bc3c599477f14d87688662d61339536f9c"
+    },
+    {
+      "path": "equipment/x-primary-legendary-enchanted-chakram.webp",
+      "bytes": 86812,
+      "sha256": "6516fcd09afca7e8af8bd3d8c6fccd4f2823c78bc29072bb824f134716462725"
+    },
+    {
+      "path": "equipment/x-primary-legendary-katana.webp",
+      "bytes": 65862,
+      "sha256": "0e1c94664d2d7a39f195f600a41759f571066fa87e35aed3a6cf687344ec158d"
+    },
+    {
+      "path": "equipment/x-primary-legendary-rope-dart.webp",
+      "bytes": 65904,
+      "sha256": "46413a6664e07399ae96ba6f8ec9cd326d08d2519bdd675acec532ee19703d8d"
+    },
+    {
+      "path": "equipment/x-primary-legendary-runelock-pistol.webp",
+      "bytes": 74558,
+      "sha256": "2ecc30167b5d15bfd99601f43a5bd7a00b6906a8f49e16f3135a0f044e75710a"
+    },
+    {
+      "path": "equipment/x-primary-legendary-scimitar.webp",
+      "bytes": 54446,
+      "sha256": "7feabd46eb69c6f77443eba6f8aff28eb60fc355b61d2f373640c3288b61c82a"
+    },
+    {
+      "path": "equipment/x-primary-legendary-shadowblade.webp",
+      "bytes": 70714,
+      "sha256": "b654dc780cc5b95d54747571bf543474782c1894da8bb6722eedf84ba96a0241"
+    },
+    {
+      "path": "equipment/x-primary-legendary-twisted-dagger.webp",
+      "bytes": 66906,
+      "sha256": "52b176746ecdbe873aae3973a24a4f0fa6d35e491533e22b82552d4dbabc313e"
+    },
+    {
+      "path": "equipment/x-primary-legendary-whipsword.webp",
+      "bytes": 72448,
+      "sha256": "1f9119eb638f20dba080b42bcc5469bfb5f2de637623f9e75d4520f16d71221d"
+    },
+    {
+      "path": "equipment/x-primary-platinum-estoc.webp",
+      "bytes": 37842,
+      "sha256": "061e6edf710608b791ed0ddbac1928727c1f7a08c88a2b4672f622b7cbd24b18"
+    },
+    {
+      "path": "equipment/x-primary-rime-scepter.webp",
+      "bytes": 36560,
+      "sha256": "d2be55fb580b86c4be134757feab035603d7851db987f03f19ed6f8c4e80ebcb"
+    },
+    {
+      "path": "equipment/x-primary-rocket-maul.webp",
+      "bytes": 34796,
+      "sha256": "9fa5b97a47a85244fe8cd1604a56b7a1e80cf301ca46c848ce7e0d34127f0b23"
+    },
+    {
+      "path": "equipment/x-primary-rope-dart.webp",
+      "bytes": 64024,
+      "sha256": "bc2974e203075776835ef03211e79b50981c10e0bbd9ce7861ef73aba73f9aa0"
+    },
+    {
+      "path": "equipment/x-primary-runelock-pistol.webp",
+      "bytes": 73072,
+      "sha256": "bd472c92473d672ad81cae03ccb868de110b7425a96afbff1b7b8dcc93367e0a"
+    },
+    {
+      "path": "equipment/x-primary-scimitar.webp",
+      "bytes": 52858,
+      "sha256": "d8ba482da0a4375649c2b08dd6e241ddf12d6c97afb18c31c1ff62d1ccd31712"
+    },
+    {
+      "path": "equipment/x-primary-severed-dragon-claw.webp",
+      "bytes": 39600,
+      "sha256": "0653d7a0ae1f141896b5d1bf117b051686a4d7e28a17eb9851a0fa1dfd038f50"
+    },
+    {
+      "path": "equipment/x-primary-shadowblade.webp",
+      "bytes": 68710,
+      "sha256": "e2ea1b570b2cb97ac894ee828e5180483fe32bc5649b7f29381ed67df6352850"
+    },
+    {
+      "path": "equipment/x-primary-singing-sword.webp",
+      "bytes": 35606,
+      "sha256": "bd592c2bee0bcb0ecc824770a5e37e85eb69b6ee005f4ccbf9f4fe3f4bf3dec9"
+    },
+    {
+      "path": "equipment/x-primary-soldier-s-pike.webp",
+      "bytes": 39482,
+      "sha256": "d94eb2d92114b986ff936939cb75f30b7e5a4e327304a879ea6f343a82bed761"
+    },
+    {
+      "path": "equipment/x-primary-spellbound-bangles.webp",
+      "bytes": 28858,
+      "sha256": "a6e7cad08989bad199bf062f014624fc1e87f1b2f2401a4afc8a8275526e64ab"
+    },
+    {
+      "path": "equipment/x-primary-splintershaft-bow.webp",
+      "bytes": 40208,
+      "sha256": "8c11303f89c883a9227e3235dd95dc81b8c93d19403f0250281775f4715660b8"
+    },
+    {
+      "path": "equipment/x-primary-staff-of-augma.webp",
+      "bytes": 40012,
+      "sha256": "f21112ac0fb517440b1148642fbc14e47cdcd9167ac1abb94a36d5733fdbaf75"
+    },
+    {
+      "path": "equipment/x-primary-starmetal-blade.webp",
+      "bytes": 33804,
+      "sha256": "945ebf9c0f73c3c2675166f70a6177d5c87e9485ddd75c20601b24252d9a54c2"
+    },
+    {
+      "path": "equipment/x-primary-storm-god-s-greataxe.webp",
+      "bytes": 39726,
+      "sha256": "b10617c2b3a4f7d604069347cd13df76082846e39058755c5b1bc1fefa2eee40"
+    },
+    {
+      "path": "equipment/x-primary-twisted-dagger.webp",
+      "bytes": 65326,
+      "sha256": "a88a3cb34e3e40fead3bc4ffd952746ce829c04df17a2006b1967b659088fa84"
+    },
+    {
+      "path": "equipment/x-primary-war-pick.webp",
+      "bytes": 33262,
+      "sha256": "2f7f17ac11bb8656dfb7314d38cfbde68bad29e0227c7cb4624b37397efe9810"
+    },
+    {
+      "path": "equipment/x-primary-whipsword.webp",
+      "bytes": 70498,
+      "sha256": "b8f8ac84c8f5203bb6e01011eeb97e2d403ae8053c658ebf938a547537d960c9"
+    },
+    {
+      "path": "equipment/x-secondary-advanced-fighting-cloak.webp",
+      "bytes": 71064,
+      "sha256": "bc83c34820ad69874659c767393ea8592ae251e5fa1bb15fc1147eb141425112"
+    },
+    {
+      "path": "equipment/x-secondary-advanced-focus-runes.webp",
+      "bytes": 84490,
+      "sha256": "aa08ce4e836090ea44ad16b8b981114e0859d3e09a7da8b7d8fff580c94b3441"
+    },
+    {
+      "path": "equipment/x-secondary-advanced-hatchet.webp",
+      "bytes": 72960,
+      "sha256": "9630fdb93d45f62ded2aa678d52c5b0cf69955cf6511fe099156cfade2155581"
+    },
+    {
+      "path": "equipment/x-secondary-advanced-offhand-brass-knuckles.webp",
+      "bytes": 75430,
+      "sha256": "ca495b7611d56bb81b8e950b0115815b9b7960a26f7c9d54c25e4ae65c1d9a86"
+    },
+    {
+      "path": "equipment/x-secondary-advanced-rune-shield.webp",
+      "bytes": 74792,
+      "sha256": "d256b3f931ad0e1919eccec9cfaf8098deb081366a2b0242746a66d5f812b719"
+    },
+    {
+      "path": "equipment/x-secondary-advanced-throwing-knives.webp",
+      "bytes": 80192,
+      "sha256": "b948aa99c1fa432ae612c83d5cc5075b51aaa2aba17d7c0c172a796ee6bafbac"
+    },
+    {
+      "path": "equipment/x-secondary-blackblood-tendril.webp",
+      "bytes": 40802,
+      "sha256": "450298f571a7e58c2bc4ab74417ef5038860d3e7d8e8cb5733482657c9cb7743"
+    },
+    {
+      "path": "equipment/x-secondary-collapsible-baton.webp",
+      "bytes": 40916,
+      "sha256": "d7d0db195fdacafbde9de70bb2048422eb2027549c6c8d864432a7f6288e9efc"
+    },
+    {
+      "path": "equipment/x-secondary-echo-blade.webp",
+      "bytes": 39422,
+      "sha256": "91355c8044f3641966fd8d08cb2852c5284ba76a54b9f9f9c1fbda137865e236"
+    },
+    {
+      "path": "equipment/x-secondary-eldritch-vambrace.webp",
+      "bytes": 41416,
+      "sha256": "2d83898e67e1f1cf0f4bc631ae3fb891c57ccdb83278beab3d7f0d0766f72aaa"
+    },
+    {
+      "path": "equipment/x-secondary-fighting-cloak.webp",
+      "bytes": 69370,
+      "sha256": "de5640f07892f14db4f43cc2b8d135db4ab9261df877f2c47d699d0af9734d46"
+    },
+    {
+      "path": "equipment/x-secondary-focus-runes.webp",
+      "bytes": 81552,
+      "sha256": "538b05ed9f19fb9d5985aa11021ea9712f4a5b0456ffdf8738f542953d5abb81"
+    },
+    {
+      "path": "equipment/x-secondary-hatchet.webp",
+      "bytes": 70852,
+      "sha256": "272ccf7e7c94e90776ba6407bb52ef76d8b9b5ab63f11efb770742d9ff4dad6c"
+    },
+    {
+      "path": "equipment/x-secondary-improved-fighting-cloak.webp",
+      "bytes": 71226,
+      "sha256": "2a0f1429cd2ecb37b07233b10a9dbc159502ba02d7434d6e887297cd4f9f4318"
+    },
+    {
+      "path": "equipment/x-secondary-improved-focus-runes.webp",
+      "bytes": 83556,
+      "sha256": "fd913051c5b6bac6661e232b2f3a550513228a0aca05246ef4c182cfbb4ea01b"
+    },
+    {
+      "path": "equipment/x-secondary-improved-hatchet.webp",
+      "bytes": 72962,
+      "sha256": "5d94c2f08839fcdc067f8a91ac4236dd25335f2dd068c7512b38edeb6c722691"
+    },
+    {
+      "path": "equipment/x-secondary-improved-offhand-brass-knuckles.webp",
+      "bytes": 75342,
+      "sha256": "e4290b61e42f29e2844a1a1cec5f6fcc4861ba80cd5cdad23fbd8d1cfaabda20"
+    },
+    {
+      "path": "equipment/x-secondary-improved-rune-shield.webp",
+      "bytes": 74504,
+      "sha256": "96a5c233fab71a4b0e3d4e39eae1ad0e803325c2cf1a9905cde10096f95288a3"
+    },
+    {
+      "path": "equipment/x-secondary-improved-throwing-knives.webp",
+      "bytes": 79424,
+      "sha256": "f0314b7bd76e6efe10e8f75730e82720da2ebd01f2930f2ae24eeec229ccab4a"
+    },
+    {
+      "path": "equipment/x-secondary-legendary-fighting-cloak.webp",
+      "bytes": 70794,
+      "sha256": "3f6ac79f277118d325bb13ca3f6f74ac977406739493a7272ed6becdb4944eee"
+    },
+    {
+      "path": "equipment/x-secondary-legendary-focus-runes.webp",
+      "bytes": 83692,
+      "sha256": "eb33e771992a3b69297b4a44a931c229cb1b1c93c89cf77b22853d9e7ce5dc72"
+    },
+    {
+      "path": "equipment/x-secondary-legendary-hatchet.webp",
+      "bytes": 73030,
+      "sha256": "63f36233c2b5bf52795ffcb65ffb56b943f0592b7250df912ef685365818c841"
+    },
+    {
+      "path": "equipment/x-secondary-legendary-offhand-brass-knuckles.webp",
+      "bytes": 75490,
+      "sha256": "beb651feecd2d0c6a232e47a46bf7e1b25e00aacbfd2a515d2f19ce12270558e"
+    },
+    {
+      "path": "equipment/x-secondary-legendary-rune-shield.webp",
+      "bytes": 75140,
+      "sha256": "60db050ca1c1e037093e04c2590f112218541158902102e2d998522944477630"
+    },
+    {
+      "path": "equipment/x-secondary-legendary-throwing-knives.webp",
+      "bytes": 79610,
+      "sha256": "31ff14c9cb55d40cc567e80546842835064c88300bf08dca487918497422001c"
+    },
+    {
+      "path": "equipment/x-secondary-m-bius-orb.webp",
+      "bytes": 42148,
+      "sha256": "81f59a23caf2c583772a3e929f7c6a28b75720a34459c4387c6b837ba0313f1e"
+    },
+    {
+      "path": "equipment/x-secondary-offhand-brass-knuckles.webp",
+      "bytes": 73928,
+      "sha256": "0e96d741a7c90d1f2f1280b70e7185fe40d331de0bacf0f05db2742442ea23b9"
+    },
+    {
+      "path": "equipment/x-secondary-razor-wire.webp",
+      "bytes": 42566,
+      "sha256": "6ed141ffa07aed7d9096ab8bdee1abdc94cd203561a3499b44e1637adf740292"
+    },
+    {
+      "path": "equipment/x-secondary-rune-shield.webp",
+      "bytes": 72816,
+      "sha256": "9cc0da3ee93773997d20e553a59bbf2b960056ce06f18f0af5af50eb925f61bc"
+    },
+    {
+      "path": "equipment/x-secondary-segmented-staff.webp",
+      "bytes": 36300,
+      "sha256": "0e481414d37dd4d1abf0a016a48dd61fc31b42b8d825da8ae4aa615a3c251fc2"
+    },
+    {
+      "path": "equipment/x-secondary-soul-chain.webp",
+      "bytes": 38382,
+      "sha256": "4dfceb1877b8f364b9e66a0b93f1ec9ec1b38bf5bae3bd865cf303dd48dd6e64"
+    },
+    {
+      "path": "equipment/x-secondary-throwing-knives.webp",
+      "bytes": 77244,
+      "sha256": "1c4431995b66aaf8e362b03894e23914b6e1026998e594dd8d0e644e60087163"
+    },
+    {
+      "path": "equipment/x-secondary-tinker-s-hammer.webp",
+      "bytes": 32548,
+      "sha256": "05c4e2b084d86ad23140a62f59bb3ac41ee0e1d46a7ad551b6a4ac28bc7f8ee3"
+    },
+    {
+      "path": "equipment/x-secondary-void-needle.webp",
+      "bytes": 32674,
+      "sha256": "42eebb2d99089bfaf601b7c95e881fc44bce34134358d19da7b8a0dcf0c51e3d"
+    },
+    {
+      "path": "equipment/x-secondary-vorpal-shard.webp",
+      "bytes": 37962,
+      "sha256": "64e3a96560a8df558cfe7256a53e4ff44eaf924e2c7698a95b75e4edc508e44b"
+    },
+    {
+      "path": "equipment/x-secondary-war-dart.webp",
+      "bytes": 34028,
+      "sha256": "04c7e7cb07cc49bc8bb105aa278a6aaad5d0a5bf98f30323d057650b485047e3"
+    }
+  ]
+}

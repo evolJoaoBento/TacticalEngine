@@ -35,6 +35,7 @@ import { compileHooks } from '../engine/script/hooks';
 import { projectSchema, type ProjectDoc, type SceneDoc } from '../engine/scene/schema';
 import { containerItems, findFunction, interactablesOf, pairsOf, portalsWith } from '../engine/scene/prop-functions';
 import type { Shop } from '../engine/scene/prop-function-schema';
+import { itemsFor } from '../engine/content/equipment/catalogue';
 
 export type ProblemSeverity =
   /** The project will not run, or something is unreachable at runtime. */
@@ -743,7 +744,7 @@ function checkItemUses(
   const sceneIds = new Set(project.scenes.map((s) => s.id));
   const dialogueIds = new Set(project.dialogues.map((d) => d.id));
   const tableIds = new Set(project.lootTables.map((t) => t.id));
-  const itemIds = new Set(project.items.map((i) => i.id));
+  const itemIds = new Set(itemsFor(project).map((i) => i.id));
   for (const item of project.items) {
     const quests = questReferences(project, item.id, add);
     walkEffects(item.use, (effect) => {
@@ -926,7 +927,7 @@ function validateScene(scene: SceneDoc, context: Context, problems: Problem[]): 
   }
 
   // --- what props do --------------------------------------------------------
-  const itemIds = new Set(context.project.items.map((item) => item.id));
+  const itemIds = new Set(itemsFor(context.project).map((item) => item.id));
   for (const deco of scene.decos) {
     if (deco.function === undefined) continue;
     const name = deco.id ?? deco.model;
@@ -1009,7 +1010,7 @@ function validateScene(scene: SceneDoc, context: Context, problems: Problem[]): 
       if (talk !== undefined && !context.project.dialogues.some((d) => d.id === talk.dialogue)) {
         add('error', `"${placement.id}" talks with conversation "${talk.dialogue}", which does not exist.`, placement.id);
       }
-      checkShop(talk?.shop, `"${placement.id}"`, new Set(context.project.items.map((item) => item.id)), (message) => add('error', message, placement.id));
+      checkShop(talk?.shop, `"${placement.id}"`, new Set(itemsFor(context.project).map((item) => item.id)), (message) => add('error', message, placement.id));
     }
   }
 
@@ -1057,7 +1058,7 @@ function validateEffects(
   );
   const dialogueIds = new Set(context.project.dialogues.map((d) => d.id));
   const tableIds = new Set(context.project.lootTables.map((t) => t.id));
-  const itemIds = new Set(context.project.items.map((i) => i.id));
+  const itemIds = new Set(itemsFor(context.project).map((i) => i.id));
 
   // Every outcome, and everything nested inside a branch, a choice or a further
   // check — a walk that stops at the top level passes a broken file.
@@ -1130,7 +1131,7 @@ function checkLootTables(
   project: ProjectDoc,
   add: (severity: ProblemSeverity, message: string, entity?: string) => void,
 ): void {
-  const itemIds = new Set(project.items.map((item) => item.id));
+  const itemIds = new Set(itemsFor(project).map((item) => item.id));
   for (const table of project.lootTables) {
     for (const entry of table.entries) {
       if (!itemIds.has(entry.item)) {

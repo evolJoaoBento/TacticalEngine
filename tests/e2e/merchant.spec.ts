@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
+import { closeLoadout, openPack } from './pack';
 
 /**
  * The merchant in the default project, played: the camp's crate gives up a few coins, Tobin the
@@ -59,22 +60,27 @@ test('the merchant by the camp fire sells to a party that can pay', async ({ pag
   expect(Math.abs(box.y + box.height / 2 - screen.height / 2)).toBeLessThan(4);
   await expect(shop).toContainText('Tobin the Pedlar');
   await expect(shop.getByTestId('shop-purse')).toHaveText('You have 20 gold.');
-  const draught = shop.locator('[data-item="healing-draught"]').getByTestId('shop-buy');
+  // His wares are cards: a potion, a shield, a coat, a dagger, a bow.
+  await expect(shop.locator('.shop-card')).toHaveCount(6);
+  const draught = shop.locator('[data-item="consumable-minor-health-potion"]').getByTestId('shop-buy');
   await expect(draught).toContainText('6 gold');
   await page.screenshot({ path: 'test-results/merchant-shop.png' });
   await draught.click();
   await expect(shop.getByTestId('shop-purse')).toHaveText('You have 14 gold.');
   // What costs more than is left cannot be bought.
-  await expect(shop.locator('[data-item="hunting-bow"]').getByTestId('shop-buy')).toBeDisabled();
-  expect(await page.evaluate(() => window.__engine!.log().some((line) => /buys Healing Draught for 6 gold/i.test(line.text)))).toBe(true);
+  await expect(shop.locator('[data-item="primary-shortbow"]').getByTestId('shop-buy')).toBeDisabled();
+  expect(await page.evaluate(() => window.__engine!.log().some((line) => /buys Minor Health Potion for 6 gold/i.test(line.text)))).toBe(true);
 
-  // The pack says what the draught is worth, before anybody offers for it.
-  await expect(page.getByTestId('pack').locator('[data-item="healing-draught"]').getByTestId('item-worth')).toHaveText('worth 6');
-  await expect(page.getByTestId('pack').locator('[data-item="gold"]').getByTestId('item-worth')).toHaveCount(0);
-  await page.getByTestId('pack').screenshot({ path: 'test-results/pack-worth.png' });
+  // The pack says what the draught is worth, before anybody offers for it: the loadout opens over
+  // the shop, and its gear pages hold the pack as cards.
+  const pack = await openPack(page);
+  await expect(pack.locator('[data-item="consumable-minor-health-potion"]').getByTestId('item-worth')).toHaveText('worth 4');
+  await expect(pack.locator('[data-item="gold"]').getByTestId('item-worth')).toHaveCount(0);
+  await pack.screenshot({ path: 'test-results/pack-worth.png' });
+  await closeLoadout(page);
 
   // And he buys it back - at his own stingy rate, four in ten of what he asked.
-  const sell = shop.getByTestId('shop-selling').locator('[data-sell="healing-draught"]').getByTestId('shop-sell');
+  const sell = shop.getByTestId('shop-selling').locator('[data-sell="consumable-minor-health-potion"]').getByTestId('shop-sell');
   await expect(sell).toContainText('2 gold');
   await sell.click();
   await expect(shop.getByTestId('shop-purse')).toHaveText('You have 16 gold.');
@@ -92,8 +98,7 @@ test('the merchant by the camp fire sells to a party that can pay', async ({ pag
   // The loadout still opens, over the shop, and shuts back to it.
   await page.getByTestId('open-loadout').click();
   await expect(page.getByTestId('loadout-backdrop')).toBeVisible();
-  await page.getByTestId('close-loadout').click();
-  await expect(page.getByTestId('loadout-backdrop')).toHaveCount(0);
+  await closeLoadout(page);
   await expect(shop).toBeVisible();
 
   // Esc does not close it: it opens the settings, over the shop, and shuts them again.

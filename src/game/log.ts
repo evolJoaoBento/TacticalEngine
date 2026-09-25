@@ -20,6 +20,7 @@ import type { SceneState } from '../engine/scene/state';
 import type { CheckOutcome, LogTone } from '../engine/script/effects';
 import type { JournalEntry } from '../engine/script/runner';
 import type { ScenarioState, SceneScriptWorld } from '../engine/script/world';
+import { itemsFor } from '../engine/content/equipment/catalogue';
 
 /** How somebody got where they are: along a path, or flung - or that a blow landed on them. */
 export interface Motion {
@@ -329,7 +330,7 @@ function listItems(
  */
 export function writeDown(demo: Narration, journal: readonly JournalEntry[]): LogLine[] {
   const lines: LogLine[] = [];
-  const names = new Map(demo.project.items.map((item) => [item.id, item.name]));
+  const names = new Map(itemsFor(demo.project).map((item) => [item.id, item.name]));
   const quests = new Map(demo.project.quests.map((quest) => [quest.id, quest]));
   const who = (id: string): string => nameOf(demo, id);
   for (const entry of journal) {

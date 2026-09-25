@@ -29,8 +29,8 @@ export interface WeaponDef {
   name: string;
   tier: number;
   slot: WeaponSlot;
-  /** The trait an attack with this weapon rolls. */
-  trait: Trait;
+  /** The trait an attack with this weapon rolls: `spellcast` is whichever the wielder casts with. */
+  trait: Trait | 'spellcast';
   range: RangeBand;
   /** Damage before Proficiency multiplies the dice. */
   damage: ParsedDamage;

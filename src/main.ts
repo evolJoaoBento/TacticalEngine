@@ -72,7 +72,8 @@ import { travelTo, characterContentFor, adversaryDefsFor, syncAuthoredEncounters
 import { reachRings } from './game/circle';
 import { nameOf, note } from './game/log';
 import { applyLevelUp, awaitingLevel } from './game/level-up';
-import { equipItem, gearOf } from './game/equip';
+import { equipItem, gearOf, unequipItem, type EquipResult, type GearSlot } from './game/equip';
+import { gearView } from './game/gear';
 import { useItem } from './game/use-item';
 import { inspection } from './game/inspect';
 import { CameraFocus } from './game/camera-focus';
@@ -1423,6 +1424,13 @@ function takeLevel(id: string, plan: LevelUpPlan): boolean {
   return result.ok;
 }
 
+/** An equip or a take-off from the gear pages: a refusal said on the plastic and in the log. */
+function gearDone(result: EquipResult): void {
+  loadoutIssue = result.ok ? null : `Cannot do that: ${result.reason}.`;
+  if (!result.ok) note(demo, loadoutIssue!, 'system');
+  refreshPlay();
+}
+
 function renderPlayPanel(): void {
   render(
     h(Fragment, null, h(PartyHud, {
@@ -1478,6 +1486,9 @@ function renderPlayPanel(): void {
             loadoutIssue = null;
             refreshPlay();
           },
+          // The gear pages: the pack as cards, dragged onto the one whose binder this is.
+          gear: gearView(demo, loadoutOpen), onEquip: (item: string) => gearDone(equipItem(demo, loadoutOpen!, item)),
+          onUnequip: (slot: GearSlot) => gearDone(unequipItem(demo, loadoutOpen!, slot)), onUseItem: (item: string) => { useItem(demo, item); refreshPlay(); },
         })
       : null, restOpen
       ? h(RestPanel, {
@@ -1520,7 +1531,6 @@ function renderPlayPanel(): void {
         const tile = id === null ? NO_TILE : demo.state.entity(id)?.tile ?? NO_TILE;
         view.showCursor(tile);
       },
-      carried: carriedItems(demo),
       pending: demo.pending,
       // One at a time, in the order they were rolled: a feature that catches the
       // whole party rolls several in one burst, and they queue.
@@ -1549,17 +1559,6 @@ function renderPlayPanel(): void {
       },
       onDeleteSave: (id: string) => {
         slots.remove(id);
-        refreshPlay();
-      },
-      onUseItem: (id: string) => {
-        useItem(demo, id);
-        refreshPlay();
-      },
-      onEquip: (id: string) => {
-        const who = demo.party.selected;
-        if (who === null) return;
-        const result = equipItem(demo, who, id);
-        if (!result.ok) note(demo, `Cannot equip that: ${result.reason}.`, 'system');
         refreshPlay();
       },
       onUse: (id: string) => {

@@ -46,6 +46,7 @@ import { StockEditor } from './StockEditor';
 import type { AdversaryInteraction, AdversaryPlacement } from '../../engine/scene/schema';
 import type { ContentPack } from '../../engine/content/pack/import';
 import { portalPartner } from '../../engine/scene/prop-functions';
+import { itemsFor } from '../../engine/content/equipment/catalogue';
 
 /** The ids an effect list picks from rather than having them typed. */
 export interface PickableIds {
@@ -76,7 +77,7 @@ function PropFunctionField(props: { session: EditorSession; controller: EditorCo
         controller.setSelectedFunction(next);
         props.onChange();
       }}
-      items={session.project.items.map((item) => ({ id: item.id, name: item.name }))}
+      items={itemsFor(session.project).map((item) => ({ id: item.id, name: item.name }))}
       pairTakenBy={(pair) => controller.pairTakenBy(pair, chosen?.id)}
       partnerOf={(pair) => portalPartner(session.project, pair, chosen?.id ?? null)?.prop.id ?? null}
       sceneIds={session.project.scenes.map((scene) => scene.id)}
@@ -791,7 +792,7 @@ function CreatureInteraction(props: {
   const selling = shop === undefined ? {} : { shop };
   const make = (kind: string, conversation = dialogue, share = percent): AdversaryInteraction | null =>
     kind === 'friendly' ? { kind, dialogue: conversation, ...selling } : kind === 'threshold' ? { kind, dialogue: conversation, percent: share, ...selling } : null;
-  const items = props.session.project.items.map((item) => ({ id: item.id, name: item.name }));
+  const items = itemsFor(props.session.project).map((item) => ({ id: item.id, name: item.name }));
   return (
     <div data-testid="creature-interaction-editor">
       <label class="ph-heading">

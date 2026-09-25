@@ -47,3 +47,31 @@ describe('the models', () => {
     expect(tracked, 'a model is tracked by git again; it belongs on Hugging Face (see models.lock.json)').toEqual([]);
   });
 });
+
+describe('the equipment cards\u2019 pictures', () => {
+  const pictures = JSON.parse(readFileSync(join(root, 'equipment.lock.json'), 'utf8')) as typeof lock;
+  const catalogue = JSON.parse(readFileSync(join(root, 'src/engine/content/equipment/catalogue.json'), 'utf8')) as { items: { id: string; card?: string }[] };
+
+  it('are named the way the models are, from the same repo, one revision, every file by size and hash', () => {
+    expect(pictures.repo).toBe(lock.repo);
+    expect(pictures.revision).toMatch(/^[0-9a-f]{40}$/);
+    for (const file of pictures.files) {
+      expect(file.path, file.path).toMatch(/^equipment\/[\w-]+\.webp$/);
+      expect(file.bytes, file.path).toBeGreaterThan(0);
+      expect(file.sha256, file.path).toMatch(/^[0-9a-f]{64}$/);
+    }
+  });
+
+  it('cover every card the catalogue draws with a picture', () => {
+    const listed = new Set(pictures.files.map((file) => file.path));
+    const missing = catalogue.items.filter((item) => item.card !== undefined && !listed.has(`equipment/${item.card}`)).map((item) => item.id);
+    expect(missing).toEqual([]);
+  });
+
+  it('are not in git: the folder is ignored, and nothing in it is tracked', () => {
+    const ignored = readFileSync(join(root, '.gitignore'), 'utf8').split(/\r?\n/).map((line) => line.trim());
+    expect(ignored, '.gitignore must ignore "public/equipment/*.webp" - restore the rule rather than deleting this test').toContain('public/equipment/*.webp');
+    const tracked = execFileSync('git', ['ls-files', 'public/equipment'], { cwd: root, encoding: 'utf8' }).split('\n').filter((line) => line !== '');
+    expect(tracked, 'a card picture is tracked by git; it belongs on Hugging Face (see equipment.lock.json)').toEqual([]);
+  });
+});

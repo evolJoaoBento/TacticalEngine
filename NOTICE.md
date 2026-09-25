@@ -20,7 +20,8 @@ The project's own work, which is nearly all of it: the engine, the editor, the s
 pack, the models and art authored for it, the tests, the documentation, and the `legacy/` prototype
 this grew out of. The models are distributed from a Hugging Face repository,
 [JunjiBento/tactical-engine-models](https://huggingface.co/JunjiBento/tactical-engine-models), under
-the same licence; `models.lock.json` names them. The source is at
+the same licence; `models.lock.json` names them. So are the equipment cards' pictures, the project's
+own art, which `equipment.lock.json` names. The source is at
 <https://github.com/evolJoaoBento/TacticalEngine>.
 
 ## What it does not cover
@@ -28,11 +29,14 @@ the same licence; `models.lock.json` names them. The source is at
 - **The rules the engine implements.** The Daggerheart System Reference Document is Public Game
   Content under the DPCGL, and the attribution that licence requires is kept in `docs/CONTEXT.md`,
   which is the only place holding its wording. This licence covers the code that implements those
-  rules; it does not reach the rules themselves, and nothing here relicenses them.
+  rules; it does not reach the rules themselves, and nothing here relicenses them. That includes
+  the equipment catalogue (`src/engine/content/equipment/catalogue.json`): the stats and text of
+  the weapons, armour, items and consumables are Public Game Content under the DPCGL, not ours.
   Daggerheart is a trademark of Critical Role, LLC; this project is unaffiliated and unendorsed.
 
 - **Kreon**, the play UI's font: Copyright 2018 The Kreon Project Authors, used under the SIL Open
   Font License 1.1, which travels with it in `public/fonts/kreon/OFL.txt`.
 
 - **Card art.** `public/cards/` is ignored by git and nothing in it is distributed from here. Cards
-  draw their own emblems when the directory is empty.
+  draw their own emblems when the directory is empty. (The equipment cards' pictures are not this
+  art: they are the project's own, and covered above.)

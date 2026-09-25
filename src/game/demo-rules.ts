@@ -8,7 +8,8 @@
 import { blankSheet, type CharacterSheet } from '../engine/character/sheet';
 import { STARTER_ADVERSARIES, STARTER_CHARACTERS } from '../engine/content/pack/starter';
 import type { AdversaryDef } from '../engine/content/types';
-import type { WeaponDef } from '../engine/content/pack/import';
+import type { ContentPack, WeaponDef } from '../engine/content/pack/import';
+import { EQUIPMENT } from '../engine/content/equipment/catalogue';
 import { DEFAULT_MOVEMENT, type MovementRules } from '../engine/grid/pathfinding';
 import { DEFAULT_WALK, type WalkRules } from '../engine/grid/walk';
 import { DEFAULT_JUMP_RULES, type JumpRules } from '../engine/rules/jump';
@@ -97,7 +98,12 @@ export const DEMO_MODELS: Readonly<Record<string, string>> = {
 };
 
 /** Classes, ancestries, communities, armor and weapons, from the pack we ship. */
-export const DEMO_CHARACTERS = STARTER_CHARACTERS;
+export const DEMO_CHARACTERS: ContentPack = {
+  ...STARTER_CHARACTERS,
+  // The equipment catalogue's weapons and armour, beside the pack's own.
+  weapons: new Map([...STARTER_CHARACTERS.weapons, ...EQUIPMENT.weapons.map((weapon) => [weapon.id, weapon] as const)]),
+  armors: new Map([...STARTER_CHARACTERS.armors, ...EQUIPMENT.armors.map((armor) => [armor.id, armor] as const)]),
+};
 
 /**
  * The demo party, as authored character sheets.

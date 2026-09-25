@@ -12,6 +12,7 @@ import { record, settle, type DemoScene, type UseOutcome } from './demo-scene';
 import { inCombat } from './moment';
 import { settleTravel } from './room';
 import { note } from './log';
+import { itemOf } from '../engine/content/equipment/catalogue';
 
 /**
  * Use a carried item, with whoever is selected as the actor.
@@ -24,7 +25,7 @@ import { note } from './log';
  */
 export function useItem(demo: DemoScene, itemId: string): UseOutcome {
   if (demo.pending !== null) return { status: 'busy', lines: [] };
-  const item = demo.project.items.find((candidate) => candidate.id === itemId);
+  const item = itemOf(demo.project, itemId);
   if (item === undefined) return { status: 'missing', lines: [] };
   const actor = demo.party.selected;
   if (actor === null) return { status: 'unreachable', lines: [] };

@@ -52,7 +52,11 @@ to make the suite green — it is the guard, not the problem.
 
 Both attributions must survive: the SRD 2.0 DPCGL notice and the SRD 1.0 notice the community data
 sets carry. `docs/CONTEXT.md` holds the exact wording and is now the only place that does — the
-per-source READMEs went with `tools/srd-sources/`. No rules text is vendored any more.
+per-source READMEs went with `tools/srd-sources/`. The only rules text vendored is the equipment
+catalogue (`src/engine/content/equipment/catalogue.json`): SRD Public Game Content under the DPCGL,
+the user's choice. Its card pictures are the project's own art - on Hugging Face beside the models,
+named in `equipment.lock.json`, never in git - which is why they may be published and `public/cards/`
+may not.
 Daggerheart is a trademark of Critical Role, LLC; this project is unaffiliated.
 
 ## What the repository is licensed as

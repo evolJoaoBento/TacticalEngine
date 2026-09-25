@@ -50,7 +50,8 @@ export const weaponDefSchema = z.object({
   name: z.string().min(1),
   tier: z.number().int().min(1),
   slot: z.enum(['primaryPhysical', 'primaryMagic', 'secondary']),
-  trait: traitSchema,
+  /** The trait an attack rolls; `spellcast` is whichever the wielder casts with. */
+  trait: z.union([traitSchema, z.literal('spellcast')]),
   range: rangeBandSchema,
   /** Damage before Proficiency multiplies the dice. */
   damage: parsedDamageSchema,

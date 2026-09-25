@@ -27,7 +27,7 @@ const mode = (page: Page): Promise<string> => page.evaluate(() => window.__engin
 test('the top bar holds the four modes in the order the user set, and 1-4 switch them', async ({ page }) => {
   const errors = await editing(page);
   await expect(page.locator('[data-testid="top-bar"]')).toBeVisible();
-  await expect(page.locator('[data-testid^="mode-"]')).toHaveText([/Inspector/, /Terrain/, /Combat/, /Interaction/]);
+  await expect(page.locator('[data-testid^="mode-"]')).toHaveText([/Inspector/, /Terrain/, /Encounters/, /Interaction/]);
   // The editor opens on the first of them.
   expect(await mode(page)).toBe('inspect');
 

@@ -72,9 +72,9 @@ describe('the camp by the fire', () => {
     const demo = camp();
     const shop = shopOf(demo, 'tobin')!;
     expect(shop.buysAt).toBe(40);
-    // His own draught at 6 fetches 2; a longsword worth 15 fetches 6; the songbook has no worth at all.
-    expect(offerFor(demo, shop, 'healing-draught')).toBe(2);
-    expect(offerFor(demo, shop, 'longsword')).toBe(6);
+    // His own potion at 6 fetches 2; a broadsword card, worth 10, fetches 4; the songbook has no worth.
+    expect(offerFor(demo, shop, 'consumable-minor-health-potion')).toBe(2);
+    expect(offerFor(demo, shop, 'primary-broadsword')).toBe(4);
     expect(offerFor(demo, shop, 'wrens-songbook')).toBe(0);
   });
 });

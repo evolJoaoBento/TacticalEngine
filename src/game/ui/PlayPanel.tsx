@@ -16,20 +16,10 @@ import type { LogLine, RollShow } from '../log';
 import type { Response } from '../../engine/script/runner';
 import { RollStage, asked } from './RollStage';
 import { SettingsModal } from './SettingsModal';
+import { GearFace } from './GearBinder';
+import type { GearCard } from '../gear';
 import './hud.css';
 
-/** One line of the pack: what it is, and how many. */
-export interface CarriedItem {
-  id: string;
-  name: string;
-  quantity: number;
-  /** Something the selected character could wear or wield. */
-  wearable: boolean;
-  /** Something with a `use`. */
-  usable: boolean;
-  /** What one is worth, in the coin shops are paid in; absent for a key, the coin, anything no merchant buys. */
-  value?: number;
-}
 
 /**
  * A log line cut into the creatures it names and the words between them.
@@ -90,10 +80,11 @@ export interface Inspection {
 export interface OpenContainer {
   id: string;
   name: string;
-  lines: readonly { item: string; name: string; count: number; price?: number }[];
+  /** In a shop, each line is a card as well (`card`), and the window shows the cards. */
+  lines: readonly { item: string; name: string; count: number; price?: number; card?: GearCard | null }[];
   paidIn?: { name: string; held: number };
   /** In a shop: what the party carries that the seller buys back, and for how much. */
-  selling?: readonly { item: string; name: string; held: number; price: number }[];
+  selling?: readonly { item: string; name: string; held: number; price: number; card?: GearCard | null }[];
   onSell?: (item: string) => void;
   onTake: (item: string) => void;
   onClose: () => void;
@@ -110,8 +101,6 @@ export interface PlayPanelProps {
   journal: readonly JournalQuest[];
   /** Somebody named in the log is under the pointer, or nobody is. */
   onHoverEntity?: (id: string | null) => void;
-  /** What the party is carrying. */
-  carried: readonly CarriedItem[];
   pending: Pending | null;
   /** Duality rolls waiting to be watched, oldest first. */
   rolls: readonly RollShow[];
@@ -133,10 +122,6 @@ export interface PlayPanelProps {
   onSaveAs: () => void;
   onLoad: (id: string) => void;
   onDeleteSave: (id: string) => void;
-  /** Equip a carried item on whoever is selected. */
-  onEquip: (id: string) => void;
-  /** Use a carried item, with whoever is selected. */
-  onUseItem: (id: string) => void;
   /** A creature's name for the log, by id. */
   nameOf: (id: string) => string;
   /** The acting character's Light, for the Experience picker. */
@@ -296,34 +281,7 @@ export function PlayPanel(props: PlayPanelProps): preact.JSX.Element | null {
         </div>
       ) : null}
 
-      {props.carried.length > 0 ? (
-        <div className="play-box panel-box is-fixed" data-testid="pack">
-          <div className="play-eyebrow panel-heading">Carried</div>
-          {props.carried.map((item) => (
-            <div key={item.id} className="panel-row" data-item={item.id}>
-              <span>{item.name}</span>
-              <span className="panel-detail">
-                {item.quantity > 1 ? `×${item.quantity}` : ''}
-                {item.value === undefined ? null : (
-                  <span data-testid="item-worth" title="What one is worth. A merchant pays a share of it - most pay half.">
-                    worth {item.value}
-                  </span>
-                )}
-                {item.usable ? (
-                  <button className="play-btn is-primary" data-testid="use-item" onClick={() => props.onUseItem(item.id)}>
-                    Use
-                  </button>
-                ) : null}
-                {item.wearable ? (
-                  <button className="play-btn" data-testid="equip" onClick={() => props.onEquip(item.id)}>
-                    Equip
-                  </button>
-                ) : null}
-              </span>
-            </div>
-          ))}
-        </div>
-      ) : null}
+      {/* What the party carries is in the loadout now, as cards (`GearBinder.tsx`). */}
 
       {log.length > 0 ? (
         <div
@@ -396,6 +354,7 @@ export function PlayPanel(props: PlayPanelProps): preact.JSX.Element | null {
  */
 function ContainerWindow({ container }: { container: OpenContainer }): preact.JSX.Element {
   const shop = container.paidIn !== undefined;
+  const paid = container.paidIn?.name.toLowerCase();
   const box = (
     <div className={`play-box panel-box ${shop ? 'shop-window' : 'is-fixed'}`} data-testid="container" data-container={container.id}>
       <div className="panel-head">
@@ -406,32 +365,41 @@ function ContainerWindow({ container }: { container: OpenContainer }): preact.JS
       </div>
       {container.paidIn === undefined ? null : (
         <div className="panel-prose" data-testid="shop-purse">
-          You have {container.paidIn.held} {container.paidIn.name.toLowerCase()}.
+          You have {container.paidIn.held} {paid}.
         </div>
       )}
       {container.lines.length === 0 ? (
-        <div className="panel-prose" data-testid="container-empty">{container.paidIn === undefined ? 'Nothing left in it.' : 'Sold out.'}</div>
+        <div className="panel-prose" data-testid="container-empty">{shop ? 'Sold out.' : 'Nothing left in it.'}</div>
+      ) : shop ? (
+        // A merchant's wares are cards on his table: each with its price, and how many are left.
+        <div className="shop-cards">
+          {container.lines.map((line) => (
+            <div key={line.item} className="shop-card" data-item={line.item}>
+              {line.card === null || line.card === undefined ? <div className="shop-plain">{line.name}</div> : <GearFace card={line.card} />}
+              <div className="shop-deal">
+                {line.count > 1 && Number.isFinite(line.count) ? <span className="shop-left">×{line.count}</span> : null}
+                <button
+                  className="play-btn is-primary"
+                  data-testid="shop-buy"
+                  disabled={(line.price ?? 0) > (container.paidIn?.held ?? 0)}
+                  title={(line.price ?? 0) > (container.paidIn?.held ?? 0) ? 'Not enough to pay for it' : undefined}
+                  onClick={() => container.onTake(line.item)}
+                >
+                  Buy · {line.price} {paid}
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
       ) : (
         container.lines.map((line) => (
           <div key={line.item} className="panel-row" data-item={line.item}>
             <span>{line.name}</span>
             <span className="panel-detail">
               {line.count > 1 && Number.isFinite(line.count) ? `×${line.count}` : ''}
-              {line.price === undefined ? (
-                <button className="play-btn is-primary" data-testid="container-take" onClick={() => container.onTake(line.item)}>
-                  Take
-                </button>
-              ) : (
-                <button
-                  className="play-btn is-primary"
-                  data-testid="shop-buy"
-                  disabled={line.price > (container.paidIn?.held ?? 0)}
-                  title={line.price > (container.paidIn?.held ?? 0) ? 'Not enough to pay for it' : undefined}
-                  onClick={() => container.onTake(line.item)}
-                >
-                  Buy · {line.price} {container.paidIn?.name.toLowerCase()}
-                </button>
-              )}
+              <button className="play-btn is-primary" data-testid="container-take" onClick={() => container.onTake(line.item)}>
+                Take
+              </button>
             </span>
           </div>
         ))
@@ -439,17 +407,19 @@ function ContainerWindow({ container }: { container: OpenContainer }): preact.JS
       {container.selling === undefined || container.selling.length === 0 ? null : (
         <div data-testid="shop-selling">
           <div className="play-eyebrow panel-heading">Sell</div>
-          {container.selling.map((line) => (
-            <div key={line.item} className="panel-row" data-sell={line.item}>
-              <span>{line.name}</span>
-              <span className="panel-detail">
-                {line.held > 1 ? `×${line.held}` : ''}
-                <button className="play-btn" data-testid="shop-sell" onClick={() => container.onSell?.(line.item)}>
-                  Sell · {line.price} {container.paidIn?.name.toLowerCase()}
-                </button>
-              </span>
-            </div>
-          ))}
+          <div className="shop-cards is-selling">
+            {container.selling.map((line) => (
+              <div key={line.item} className="shop-card" data-sell={line.item}>
+                {line.card === null || line.card === undefined ? <div className="shop-plain">{line.name}</div> : <GearFace card={line.card} />}
+                <div className="shop-deal">
+                  {line.held > 1 ? <span className="shop-left">×{line.held}</span> : null}
+                  <button className="play-btn" data-testid="shop-sell" onClick={() => container.onSell?.(line.item)}>
+                    Sell · {line.price} {paid}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>

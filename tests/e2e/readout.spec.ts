@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { closeLoadout } from './pack';
 
 /**
  * What the game *says*, as opposed to what it does.
@@ -166,14 +167,14 @@ test('the loadout, the journal and a rest read as English too', async ({ page })
   });
   console.log('IDS:', JSON.stringify(ids));
 
-  // The pack only draws when something is in it, and the page redraws on its
-  // own frame rather than on the call that changed the state.
-  await expect(page.locator('[data-testid="pack"]')).toBeVisible();
-
+  // The pack is in the loadout now, as cards on its gear pages: open them, so what the pack says is
+  // read with the rest of the binder.
   await page.locator('[data-testid="open-loadout"]').click();
+  await page.locator('[data-testid="open-gear"]').click();
+  await expect(page.locator('[data-testid="pack"] [data-item]').first()).toBeVisible();
   const loadout = await page.locator('[data-testid="loadout"]').innerText();
   console.log('LOADOUT:', JSON.stringify(loadout));
-  await page.locator('[data-testid="close-loadout"]').click();
+  await closeLoadout(page);
 
   const shown = { ...(await readAll(page)), loadout };
   await page.screenshot({ path: 'test-results/readout-panels.png' });

@@ -92,8 +92,7 @@ Q/E) are ignored while a text field has focus; the other keys are not (see Limit
   - **Journal**: every quest the party has been given. Active quests show their summary and
     their steps as ☐ / ☑; completed quests are struck through; failed ones say "— failed".
     Finished quests sink below active ones.
-  - **Carried**: the party's shared pack, with counts (×N) and what each thing is worth. A weapon or armor item that points
-    at SRD gear shows an **Equip** button.
+  - The party's pack is not here any more: it is in the **Loadout**, as cards (below, *Equipment*).
   - **Log**: the narrative log, most recent twelve lines, coloured by tone (see tones in §4).
   - The conversation itself is not here: it is along the bottom, where the cards are (below).
   - **Roll prompt**: "Roll finesse +2" / **Step back** when a script is waiting on a roll;
@@ -337,7 +336,8 @@ is where the loadout changes for free.
 
 The collection presents domain cards with level, domain and Recall Cost, each wearing a
 picture. Search by name or rules text, or filter by domain. Click a card to open its full
-readable rules; Escape returns to the collection, and Escape again closes it. The browser
+readable rules; Escape returns to the collection, and Escape again closes it - as does a click on
+the table round the binder. There is no Close button. The browser
 supports keyboard navigation and a two-column layout on phones. The hand wears the same
 picture on each card: a domain card in its domain's colour, and one a character has without
 choosing it in the colour **Always in play** gives it.
@@ -461,8 +461,10 @@ where the card asks for one.
 
 **Buying.** A merchant's conversation, or a prop that is a shop, opens a window of what it sells:
 each thing with its price and a **Buy** button, and a line saying how much the party has of what it
-is paid in ("You have 20 gold."). Buying takes the price out of the shared pack and puts the thing
-in it ("Quim buys Healing Draught for 6 gold."); a Buy the party cannot afford is greyed out, and a
+is paid in ("You have 20 gold."). What a shop sells is laid out as **cards** - each with its picture,
+or drawn from its numbers when it has none - with its price and a **Buy** under it. Buying takes the
+price out of the shared pack and puts the thing in it ("Quim buys Minor Health Potion for 6 gold.");
+a Buy the party cannot afford is greyed out, and a
 thing a shop has only so many of is gone once they are bought - still gone after a save. The window
 opens in the middle of the screen, over everything, with the room dimmed behind it, and has to be
 closed - its ✕, or a click outside it - before anything else goes on: the conversation that opened
@@ -474,23 +476,54 @@ buy, and what it pays ("Sell · 3 gold") - its share of its own price for someth
 goes back on its shelf if it had only so many, and of an item's worth for anything else. The share
 is half unless the shop says otherwise: a fence may pay a quarter, a temple the whole worth. Always
 rounded down, never nothing; a key, a quest's token, the coin itself - anything without a worth -
-it will not buy. In the default project Tobin pays four in ten (a husk carapace fetches 1 gold, a
-longsword 6), and says so; beside him **Wren the Wandering Bard** gives the party a quest, The Lost
+it will not buy. In the default project Tobin sells cards - health and stamina potions, a Round
+Shield, Gambeson Armor, a Dagger, a Shortbow - and pays four in ten (a husk carapace fetches 1 gold,
+a Broadsword card 4), and says so; beside him **Wren the Wandering Bard** gives the party a quest, The Lost
 Verse - her songbook, in a crate inside the vault - and pays 15 gold for it through a consequence
-in her conversation: conversation, consequence and trade in one camp. The
-**Carried** list says what each thing is worth ("Healing draught · worth 6"), so a player knows what
-it will fetch before walking up to anybody. In the default project Tobin the Pedlar sits by the
-camp fire south of the vault, and the camp's crate holds 20 gold to spend with him.
+in her conversation: conversation, consequence and trade in one camp. Each card in the pack says
+what it is worth ("worth 4"), so a player knows what it will fetch before walking up to anybody. In
+the default project Tobin the Pedlar sits by the camp fire south of the vault, and the camp's crate
+holds 20 gold to spend with him.
 
 A `loot` effect draws from a weighted table with the scene's own dice, so a chest's contents are
 as replayable as the roll that opened it. Drops read "You find 7 Gold and a Brass key." and go
 into the shared pack. Keys are items: a door that "requires key X" is satisfied by carrying one
 item with id X.
 
-**Equip** puts a carried weapon or armor item on the *selected* character. The item leaves the
-pack; what it replaced returns to the pack if the project has an item for it. Evasion, damage,
-thresholds and Armor Slots are re-derived; nothing marked is cleared. Armor cannot be changed
-during a fight; a weapon can.
+**Equipment.** Everything the party carries is a card, and the pack is in the **Loadout**: open it
+(the book beside the dice). Under the card pages on the right lies a black **divider**, its tab
+sticking out past the binder's edge reading **Equipment**. Click the tab and the card pages turn
+over with the divider: its black back now lies on the left, its tab reading **Back**, and on it a
+sheet of clear plastic with a sleeve for each place gear goes, labelled **Primary weapon**,
+**Secondary weapon** and **Armor**, each holding what is worn there or standing empty. The page the
+turn uncovers on the right is **the party's pack**: every card in a sleeve of its own,
+with how many (×N) and what one is worth. **Drag a card from the pack onto its sleeve** to put it on;
+the sleeve it fits glows while it is carried across, and a card let go anywhere else stays where it
+was. Drag a worn card back onto the pack to take it off. The **Equip** under a card and the **Take
+off** under a sleeve do the same without dragging. A click on a card holds it up to read. Each
+sheet is a real sheet protector - clear, with a white strip down its binding edge punched where the
+rings go through. The **Back** tab turns the card pages and the divider home again. The turn is one
+motion: the card pages swing up off the right and over the rings as the divider's back comes down on
+the left, uncovering the pack as it goes. With reduced motion set, it simply switches.
+
+Putting a piece on takes it out of the pack; what it replaced goes back in when there is a card for
+it. Evasion, damage, thresholds and Armor Slots are re-derived; nothing marked is cleared. Armor
+cannot be changed during a fight; a weapon can. **Hands are counted**: a two-handed weapon sends a
+secondary back to the pack, and a secondary will not go on while the weapon in hand takes both
+("the Longbow takes both of Quim's hands"), which is said on the plastic and in the log.
+
+**The cards are the equipment.** The engine ships every weapon, armour, item and consumable on the
+loot cards - 324 weapons, 69 armours, 120 items and 120 consumables - with each card's trait, range,
+damage, hands, thresholds and Armor Score, and its picture. A weapon swings with the card's numbers:
+a Broadsword is Agility, Melee, d8, one-handed. A feature that is a plain number counts while the
+piece is worn: *Reliable* +1 to attack rolls, *Heavy* −1 to Evasion, *Flexible* +1 to Evasion,
+*Protective* +1 to Armor Score, *Cumbersome* −1 to Finesse, *Barrier*, *Padded*, *Very Heavy* and the
+rest of that kind; a feature that says anything more (*Quick*, *Versatile*, *Powerful*…) is its
+text for now. The health and stamina potions clear 1d4 (+1, +2 for the stronger ones) Hit Points or
+Stress when drunk; the other consumables and items are their text. In the default project the party
+wears them: Quim a Mace and a Round Shield in Chainmail, Violet a Crossbow and Scarlet a
+Greatstaff in Gambeson. The engine's own starter gear, which has no picture, is drawn as a card
+from its numbers.
 
 **Use** runs a consumable's `use` effects with the *selected* character as the actor — the
 demo's healing draught clears 2 marked Hit Points. The item is spent before its effects run,
@@ -558,7 +591,7 @@ the room the party is in; browsing scenes never moves the party or abandons thei
 |---|---|
 | **Project ▾** | Save JSON · Load… · Import pack… · Export pack · Check (lists what the validator finds; a red badge counts errors) |
 | **Content ▾** | Party · Cards · Items & loot · Quests · Code · Models — each opens as a workspace under the bar; the back arrow before its title, or `Esc`, returns to the board |
-| **Inspector · Terrain · Combat · Interaction** | The four modes, also on keys `1`–`4` |
+| **Inspector · Terrain · Encounters · Interaction** | The four modes, also on keys `1`–`4` |
 | **The scene button** (shows the room's name and size) ▾ | Every scene with its size; **▸** marks the one the project opens on and **●** the one the party is in. Click to edit it; **✎** renames, **▸** makes it the opening scene, **✕** deletes (refused for the opening scene or the last one); **+ New scene** adds a blank 12×10 room |
 | **Undo / Redo** | The same history as `Ctrl+Z` / `Ctrl+Shift+Z`; hover for what it would undo |
 | **▶ Play here / ▶ Play** | Play in this room from its spawns (Shift-click a tile to play from there), or go back to where the party is |
@@ -575,7 +608,7 @@ selection.
 |---|---|---|
 | **Inspector** (1) | The selected thing's properties, on the right | Click a prop to see what it is drawn with, what it does and whether it is solid (an object from an older project is shown as it always was). Press on anything placed, a creature, a prop, an object or a party start, and drag to move it: it lifts off the ground, hangs under the pointer with its bottom swinging behind the way it goes, and drops with a bump where you let go, at the height it stood. It never lands on another of its kind (props stack), and a party start stays in the room; one undo puts it back. The editor draws a party start as the character who begins there - party member 1 on start 1, and round again if the party outnumbers the starts - in the model play gives them, rimmed in white; a start nobody fills is a blue pawn in a ring. Click a start and the side pane shows that character's sheet, the same form as the Party workspace, and an edit there is an edit to the party. An object with no model is a gold ring with a gem |
 | **Terrain** (2) | Tools on the left rail; **Tiles** and **Props** in the strip along the bottom; the tool's options on the right | Build stacked tiles anywhere (brush 1×1, 3×3, 5×5); erase tiles at a chosen level; raise/lower ground; place props; **Select** picks up a placed tile - the topmost on the cell - and carries it: the Z ladder goes to its level, the wheel lifts it while held, Alt turns it, and it lands where you let go, on top of whatever is there. One undo puts it back. With Select in hand the **Z ladder** stays out: it shows the height of the prop or tile Select last took hold of and raises or lowers it, a quarter tile a rung, each an undo step - or is the build plane when Select holds nothing. Kinds of tile are named for the model they are drawn with (Grass Ground, Stone Stairs, Stone Block, Stone Wall, Dirt Ground, Grass Dirt Ground; the three drawn with the stone block say which is which) |
-| **Combat** (3) | Tools on the left rail; the SRD's creatures by tier in the strip, with a search; the encounter on the right | Place the picked creature in the encounter; press on a placed creature and drag to move it, as in the Inspector (Select carries party starts too); toggle trigger cells that start it; toggle party start tiles; erase a creature, then a trigger cell, then a party start (never the last one). The selected creature's panel ends with **Interaction**: None, **Friendly** (on nobody's side until its conversation says otherwise; clicking it in play talks) or **Threshold** (fights until a blow leaves it at or under the **% of Hit Points** given, 50 to start, then stops the fight to talk - once), and the **Conversation** it opens. Friendly and Threshold need a conversation to exist first. **Sells things** gives it a shop: what it is **Paid in** (gold to start), what it **Buys back at** (the share of a thing's worth it pays when the party sells, as a %: empty is 50, up to 100, 0 buys nothing), and a line for each thing it sells with a **price** and **how many** (empty is no end to them); its conversation opens the shop with **Open a shop** in a reply or a consequence node |
+| **Encounters** (3) | Tools on the left rail; the SRD's creatures by tier in the strip, with a search; the encounter on the right | Place the picked creature in the encounter; press on a placed creature and drag to move it, as in the Inspector (Select carries party starts too); toggle trigger cells that start it; toggle party start tiles; erase a creature, then a trigger cell, then a party start (never the last one). The selected creature's panel ends with **Interaction**: None, **Friendly** (on nobody's side until its conversation says otherwise; clicking it in play talks) or **Threshold** (fights until a blow leaves it at or under the **% of Hit Points** given, 50 to start, then stops the fight to talk - once), and the **Conversation** it opens. Friendly and Threshold need a conversation to exist first. **Sells things** gives it a shop: what it is **Paid in** (gold to start), what it **Buys back at** (the share of a thing's worth it pays when the party sells, as a %: empty is 50, up to 100, 0 buys nothing), and a line for each thing it sells with a **price** and **how many** (empty is no end to them); its conversation opens the shop with **Open a shop** in a reply or a consequence node |
 | **Interaction** (4) | The conversations, on the left | Click one to open its graph |
 
 Opening a Terrain library tab chooses the placement action automatically: Tiles builds and Props
@@ -682,7 +715,7 @@ Any prop can **do something**. The Props panel's **Function** select, under Size
   nobody holding its id says it is waiting for its other end.
 - **Interaction** — opens a conversation, picked from the project's; its replies and consequence
   nodes decide what comes of it. With none picked it says nothing, and Check says so.
-- **Shop** — sells things: the same **Paid in** and stock lines as a merchant (below, under Combat),
+- **Shop** — sells things: the same **Paid in** and stock lines as a merchant (below, under Encounters),
   and using it opens its window. Check flags a shop that sells, or is paid in, an item the project
   does not have.
 - **Script** — everything an object could be told: name, flavour, a key it needs, effects with no
@@ -721,7 +754,7 @@ in for SRD creatures without a dedicated model — 128 of the 129 stat blocks �
 counts those definitions as unresolved, because they are. Undo and scene switching update what is
 drawn.
 
-To change what a creature looks like, take **Select** from Combat's rail and click one on the board.
+To change what a creature looks like, take **Select** from Encounters' rail and click one on the board.
 The panel on the right then shows that creature, with two model fields. **Model · every _type_**
 re-skins the whole type: set it on one Acid Burrower and every Acid Burrower in the project is drawn
 that way, which is the usual want. **Model · this one only** overrides that single creature, for a
@@ -930,7 +963,7 @@ actually contains** — they fill in once it has loaded:
 | **fallen** | on going down. Blank leaves it lying on its rotation alone. |
 
 Content names an imported model by id exactly as it names a built-in one — a deco's or an object's
-`model` field, a creature's model in Combat's panel, or an entity's definition — and the built-in
+`model` field, a creature's model in Encounters' panel, or an entity's definition — and the built-in
 placeholder stands in until the file has loaded. **Check** warns about a model nothing can supply,
 and about an embedded file heavy enough (past 8 MB) to be felt on every save and load.
 
@@ -1117,7 +1150,7 @@ in turn, and a message says what each brought.
 - Each file is **one** undo step, however much it brings.
 
 What was imported is the project's own from then on: the Party panel offers its classes and cards,
-the Combat strip its creatures, and the **Cards** workspace lists its abilities to edit. Save the
+the Encounters strip its creatures, and the **Cards** workspace lists its abilities to edit. Save the
 project to keep it.
 
 **A pack to try it with.** The build carries one at `/packs/ember-spells.json` (in the repository,
@@ -1465,7 +1498,10 @@ campaign state, not in the document.
 An **item**: `id`, `name`, `kind` (key | consumable | weapon | armor | trinket; default
 trinket), `description`, `contentId?` (the SRD weapon or armor id it stands for — required for
 Equip), `stackable` (default true), `value?` (what one is worth in the coin shops are paid in; a
-merchant pays half, and nothing for an item without one). A **loot table**: `id`, `rolls` (draws; default 1),
+merchant pays half, and nothing for an item without one), `tier?`, `card?` (its picture's file in
+`public/equipment/`). Every project can also name any of the equipment catalogue's 633 items by id
+- a shop's stock, a chest, a loot table - and one of its own with the same id replaces the
+catalogue's. A **loot table**: `id`, `rolls` (draws; default 1),
 `entries[]` of `item`, `quantity` (a number or `{min,max}` rolled per draw; default 1),
 `weight` (relative within the table, default 1; not a percentage). Same-item drops stack.
 
@@ -1652,9 +1688,10 @@ Play                                   Edit
   Ctrl+E       toggle play / edit (both modes)
 
 Play panel:  Save (quick slot) · Save as… (named) · Load (list; load or delete)
-             Use / Equip beside a pack item · Level up beside a name when a level is owed
-The hand:    Attack · one card per action or reaction (hover to read; cost on its corner, or why not
-             along its foot) · passives as emblems above · Light orb · End Turn
-             Rest… (out of combat) · Loadout… (recall costs Stress outside a rest)
+             Level up beside a name when a level is owed
+The hand:    Attack · one card per action, reaction or passive (hover to read; cost on its corner, or
+             why not along its foot) · Light orb · End Turn
+             Rest… (out of combat) · Loadout… (recall costs Stress outside a rest; the Equipment
+             divider's tab turns to the pack: drag a card onto its sleeve, Use, Equip, Take off)
 Roll prompt: Utilize an Experience (1 Light) · Roll · Step back
 ```

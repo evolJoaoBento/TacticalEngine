@@ -3,9 +3,9 @@
  *
  * Fanned along the bottom of the screen the way a deck-builder holds them: the
  * weapon attack and every action or reaction as a card face, lifting under the
- * pointer, greyed with the reason when it cannot be played. Passives are not
- * cards to play, so they sit above the hand as small emblems -- relics -- with
- * their text on hover. The Light the character can spend is the orb at the
+ * pointer, greyed with the reason when it cannot be played. A passive is in the
+ * hand too, as the card it is: there is nothing to press, but it is one of the
+ * cards they are holding. The Light the character can spend is the orb at the
  * hand's left; the turn's own verbs -- pass the spotlight, rest, the loadout --
  * are at its right. An ability that wants a target arms the hand: the next
  * click on the board picks it, and Escape puts the card back.
@@ -211,7 +211,6 @@ export function ActionBar(props: ActionBarProps): preact.JSX.Element | null {
   if (props.characterId === null) return null;
   const gmTurn = props.fighting && props.side === 'gm';
   const armed = props.targeting;
-  const relics = props.abilities.filter((view) => view.ability.kind === 'passive');
   // Every card the loadout shows is in the hand: the ones that are played, and the ones that are
   // simply true while they are held. A card that is always in play is not a button - there is
   // nothing to press - but it is one of the cards you are holding, so it is dealt with the rest.
@@ -220,25 +219,6 @@ export function ActionBar(props: ActionBarProps): preact.JSX.Element | null {
 
   return (
     <div className={`play bar${armed === null ? '' : ' is-armed'}`} data-testid="action-bar" {...(armed === null ? {} : { 'data-targeting': armed.abilityId })}>
-      {relics.length === 0 ? null : (
-        <div className="relics">
-          {relics.map((view) => (
-            <button
-              key={view.ability.id}
-              className="relic"
-              title={`${view.ability.name}\n${view.text}\n\n(always on)`}
-              data-ability={view.ability.id}
-              data-usable={view.usable}
-              disabled
-            >
-              <span className="ability-card-art" style={{ background: domainColor(view.card?.domain ?? 'granted') }}>
-                <CardArtwork card={view.card ?? { id: view.ability.id, domain: 'granted' }} />
-              </span>
-            </button>
-          ))}
-        </div>
-      )}
-
       {armed === null ? null : (
         <div className="play-box hand-armed">
           <span>

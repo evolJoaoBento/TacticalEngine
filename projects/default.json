@@ -4572,21 +4572,30 @@
                   "currency": "gold",
                   "stock": [
                     {
-                      "item": "healing-draught",
+                      "item": "consumable-minor-health-potion",
                       "price": 6
                     },
                     {
-                      "item": "round-shield",
-                      "price": 15,
+                      "item": "consumable-minor-stamina-potion",
+                      "price": 5
+                    },
+                    {
+                      "item": "secondary-round-shield",
+                      "price": 10,
                       "count": 1
                     },
                     {
-                      "item": "padded-coat",
+                      "item": "armor-gambeson-armor",
+                      "price": 14,
+                      "count": 1
+                    },
+                    {
+                      "item": "primary-dagger",
                       "price": 12,
                       "count": 1
                     },
                     {
-                      "item": "hunting-bow",
+                      "item": "primary-shortbow",
                       "price": 18,
                       "count": 1
                     }
@@ -22416,28 +22425,6 @@
       "use": []
     },
     {
-      "id": "healing-draught",
-      "name": "Healing draught",
-      "kind": "consumable",
-      "description": "Tastes of iron and mint.",
-      "stackable": true,
-      "use": [
-        {
-          "kind": "heal",
-          "amount": 2,
-          "target": {
-            "kind": "actor"
-          }
-        },
-        {
-          "kind": "log",
-          "text": "Iron and mint. The cuts close.",
-          "tone": "good"
-        }
-      ],
-      "value": 6
-    },
-    {
       "id": "husk-carapace",
       "name": "Husk carapace",
       "kind": "trinket",
@@ -22445,66 +22432,6 @@
       "stackable": true,
       "use": [],
       "value": 4
-    },
-    {
-      "id": "longsword",
-      "name": "Longsword",
-      "kind": "weapon",
-      "description": "Older than the vault, and better kept.",
-      "contentId": "longsword",
-      "stackable": false,
-      "use": [],
-      "value": 15
-    },
-    {
-      "id": "round-shield",
-      "name": "Round shield",
-      "kind": "weapon",
-      "description": "Dented on the rim where it did its job.",
-      "contentId": "round-shield",
-      "stackable": false,
-      "use": [],
-      "value": 15
-    },
-    {
-      "id": "hunting-bow",
-      "name": "Hunting bow",
-      "kind": "weapon",
-      "description": "",
-      "contentId": "hunting-bow",
-      "stackable": false,
-      "use": [],
-      "value": 18
-    },
-    {
-      "id": "ember-staff",
-      "name": "Ember staff",
-      "kind": "weapon",
-      "description": "",
-      "contentId": "ember-staff",
-      "stackable": false,
-      "use": [],
-      "value": 20
-    },
-    {
-      "id": "ringmail",
-      "name": "Ringmail",
-      "kind": "armor",
-      "description": "",
-      "contentId": "ringmail",
-      "stackable": false,
-      "use": [],
-      "value": 20
-    },
-    {
-      "id": "padded-coat",
-      "name": "Padded coat",
-      "kind": "armor",
-      "description": "",
-      "contentId": "padded-coat",
-      "stackable": false,
-      "use": [],
-      "value": 12
     },
     {
       "id": "wrens-songbook",
@@ -22529,7 +22456,7 @@
           "weight": 5
         },
         {
-          "item": "healing-draught",
+          "item": "consumable-minor-health-potion",
           "quantity": 1,
           "weight": 2
         },
@@ -22553,7 +22480,7 @@
           "weight": 4
         },
         {
-          "item": "healing-draught",
+          "item": "consumable-minor-health-potion",
           "quantity": 2,
           "weight": 2
         },
@@ -22563,12 +22490,12 @@
           "weight": 1
         },
         {
-          "item": "longsword",
+          "item": "primary-broadsword",
           "quantity": 1,
           "weight": 2
         },
         {
-          "item": "round-shield",
+          "item": "secondary-round-shield",
           "quantity": 1,
           "weight": 1
         }
@@ -24212,8 +24139,8 @@
         "knowledge": -1
       },
       "proficiency": 1,
-      "primaryWeaponId": "longsword",
-      "armorId": "ringmail",
+      "primaryWeaponId": "primary-mace",
+      "armorId": "armor-chainmail-armor",
       "experiences": [
         {
           "name": "Held the line",
@@ -24225,7 +24152,8 @@
         "power-slash",
         "iron-stance"
       ],
-      "model": "quim"
+      "model": "quim",
+      "secondaryWeaponId": "secondary-round-shield"
     },
     {
       "id": "finn",
@@ -24243,8 +24171,8 @@
         "knowledge": 0
       },
       "proficiency": 1,
-      "primaryWeaponId": "hunting-bow",
-      "armorId": "padded-coat",
+      "primaryWeaponId": "primary-crossbow",
+      "armorId": "armor-gambeson-armor",
       "experiences": [
         {
           "name": "Knows a locksmith",
@@ -24274,8 +24202,8 @@
         "knowledge": 2
       },
       "proficiency": 1,
-      "primaryWeaponId": "ember-staff",
-      "armorId": "padded-coat",
+      "primaryWeaponId": "primary-greatstaff",
+      "armorId": "armor-gambeson-armor",
       "experiences": [
         {
           "name": "Read the old script",
@@ -24306,7 +24234,7 @@
       },
       "proficiency": 1,
       "primaryWeaponId": "hand-cannon",
-      "armorId": "padded-coat",
+      "armorId": "armor-gambeson-armor",
       "experiences": [
         {
           "name": "Sighted the long shot",
@@ -24337,7 +24265,7 @@
       },
       "proficiency": 1,
       "primaryWeaponId": "bound-ledger",
-      "armorId": "padded-coat",
+      "armorId": "armor-gambeson-armor",
       "experiences": [
         {
           "name": "Kept the only copy",
@@ -24371,7 +24299,7 @@
       },
       "proficiency": 1,
       "primaryWeaponId": "oaken-tankard",
-      "armorId": "ringmail",
+      "armorId": "armor-chainmail-armor",
       "experiences": [
         {
           "name": "Drank the room under",

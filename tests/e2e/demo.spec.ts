@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { test, expect, type Page } from '@playwright/test';
+import { closeLoadout, openPack } from './pack';
 import { CURRENT_FORMAT_VERSION } from '../../src/engine/scene/schema';
 
 /**
@@ -1061,9 +1062,7 @@ test('fills the pack from a chest, and shows what the party carries', async ({ p
   expect(looted.log.join(' ')).toMatch(/You find .*(Gold|draught|brass)/i);
 
   // And it is on screen.
-  const pack = page.locator('[data-testid="pack"]');
-  await expect(pack).toBeVisible();
-  await expect(pack).toContainText('Carried');
+  await expect((await openPack(page)).locator('[data-item]').first()).toBeVisible();
 
   expect(consoleErrors).toEqual([]);
 });
@@ -1525,7 +1524,7 @@ test('equips a found weapon from the pack, and the card says so', async ({ page 
   const card = page.locator('[data-member="kara"] [data-testid="gear"]');
   await expect(card).toContainText('Longsword · Ringmail');
 
-  const pack = page.locator('[data-testid="pack"]');
+  const pack = await openPack(page);
   await pack.locator('[data-item="hunting-bow"] [data-testid="equip"]').click();
   await expect(card).toContainText('Hunting Bow · Ringmail');
   // The bow came out of the pack; the longsword it replaced went in.
@@ -1655,7 +1654,7 @@ test('drinks a draught from the pack, and the wound closes on the card', async (
   const hp = page.locator('[data-member="kara"] [data-testid="hp"]');
   await expect(hp).toHaveAttribute('data-marked', '3');
 
-  const pack = page.locator('[data-testid="pack"]');
+  const pack = await openPack(page);
   await pack.locator('[data-item="healing-draught"] [data-testid="use-item"]').click();
   await expect(hp).toHaveAttribute('data-marked', '1');
   await expect(page.locator('[data-testid="log"]')).toContainText('Iron and mint');
@@ -1983,7 +1982,7 @@ test('recalls a card from the vault for Stress, and passes the spotlight with a 
   await recall.click();
   await expect(page.locator('[data-member="kara"] [data-testid="stress"]')).toHaveAttribute('data-marked', '1');
   await expect(panel.locator('[data-card="unbroken"] [data-testid="recall"]')).toHaveCount(1);
-  await page.locator('[data-testid="close-loadout"]').click();
+  await closeLoadout(page);
   await expect(panel).toHaveCount(0);
   expect(await page.evaluate(() => window.__engine!.loadout('kara').vault)).toEqual(['unbroken']);
 

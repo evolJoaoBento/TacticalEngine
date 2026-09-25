@@ -21,6 +21,8 @@ import { purse, sellTo, sellables, shopOf } from '../shop';
 import { interactablesOf } from '../../engine/scene/prop-functions';
 import type { Spot } from '../../engine/grid/grid';
 import type { TalkingView } from './Conversation';
+import { itemOf, itemsFor } from '../../engine/content/equipment/catalogue';
+import { gearCard } from '../gear';
 
 /** The journal: every quest the party has been given, joined to its words. */
 export function journalEntries(demo: DemoScene): JournalQuest[] {
@@ -93,11 +95,12 @@ export function containerView(demo: DemoScene, reach: (id: string) => boolean, r
   return {
     id,
     name: prop === undefined ? (demo.state.entity(id) === undefined ? 'Container' : nameOf(demo, id)) : prop.model.replace(/[-_]+/g, ' ').replace(/^./, (letter) => letter.toUpperCase()),
-    lines: containerContents(demo, id),
+    // A shop sells cards: each line carries the card it is, drawn as the pack draws it.
+    lines: containerContents(demo, id).map((line) => (shop === null ? line : { ...line, card: gearCard(demo, line.item) })),
     ...(shop === null ? {} : {
-      paidIn: { name: demo.project.items.find((item) => item.id === shop.currency)?.name ?? shop.currency, held: purse(demo, shop) },
+      paidIn: { name: itemOf(demo.project, shop.currency)?.name ?? shop.currency, held: purse(demo, shop) },
       // What the party can sell back: the seller's own lines, for half.
-      selling: sellables(demo, id),
+      selling: sellables(demo, id).map((line) => ({ ...line, card: gearCard(demo, line.item) })),
       onSell: (item: string) => {
         sellTo(demo, id, item);
         refresh();
@@ -116,7 +119,7 @@ export function containerView(demo: DemoScene, reach: (id: string) => boolean, r
 
 /** The party's pack, joined to the project's item names - and worths, so a player knows what a thing fetches. */
 export function carriedItems(demo: Pick<DemoScene, 'project' | 'scenario'>): { id: string; name: string; quantity: number; wearable: boolean; usable: boolean; value?: number }[] {
-  const items = new Map(demo.project.items.map((item) => [item.id, item]));
+  const items = new Map(itemsFor(demo.project).map((item) => [item.id, item]));
   return [...demo.scenario.items]
     .filter(([, quantity]) => quantity > 0)
     .map(([id, quantity]) => {

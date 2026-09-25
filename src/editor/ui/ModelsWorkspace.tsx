@@ -355,7 +355,7 @@ export function ModelsWorkspace(props: {
         <div class="ph-note">
           The file is stored in the project, so a save carries its art with it, and this browser
           remembers it for the next time the editor opens. Pick it from Terrain's Props tab, name it
-          on an object, or point a creature at it from Combat.
+          on an object, or point a creature at it from Encounters.
         </div>
       </div>
     </div>

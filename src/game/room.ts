@@ -249,20 +249,25 @@ export type ProjectContent = Pick<
  *
  * A project that carries nothing is played with the pack itself, handed back
  * unwrapped — this is read on every sheet write, so the ordinary case does no
- * work at all.
+ * work at all. One that carries something is merged once and the merge kept
+ * until one of its seven lists changes: the pack's own maps hold the equipment
+ * catalogue's four hundred weapons and armours, and copying them on every read
+ * was a quarter of the time a fight took.
  */
 export function characterContentFor(project?: ProjectContent): ContentPack {
   if (project === undefined) return DEMO_CHARACTERS;
-  const carries =
-    project.classes.length > 0 ||
-    project.ancestries.length > 0 ||
-    project.communities.length > 0 ||
-    project.subclasses.length > 0 ||
-    project.cards.length > 0 ||
-    project.weapons.length > 0 ||
-    project.armors.length > 0;
-  return carries ? mergePack(DEMO_CHARACTERS, project) : DEMO_CHARACTERS;
+  const lists = [project.classes, project.ancestries, project.communities, project.subclasses, project.cards, project.weapons, project.armors];
+  if (lists.every((list) => list.length === 0)) return DEMO_CHARACTERS;
+  // The lists are edited in place, so what is compared is what is in them, entry by entry - they
+  // are a project's own few, never the pack's many.
+  const kept = mergedFor.get(project);
+  if (kept !== undefined && kept.lists.every((was, i) => was.length === lists[i]!.length && was.every((entry, j) => entry === lists[i]![j]))) return kept.pack;
+  const pack = mergePack(DEMO_CHARACTERS, project);
+  mergedFor.set(project, { lists: lists.map((list) => [...list]), pack });
+  return pack;
 }
+
+const mergedFor = new WeakMap<ProjectContent, { lists: unknown[][]; pack: ContentPack }>();
 
 /** Trait modifiers for whoever is acting, so a check uses the real sheet. */
 function traitsFor(

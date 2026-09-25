@@ -152,18 +152,11 @@
 .hud-slot{position:absolute;left:4px;right:4px;top:-5px;height:0;border-top:2px solid var(--play-gold);box-shadow:0 0 6px var(--play-gold);z-index:3}
 .hud-slot.is-below{top:auto;bottom:-5px}
 
-/* The hand, along the bottom: relics above it on a shelf, the Light orb at its left, the verbs at its
+/* The hand, along the bottom: the Light orb at its left, the verbs at its
    right. Only the cards and buttons take the pointer; the board shows through the rest. */
 /* Lifted off the bottom edge: the fan drops its outer cards by `--drop`, and at 0 that drop carried
    the new foot band off the screen, so the cards read as cut rather than dealt. */
 .bar{position:absolute;left:var(--hud-w);right:var(--panel-w);bottom:clamp(12px,1.8vh,18px);display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none}
-/* Relics sit at the top centre: struck medallions in a matte leather tray. Nothing here is glossy --
-   a highlight along the top edge is what makes a thing look moulded rather than made. */
-.relics{position:fixed;top:12px;left:50%;transform:translateX(-50%);display:flex;gap:7px;padding:5px 10px;border:1px solid #2a1b10;border-radius:4px;background:var(--play-leather-dark);box-shadow:inset 0 2px 5px #00000059,0 3px 8px #0000004d;pointer-events:none}
-.relic{width:38px;height:38px;padding:0;border-radius:50%;overflow:hidden;border:1px solid #3b2a17;background:linear-gradient(158deg,#c8b58c,#8a7448);box-shadow:inset 0 1px 2px #fff3d060,inset 0 -1px 2px #00000047,0 1px 3px #00000059;pointer-events:auto;cursor:help;transition:transform .12s}
-.relic:hover{transform:translateY(-2px)}
-.relic .ability-card-art{display:block;width:100%;height:100%;opacity:.95}
-.relic .ability-card-art>svg,.relic .ability-card-art>img{display:block;width:100%;height:100%;object-fit:cover}
 .hand-armed{display:flex;align-items:center;gap:10px;padding:6px 8px 6px 14px;background:linear-gradient(#f6e6bb,#e2cb92);box-shadow:inset 0 0 0 1px var(--play-gold),0 3px 8px #00000047;font-weight:700;color:var(--play-ink);pointer-events:auto}
 .hand-row{display:flex;align-items:flex-end;justify-content:space-between;gap:clamp(8px,2.2vw,28px);width:100%;padding:0 clamp(4px,1.2vw,12px);box-sizing:border-box}
 /* Light, as the struck counter it would be on a real table: brass, not a glowing ball. The number is
@@ -383,11 +376,18 @@
    settings (70), and the loadout's book is lifted above the dimming, so the party's cards can
    still be looked at while they shop. */
 .shop-backdrop{position:fixed;inset:0;z-index:50;display:grid;place-items:center;padding:16px;box-sizing:border-box;background:#120c0899;backdrop-filter:blur(3px);pointer-events:auto;animation:settings-dim .16s ease-out both}
-.shop-window{width:min(440px,100%);max-height:min(80vh,640px);box-sizing:border-box;padding:14px 18px;font-size:14px}
-.shop-window .panel-row{padding:3px 0;border-bottom:1px dotted var(--play-rule)}
-.shop-window .panel-row:last-child{border-bottom:0}
-.shop-window [data-testid=shop-purse]{margin:2px 0 8px}
-.shop-window [data-testid=shop-selling]{margin-top:12px}
+.shop-window{width:min(860px,100%);max-height:min(88vh,860px);box-sizing:border-box;padding:14px 18px;font-size:14px}
+.shop-window [data-testid=shop-purse]{margin:2px 0 10px}
+.shop-window [data-testid=shop-selling]{margin-top:14px;padding-top:10px;border-top:1px dotted var(--play-rule)}
+/* The wares: cards laid out on the table, each with its price and a Buy under it. */
+.shop-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:14px 12px}
+.shop-cards.is-selling{grid-template-columns:repeat(auto-fill,minmax(104px,1fr))}
+.shop-card{display:flex;flex-direction:column;align-items:stretch;gap:6px}
+.shop-card > .gear-face{width:100%;aspect-ratio:375/525;height:auto}
+.shop-plain{aspect-ratio:375/525;display:grid;place-items:center;text-align:center;padding:8px;border:1px solid var(--play-rule);border-radius:6px;background:#fffdf6}
+.shop-deal{display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap}
+.shop-deal .play-btn{font-size:12px;padding:4px 9px}
+.shop-left{font-size:12px;color:var(--play-muted)}
 :root:has(.shop-backdrop) .book-btn{z-index:51}
 @media(prefers-reduced-motion:reduce){.shop-backdrop{animation:none}}
 .panel-detail{color:var(--play-muted)}

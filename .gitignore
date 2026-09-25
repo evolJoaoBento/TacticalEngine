@@ -22,6 +22,12 @@ public/models/*.glb
 public/models/*.gltf
 public/models/*.part
 
+# The equipment cards' pictures: the project's own art, published beside the models on Hugging Face
+# and named in equipment.lock.json. `npm run models` brings them down into this folder, and
+# tools/loot-cards.mjs writes them here from a card export. Guarded by tests/unit/models-lock.test.ts.
+public/equipment/*.webp
+public/equipment/*.part
+
 # Card illustrations fetched by tools/download-card-art.mjs from a third-party
 # mirror. They are Critical Role artwork, NOT SRD content: the DPCGL licenses
 # the System Reference Document's text and mechanics and does not cover

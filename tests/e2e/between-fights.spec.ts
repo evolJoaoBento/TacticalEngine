@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { openPack } from './pack';
 
 /**
  * What a party does between fights: take the level they earned, rest, and put
@@ -154,8 +155,8 @@ test('what the strongbox paid out can be put on', async ({ page }) => {
   // earlier roll can move it.
   expect(before.carried.join(' ')).toMatch(/shield/i);
 
-  // The Equip button beside it in the pack.
-  const equip = page.locator('[data-testid="pack"] [data-testid="equip"]');
+  // The Equip button on its card, in the pack the loadout's gear pages hold.
+  const equip = (await openPack(page)).locator('[data-testid="equip"]');
   await expect(equip.first()).toBeVisible();
   await equip.first().click();
 

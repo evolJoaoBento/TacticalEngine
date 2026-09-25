@@ -9,8 +9,8 @@
  *
  * Weapons and armour stay SRD *content*, not project items: an item points at
  * one through `contentId`, so equipping is a lookup rather than a copy, and the
- * 192 imported weapons do not have to be restated in every project that uses
- * them.
+ * catalogue's weapons (`equipment/catalogue.ts`) do not have to be restated in
+ * every project that uses them.
  */
 
 import { z } from 'zod';
@@ -39,6 +39,13 @@ export const itemSchema = z.object({
    * no merchant will buy it.
    */
   value: z.number().int().min(0).optional(),
+  /** Its tier, for a weapon or armour that has one. */
+  tier: z.number().int().min(1).optional(),
+  /**
+   * Its card's picture: a file in `public/equipment/`, fetched with the models. Left out, or not
+   * fetched, the card is drawn from what it says.
+   */
+  card: z.string().optional(),
   /**
    * What using it does, in the one effect vocabulary — a draught heals the
    * `actor`, a scroll starts a conversation. Empty means it cannot be used.

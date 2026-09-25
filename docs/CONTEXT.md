@@ -60,11 +60,18 @@ Dev server: `npm run dev` → http://127.0.0.1:8420. Playwright starts its own s
 - Legacy prototype (what the user built, to be ported/superseded): `legacy/js/*.js`, `legacy/README.md`.
   Static analysis of it lives in `docs/research/legacy-{game,campaign,editor-ui,models}.md` — read those before
   re-reading the legacy sources; they carry `file:line` anchors and a port verdict per behaviour.
-- **No SRD material is vendored any more.** `tools/srd-sources/` held the official 2.0 text and two
-  community data sets; it is gone, along with the card and adversary libraries built from it. The
-  engine ships `src/engine/content/pack/starter.ts` — its own high-fantasy pack, nobody else's
-  content — and reads anything else as an imported pack, through **Project ▾ → Import pack…**
-  (`src/engine/content/pack/document.ts`).
+- **No SRD material is vendored any more, but the equipment.** `tools/srd-sources/` held the
+  official 2.0 text and two community data sets; it is gone, along with the card and adversary
+  libraries built from it. The engine ships `src/engine/content/pack/starter.ts` — its own
+  high-fantasy pack, nobody else's content — and reads anything else as an imported pack, through
+  **Project ▾ → Import pack…** (`src/engine/content/pack/document.ts`).
+
+  The exception is the equipment, by the user's choice on 25 September 2026: the loot cards' 324
+  weapons, 69 armours, 120 items and 120 consumables, core and expansion alike, are Public Game
+  Content under the DPCGL and ship as `src/engine/content/equipment/catalogue.json`, written by
+  `tools/loot-cards.mjs` from the user's card export. Their pictures are the user's own art: 44 MB of
+  WebP at 750×1050 on Hugging Face beside the models (`equipment.lock.json`, fetched by `npm run models` into
+  `public/equipment/`), never in git.
 
   The catalogue was not discarded. `tools/export-pack.ts` (deleted with the sources, retrievable
   from history) wrote it out as `packs/srd.json`, the content as one `contentPackSchema` document,

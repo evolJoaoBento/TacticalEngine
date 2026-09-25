@@ -2,7 +2,10 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import type { GrantedCard, LoadoutCard, LoadoutView, SheetStats } from '../demo-abilities';
 import { CardFace, GrantedFace } from './CardFace';
 import { CardArtImport } from './CardArtImport';
+import { useGearPages } from './GearBinder';
 import { Pips, type HudMember } from './PartyHud';
+import type { GearView } from '../gear';
+import type { GearSlot } from '../equip';
 import './cards.css';
 // The left leaf draws the same pools the party sheets do, in the same ink.
 import './hud.css';
@@ -23,7 +26,23 @@ export interface LoadoutPanelProps {
   issue: string | null;
   onSwap: (cardIn: string, cardOut: string | undefined) => void;
   onClose: () => void;
+  /**
+   * What they carry and what the party does, for the gear pages the sheet's Equipment button lays
+   * over the binder (`GearBinder.tsx`). Absent - the editor's binder - there is no such button.
+   */
+  gear?: GearView;
+  onEquip?: (itemId: string) => void;
+  onUnequip?: (slot: GearSlot) => void;
+  onUseItem?: (itemId: string) => void;
 }
+
+const NO_GEAR: GearView = { slots: [], carried: [] };
+const nothing = (): void => undefined;
+/**
+ * How long the turn to the gear pages takes, and back: one sheet over the rings - `gear-turn-*` in
+ * `gear.css`, each half of it half of this. The two have to agree.
+ */
+const GEAR_TURN_MS = 640;
 
 const signed = (value: number): string => (value > 0 ? `+${value}` : `${value}`);
 /** A threshold they do not have is `Infinity`, which is not a number anybody writes on a sheet. */
@@ -188,6 +207,41 @@ export function LoadoutPanel(props: LoadoutPanelProps): preact.JSX.Element {
   const [inspect, setInspect] = useState<LoadoutCard | GrantedCard | null>(null);
   // Bumped when imported art changes, so every face of that card redraws.
   const [artVersion, setArtVersion] = useState(0);
+  // The gear pages: plastic over the sheet with a sleeve for each place gear goes, and the pack
+  // over the pockets opposite. Called whether or not they are open, as hooks must be.
+  const [gearOpen, setGearOpen] = useState(false);
+  // Getting there is turning to a divider: under the card pages on the right lies a black divider
+  // whose tab reads Equipment. Its tab turns the card pages and the divider over the rings together -
+  // the pages swinging up off the right leaf for the first half of the turn, the divider's black back
+  // coming down over the character sheet for the second, meeting edge-on over the rings - and the
+  // pack is the page they uncover. On the left the divider's tab reads Back, and turns them home the
+  // same way. The pages stay until the turn is done. With motion reduced it is simply there.
+  const [gearTurn, setGearTurn] = useState<'in' | 'out' | null>(null);
+  const turnTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => () => clearTimeout(turnTimer.current), []);
+  const turnGear = (open: boolean): void => {
+    clearTimeout(turnTimer.current);
+    if (typeof matchMedia !== 'function' || matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setGearOpen(open);
+      setGearTurn(null);
+      return;
+    }
+    if (open) setGearOpen(true);
+    setGearTurn(open ? 'in' : 'out');
+    turnTimer.current = setTimeout(() => {
+      setGearTurn(null);
+      if (!open) setGearOpen(false);
+    }, GEAR_TURN_MS);
+  };
+  const gear = useGearPages({
+    view: props.gear ?? NO_GEAR,
+    onEquip: props.onEquip ?? nothing,
+    onUnequip: props.onUnequip ?? nothing,
+    onUse: props.onUseItem ?? nothing,
+    onClose: () => turnGear(false),
+    issue: props.issue,
+    turning: gearTurn,
+  });
   const root = useRef<HTMLDivElement>(null);
   const inspectTrigger = useRef<HTMLButtonElement | null>(null);
   useEffect(() => {
@@ -340,7 +394,7 @@ export function LoadoutPanel(props: LoadoutPanelProps): preact.JSX.Element {
         if (e.key === 'Escape') { e.preventDefault(); if (inspect) setInspect(null); else shut(); }
         // Turn the page with the arrows -- but not while reading a card, and not while the caret is
         // in the search box, where the arrows belong to the text.
-        if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && !inspect && !(e.target instanceof HTMLInputElement) && !(e.target instanceof HTMLSelectElement)) {
+        if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && !inspect && !gearOpen && !(e.target instanceof HTMLInputElement) && !(e.target instanceof HTMLSelectElement)) {
           e.preventDefault();
           setPage(e.key === 'ArrowLeft' ? Math.max(0, shown - 1) : Math.min(leaves.length - 1, shown + 1));
         }
@@ -357,7 +411,7 @@ export function LoadoutPanel(props: LoadoutPanelProps): preact.JSX.Element {
       {/* Not while a card is held up to read. Esc there puts the card down, not the binder away, so
           a button saying "Close Esc" beside it promised something the key would not do -- and
           "Back to collection" is already the way out of the reader. */}
-      {inspect ? null : <button className="deck-close deck-shut" onClick={shut} data-testid="close-loadout">Close <kbd>Esc</kbd></button>}
+      {/* No Close button: a click on the table round the binder shuts it, as Esc does. */}
       {/* The binder lies open: the character on the left leaf, the pockets on the right, rings down
           the middle. Only the right leaf turns -- who you are does not change page. */}
       <div className="deck-spread" ref={spreadBox}>
@@ -398,11 +452,24 @@ export function LoadoutPanel(props: LoadoutPanelProps): preact.JSX.Element {
               the only word a player gets about why a swap did not happen, so it keeps its name. */}
           {props.issue === null ? null : <p className="sheet-issue" role="alert" data-testid="loadout-issue">{props.issue}</p>}
           </div>
+          {/* The divider's back, turned over onto the sheet with the card pages: black card, its tab out
+              of the left edge reading Back, the equipment sheet lying on it. */}
+          {gearOpen ? (
+            <div className="gear-divider" data-turning={gearTurn ?? undefined}>
+              <button type="button" className="gear-tab is-back" data-testid="close-gear" onClick={() => turnGear(false)}>Back</button>
+              {gear.left}
+            </div>
+          ) : null}
         </aside>
         {/* Two rings, through the centre pairs of holes -- the leaves are punched all the way down,
             as binder paper is, but a binder only has the two rings. */}
         <div className="deck-rings" aria-hidden="true" style={{ '--ring-a': `${ringAt.a}px`, '--ring-b': `${ringAt.b}px` }}><b /><i /><i /></div>
         <div className="deck-pocketpage">
+      {/* The card pages, all of them, as one stack that turns: over the rings to the divider under
+          them, and back. Put out of sight - not away - while the divider is open, so every page keeps
+          its measured size. The divider's tab sticks out past the stack's edge, and turns with it. */}
+      <div className="deck-leafstack" data-turning={gearTurn ?? undefined} data-turned={gearOpen && gearTurn === null ? '' : undefined}>
+      {props.gear === undefined ? null : <button type="button" className="gear-tab" data-testid="open-gear" onClick={() => turnGear(true)}>Equipment</button>}
       <div className="deck-toolbar"><label className="deck-search">Search cards<input aria-label="Search cards" placeholder="Name, effect, or card type…" value={query} onInput={e => setQuery(e.currentTarget.value)} /></label>
         <label>Domain<select aria-label="Domain" value={domain} onChange={e => setDomain(e.currentTarget.value)}><option value="all">All domains</option>{domains.map(d => <option key={d} value={d}>{d}</option>)}</select></label>
         <p>Inspect a card to read it.<br />{props.resting ? 'Resting · recall is free.' : 'Recall costs the card’s Recall Cost in Stress.'}</p></div>
@@ -434,6 +501,10 @@ export function LoadoutPanel(props: LoadoutPanelProps): preact.JSX.Element {
             disabled={shown >= leaves.length - 1} onClick={() => setPage(shown + 1)}>›</button>
         </nav>
       </div>
+      </div>
+      {/* The pack: the page after the divider, uncovered as the stack turns away. */}
+      {gearOpen ? gear.right : null}
+      {gearTurn === null ? null : <span data-testid="gear-turning" hidden />}
         </div>
       </div>
       {inspect && <div className="card-lightbox" role="dialog" aria-label={inspect.name} onClick={() => setInspect(null)}>
@@ -444,6 +515,8 @@ export function LoadoutPanel(props: LoadoutPanelProps): preact.JSX.Element {
           <button autoFocus className="deck-close" onClick={() => setInspect(null)}>Back to collection</button>
           <CardArtImport cardId={inspect.id} onChanged={() => setArtVersion(v => v + 1)} /></div>
       </div>}
+      {gear.reading}
     </div>
+    {gear.ghost}
   </div>;
 }

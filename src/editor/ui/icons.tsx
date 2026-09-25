@@ -8,7 +8,7 @@ const PATHS = {
   eraseTile: 'M4 8l8-4 8 4v8l-8 4-8-4zM8 10l8 6M16 10l-8 6',
   inspect: 'M5 3l6.5 17 2.2-7.3L21 10.5z',
   terrain: 'M2 19l6.5-11 4 6.5 3-4.5L22 19z',
-  combat: 'M4 4l10 10M20 4L10 14M7 17l-3 3M17 17l3 3M6 14l4 4M18 14l-4 4',
+  combat: 'M12 2.5a2.5 2.5 0 110 5 2.5 2.5 0 010-5zM12 8.5v6.5M6 11h12M12 15l-4 6.5M12 15l4 6.5',
   interaction: 'M4 5h16v10H10l-5 4v-4H4z',
   select: 'M5 3l6.5 17 2.2-7.3L21 10.5z',
   placeTile: 'M12 3l8 4.5-8 4.5-8-4.5zM4 12.5l8 4.5 8-4.5M4 16.5l8 4.5 8-4.5',

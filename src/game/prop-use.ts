@@ -20,6 +20,7 @@ import { inCombat } from './moment';
 import { nameOf, note } from './log';
 import { freeTileNear, type DemoScene } from './demo-scene';
 import { buyFrom, shopContents, shopOf } from './shop';
+import { itemOf } from '../engine/content/equipment/catalogue';
 
 /** Everything usable in a room, props included: re-exported so the game reads it from where it acts on it. */
 export { interactablesOf, objectsToProps };
@@ -85,7 +86,7 @@ export function containerContents(demo: Demo, id: string): ContainerLine[] {
   const prop = demo.scene.decos.find((deco) => deco.id === id);
   const taken = demo.state.interactable(id).data;
   return containerItems(prop?.function)
-    .map(({ item, count }) => ({ item, name: demo.project.items.find((known) => known.id === item)?.name ?? item, count: count - takenOf(taken, item) }))
+    .map(({ item, count }) => ({ item, name: itemOf(demo.project, item)?.name ?? item, count: count - takenOf(taken, item) }))
     .filter((line) => line.count > 0);
 }
 

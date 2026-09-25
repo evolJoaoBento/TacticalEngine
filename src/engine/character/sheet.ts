@@ -35,6 +35,7 @@ import {
 import type { Trait } from '../scene/schema';
 import { heldCards, progressionBonuses, subclassStage, tierOf, type LevelRecord } from './progression';
 import { abilitiesFor, type AbilityDef, type AbilityModifier } from '../content/abilities';
+import { gearEffects } from '../content/equipment/features';
 
 /** The six traits, at the SRD's starting spread of +2 +1 +1 +0 +0 −1. */
 export type Traits = Record<Trait, number>;
@@ -213,8 +214,12 @@ export function deriveCharacter(
   // the sheet's own map so a check reads the grown number.
   const grown = progressionBonuses(sheet);
 
+  // What the gear's features plainly say: Heavy's lost Evasion, Cumbersome's lost Finesse, Reliable's
+  // steadier swing - counted while it is worn or wielded (`equipment/features.ts`).
+  const gear = gearEffects([...(primaryWeapon?.features ?? []), ...(secondaryWeapon?.features ?? []), ...(armor?.features ?? [])]);
   const traits: Traits = { ...sheet.traits };
   for (const trait of Object.keys(grown.traits) as Trait[]) traits[trait] += grown.traits[trait] ?? 0;
+  for (const trait of Object.keys(gear.traits) as Trait[]) traits[trait] += gear.traits[trait] ?? 0;
   const experiences = (sheet.experiences ?? []).map((e) => ({
     ...e,
     modifier: e.modifier + (grown.experiences[e.name] ?? 0),
@@ -223,9 +228,12 @@ export function deriveCharacter(
   // What the held abilities add. `requires` is the sheet's to answer here;
   // `when` is the scene's, so those wait for the roll.
   const held = abilitiesFor({ sheet, cards, granted }, abilities);
-  const modifiers = held
-    .flatMap((ability) => ability.modifiers)
-    .filter((m) => m.requires === undefined || m.requires === 'meleeWeapon' || (m.requires === 'armored') === (armor !== undefined));
+  const modifiers = [
+    ...held
+      .flatMap((ability) => ability.modifiers)
+      .filter((m) => m.requires === undefined || m.requires === 'meleeWeapon' || (m.requires === 'armored') === (armor !== undefined)),
+    ...gear.modifiers,
+  ];
   // Proficiency first, because a modifier may add it to something else: Rise
   // Up's Severe threshold is "equal to your Proficiency", and a card that
   // raised the Proficiency itself has to be counted before that is read.
@@ -374,6 +382,14 @@ export const UNARMED: { damage: ParsedDamage; range: RangeBand; trait: Trait } =
  * being used", and a character with no weapon punches: "Unarmed attack rolls use
  * either Strength or Finesse (GM's choice)."
  */
+/**
+ * The trait a weapon swings with in these hands: its own, or - for one that says Spellcast - the
+ * wielder's spellcast trait. Somebody who casts with nothing swings it with Knowledge.
+ */
+export function wieldedTrait(character: Pick<DerivedCharacter, 'spellcastTrait'>, weapon: Pick<WeaponDef, 'trait'>): Trait {
+  return weapon.trait === 'spellcast' ? (character.spellcastTrait ?? 'knowledge') : weapon.trait;
+}
+
 export function attackProfile(
   character: DerivedCharacter,
   which: 'primary' | 'secondary' = 'primary',
@@ -399,8 +415,8 @@ export function attackProfile(
     name: weapon.name,
     // The attack modifier is the weapon's trait; features that add to it are
     // applied by the caller as `AttackOptions.bonus`, so this stays the sheet's.
-    modifier: { count: 0, sides: 0, modifier: traits[weapon.trait] },
-    trait: weapon.trait,
+    modifier: { count: 0, sides: 0, modifier: traits[wieldedTrait(character, weapon)] },
+    trait: wieldedTrait(character, weapon),
     range: weapon.range,
     damage: weapon.damage,
     proficiency: character.proficiency,

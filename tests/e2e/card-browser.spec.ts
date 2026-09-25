@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { closeLoadout } from './pack';
 
 /** A 1x1 PNG, small enough to paste and real enough for the browser to decode. */
 const PIXEL = Buffer.from(
@@ -72,12 +73,11 @@ test('the card collection filters, inspects and swaps without leaking keyboard i
   await page.screenshot({ path: 'test-results/card-collection.png' });
   await page.getByRole('button', { name: 'Inspect Unbroken', exact: true }).click();
   await expect(panel.locator('.face-expanded')).toContainText('Unbroken');
-  // While a card is held up to read, the binder's own way out is put away: Esc means the card here.
+  // There is no Close button - a click round the binder puts it away - and Esc means the card here.
   await expect(page.getByTestId('close-loadout')).toHaveCount(0);
   await page.screenshot({ path: 'test-results/card-inspect.png' });
   await page.keyboard.press('Escape');
   await expect(panel.locator('.card-lightbox')).toHaveCount(0);
-  await expect(page.getByTestId('close-loadout')).toHaveCount(1);
   await expect(page.getByRole('button', { name: 'Inspect Unbroken', exact: true })).toBeFocused();
   await expect(panel).toBeVisible();
   await page.getByRole('textbox', { name: 'Search cards' }).fill('iron');
@@ -105,8 +105,7 @@ test('the card collection filters, inspects and swaps without leaking keyboard i
   expect(await panel.evaluate(n => n.scrollWidth <= n.clientWidth)).toBe(true);
   await panel.locator('.deck-scroll').evaluate(n => { n.scrollTop = 0; });
   await page.screenshot({ path: 'test-results/card-collection-mobile.png' });
-  await page.getByTestId('close-loadout').click();
-  await expect(panel).toHaveCount(0);
+  await closeLoadout(page);
   expect(errors).toEqual([]);
 });
 

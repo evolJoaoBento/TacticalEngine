@@ -16,7 +16,7 @@ import { SceneView } from '../../src/engine/render/scene-view';
 import { movementCircle } from '../../src/game/circle';
 import { tilesDrawn } from '../../src/engine/render/terrain-mesh';
 import { tileOf } from '../../src/engine/scene/grid-from-scene';
-import { attackProfile } from '../../src/engine/character/sheet';
+import { attackProfile, wieldedTrait } from '../../src/engine/character/sheet';
 import type { Rng } from '../../src/engine/core/rng';
 import {
   attackWithSelected,
@@ -729,7 +729,7 @@ describe('the party is built from content, not written down', () => {
     const bow = DEMO_CHARACTERS.weapons.get(finn.sheet.primaryWeaponId!)!;
     const profile = attackProfile(finn);
     expect(profile.name).toBe(bow.name);
-    expect(profile.modifier.modifier).toBe(finn.sheet.traits[bow.trait]);
+    expect(profile.modifier.modifier).toBe(finn.sheet.traits[wieldedTrait(finn, bow)]);
     expect(profile.range).toBe(bow.range);
   });
 

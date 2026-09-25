@@ -19,7 +19,8 @@ export const EDITOR_MODES: readonly EditorMode[] = ['inspect', 'terrain', 'comba
 export const MODE_LABELS: Readonly<Record<EditorMode, string>> = {
   inspect: 'Inspector',
   terrain: 'Terrain',
-  combat: 'Combat',
+  // Called Combat until the user renamed it; the mode's id is still `combat`.
+  combat: 'Encounters',
   interaction: 'Interaction',
 };
 
