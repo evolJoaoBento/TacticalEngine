@@ -141,5 +141,17 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     without it.
   - Deliberately different: a body of JSON `null` to `publish` or `update` hung the TypeScript (it threw
     outside its try, and nothing answered); the Rust server answers as for `{}`.
-  - **Next**: your models (`tools/your-models.ts`), then the models manifest and ancestries, art
-    provenance, the default project.
+  - **Your models are the Rust server's** (`server/serve/src/your_models.rs`): the list, a player's files
+    served to anybody signed in, imports of a file or of another player's model. `golden_your_models.rs`
+    replays `server/fixtures/your-models.json` - served urls, import bodies, a folder filled in order to
+    the same ids - and writes back an index the TypeScript wrote, to the byte; `your_models_routes.rs`
+    drives the routes. The proxy key for the files is `/__models/u/`, with its slash, so the models routes
+    still in TypeScript (`/__models/ancestry`, `/__models/add`) are not caught. Tried end to end in a
+    real browser on 8420 - Get in the Store, then the model under *Your models* in the editor - which
+    found the models watcher reloading the page on a Get (fixed; `docs/BACKLOG.md`).
+  - Found by the byte check: a model's keys are in the order of its history - `listing` after `added`
+    when it was imported and then got from the Store, before it when got first - so an index entry is
+    kept as the ordered object it is, not a struct. (The Store's listings could do the same only for
+    fields a later version adds, or a listing from before claims; neither is in any file yet.)
+  - **Next**: the models manifest and ancestries (`tools/model-manifest.ts`: `/__models/ancestry`,
+    `/__models/add`, the shipped list), art provenance, the default project.

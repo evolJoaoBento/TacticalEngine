@@ -5,12 +5,13 @@ import { join, resolve } from 'node:path';
 import type { Plugin, ProxyOptions } from 'vite';
 import { ACCOUNTS_URL, keepsAccounts } from './accounts.ts';
 import { STORE_URL } from './store.ts';
+import { IMPORT_MODEL_URL, USER_MODELS_URL, YOUR_MODELS_URL } from './your-models.ts';
 
 /**
  * The Rust server beside the dev server (`docs/SERVER.md`, phase 1): the routes that have moved to it are
  * passed through, and the dev server starts it.
  *
- * `RUST_ROUTES` is what has moved - the accounts and the Store, so far; each dev plugin's route leaves `tools/*.ts`
+ * `RUST_ROUTES` is what has moved - the accounts, the Store and your models, so far; each dev plugin's route leaves `tools/*.ts`
  * for `server/serve` in turn. Vite proxies each to `tactical-serve` on `TACTICAL_SERVER_PORT` (8430),
  * keeping the Host header, so the server sees the page's own origin and host as the plugins did, and
  * its cookies come back untouched.
@@ -26,8 +27,12 @@ import { STORE_URL } from './store.ts';
  * loads this config as a dev server of its own (`servesRust`): a unit test run must not start one.
  */
 
-/** The routes the Rust server answers now. */
-export const RUST_ROUTES: readonly string[] = [ACCOUNTS_URL, STORE_URL];
+/**
+ * The routes the Rust server answers now. A proxy key is a prefix, so a player's files go by
+ * `/__models/u/` - with its slash - and the models routes the dev plugins still answer
+ * (`/__models/ancestry`, `/__models/add`) are not caught.
+ */
+export const RUST_ROUTES: readonly string[] = [ACCOUNTS_URL, STORE_URL, YOUR_MODELS_URL, IMPORT_MODEL_URL, `${USER_MODELS_URL}/`];
 
 /** Whether this Vite starts the Rust server and passes routes to it: a dev server, not the tests', not Vitest's. */
 export function servesRust(command: 'serve' | 'build'): boolean {

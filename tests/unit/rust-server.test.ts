@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { ACCOUNTS_URL } from '../../tools/accounts';
 import { STORE_URL } from '../../tools/store';
+import { IMPORT_MODEL_URL, USER_MODELS_URL, YOUR_MODELS_URL } from '../../tools/your-models';
 import { RUST_ROUTES, cargoPath, rustProxy, serverPort, servesRust } from '../../tools/rust-server';
 
 /**
@@ -18,15 +19,24 @@ afterEach(() => {
 });
 
 describe('the routes the Rust server answers', () => {
-  it('are the accounts and the Store, so far', () => {
-    expect(RUST_ROUTES).toEqual([ACCOUNTS_URL, STORE_URL]);
+  it('are the accounts, the Store and your models, so far', () => {
+    expect(RUST_ROUTES).toEqual([ACCOUNTS_URL, STORE_URL, YOUR_MODELS_URL, IMPORT_MODEL_URL, `${USER_MODELS_URL}/`]);
+  });
+
+  it('never catch the models routes the dev plugins still answer', () => {
+    const caught = (path: string): boolean => RUST_ROUTES.some((route) => path.startsWith(route));
+    expect(caught('/__models/ancestry')).toBe(false);
+    expect(caught('/__models/add?name=Fox.glb')).toBe(false);
+    expect(caught('/__models/u/bramble/imported/golem.glb')).toBe(true);
+    expect(caught('/__models/mine')).toBe(true);
+    expect(caught('/__models/import')).toBe(true);
   });
 
   it('are passed on to its port, the Host kept', () => {
     delete process.env['TACTICAL_SERVER_PORT'];
     expect(serverPort()).toBe(8430);
     const to8430 = { target: 'http://127.0.0.1:8430', changeOrigin: false };
-    expect(rustProxy()).toEqual({ '/__accounts': to8430, '/__store': to8430 });
+    expect(rustProxy()).toEqual({ '/__accounts': to8430, '/__store': to8430, '/__models/mine': to8430, '/__models/import': to8430, '/__models/u/': to8430 });
     process.env['TACTICAL_SERVER_PORT'] = '9555';
     expect(rustProxy()['/__accounts']!.target).toBe('http://127.0.0.1:9555');
   });

@@ -12,6 +12,18 @@ head and shoulders is already the creature tool's, on the same rail. Only what i
 the mode's id is still `combat`, so `mode-combat`, the tool lists and every test that picks it are
 as they were. Older entries below still say Combat. Unit `editor/modes.test.ts`.
 
+## Your models are the Rust server's — done
+
+`/__models/mine`, `/__models/u/...` and `/__models/import` are answered by `server/serve/src/your_models.rs`
+over the same `data/users/` folders, held to a fixture `tools/your-models.ts` writes, the index to the
+byte; the TypeScript routes are gone. `docs/SERVER.md` has the detail and what moves next.
+
+Found on the way, by doing it in a real browser against the dev server: the models watcher
+(`tools/model-manifest.ts`) reloaded every open page for any `.glb` with `/models/` in its path, and a
+player's folder is `data/users/<account>/models/imported/` - so since your models arrived, a **Get** or an
+import reloaded the very page that asked for it. The e2e suite stands those routes in and writes no file,
+so it never saw it. Now only a file directly in `public/models` reloads (`isEngineModelFile`, unit-tested).
+
 ## The Store is the Rust server's — done
 
 `/__store/*` is answered by `server/serve/src/store.rs` over the same `data/store/` files, held to a

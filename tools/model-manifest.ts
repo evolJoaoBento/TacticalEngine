@@ -61,6 +61,23 @@ const ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 export const MODEL_ADD_URL = '/__models/add';
 export const MODEL_ADD_LIMIT = 64 * 1024 * 1024;
 
+/**
+ * Whether a file the watcher reports is one of the engine's models: a glTF directly in the models folder,
+ * which is all the manifest reads. Matched on the folder itself, not on a `/models/` somewhere in the
+ * path - a player's own models are under `data/users/<account>/models/imported/`, and a Get or an import
+ * writing one there must not reload every open page, the one that asked for it included. Separators are
+ * the host's, and a Windows path compares without case.
+ */
+export function isEngineModelFile(file: string, folder: string): boolean {
+  const norm = (path: string): string => {
+    const slashed = path.replace(/\\/g, '/').replace(/\/+$/, '');
+    return process.platform === 'win32' ? slashed.toLowerCase() : slashed;
+  };
+  const path = norm(file);
+  const at = path.lastIndexOf('/');
+  return /\.(glb|gltf)$/i.test(path) && path.slice(0, at) === norm(folder);
+}
+
 /** A file name as the manifest makes a model id of it: `Stone Golem.glb` is `stone-golem`. */
 export function modelIdOf(name: string): string {
   return name
@@ -244,10 +261,8 @@ export function modelManifest(): Plugin {
       // Kept for a few seconds rather than for one event: a rename can be reported more than once.
       const quiet = new Map<string, number>();
       const changed = (file: string): void => {
-        // Separators differ by platform and the watcher reports the host's own, so the
-        // folder is matched on the segment rather than on a prefix of the joined path.
+        if (!isEngineModelFile(file, folder)) return;
         const path = file.replace(/\\/g, '/');
-        if (!/\.(glb|gltf)$/i.test(path) || !path.includes(`/${MODELS_DIRECTORY}/`)) return;
         const module = server.moduleGraph.getModuleById(RESOLVED);
         if (module !== undefined) server.moduleGraph.invalidateModule(module);
         const name = path.slice(path.lastIndexOf('/') + 1);

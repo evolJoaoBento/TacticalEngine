@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from '
 import { dirname, resolve } from 'node:path';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { Plugin } from 'vite';
-import { accountOf, fromThePage, keepsAccounts, readAccounts, readBody, readSessions } from './accounts.ts';
+import { keepsAccounts } from './accounts.ts';
 
 /**
  * **Your models**: each player's own `.glb` files, kept by the dev server in their folder
@@ -16,6 +16,10 @@ import { accountOf, fromThePage, keepsAccounts, readAccounts, readBody, readSess
  * is kept once: a model is known by its bytes (`hash`), so opening the same project again imports
  * nothing. Its id is its file's name, tidied as the engine's are (`tidyId`), and never one this
  * player's folder has already given to a different file.
+ *
+ * **The routes are the Rust server's now** (`server/serve/src/your_models.rs`, `docs/SERVER.md`), over the
+ * same folders; the functions here stay the reference it is held to (`tests/unit/your-models.golden.test.ts`
+ * writes `server/fixtures/your-models.json` from them).
  *
  * Routes: `/__models/mine` (GET, your models), `/__models/u/<account>/imported/<file>` (GET, the file,
  * for anybody signed in - a project that uses it draws it for whoever opens it), and `/__models/import`
@@ -144,66 +148,28 @@ export function judgeImport(body: string): { ok: true; name: string; bytes: Uint
   return { ok: true, name, bytes };
 }
 
+/**
+ * The routes are the Rust server's now (`server/serve/src/your_models.rs`, passed through by
+ * `rust-server.ts`); what is left here is the answer when there is no server - the tests', or a build -
+ * which is no models of anybody's.
+ */
 export function yourModels(): Plugin {
-  let root = process.cwd();
   let on = keepsAccounts('serve');
   return {
     name: 'tactical-your-models',
     configResolved(config) {
-      root = config.root;
       on = keepsAccounts(config.command);
     },
     configureServer(server) {
-      const answer = (response: ServerResponse, status: number, body: unknown): void => {
-        response.statusCode = status;
-        response.setHeader('content-type', 'application/json');
-        response.setHeader('cache-control', 'no-store');
-        response.end(JSON.stringify(body));
-      };
-      const signedIn = (request: IncomingMessage) => accountOf(request.headers.cookie, readSessions(root), readAccounts(root));
-
-      server.middlewares.use(YOUR_MODELS_URL, (request: IncomingMessage, response: ServerResponse) => {
-        if (!on) return answer(response, 404, { reason: 'this server keeps no models of yours' });
-        const account = signedIn(request);
-        if (account === null) return answer(response, 401, { reason: 'sign in first' });
-        return answer(response, 200, readYourModels(root, account.id));
-      });
-
-      server.middlewares.use(USER_MODELS_URL, (request: IncomingMessage, response: ServerResponse) => {
-        if (!on) return answer(response, 404, { reason: 'this server keeps no models of yours' });
-        if (signedIn(request) === null) return answer(response, 401, { reason: 'sign in first' });
-        const named = fileOfUrl(`${USER_MODELS_URL}${(request.url ?? '').split('?')[0]}`);
-        const path = named === null ? null : resolve(root, modelsFolder(named.account), named.file);
-        if (path === null || !existsSync(path)) return answer(response, 404, { reason: 'no such model' });
-        response.setHeader('content-type', 'model/gltf-binary');
-        response.setHeader('cache-control', 'no-cache');
-        return response.end(readFileSync(path));
-      });
-
-      server.middlewares.use(IMPORT_MODEL_URL, (request: IncomingMessage, response: ServerResponse) => {
-        if (!on) return answer(response, 404, { reason: 'this server keeps no models of yours' });
-        const refused = fromThePage(request);
-        if (refused !== null) return answer(response, 403, { reason: refused });
-        const account = signedIn(request);
-        if (account === null) return answer(response, 401, { reason: 'sign in first' });
-        void readBody(request, IMPORT_LIMIT).then((raw) => {
-          if (raw === null) return answer(response, 413, { reason: 'too large' });
-          const verdict = judgeImport(raw.toString('utf8'));
-          if (!verdict.ok) return answer(response, 422, { reason: verdict.reason });
-          let name: string;
-          let bytes: Uint8Array;
-          if ('url' in verdict) {
-            const path = resolve(root, modelsFolder(verdict.url.account), verdict.url.file);
-            if (!existsSync(path)) return answer(response, 404, { reason: 'no such model' });
-            name = verdict.url.file;
-            bytes = new Uint8Array(readFileSync(path));
-          } else {
-            ({ name, bytes } = verdict);
-          }
-          const made = importModel(root, account.id, name, bytes);
-          return made.ok ? answer(response, 200, { model: made.model, fresh: made.fresh }) : answer(response, 422, { reason: made.reason });
+      if (on) return;
+      for (const route of [YOUR_MODELS_URL, USER_MODELS_URL, IMPORT_MODEL_URL]) {
+        server.middlewares.use(route, (_request: IncomingMessage, response: ServerResponse) => {
+          response.statusCode = 404;
+          response.setHeader('content-type', 'application/json');
+          response.setHeader('cache-control', 'no-store');
+          response.end(JSON.stringify({ reason: 'this server keeps no models of yours' }));
         });
-      });
+      }
     },
   };
 }

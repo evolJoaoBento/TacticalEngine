@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { ANCESTRY_FILE, MODELS_DIRECTORY, MODEL_ADD_LIMIT, SHIPPED_SCALE, assignAncestry, judgeAncestry, judgeModelAdd, modelIdOf, readModelAncestries, shippedModels, writeModelAncestries } from '../../tools/model-manifest';
+import { ANCESTRY_FILE, MODELS_DIRECTORY, MODEL_ADD_LIMIT, SHIPPED_SCALE, assignAncestry, isEngineModelFile, judgeAncestry, judgeModelAdd, modelIdOf, readModelAncestries, shippedModels, writeModelAncestries } from '../../tools/model-manifest';
 
 /**
  * The folder is the registry.
@@ -115,6 +115,26 @@ describe('a model added to the engine from the editor', () => {
     const heavy = new Uint8Array(MODEL_ADD_LIMIT + 1);
     heavy.set(glb);
     expect(judgeModelAdd(page, 'golem.glb', heavy, none)).toMatchObject({ ok: false, status: 413 });
+  });
+});
+
+describe('a file the watcher reports', () => {
+  const folder = join('/repo', 'public', MODELS_DIRECTORY);
+
+  it('reloads the page when it is one of the engine’s models, directly in its folder', () => {
+    expect(isEngineModelFile(join(folder, 'Fox.glb'), folder)).toBe(true);
+    expect(isEngineModelFile(join(folder, 'fox.GLTF'), folder)).toBe(true);
+  });
+
+  it('does not for a player’s own model - a Get must not reload the page that asked for it - nor for anything else', () => {
+    expect(isEngineModelFile(join('/repo', 'data', 'users', 'admin', 'models', 'imported', 'bandit-cutter.glb'), folder)).toBe(false);
+    expect(isEngineModelFile(join(folder, 'heavy', 'Fox.glb'), folder)).toBe(false);
+    expect(isEngineModelFile(join(folder, 'notes.txt'), folder)).toBe(false);
+    expect(isEngineModelFile(join('/elsewhere', 'public', 'models', 'Fox.glb'), folder)).toBe(false);
+  });
+
+  it('matches the folder whichever separators the watcher uses', () => {
+    expect(isEngineModelFile('C:\\repo\\public\\models\\Fox.glb', 'C:/repo/public/models')).toBe(true);
   });
 });
 
