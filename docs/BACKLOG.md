@@ -12,6 +12,14 @@ head and shoulders is already the creature tool's, on the same rail. Only what i
 the mode's id is still `combat`, so `mode-combat`, the tool lists and every test that picks it are
 as they were. Older entries below still say Combat. Unit `editor/modes.test.ts`.
 
+## Scripts run in Rust, step for step — done
+
+`server/engine/src/script/runner.rs` runs a script as the TypeScript does - effect by effect, stopping
+at a prompt and resuming on its answer, with the same journal, counts, flags and dice - asking a
+`ScriptWorld` trait for everything it reads or changes. Held to a tape of a real world
+(`server/fixtures/runner.json`: 217 scripts, 868 runs, every kind of journal line) until the world is
+ported; hooks are taped, not run. The third of script's five parts; the world is next.
+
 ## Conditions evaluate in Rust, question for question — done
 
 `server/engine/src/script/conditions.rs` evaluates a condition as the TypeScript does, asking a

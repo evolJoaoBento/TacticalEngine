@@ -143,26 +143,30 @@ fn or_default(condition: &Value, key: &str, default: &str) -> Value {
     condition.get(key).cloned().unwrap_or_else(|| json!({ "kind": default }))
 }
 
-/// Evaluate a condition, already read by the script's schema.
-pub fn evaluate(condition: &Value, context: &mut impl ConditionContext, bindings: &TargetBindings, mut dice: Option<&mut (dyn DiceHand + '_)>) -> bool {
+/// Evaluate a condition, already read by the script's schema. The context answers for the world and, when
+/// `dice` allows it, for the dice a `chance` throws - one object, since reading an amount of dice is itself
+/// a read of the world. Without dice, a `chance` is false.
+pub fn evaluate<C: ConditionContext + DiceHand + ?Sized>(condition: &Value, context: &mut C, bindings: &TargetBindings, dice: bool) -> bool {
     let op = text(condition, "op");
     let value = &condition["value"];
     match text(condition, "kind") {
         "always" => true,
         "never" => false,
         "not" => !evaluate(&condition["of"], context, bindings, dice),
-        "all" => condition["of"].as_array().into_iter().flatten().all(|c| evaluate(c, context, bindings, dice.as_deref_mut())),
-        "any" => condition["of"].as_array().into_iter().flatten().any(|c| evaluate(c, context, bindings, dice.as_deref_mut())),
+        "all" => condition["of"].as_array().into_iter().flatten().all(|c| evaluate(c, context, bindings, dice)),
+        "any" => condition["of"].as_array().into_iter().flatten().any(|c| evaluate(c, context, bindings, dice)),
         "chance" => {
-            let Some(dice) = dice else { return false };
+            if !dice {
+                return false;
+            }
             let times = match condition.get("times") {
                 None => 1.0,
-                Some(amount) => dice.amount(amount),
+                Some(amount) => context.amount(amount),
             };
             let at_least = condition["atLeast"].as_f64().unwrap_or(0.0);
             let mut i = 0.0;
             while i < times {
-                if dice.roll(text(condition, "dice")) >= at_least {
+                if context.roll(text(condition, "dice")) >= at_least {
                     return true;
                 }
                 i += 1.0;
@@ -287,7 +291,7 @@ pub fn evaluate(condition: &Value, context: &mut impl ConditionContext, bindings
 }
 
 /// An omitted condition means "yes".
-pub fn evaluate_optional(condition: Option<&Value>, context: &mut impl ConditionContext, bindings: &TargetBindings, dice: Option<&mut (dyn DiceHand + '_)>) -> bool {
+pub fn evaluate_optional<C: ConditionContext + DiceHand + ?Sized>(condition: Option<&Value>, context: &mut C, bindings: &TargetBindings, dice: bool) -> bool {
     condition.is_none_or(|c| evaluate(c, context, bindings, dice))
 }
 

@@ -97,7 +97,7 @@ added after, so the rules are not redesigned while they are being transliterated
 
 ```bash
 cd server && cargo test                                         # the Rust port against its fixtures
-npx vitest run src/engine/grid/grid.golden.test.ts src/engine/rules/rules.golden.test.ts src/engine/character/character.golden.test.ts src/engine/dialogue/dialogue.golden.test.ts src/engine/content/content.golden.test.ts src/engine/combat/combat.golden.test.ts src/engine/script/script.golden.test.ts src/engine/script/conditions.golden.test.ts   # the fixtures are still what TypeScript does
+npx vitest run src/engine/grid/grid.golden.test.ts src/engine/rules/rules.golden.test.ts src/engine/character/character.golden.test.ts src/engine/dialogue/dialogue.golden.test.ts src/engine/content/content.golden.test.ts src/engine/combat/combat.golden.test.ts src/engine/script/script.golden.test.ts src/engine/script/conditions.golden.test.ts src/engine/script/runner.golden.test.ts   # the fixtures are still what TypeScript does
 npm run build:server && npm run server                          # the game from the Rust server alone, on 8430
 npm run server                                                  # (npm run dev starts it too, for the routes alone)
 npx vitest run tests/unit/accounts.golden.test.ts tests/unit/store.golden.test.ts   # the fixtures are still what TypeScript does
@@ -355,4 +355,25 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     reads them (the zod-alike gained `nullable`); mark keys parse alike. 25 of 25 deliberate mutations
     fail the fixtures, three of them only once a case was added for each (a `spent` count the evaluator
     must ignore, a variable read twice, a looping start rolled below one).
-  - **Next**: the runner (`script/runner.ts`), with the world's writes as a trait beside its reads.
+  - **The runner is ported** (`server/engine/src/script/runner.rs`): `ScriptRunner` runs a script's effects
+    off a stack of frames, stops at a prompt (a check to roll, a roll to answer, a choice, a dialogue) and
+    picks up where it stopped when the prompt is answered, as the TypeScript does - the journal, the
+    counts a script reads back (`spent`, Hit Points taken and dealt, targets hit), the last action roll,
+    the flags a card reads after (`spotlightToGm`, `rolled`, `cancelled`, `vaulted`). What it asks of the
+    world is `ScriptWorld`, 72 methods beside the conditions' reads; the five that draw dice (loot,
+    damage, an attack, a reaction roll, a hook's effect) are handed the runner's stream. `evaluate` now
+    takes one context that is both the world and the dice, so a gate inside the runner can roll. The world
+    is not ported, so `runner.golden.test.ts` wraps a real one as the conditions' fixture does and tapes
+    every call the runner makes, its arguments and its answer, and the stream's position after each call
+    that drew from it; hooks are taped, not run. 217 scripts - every one the default project and the SRD
+    pack carry, and 47 written for the corners - each played four times from a seeded start (who acts, in
+    or out of a fight, with the cards that answer rolls and blows or without) by a seeded player who
+    mostly answers straight and now and then cancels or answers nonsense: 868 runs, 1,272 steps, 4,724
+    taped calls, all 64 kinds of journal line. `golden_runner.rs` replays them against the tape, which
+    moves the stream to where the world left it, and holds every step's status, journal, flags and stream
+    position to the fixture. 37 of 41 deliberate mutations fail it; the other four are equivalent (the
+    Experiences read before the targets rather than after, a lowered roll said though the lift is never
+    negative, zones kept when a moving effect prompts though none does, half Proficiency floored at one
+    though Proficiency never falls below one).
+  - **Next**: the world (`script/world.ts`, about 2,600 lines), which the runner and the conditions ask
+    through their traits; with it the tapes give way to the real thing.

@@ -177,10 +177,8 @@ fn conditions_ask_the_same_questions_to_the_same_verdicts() {
         let at = format!("evaluation {i}: {} as {} under bindings {}{}", case["condition"], case["actor"], case["bindings"], if case["dice"] == true { " with dice" } else { "" });
         let tape = Rc::new(RefCell::new(Tape { calls: case["calls"].as_array().unwrap().iter().cloned().collect(), at: at.clone() }));
         let mut context = Recorded(tape.clone());
-        let mut dice = Recorded(tape.clone());
         let bound = &bindings[case["bindings"].as_u64().unwrap() as usize];
-        let hand: Option<&mut dyn DiceHand> = if case["dice"] == true { Some(&mut dice) } else { None };
-        let verdict = evaluate(&case["condition"], &mut context, bound, hand);
+        let verdict = evaluate(&case["condition"], &mut context, bound, case["dice"] == true);
         assert!(tape.borrow().calls.is_empty(), "{at}: the TypeScript also asked {:?}", tape.borrow().calls);
         assert_eq!(json!(verdict), case["verdict"], "{at}");
     }
@@ -190,7 +188,7 @@ fn conditions_ask_the_same_questions_to_the_same_verdicts() {
 fn nothing_to_check_holds_and_variables_are_found() {
     let fixture = fixture();
     let tape = Rc::new(RefCell::new(Tape { calls: VecDeque::new(), at: "optional".into() }));
-    assert_eq!(json!(evaluate_optional(None, &mut Recorded(tape), &TargetBindings::default(), None)), fixture["optional"]);
+    assert_eq!(json!(evaluate_optional(None, &mut Recorded(tape), &TargetBindings::default(), false)), fixture["optional"]);
     for case in fixture["variables"].as_array().unwrap() {
         let mut found = Vec::new();
         variables_used(&case[0], &mut found);
