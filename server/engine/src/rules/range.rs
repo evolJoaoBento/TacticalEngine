@@ -2,8 +2,10 @@
 //! out of range beyond. A distance is "as the crow flies", and a band reaches half a tile past its number.
 
 use crate::js;
+use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum RangeBand {
     Melee,
     VeryClose,

@@ -50,7 +50,7 @@ pub fn reduce_severity(severity: DamageSeverity, steps: f64) -> DamageSeverity {
 }
 
 /// A creature's Major and Severe thresholds; `INFINITY` for none.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct DamageThresholds {
     pub major: f64,
     pub severe: f64,

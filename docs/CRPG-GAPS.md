@@ -154,6 +154,12 @@ unmarked; one new domain card per level from the character's domains at or below
 levels 2, 5 and 8 a new Experience and +1 Proficiency; trait marks cleared at 5 and 8; multiclass
 opens one domain of the second class. A plan is legal or nothing happens.
 
+**One defect**, found porting it to Rust (29 September 2026): the Proficiency advancement is offered,
+costs both picks, and adds nothing. `levelUp` counts it as `takenNow.get('proficiency')`, but the map's
+keys are `tier:kind` (`3:proficiency`), so the lookup always misses; only the tier achievement's +1
+lands. The Rust port (`server/engine/src/character/progression.rs`) does the same on purpose, so its
+fixture holds - fix both, and rewrite `server/fixtures/character.json`, in one change.
+
 There are no experience points — the GM says when — so levelling is a `levelUp` **effect** a
 designer places as a milestone; the demo grants one when the strongbox opens. The HUD offers a
 "Level up" on each card with a level waiting; the sheet shows every option with its boxes left

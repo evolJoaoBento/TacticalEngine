@@ -7,9 +7,11 @@
 
 use crate::js;
 use crate::rng::{RangeError, Rng};
+use serde::{Deserialize, Serialize};
 
 /// Physical or magic: the two damage types the SRD distinguishes.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum DamageType {
     Physical,
     Magic,
@@ -34,17 +36,20 @@ impl DamageType {
 
 /// `count` dice of `sides`, plus `modifier`. JavaScript numbers, so a count read from twenty digits is
 /// what `Number` makes of them.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub struct DiceExpression {
     pub count: f64,
     pub sides: f64,
     pub modifier: f64,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+/// As JSON, the expression's three numbers and `types` side by side, as `ParsedDamage` is written.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ParsedDamage {
+    #[serde(flatten)]
     pub expression: DiceExpression,
     /// The damage types the text named, or nothing when it named none.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub types: Option<Vec<DamageType>>,
 }
 

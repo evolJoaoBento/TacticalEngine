@@ -5,6 +5,8 @@
 //! crate touches no files, no clock and no network: the server that runs it is another crate, and it
 //! builds to WebAssembly for the editor's playtest.
 
+pub mod character;
+pub mod content;
 pub mod grid;
 pub mod js;
 pub mod rng;

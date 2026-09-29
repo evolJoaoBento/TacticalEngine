@@ -6,7 +6,8 @@ use crate::grid::pathfinding::WALKABLE_RISE;
 use crate::js;
 
 /// The six traits.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum Trait {
     Agility,
     Strength,
@@ -17,6 +18,9 @@ pub enum Trait {
 }
 
 impl Trait {
+    /// The six, in the order the sheet lists them.
+    pub const ALL: [Trait; 6] = [Trait::Agility, Trait::Strength, Trait::Finesse, Trait::Instinct, Trait::Presence, Trait::Knowledge];
+
     pub fn name(self) -> &'static str {
         match self {
             Trait::Agility => "agility",
@@ -34,7 +38,7 @@ impl Trait {
 }
 
 /// A character's six trait scores.
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Traits {
     pub agility: f64,
     pub strength: f64,
@@ -54,6 +58,42 @@ impl Traits {
             Trait::Presence => self.presence,
             Trait::Knowledge => self.knowledge,
         }
+    }
+
+    pub fn of_mut(&mut self, t: Trait) -> &mut f64 {
+        match t {
+            Trait::Agility => &mut self.agility,
+            Trait::Strength => &mut self.strength,
+            Trait::Finesse => &mut self.finesse,
+            Trait::Instinct => &mut self.instinct,
+            Trait::Presence => &mut self.presence,
+            Trait::Knowledge => &mut self.knowledge,
+        }
+    }
+}
+
+/// Some traits' changes, `Partial<Record<Trait, number>>`: a trait never touched is absent, not zero.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct PartialTraits([Option<f64>; 6]);
+
+impl PartialTraits {
+    pub fn get(&self, t: Trait) -> Option<f64> {
+        self.0[t as usize]
+    }
+
+    /// `changes[t] = (changes[t] ?? 0) + n`.
+    pub fn add(&mut self, t: Trait, n: f64) {
+        self.0[t as usize] = Some(self.0[t as usize].unwrap_or(0.0) + n);
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = (Trait, f64)> + '_ {
+        Trait::ALL.into_iter().filter_map(|t| self.get(t).map(|n| (t, n)))
+    }
+}
+
+impl serde::Serialize for PartialTraits {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.collect_map(self.iter().map(|(t, n)| (t.name(), n)))
     }
 }
 

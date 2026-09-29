@@ -97,7 +97,7 @@ added after, so the rules are not redesigned while they are being transliterated
 
 ```bash
 cd server && cargo test                                         # the Rust port against its fixtures
-npx vitest run src/engine/grid/grid.golden.test.ts src/engine/rules/rules.golden.test.ts   # the fixtures are still what TypeScript does
+npx vitest run src/engine/grid/grid.golden.test.ts src/engine/rules/rules.golden.test.ts src/engine/character/character.golden.test.ts   # the fixtures are still what TypeScript does
 npm run build:server && npm run server                          # the game from the Rust server alone, on 8430
 npm run server                                                  # (npm run dev starts it too, for the routes alone)
 npx vitest run tests/unit/accounts.golden.test.ts tests/unit/store.golden.test.ts   # the fixtures are still what TypeScript does
@@ -233,5 +233,26 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     replacement rule (`'$11d$2'` is group one then a one, so `d6+d8` is refused). Three deliberate
     mutations - Rust's whitespace, a fractional count let through, the Help dice drawn before the advantage
     die - each fail the fixture; the last one did not until two cases rolled with both, which the fixture now has.
-  - **Next**: `src/engine/character` - a sheet derived into a character - which needs the content
-    schemas, so it begins the serde port of the project document.
+  - **The character is ported** (`server/engine/src/character`: `progression`, `sheet`, `schema`; with
+    `server/engine/src/content`: `pack`, `abilities`, `features`). The engine crate takes `serde` and
+    `serde_json` now (both build to wasm32): a sheet, a plan and the content read from the JSON the
+    TypeScript keeps, and the rule types they carry (`Trait`, `Traits`, `RangeBand`, `DamageType`,
+    `DiceExpression`, `ParsedDamage`, `DamageThresholds`, `MarkPool`, `Currency`) serialize as it writes
+    them. A content table keeps a `Map`'s order - the cards granted to a sheet come in it, and laying a
+    project over the shipped content replaces an entry where it stands. `character.golden.test.ts` takes
+    the content the game plays with (the demo pack, the shipped SRD characters laid over it, their
+    abilities, and a few probe cards and abilities for the grants and modifiers the shipped ones leave
+    out) and writes `server/fixtures/character.json`: 68 sheets derived (numbers, cards, modifiers in
+    order, attack and defender profiles, pools, granted and lent cards) and queried; one sheet of each of
+    the twelve classes levelled by legal plans drawn off a seeded stream, 88 levels in all - the nine SRD
+    classes to ten, the demo's three (one domain of five cards each) until their cards run out at level 3
+    or 4; 2,264 plans tried, every refusal in the same words and order; what each gear feature plainly
+    says; and what `parseSheet` lets in.
+    `golden_character.rs` replays it; 27 of 28 deliberate mutations fail it (the 28th, a pair of any
+    length let past the schema, is still refused by serde's `[T; 2]`). The modifiers' `when` stays the
+    JSON it was written in until the conditions are ported with the script.
+  - **A defect kept on purpose**: the Proficiency advancement costs both picks and adds nothing. `levelUp`
+    adds `takenNow.get('proficiency')`, and that map's keys are `tier:kind`, so the lookup always misses.
+    The Rust does the same, so the fixture holds; fix both, and the fixture, together (`docs/CRPG-GAPS.md`).
+  - **Next**: `src/engine/dialogue`, then the rest of the content schemas - the serde port of the
+    project document the character module began.
