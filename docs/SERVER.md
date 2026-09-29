@@ -89,6 +89,8 @@ added after, so the rules are not redesigned while they are being transliterated
 
 ```bash
 cd server && cargo test                                         # the Rust port against its fixtures
+npm run server                                                  # the Rust server by hand, on 8430 (npm run dev starts it)
+npx vitest run tests/unit/accounts.golden.test.ts               # the accounts fixture is still what TypeScript does
 npx vitest run src/engine/core/rng.golden.test.ts               # the fixture is still what TypeScript does
 UPDATE_GOLDEN=1 npx vitest run src/engine/core/rng.golden.test.ts   # write it afresh after a TS change
 ```
@@ -104,4 +106,20 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
   `core/rng` ported - `src/engine/core/rng.golden.test.ts` writes `server/fixtures/rng.json` (15 seeds:
   text with accents and an emoji, numbers negative, fractional and past 2^32; every call the generator
   has), and `server/engine/tests/golden_rng.rs` replays it bit for bit.
-- **Next: phase 1**, the platform server - accounts first, since every other route asks who is signed in.
+- **Phase 1** - started 29 September 2026.
+  - **The accounts are the Rust server's.** `server/serve` (`tactical-serve`, axum) answers
+    `/__accounts/me`, `register`, `login` and `logout` as `tools/accounts.ts` did - the same
+    `data/accounts.json` and `data/sessions.json`, written as `JSON.stringify(value, null, 2)` writes
+    them, since the TypeScript Store and your-models routes read them too. Passwords hash to the byte as
+    Node's `scryptSync` does (the salt's hex text is the salt), so an account either side made signs in
+    on the other. `tests/unit/accounts.golden.test.ts` writes `server/fixtures/accounts.json` - hashes,
+    sign-in bodies (the 200-character limit counted in UTF-16 units), cookies, origins - and
+    `server/serve/tests/golden_accounts.rs` replays it; `accounts_routes.rs` drives every route and
+    refusal, in the order TypeScript gives them. `tools/rust-server.ts` builds and starts the server with
+    the dev server and proxies the route to it; the TypeScript route is gone, leaving only its 404 for the
+    tests' server. Tried end to end through 8420 - the admin that Node hashed signs in, a session Rust
+    issued opens the Store and your models, and the real menu signs in and out in Chromium.
+  - One deliberate difference: a stored hash of fewer than 10 or more than 64 bytes matches nothing
+    (Node would compare two empty buffers and say yes).
+  - **Next**: the Store (`tools/store.ts`), then your models, the models manifest and ancestries, art
+    provenance, the default project.

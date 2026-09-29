@@ -12,6 +12,14 @@ head and shoulders is already the creature tool's, on the same rail. Only what i
 the mode's id is still `combat`, so `mode-combat`, the tool lists and every test that picks it are
 as they were. Older entries below still say Combat. Unit `editor/modes.test.ts`.
 
+## The accounts are the Rust server's — done (phase 1 begun)
+
+`server/serve` (`tactical-serve`, axum) answers `/__accounts/*` in place of `tools/accounts.ts`, over the
+same `data/` files, held to a fixture the TypeScript writes; `tools/rust-server.ts` builds it, starts it
+with the dev server and proxies the route to it. Everything else stays where it was, and the tests'
+server has no accounts, as before. The detail and what moves next are `docs/SERVER.md`. Before claiming
+done on anything under `server/`: `cd server && cargo test` beside tsc, vitest and Playwright.
+
 ## Every model in the Store, and your own models — done
 
 Every `.glb` in `public/models` is a free Store listing by *The engine* (`engineListings` in

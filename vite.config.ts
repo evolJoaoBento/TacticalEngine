@@ -7,11 +7,12 @@ import { artProvenance } from './tools/art-provenance.ts';
 import { accounts } from './tools/accounts.ts';
 import { store } from './tools/store.ts';
 import { yourModels } from './tools/your-models.ts';
+import { rustServer } from './tools/rust-server.ts';
 
 const dir = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 
 export default defineConfig({
-  plugins: [publicAssets(), modelManifest(), defaultProject(), artProvenance(), accounts(), store(), yourModels()],
+  plugins: [publicAssets(), modelManifest(), defaultProject(), artProvenance(), accounts(), store(), yourModels(), rustServer()],
   oxc: { jsx: { runtime: 'automatic', importSource: 'preact' } },
   resolve: {
     alias: {

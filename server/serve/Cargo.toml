@@ -1,0 +1,30 @@
+[package]
+name = "tactical-serve"
+version = "0.1.0"
+description = "Tactical Engine's server: accounts first, the rest of the dev plugins' routes after (docs/SERVER.md, phase 1)"
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "serve"
+
+[[bin]]
+name = "tactical-serve"
+path = "src/main.rs"
+
+[dependencies]
+axum = "0.8"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "signal"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+indexmap = { version = "2", features = ["serde"] }
+scrypt = { version = "0.11", default-features = false }
+getrandom = "0.3"
+hex = "0.4"
+subtle = "2"
+url = "2"
+
+[dev-dependencies]
+tower = { version = "0.5", features = ["util"] }
+http-body-util = "0.1"

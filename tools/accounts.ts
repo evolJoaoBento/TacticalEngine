@@ -17,6 +17,10 @@ import { SAVE_HEADER } from './default-project.ts';
  *
  * Routes, all under `/__accounts/`: `me` (GET - who the cookie says, or 401), and `register`, `login`,
  * `logout` (POST, guarded as the project save is: the page's own header, from the page's own origin).
+ * **They are answered by the Rust server now** (`server/serve/src/accounts.rs`, `docs/SERVER.md`), which
+ * keeps the same files the same way, held to `server/fixtures/accounts.json` - which this file's
+ * functions write (`tests/unit/accounts.golden.test.ts`), so they stay the reference. The dev plugins
+ * still on this side (`store.ts`, `your-models.ts`) read the accounts and sessions through them.
  * When the tests are serving (`TACTICAL_BOOT=builtin`) there are no accounts at all: `me` answers 404,
  * and the page plays with nobody signed in, as it always did.
  */
@@ -170,61 +174,25 @@ export function keepsAccounts(command: 'serve' | 'build'): boolean {
   return command === 'serve' && process.env['TACTICAL_BOOT'] !== 'builtin';
 }
 
+/**
+ * The accounts' routes are the Rust server's now (`server/serve/src/accounts.rs`, passed through by
+ * `rust-server.ts`); what is left here is the answer when there is no server - the tests', or a build -
+ * which is no accounts at all.
+ */
 export function accounts(): Plugin {
-  let root = process.cwd();
   let on = keepsAccounts('serve');
   return {
     name: 'tactical-accounts',
     configResolved(config) {
-      root = config.root;
       on = keepsAccounts(config.command);
     },
     configureServer(server) {
-      server.middlewares.use(ACCOUNTS_URL, (request: IncomingMessage, response: ServerResponse) => {
-        const answer = (status: number, body: unknown, cookie?: string): void => {
-          response.statusCode = status;
-          if (cookie !== undefined) response.setHeader('set-cookie', cookie);
-          response.setHeader('content-type', 'application/json');
-          response.setHeader('cache-control', 'no-store');
-          response.end(JSON.stringify(body));
-        };
-        if (!on) return answer(404, { reason: 'this server keeps no accounts' });
-        const route = (request.url ?? '').replace(/^\/+/, '').split('?')[0];
-        const all = readAccounts(root);
-        const sessions = readSessions(root);
-        if (route === 'me') {
-          const account = accountOf(request.headers.cookie, sessions, all);
-          return account === null ? answer(401, { reason: 'nobody is signed in' }) : answer(200, publicAccount(account));
-        }
-        const refused = fromThePage(request);
-        if (refused !== null) return answer(403, { reason: refused });
-        if (route === 'logout') {
-          const token = request.headers.cookie?.split(';').map((part) => part.trim()).find((part) => part.startsWith(`${SESSION_COOKIE}=`))?.slice(SESSION_COOKIE.length + 1);
-          if (token !== undefined) {
-            delete sessions[token];
-            writeSessions(root, sessions);
-          }
-          return answer(200, {}, `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0`);
-        }
-        if (route !== 'login' && route !== 'register') return answer(404, { reason: 'no such route' });
-        void readBody(request, LIMIT).then((body) => {
-          if (body === null) return answer(413, { reason: 'too large' });
-          const credentials = judgeCredentials(body.toString('utf8'));
-          if (!credentials.ok) return answer(422, { reason: credentials.reason });
-          const id = credentials.name.toLowerCase();
-          let account = all.find((entry) => entry.id === id);
-          if (route === 'register') {
-            if (account !== undefined) return answer(409, { reason: 'that name is taken' });
-            account = { id, name: credentials.name, ...hashPassword(credentials.password), admin: false, created: Date.now() };
-            writeAccounts(root, [...all, account]);
-          } else if (account === undefined || !checkPassword(account, credentials.password)) {
-            return answer(401, { reason: 'that name and password do not match' });
-          }
-          const token = randomBytes(24).toString('hex');
-          sessions[token] = { account: account.id, expires: Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000 };
-          writeSessions(root, sessions);
-          answer(200, publicAccount(account), `${SESSION_COOKIE}=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${SESSION_DAYS * 24 * 60 * 60}`);
-        });
+      if (on) return;
+      server.middlewares.use(ACCOUNTS_URL, (_request: IncomingMessage, response: ServerResponse) => {
+        response.statusCode = 404;
+        response.setHeader('content-type', 'application/json');
+        response.setHeader('cache-control', 'no-store');
+        response.end(JSON.stringify({ reason: 'this server keeps no accounts' }));
       });
     },
   };

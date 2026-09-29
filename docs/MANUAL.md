@@ -108,7 +108,9 @@ stays away. The game is kept in this browser, and its saves are its own.
 ### Accounts and the Store
 
 When the dev server is running (`npm run dev`), the menu first asks you to **sign in** - a name and a
-password - or **Make an account**. The first start makes **admin** (password `admin`). Signed in, the
+password - or **Make an account**. The accounts are kept by the game's Rust server, which the dev server
+builds and starts beside itself (it needs Rust installed - `rustup`; the first start builds it, a minute
+or two; see `docs/SERVER.md`). The first start makes **admin** (password `admin`). Signed in, the
 menu says who you are and has **Sign out**; your games and saves are **your own**: Load Game lists only
 the ones you made, and another player on this machine sees theirs. What was saved before there were
 accounts is admin's. Edit Game opens the shared project whoever is signed in. The accounts, the
