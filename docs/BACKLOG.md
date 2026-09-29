@@ -12,6 +12,13 @@ head and shoulders is already the creature tool's, on the same rail. Only what i
 the mode's id is still `combat`, so `mode-combat`, the tool lists and every test that picks it are
 as they were. Older entries below still say Combat. Unit `editor/modes.test.ts`.
 
+## The Store is the Rust server's — done
+
+`/__store/*` is answered by `server/serve/src/store.rs` over the same `data/store/` files, held to a
+fixture `tools/store.ts` writes, including the listings file to the byte; the TypeScript route is gone.
+The Get writes the player's models index the your-models plugin still serves. `docs/SERVER.md` has the
+detail and what moves next.
+
 ## The accounts are the Rust server's — done (phase 1 begun)
 
 `server/serve` (`tactical-serve`, axum) answers `/__accounts/*` in place of `tools/accounts.ts`, over the

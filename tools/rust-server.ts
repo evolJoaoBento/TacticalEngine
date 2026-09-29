@@ -4,12 +4,13 @@ import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
 import type { Plugin, ProxyOptions } from 'vite';
 import { ACCOUNTS_URL, keepsAccounts } from './accounts.ts';
+import { STORE_URL } from './store.ts';
 
 /**
  * The Rust server beside the dev server (`docs/SERVER.md`, phase 1): the routes that have moved to it are
  * passed through, and the dev server starts it.
  *
- * `RUST_ROUTES` is what has moved - the accounts, so far; each dev plugin's route leaves `tools/*.ts`
+ * `RUST_ROUTES` is what has moved - the accounts and the Store, so far; each dev plugin's route leaves `tools/*.ts`
  * for `server/serve` in turn. Vite proxies each to `tactical-serve` on `TACTICAL_SERVER_PORT` (8430),
  * keeping the Host header, so the server sees the page's own origin and host as the plugins did, and
  * its cookies come back untouched.
@@ -21,11 +22,17 @@ import { ACCOUNTS_URL, keepsAccounts } from './accounts.ts';
  * tries again a few times and then leaves the port to whoever has it, since the proxy reaches that one.
  *
  * When the tests are serving (`TACTICAL_BOOT=builtin`), or for a build, there is no server and no
- * proxy: the plugins answer those routes as they always did (404: no accounts).
+ * proxy: the plugins answer those routes as they always did (404: no accounts). Nor under Vitest, which
+ * loads this config as a dev server of its own (`servesRust`): a unit test run must not start one.
  */
 
 /** The routes the Rust server answers now. */
-export const RUST_ROUTES: readonly string[] = [ACCOUNTS_URL];
+export const RUST_ROUTES: readonly string[] = [ACCOUNTS_URL, STORE_URL];
+
+/** Whether this Vite starts the Rust server and passes routes to it: a dev server, not the tests', not Vitest's. */
+export function servesRust(command: 'serve' | 'build'): boolean {
+  return keepsAccounts(command) && process.env['VITEST'] === undefined;
+}
 
 export const serverPort = (): number => Number(process.env['TACTICAL_SERVER_PORT'] ?? 8430);
 
@@ -66,7 +73,7 @@ export function rustServer(): Plugin {
   return {
     name: 'tactical-rust-server',
     config(_config, env) {
-      on = keepsAccounts(env.command);
+      on = servesRust(env.command);
       return on ? { server: { proxy: rustProxy() } } : {};
     },
     configResolved(config) {

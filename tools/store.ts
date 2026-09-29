@@ -1,10 +1,10 @@
-import { createHash, randomBytes } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { Plugin } from 'vite';
-import { accountOf, fromThePage, keepsAccounts, readAccounts, readBody, readSessions, type Account } from './accounts.ts';
-import { importFile, readYourModels, tidyId } from './your-models.ts';
+import { keepsAccounts, type Account } from './accounts.ts';
+import { tidyId } from './your-models.ts';
 
 /**
  * The store: art creators publish - a model or a picture - and **show their work**, and everybody signed
@@ -32,6 +32,10 @@ import { importFile, readYourModels, tidyId } from './your-models.ts';
  * own models (`tools/your-models.ts`), which the editor offers under every project they open; a picture
  * is downloaded, as before. Either way a listing for sale is its creator's alone until payments open.
  *
+ * **The routes are the Rust server's now** (`server/serve/src/store.rs`, `docs/SERVER.md`), over the same
+ * files; the functions here stay the reference it is held to (`tests/unit/store.golden.test.ts` writes
+ * `server/fixtures/store.json` from them).
+ *
  * Kept by the dev server in `data/store/` (git ignored, as the accounts are): `listings.json`, and the
  * files beside it under names this makes, never names it was sent. Routes under `/__store/`: `list`
  * (GET), `file/<listing>/asset` and `file/<listing>/proof/<n>` (GET), and `publish`, `update`, `vote`,
@@ -41,10 +45,8 @@ import { importFile, readYourModels, tidyId } from './your-models.ts';
 
 export const STORE_URL = '/__store';
 export const LISTINGS_FILE = 'data/store/listings.json';
-const FILES = 'data/store/files';
 /** The most a publish or an update may weigh: the file and the proof, sent as base64. */
 export const PUBLISH_LIMIT = 128 * 1024 * 1024;
-const SMALL = 8192;
 /** How many pictures of the work a listing may show. */
 export const MOST_PROOFS = 6;
 
@@ -174,22 +176,6 @@ export function engineListings(
   return { listings: kept, changed };
 }
 
-function engineFiles(root: string): { file: string; created: number }[] {
-  const folder = resolve(root, ENGINE_MODELS);
-  if (!existsSync(folder)) return [];
-  return readdirSync(folder)
-    .filter((file) => file.toLowerCase().endsWith('.glb'))
-    .map((file) => ({ file, created: statSync(resolve(folder, file)).mtimeMs }));
-}
-
-function readProvenance(root: string): Record<string, string> {
-  try {
-    return JSON.parse(readFileSync(resolve(root, 'projects/art-provenance.json'), 'utf8')) as Record<string, string>;
-  } catch {
-    return {};
-  }
-}
-
 /** What a file is, from its first bytes: a binary glTF, a PNG, a JPEG, a WebP - or nothing the store takes. */
 export function sniff(bytes: Uint8Array): { kind: AssetKind; ext: string; type: string } | null {
   const at = (i: number, ...values: number[]): boolean => values.every((value, j) => bytes[i + j] === value);
@@ -201,7 +187,8 @@ export function sniff(bytes: Uint8Array): { kind: AssetKind; ext: string; type: 
 }
 
 const text = (value: unknown, most: number): string | null => (typeof value === 'string' && value.trim().length <= most ? value.trim() : null);
-const decode = (value: unknown): Uint8Array | null => {
+/** A file sent as base64 or a data URL, read as Node reads base64: leniently. */
+export const decode = (value: unknown): Uint8Array | null => {
   if (typeof value !== 'string') return null;
   const data = value.includes(',') ? value.slice(value.indexOf(',') + 1) : value;
   try {
@@ -371,131 +358,25 @@ export function writeListings(root: string, listings: readonly Listing[]): void 
   renameSync(`${file}.partial`, file);
 }
 
-const TYPES: Readonly<Record<string, string>> = { glb: 'model/gltf-binary', png: 'image/png', jpg: 'image/jpeg', webp: 'image/webp' };
-
+/**
+ * The Store's routes are the Rust server's now (`server/serve/src/store.rs`, passed through by
+ * `rust-server.ts`); what is left here is the answer when there is no server - the tests', or a build -
+ * which is no store at all.
+ */
 export function store(): Plugin {
-  let root = process.cwd();
   let on = keepsAccounts('serve');
   return {
     name: 'tactical-store',
     configResolved(config) {
-      root = config.root;
       on = keepsAccounts(config.command);
     },
     configureServer(server) {
-      server.middlewares.use(STORE_URL, (request: IncomingMessage, response: ServerResponse) => {
-        const answer = (status: number, body: unknown): void => {
-          response.statusCode = status;
-          response.setHeader('content-type', 'application/json');
-          response.setHeader('cache-control', 'no-store');
-          response.end(JSON.stringify(body));
-        };
-        if (!on) return answer(404, { reason: 'this server keeps no store' });
-        const route = (request.url ?? '').replace(/^\/+/, '').split('?')[0]!.split('/');
-        const account = accountOf(request.headers.cookie, readSessions(root), readAccounts(root));
-        const synced = engineListings(readListings(root), engineFiles(root), readProvenance(root));
-        if (synced.changed) writeListings(root, synced.listings);
-        const listings = synced.listings;
-        const yours = new Set(account === null ? [] : readYourModels(root, account.id).flatMap((model) => (model.listing === undefined ? [] : [model.listing])));
-        const fileOf = (listing: Listing, name: string): string => (listing.engine === true && name === listing.file ? resolve(root, ENGINE_MODELS, name) : resolve(root, FILES, name));
-        const keep = (id: string, bytes: Uint8Array, ext: string, what: string): string => {
-          mkdirSync(resolve(root, FILES), { recursive: true });
-          const name = `${id}-${what}.${ext}`;
-          writeFileSync(resolve(root, FILES, name), bytes);
-          return name;
-        };
-
-        if (request.method === 'GET' && route[0] === 'list') {
-          return answer(200, [...listings].sort((a, b) => b.created - a.created).map((listing) => viewOf(listing, account?.id ?? null, yours)));
-        }
-        if (request.method === 'GET' && route[0] === 'file') {
-          const listing = listings.find((entry) => entry.id === route[1]);
-          if (listing === undefined) return answer(404, { reason: 'no such file' });
-          const asset = route[2] === 'asset';
-          const name = asset ? listing.file : route[2] === 'proof' ? (listing.proofs[Number(route[3])] ?? null) : null;
-          const path = name === null ? null : fileOf(listing, name);
-          if (path === null || !existsSync(path)) return answer(404, { reason: 'no such file' });
-          const download = new URL(request.url ?? '', 'http://local').searchParams.has('download');
-          if (asset && download && !mayGet(listing, account)) return answer(402, { reason: 'it is for sale, and payments are not open yet' });
-          response.setHeader('content-type', TYPES[name!.split('.').pop()!] ?? 'application/octet-stream');
-          response.setHeader('cache-control', 'no-store');
-          if (asset && download) response.setHeader('content-disposition', `attachment; filename="${listing.fileName.replace(/"/g, '')}"`);
-          return response.end(readFileSync(path));
-        }
-
-        const refused = fromThePage(request);
-        if (refused !== null) return answer(403, { reason: refused });
-        if (account === null) return answer(401, { reason: 'sign in first' });
-        const big = route[0] === 'publish' || route[0] === 'update';
-        void readBody(request, big ? PUBLISH_LIMIT : SMALL).then((raw) => {
-          if (raw === null) return answer(413, { reason: 'too large' });
-          const body = raw.toString('utf8');
-          if (route[0] === 'publish') {
-            const verdict = judgePublish(body);
-            if (!verdict.ok) return answer(422, { reason: verdict.reason });
-            const { draft } = verdict;
-            const id = randomBytes(8).toString('hex');
-            const listing: Listing = {
-              id, title: draft.title, description: draft.description, claim: draft.claim, forSale: draft.forSale, how: draft.how, kind: draft.asset.kind,
-              file: keep(id, draft.asset.bytes, draft.asset.ext, 'asset'), fileName: draft.asset.name,
-              proofs: draft.proofs.map((proof, i) => keep(id, proof.bytes, proof.ext, `proof-${i}`)),
-              creator: account.id, creatorName: account.name, created: Date.now(), votes: {},
-            };
-            writeListings(root, [...listings, listing]);
-            return answer(200, viewOf(listing, account.id, yours));
-          }
-          if (route[0] === 'update') {
-            const verdict = judgeUpdate(body, (id) => listings.find((entry) => entry.id === id)?.proofs.length ?? null);
-            if (!verdict.ok) return answer(422, { reason: verdict.reason });
-            const listing = listings.find((entry) => entry.id === verdict.draft.id)!;
-            if (listing.creator !== account.id) return answer(403, { reason: 'only its creator shows its work' });
-            const { draft } = verdict;
-            const next: Listing = {
-              ...listing,
-              ...(draft.how === undefined ? {} : { how: draft.how }),
-              ...(draft.claim === undefined ? {} : { claim: draft.claim }),
-              ...(draft.forSale === undefined ? {} : { forSale: draft.forSale }),
-            };
-            const sale = judgeSale({ ...next, proofs: [...next.proofs, ...draft.addProofs.map(() => '')] });
-            if (sale !== null) return answer(422, { reason: sale });
-            const start = next.proofs.length;
-            next.proofs = [...next.proofs, ...draft.addProofs.map((proof, i) => keep(listing.id, proof.bytes, proof.ext, `proof-${start + i}-${randomBytes(3).toString('hex')}`))];
-            writeListings(root, listings.map((entry) => (entry.id === next.id ? next : entry)));
-            return answer(200, viewOf(next, account.id, yours));
-          }
-          if (route[0] === 'get') {
-            const verdict = judgeListingId(body);
-            if (!verdict.ok) return answer(422, { reason: verdict.reason });
-            const listing = listings.find((entry) => entry.id === verdict.id);
-            if (listing === undefined) return answer(404, { reason: 'no such listing' });
-            if (listing.kind !== 'model') return answer(422, { reason: 'a picture is downloaded, not put into your models' });
-            if (!mayGet(listing, account)) return answer(402, { reason: 'it is for sale, and payments are not open yet' });
-            const made = importFile(root, account.id, listing.fileName, fileOf(listing, listing.file), { listing: listing.id });
-            if (!made.ok) return answer(422, { reason: made.reason });
-            return answer(200, { listing: viewOf(listing, account.id, new Set([...yours, listing.id])), model: made.model });
-          }
-          if (route[0] === 'vote') {
-            const verdict = judgeVote(body);
-            if (!verdict.ok) return answer(422, { reason: verdict.reason });
-            const listing = listings.find((entry) => entry.id === verdict.id);
-            if (listing === undefined) return answer(404, { reason: 'no such listing' });
-            const not = castVote(listing, account.id, verdict.vote);
-            if (not !== null) return answer(403, { reason: not });
-            writeListings(root, listings);
-            return answer(200, viewOf(listing, account.id, yours));
-          }
-          if (route[0] === 'remove') {
-            const verdict = judgeListingId(body);
-            if (!verdict.ok) return answer(422, { reason: verdict.reason });
-            const listing = listings.find((entry) => entry.id === verdict.id);
-            if (listing === undefined) return answer(404, { reason: 'no such listing' });
-            if (!mayRemove(listing, account)) return answer(403, { reason: listing.engine === true ? 'it is the engine’s own: it goes when its file leaves public/models' : 'only its creator, or admin, can take it down' });
-            writeListings(root, listings.filter((entry) => entry.id !== listing.id));
-            for (const name of [listing.file, ...listing.proofs]) rmSync(resolve(root, FILES, name), { force: true });
-            return answer(200, {});
-          }
-          return answer(404, { reason: 'no such route' });
-        });
+      if (on) return;
+      server.middlewares.use(STORE_URL, (_request: IncomingMessage, response: ServerResponse) => {
+        response.statusCode = 404;
+        response.setHeader('content-type', 'application/json');
+        response.setHeader('cache-control', 'no-store');
+        response.end(JSON.stringify({ reason: 'this server keeps no store' }));
       });
     },
   };

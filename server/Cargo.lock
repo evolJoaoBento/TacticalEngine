@@ -747,6 +747,7 @@ dependencies = [
  "scrypt",
  "serde",
  "serde_json",
+ "sha2",
  "subtle",
  "tokio",
  "tower",

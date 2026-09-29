@@ -67,7 +67,11 @@ added after, so the rules are not redesigned while they are being transliterated
   ago still load. serde must parse the same JSON: `#[serde(default)]` field by field, checked against
   the shipped projects and packs as fixtures.
 - **Floating point**: rules use `+ - * /` and `Math.sqrt` (exact in IEEE on both sides). Anything
-  else (`Math.pow`, trig) is checked for where it reaches the rules before its module is ported.
+  else (`Math.pow`, trig) is checked for where it reaches the rules before its module is ported. And a
+  float read from JSON must be read exactly: `serde_json` needs `float_roundtrip`, or a number the
+  TypeScript wrote comes back a digit off (found on the Store's timestamps).
+- **A value-level fixture can hide a byte-level difference**: both sides of the comparison go through
+  the same parser. Anything the other side reads back as a file is also checked as bytes.
 - **The script interpreter** (`script/runner.ts`, `script/world.ts`, about 4,600 lines) is the
   hardest module; its fixtures are the shipped pack's cards and the default project's scenes played
   through, not cases written by hand.
@@ -90,7 +94,7 @@ added after, so the rules are not redesigned while they are being transliterated
 ```bash
 cd server && cargo test                                         # the Rust port against its fixtures
 npm run server                                                  # the Rust server by hand, on 8430 (npm run dev starts it)
-npx vitest run tests/unit/accounts.golden.test.ts               # the accounts fixture is still what TypeScript does
+npx vitest run tests/unit/accounts.golden.test.ts tests/unit/store.golden.test.ts   # the fixtures are still what TypeScript does
 npx vitest run src/engine/core/rng.golden.test.ts               # the fixture is still what TypeScript does
 UPDATE_GOLDEN=1 npx vitest run src/engine/core/rng.golden.test.ts   # write it afresh after a TS change
 ```
@@ -121,5 +125,21 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     issued opens the Store and your models, and the real menu signs in and out in Chromium.
   - One deliberate difference: a stored hash of fewer than 10 or more than 64 bytes matches nothing
     (Node would compare two empty buffers and say yes).
-  - **Next**: the Store (`tools/store.ts`), then your models, the models manifest and ancestries, art
+  - **The Store is the Rust server's** (`server/serve/src/store.rs`): listings, publishing, showing the
+    work later, votes, pictures, Get into a player's own models (`your_models.rs`, the import alone - the
+    your-models routes are still the dev plugin's, over the same index), engine models listed, take-down.
+    `tests/unit/store.golden.test.ts` writes `server/fixtures/store.json` - uploads (Node's lenient
+    base64), about 36 publishes and 22 updates at every edge (JavaScript's `trim` and UTF-16 lengths, nulls,
+    non-objects), votes, views, engine listings, old listings migrated, and a listings file with
+    fractional timestamps that must come back **to the byte**; `golden_store.rs` replays it,
+    `store_routes.rs` drives every route. Tried end to end through 8420: the show-your-work and the
+    models round trips answer as they did in TypeScript, the TypeScript your-models routes read the index
+    the Rust Get wrote, and the listings file the TypeScript wrote is byte-identical after the Rust server
+    rewrote it four times.
+  - Found by that byte check: `serde_json` parses floats fast, not exactly, so one timestamp in several
+    came back a digit off. Its `float_roundtrip` feature parses as JavaScript does; the byte test fails
+    without it.
+  - Deliberately different: a body of JSON `null` to `publish` or `update` hung the TypeScript (it threw
+    outside its try, and nothing answered); the Rust server answers as for `{}`.
+  - **Next**: your models (`tools/your-models.ts`), then the models manifest and ancestries, art
     provenance, the default project.
