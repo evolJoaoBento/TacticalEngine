@@ -37,13 +37,22 @@ pub struct TileGrid {
     pub lift: Vec<f32>,
     /// Tiles closed by a wall along an edge, too thin to stand on and too tall to step over.
     pub barred: Vec<u8>,
+    /// Where the room's first corner has got to (`SceneDoc.origin`), for whoever holds tiles counted from an
+    /// older one.
+    pub origin: Origin,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct Origin {
+    pub x: i32,
+    pub y: i32,
 }
 
 impl TileGrid {
     pub fn new(width: i32, height: i32, palette: TerrainPalette) -> Self {
         assert!(width > 0 && height > 0, "grid needs positive integer dimensions, got {width}x{height}");
         let count = (width * height) as usize;
-        TileGrid { width, height, palette, heights: vec![0; count], terrain: vec![0; count], overlay: vec![NOTHING_STACKED; count], lift: vec![0.0; count], barred: vec![0; count] }
+        TileGrid { width, height, palette, heights: vec![0; count], terrain: vec![0; count], overlay: vec![NOTHING_STACKED; count], lift: vec![0.0; count], barred: vec![0; count], origin: Origin::default() }
     }
 
     pub fn size(&self) -> i32 {

@@ -97,7 +97,7 @@ added after, so the rules are not redesigned while they are being transliterated
 
 ```bash
 cd server && cargo test                                         # the Rust port against its fixtures
-npx vitest run src/engine/grid/grid.golden.test.ts src/engine/rules/rules.golden.test.ts src/engine/character/character.golden.test.ts src/engine/dialogue/dialogue.golden.test.ts src/engine/content/content.golden.test.ts src/engine/combat/combat.golden.test.ts src/engine/script/script.golden.test.ts src/engine/script/conditions.golden.test.ts src/engine/script/runner.golden.test.ts   # the fixtures are still what TypeScript does
+npx vitest run src/engine/grid/grid.golden.test.ts src/engine/rules/rules.golden.test.ts src/engine/character/character.golden.test.ts src/engine/dialogue/dialogue.golden.test.ts src/engine/content/content.golden.test.ts src/engine/combat/combat.golden.test.ts src/engine/script/script.golden.test.ts src/engine/script/conditions.golden.test.ts src/engine/script/runner.golden.test.ts   # the fixtures are still what TypeScript does (the last writes runner.json and world.json)
 npm run build:server && npm run server                          # the game from the Rust server alone, on 8430
 npm run server                                                  # (npm run dev starts it too, for the routes alone)
 npx vitest run tests/unit/accounts.golden.test.ts tests/unit/store.golden.test.ts   # the fixtures are still what TypeScript does
@@ -363,17 +363,48 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     world is `ScriptWorld`, 72 methods beside the conditions' reads; the five that draw dice (loot,
     damage, an attack, a reaction roll, a hook's effect) are handed the runner's stream. `evaluate` now
     takes one context that is both the world and the dice, so a gate inside the runner can roll. The world
-    is not ported, so `runner.golden.test.ts` wraps a real one as the conditions' fixture does and tapes
+    was not ported yet, so `runner.golden.test.ts` wraps a real one as the conditions' fixture does and tapes
     every call the runner makes, its arguments and its answer, and the stream's position after each call
     that drew from it; hooks are taped, not run. 217 scripts - every one the default project and the SRD
     pack carry, and 47 written for the corners - each played four times from a seeded start (who acts, in
     or out of a fight, with the cards that answer rolls and blows or without) by a seeded player who
-    mostly answers straight and now and then cancels or answers nonsense: 868 runs, 1,272 steps, 4,724
-    taped calls, all 64 kinds of journal line. `golden_runner.rs` replays them against the tape, which
+    mostly answers straight and now and then cancels or answers nonsense: 868 runs, 1,284 steps, 4,731
+    taped calls, all 64 kinds of journal line (the counts since the world's port, whose probed runs play
+    with more content). `golden_runner.rs` replays them against the tape, which
     moves the stream to where the world left it, and holds every step's status, journal, flags and stream
     position to the fixture. 37 of 41 deliberate mutations fail it; the other four are equivalent (the
     Experiences read before the targets rather than after, a lowered roll said though the lift is never
     negative, zones kept when a moving effect prompts though none does, half Proficiency floored at one
     though Proficiency never falls below one).
-  - **Next**: the world (`script/world.ts`, about 2,600 lines), which the runner and the conditions ask
-    through their traits; with it the tapes give way to the real thing.
+  - **The world is ported** (`server/engine/src/script/world/`, split as the TypeScript's sections are):
+    `SceneScriptWorld` over a live `SceneState` and the `ScenarioState` that outlives it - everything the
+    runner and the conditions ask through their traits, and what a fight asks beyond them: the modifiers a
+    creature holds and wears, read from its own chair; its defences; advantage on either scale of a roll;
+    the reactions it may answer with and their gates; the swing a stat block prints; a defence and the
+    damage that lands through thresholds and armour; an attack with a swarm piling in; summons and
+    replacements; zones and who is standing in them; the clocks a fight counts; walks, blinks and pushes.
+    The content it reads is borrowed for its life (`WorldContent`), so a changed project is a new world;
+    hooks come through a `Hooks` trait, taped until part 5. With it came the rest of the scene state (the
+    room's things and doors, who blocks whom, attitudes, conditions cleared, the snapshot and its restore
+    - one from a room since grown is refused, reshaping being the scene document's), condition
+    definitions, stat blocks and loot tables as types (`content::conditions`, `adversaries`, `items` with
+    `rollLoot`), `AbilityDef` widened to what the world reads, `js::locale_cmp` (the ICU root order
+    `localeCompare` breaks ties by: `_` sorts before `-`) and `JsObject` (a plain object's key order), and
+    serde_json's `preserve_order`, so JSON read keeps the order JavaScript wrote it in. The save's schema
+    for a scenario snapshot comes with the save module.
+    `runner.golden.test.ts` also writes `server/fixtures/world.json` from the same runs: the ten worlds and
+    four sets of content they began in - read off the TypeScript's world itself - every hook run at any
+    depth, what each step changed, and what was left waiting to be heard. `golden_world.rs` derives the
+    characters from their sheets (held to what the TypeScript derived), stands the Rust world up, and runs
+    the Rust runner against it: every call answered by the world and held to the tape, each step's changes
+    held to the TypeScript's. One run in four (217) is then probed, in a world carrying content written
+    for the corners the demo's never reaches - conditions that pay out, aid an Armor Slot, answer a fall,
+    swap the Light Die, stop a creature or end of themselves; a card a condition lends; tokens that lift a
+    roll; features printed on the stat blocks - with 30,285 direct calls of 124 kinds: on one probed run in
+    four a scripted pass, a rule at a time (every world call the runner's runs never make is asked there),
+    then eighty calls off a seeded stream that mostly go back to whoever the last one was about. The probes
+    were grown against deliberate mutations: 72 written first, the fixture strengthened until each failed
+    it; then 18 written fresh, 13 of which failed at once and the rest once a probe asked their question;
+    then 3 more for the calls added last. 93 of 93 fail it now, with the runner's 37 of 41 as before.
+  - **Next**: hooks in QuickJS (part 5), behind the `Hooks` seam - in the serve crate or behind a
+    feature, since `rquickjs` does not build for `wasm32-unknown-unknown`; with it the last tape comes out.

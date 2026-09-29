@@ -70,19 +70,19 @@ pub struct AttackSummary {
     pub refused: Option<String>,
     pub weapon: String,
     pub hit: bool,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub reduced: Option<f64>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub joined: Option<Vec<String>>,
     pub critical: bool,
     pub hit_points_marked: f64,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub roll: Option<DualityRoll>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub damage: Option<f64>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub damage_dice: Option<String>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub damage_types: Option<Vec<DamageType>>,
     pub good_gained: f64,
     pub bad_gained: f64,
@@ -95,7 +95,7 @@ pub struct AttackSummary {
 pub struct Moved {
     pub from: i32,
     pub to: i32,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub route: Option<Vec<Spot>>,
 }
 
@@ -103,9 +103,9 @@ pub struct Moved {
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct Arrived {
     pub ids: Vec<String>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub was: Option<String>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub refused: Option<String>,
 }
 
@@ -113,7 +113,7 @@ pub struct Arrived {
 pub struct ReactionRolled {
     pub success: bool,
     pub total: f64,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub roll: Option<DualityRoll>,
 }
 

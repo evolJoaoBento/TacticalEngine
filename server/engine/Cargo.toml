@@ -13,4 +13,4 @@ name = "engine"
 # Content and sheets arrive as JSON, as the TypeScript engine keeps them. Both build to wasm32.
 serde = { version = "1", features = ["derive"] }
 # float_roundtrip: floats read exactly, as JavaScript wrote them.
-serde_json = { version = "1", features = ["float_roundtrip"] }
+serde_json = { version = "1", features = ["float_roundtrip", "preserve_order"] }

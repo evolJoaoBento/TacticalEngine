@@ -1,9 +1,10 @@
-//! Abilities as far as a character sheet reads them (`src/engine/content/abilities.ts`): which card each
-//! sits on, the bonuses it grants while held, and which of a character's abilities are in play, in the
-//! order the action bar lists them. The scripts, costs and targets are the world's, and wait for its port.
+//! Abilities (`src/engine/content/abilities.ts`): which card each sits on, the bonuses it grants while
+//! held, which of a character's abilities are in play, in the order the action bar lists them, and what
+//! the world reads off one - a reaction's trigger and gate, a passive's defences and swing, a card's
+//! tokens and the lift they give a roll. Targets and uses are the action bar's, and wait for the game's.
 
 use crate::content::pack::{CardDef, CardGrant};
-use crate::rules::damage::DamageSeverity;
+use crate::rules::damage::{DamageDefenses, DamageSeverity};
 use crate::rules::dice::DamageType;
 use crate::rules::jump::Trait;
 use serde::{Deserialize, Serialize};
@@ -141,11 +142,16 @@ fn yes() -> bool {
 }
 
 /// An ability, cut to what the engine's ported parts read: the card it sits on, its bonuses, and - for a
-/// reaction to damage - its kind, trigger, cost and what it does. The rest (effects, targets, uses) is
-/// the script's, and waits for its port.
+/// reaction - its kind, trigger, gate, cost and what it does; a passive's defences and swing; its tokens.
+/// Conditions and effects are kept as the JSON the script's schema read. Targets and uses are the action
+/// bar's, and wait for the game's port.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct AbilityDef {
     pub id: String,
+    /// Required by the schema; left out only by fixtures that never show it.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub name: String,
     pub source: AbilitySource,
     #[serde(default)]
     pub modifiers: Vec<AbilityModifier>,
@@ -160,6 +166,68 @@ pub struct AbilityDef {
     /// Whether a reaction the policy allows fires without being asked.
     #[serde(default = "yes")]
     pub auto: bool,
+    /// When a reaction may be offered, read with its holder acting.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub available: Option<Value>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub effects: Vec<Value>,
+    /// The damage types a passive halves or ignores, and what it takes off.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub defenses: Option<DamageDefenses>,
+    /// What a passive says about the swing a stat block prints.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub standard_attack: Option<StandardAttack>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tokens: Option<AbilityTokens>,
+    /// Tokens spent to carry a roll over its Difficulty.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lift: Option<Lift>,
+}
+
+/// "The Ogre's attacks deal direct damage", "1d10+4 instead of their standard damage", "double damage to PCs
+/// with 0 Light": a passive's word on the block's own swing, `when` read from the attacker's chair.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct StandardAttack {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub direct: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub damage: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub double: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub severity: Option<DamageSeverity>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub when: Option<Value>,
+}
+
+/// How many tokens a card places: a number, a trait, the Spellcast trait, or the loadout's cards of a domain.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum TokenAmount {
+    Count(f64),
+    Read(String),
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct AbilityTokens {
+    pub amount: TokenAmount,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub domain: Option<String>,
+    #[serde(default)]
+    pub minimum: f64,
+}
+
+fn any() -> String {
+    "any".into()
+}
+
+/// Each token spent adds `each` to the roll; `only` a Spellcast Roll, or any.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Lift {
+    #[serde(default = "one")]
+    pub each: f64,
+    #[serde(default = "any")]
+    pub only: String,
 }
 
 /// Whether a reaction fires without asking: one that is `auto`, and neither stands in the way nor rerolls
@@ -218,4 +286,13 @@ pub fn abilities_for<'a>(loadout: Option<&[String]>, cards: &[CardDef], granted:
         .collect();
     ranked.sort_by_key(|&(at, index, _)| (at, index));
     ranked.into_iter().map(|(_, _, ability)| ability).collect()
+}
+
+/// The stat blocks whose features an ability is: the adversaries its card is printed on, or none for a card
+/// anybody else holds.
+pub fn stat_blocks_of<'a>(ability: &AbilityDef, cards: &'a [CardDef]) -> Option<&'a [String]> {
+    match &cards.iter().find(|card| card.id == ability.source.card)?.grant {
+        CardGrant::Adversary { adversaries } => Some(adversaries),
+        _ => None,
+    }
 }

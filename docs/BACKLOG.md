@@ -12,6 +12,15 @@ head and shoulders is already the creature tool's, on the same rail. Only what i
 the mode's id is still `combat`, so `mode-combat`, the tool lists and every test that picks it are
 as they were. Older entries below still say Combat. Unit `editor/modes.test.ts`.
 
+## The world scripts change is Rust's own — done
+
+`server/engine/src/script/world/` is `SceneScriptWorld` ported: what the runner and the conditions ask,
+and what a fight asks beyond them - modifiers, defences, reactions, attacks, damage, zones, countdowns,
+summons, walks - over the rest of the scene state, now ported too. Held to `server/fixtures/world.json`:
+the runner's 868 runs replayed against the real Rust world, every call and every step's changes held to
+the TypeScript's, and 30,285 probes on top; 93 of 93 deliberate mutations fail it. Hooks are the one
+part still taped - the fifth and last of script's parts, and next.
+
 ## Scripts run in Rust, step for step — done
 
 `server/engine/src/script/runner.rs` runs a script as the TypeScript does - effect by effect, stopping

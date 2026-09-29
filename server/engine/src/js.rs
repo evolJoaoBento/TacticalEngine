@@ -204,3 +204,127 @@ pub fn number_of(text: &str) -> f64 {
     }
     text.parse().unwrap_or(f64::NAN)
 }
+
+/// Where an ASCII character falls in ICU's root collation, which `localeCompare` uses: `None` for the
+/// control characters it ignores; whitespace, then punctuation and symbols in its order, then digits,
+/// then letters with case set aside. Past ASCII, a character falls after every letter by code point -
+/// not ICU's order, which content ids (ASCII by schema) never reach.
+fn collation_weight(c: char) -> Option<u32> {
+    const SPACES: &str = "\t\n\u{b}\u{c}\r ";
+    const MARKS: &str = "_-,;:!?.'\"()[]{}@*/\\&#%`^+<=>|~$";
+    if let Some(at) = SPACES.find(c) {
+        return Some(at as u32);
+    }
+    if let Some(at) = MARKS.find(c) {
+        return Some(10 + at as u32);
+    }
+    match c {
+        '\0'..='\u{1f}' | '\u{7f}' => None,
+        '0'..='9' => Some(100 + (c as u32 - '0' as u32)),
+        'a'..='z' => Some(200 + (c as u32 - 'a' as u32)),
+        'A'..='Z' => Some(200 + (c as u32 - 'A' as u32)),
+        _ => Some(1000 + c as u32),
+    }
+}
+
+/// `a.localeCompare(b)` as Node's ICU answers it, for the strings the engine sorts: by character with
+/// case set aside, then lowercase before uppercase, left to right. Strings differing only in ignored
+/// characters are equal, as they are to ICU.
+pub fn locale_cmp(a: &str, b: &str) -> std::cmp::Ordering {
+    let keys = |s: &str| s.chars().filter_map(|c| collation_weight(c).map(|w| (w, c.is_ascii_uppercase()))).collect::<Vec<_>>();
+    let (a, b) = (keys(a), keys(b));
+    let primary = |k: &[(u32, bool)]| k.iter().map(|&(w, _)| w).collect::<Vec<_>>();
+    primary(&a).cmp(&primary(&b)).then_with(|| {
+        let case = |k: &[(u32, bool)]| k.iter().map(|&(_, upper)| upper).collect::<Vec<_>>();
+        case(&a).cmp(&case(&b))
+    })
+}
+
+/// Whether a property name is an array index - a canonical number from 0 to 2^32 - 2 - which a JavaScript
+/// object keeps ahead of every other key, in ascending order.
+pub fn is_array_index(key: &str) -> bool {
+    if key.is_empty() || !key.bytes().all(|b| b.is_ascii_digit()) || (key.len() > 1 && key.starts_with('0')) {
+        return false;
+    }
+    key.parse::<u64>().is_ok_and(|n| n < u64::from(u32::MAX))
+}
+
+/// A plain JavaScript object's own properties, in the order it keeps them: array indices first, ascending,
+/// then every other key in the order it was first set.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct JsObject(Vec<(String, serde_json::Value)>);
+
+impl JsObject {
+    pub fn get(&self, key: &str) -> Option<&serde_json::Value> {
+        self.0.iter().find(|(k, _)| k == key).map(|(_, v)| v)
+    }
+
+    pub fn contains(&self, key: &str) -> bool {
+        self.0.iter().any(|(k, _)| k == key)
+    }
+
+    /// `object[key] = value`: a known key keeps its place.
+    pub fn set(&mut self, key: &str, value: serde_json::Value) {
+        if let Some(entry) = self.0.iter_mut().find(|(k, _)| k == key) {
+            entry.1 = value;
+            return;
+        }
+        let at = if is_array_index(key) {
+            let n: u64 = key.parse().expect("an index");
+            self.0.iter().position(|(k, _)| !is_array_index(k) || k.parse::<u64>().is_ok_and(|m| m > n)).unwrap_or(self.0.len())
+        } else {
+            self.0.len()
+        };
+        self.0.insert(at, (key.to_string(), value));
+    }
+
+    /// `delete object[key]`: whether it was there.
+    pub fn delete(&mut self, key: &str) -> bool {
+        let before = self.0.len();
+        self.0.retain(|(k, _)| k != key);
+        self.0.len() != before
+    }
+
+    pub fn clear(&mut self) {
+        self.0.clear();
+    }
+
+    pub fn entries(&self) -> &[(String, serde_json::Value)] {
+        &self.0
+    }
+
+    pub fn to_json(&self) -> serde_json::Value {
+        serde_json::Value::Object(self.0.iter().cloned().collect())
+    }
+}
+
+#[cfg(test)]
+mod collation {
+    use super::*;
+
+    #[test]
+    fn sorts_as_node_does() {
+        let mut xs = vec![
+            "a-b", "ab", "a_b", "aB", "Ab", "a1", "a-1", "a10", "a2", "A", "a", "b", "B", "_a", "-a", "0a", "a.b", "a b", "kara", "Kara",
+            "group-1-husk-18-3", "group-1-husk-2-3", "rot-hound", "rot_hound", "rothound", "a~", "a+", "a$",
+        ];
+        xs.sort_by(|a, b| locale_cmp(a, b));
+        // `[...xs].sort((a, b) => a.localeCompare(b))` in Node 22, ICU's root collation.
+        let node = [
+            "_a", "-a", "0a", "a", "A", "a b", "a_b", "a-1", "a-b", "a.b", "a+", "a~", "a$", "a1", "a10", "a2", "ab", "aB", "Ab", "b", "B",
+            "group-1-husk-18-3", "group-1-husk-2-3", "kara", "Kara", "rot_hound", "rot-hound", "rothound",
+        ];
+        assert_eq!(xs, node);
+        assert_eq!(locale_cmp("x\u{1}", "x"), std::cmp::Ordering::Equal);
+    }
+
+    #[test]
+    fn keeps_indices_first() {
+        let mut o = JsObject::default();
+        for key in ["b", "10", "a", "2", "02", "4294967295", "0"] {
+            o.set(key, serde_json::json!(key));
+        }
+        let keys: Vec<&str> = o.entries().iter().map(|(k, _)| k.as_str()).collect();
+        assert_eq!(keys, ["0", "2", "10", "b", "a", "02", "4294967295"]);
+    }
+}

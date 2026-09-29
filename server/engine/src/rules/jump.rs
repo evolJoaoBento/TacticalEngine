@@ -6,7 +6,7 @@ use crate::grid::pathfinding::WALKABLE_RISE;
 use crate::js;
 
 /// The six traits.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum Trait {
     Agility,
