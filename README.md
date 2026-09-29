@@ -22,6 +22,13 @@ npm run dev        # http://127.0.0.1:8420 - builds and starts the Rust server b
 The accounts, and in time the rest of the game, are served by a Rust server in `server/`: install Rust
 with [rustup](https://rustup.rs) for them. Without it the game still plays, with nobody signed in.
 
+Or play it from the Rust server alone, as a player would reach it - no Vite:
+
+```bash
+npm run build:server   # the client, into dist-server (seconds: the assets stay in public/)
+npm run server         # http://127.0.0.1:8430
+```
+
 The models are not in this repository: they live at
 [JunjiBento/tactical-engine-models](https://huggingface.co/JunjiBento/tactical-engine-models), and
 `models.lock.json` names the exact revision and every file's hash. `npm run models` downloads them

@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from '
 import { dirname, resolve } from 'node:path';
 import type { Plugin } from 'vite';
 import { SAVE_HEADER } from './default-project.ts';
-import { servesRust } from './serving.ts';
+import { savesChanges, servesRust } from './serving.ts';
 
 /**
  * How each piece of the engine's art was made - AI generated, AI assisted, or made by hand - kept for
@@ -120,7 +120,7 @@ export function artProvenance(): Plugin {
     name: 'tactical-art-provenance',
     configResolved(config) {
       root = config.root;
-      saves = config.command === 'serve' && process.env['TACTICAL_BOOT'] !== 'builtin';
+      saves = savesChanges(config.command, config.mode);
     },
     resolveId(id) {
       return id === VIRTUAL ? RESOLVED : null;

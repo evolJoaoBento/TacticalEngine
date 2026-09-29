@@ -9,6 +9,7 @@
     "dev": "vite",
     "server": "cargo run --release --manifest-path server/Cargo.toml -p tactical-serve --",
     "build": "vite build",
+    "build:server": "vite build --mode server",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",

@@ -213,6 +213,21 @@ fn respond(workshop: &Workshop, add: bool, method: &str, name: Option<String>, h
     Ok(Value::Object(map))
 }
 
+/// Where the page asks for the engine's models, each with its ancestry, when it opens.
+pub const SHIPPED_URL: &str = "/__models/shipped";
+
+/// The engine's models as the page loads them (`GET /__models/shipped`): read from the folder and the
+/// ancestries file on every request, so a model added or an ancestry given is in the next page's list
+/// without building the client again.
+pub async fn shipped(State(workshop): State<Workshop>) -> Response<Body> {
+    let root = workshop.root.clone();
+    let list = tokio::task::spawn_blocking(move || shipped_models(&root.join(MODELS_FOLDER), &read_model_ancestries(&root))).await.expect("the shipped list");
+    let mut response = Response::new(Body::from(serde_json::to_string(&list).expect("a list")));
+    response.headers_mut().insert(header::CONTENT_TYPE, HeaderValue::from_static("application/json"));
+    response.headers_mut().insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
+    response
+}
+
 /// `/__models/add` and `/__models/ancestry`, as an axum handler.
 pub async fn handle(State(workshop): State<Workshop>, method: Method, uri: Uri, headers: HeaderMap, body: Body) -> Response<Body> {
     let add = uri.path().starts_with(MODEL_ADD_URL);

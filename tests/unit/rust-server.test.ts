@@ -6,6 +6,7 @@ import { ANCESTRY_URL, MODEL_ADD_URL } from '../../tools/model-manifest';
 import { PROVENANCE_URL } from '../../tools/art-provenance';
 import { PROJECT_URL, SAVE_URL } from '../../tools/default-project';
 import { RUST_ROUTES, cargoPath, rustProxy, serverPort, servesRust } from '../../tools/rust-server';
+import { forRustServer, savesChanges } from '../../tools/serving';
 
 /**
  * The Rust server beside the dev server (`tools/rust-server.ts`): which routes it answers now, how the
@@ -65,3 +66,26 @@ describe('cargo', () => {
     expect(cargoPath()).toMatch(/cargo(\.exe)?$/);
   });
 });
+
+describe('a build for the Rust server', () => {
+  const boot = process.env['TACTICAL_BOOT'];
+  afterEach(() => {
+    if (boot === undefined) delete process.env['TACTICAL_BOOT'];
+    else process.env['TACTICAL_BOOT'] = boot;
+  });
+
+  it('is the `server` mode, and saves back as the dev server does', () => {
+    delete process.env['TACTICAL_BOOT'];
+    expect(forRustServer('server')).toBe(true);
+    expect(forRustServer('production')).toBe(false);
+    expect(savesChanges('build', 'server')).toBe(true);
+    expect(savesChanges('serve', 'development')).toBe(true);
+  });
+
+  it('is the only build that saves: a static site is read-only, and so is the tests\u2019 server', () => {
+    expect(savesChanges('build', 'production')).toBe(false);
+    process.env['TACTICAL_BOOT'] = 'builtin';
+    expect(savesChanges('serve', 'development')).toBe(false);
+  });
+});
+

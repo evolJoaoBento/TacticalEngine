@@ -11,6 +11,8 @@ import { rustServer } from './tools/rust-server.ts';
 
 const dir = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 
+// An object, not a function: `vitest.config.ts` spreads it. `vite build --mode server` (`npm run build:server`),
+// the client the Rust server serves, goes into `dist-server` by way of `publicAssets`.
 export default defineConfig({
   plugins: [publicAssets(), modelManifest(), defaultProject(), artProvenance(), accounts(), store(), yourModels(), rustServer()],
   oxc: { jsx: { runtime: 'automatic', importSource: 'preact' } },

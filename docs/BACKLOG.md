@@ -12,6 +12,13 @@ head and shoulders is already the creature tool's, on the same rail. Only what i
 the mode's id is still `combat`, so `mode-combat`, the tool lists and every test that picks it are
 as they were. Older entries below still say Combat. Unit `editor/modes.test.ts`.
 
+## The game runs from the Rust server alone — done (phase 1 done)
+
+`npm run build:server` builds the client for the Rust server into `dist-server` (no copy of `public/`,
+saves on), and `npm run server` serves the game from it: the built page, the assets live from
+`public/`, every route - no Vite. The private card art is served only to this machine. `docs/SERVER.md`
+has the detail; phase 2 - the rules, ported against fixtures - is next.
+
 ## The art marks and the default project are the Rust server's — done
 
 `/__art/provenance`, `/projects/default.json` and `/__project/save` are answered by

@@ -93,7 +93,8 @@ added after, so the rules are not redesigned while they are being transliterated
 
 ```bash
 cd server && cargo test                                         # the Rust port against its fixtures
-npm run server                                                  # the Rust server by hand, on 8430 (npm run dev starts it)
+npm run build:server && npm run server                          # the game from the Rust server alone, on 8430
+npm run server                                                  # (npm run dev starts it too, for the routes alone)
 npx vitest run tests/unit/accounts.golden.test.ts tests/unit/store.golden.test.ts   # the fixtures are still what TypeScript does
 npx vitest run src/engine/core/rng.golden.test.ts               # the fixture is still what TypeScript does
 UPDATE_GOLDEN=1 npx vitest run src/engine/core/rng.golden.test.ts   # write it afresh after a TS change
@@ -186,5 +187,15 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     so several at once (a few `tools/*.ts` saved together) each thought they owned a server, and an older
     one kept the port. Now each restart stops whatever is running first - five restarts at once left
     exactly one server, started after the last.
-  - **Next**: the Rust server serves the built client and the assets (`vite build`'s output, the models,
-    the card art), so the game runs from it alone; then phase 1 is done.
+  - **The game runs from the Rust server alone.** `npm run build:server` (Vite's `server` mode) builds the
+    client into `dist-server` in seconds - it copies none of `public/`'s 1.1 GB, and saves back as the dev
+    server does (`savesChanges`), where a static build is read-only - and `npm run server` serves it:
+    `site()` in `server/serve/src/lib.rs` puts a file in `public/` first (live: a model added to the
+    engine is there without building again), then the build's, then the page, and under them every
+    route. Nothing outside those two folders is reached (`..`, encoded or not, never gets to `data/`).
+    **The private card art** in `public/cards/` is served only when the server listens on this machine
+    alone; beyond it `/cards/` is the build's empty index, as a static site's is (`site_routes.rs`).
+    Tried in a real browser on 8430, no Vite: signed in, the Store's 52 listings, the card art, the Hollow
+    Vault drawn with its 38 models, no request failed; Ctrl+S in the editor saved through the server (204).
+  - **Phase 1 is done.** What Vite still does in development is serve the page itself and build the two
+    lists the page loads (the models, the marks) - which move to the server with the protocol, in phase 3.

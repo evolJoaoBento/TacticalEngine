@@ -1,5 +1,7 @@
 node_modules/
 dist/
+# The client the Rust server serves (`npm run build:server`).
+dist-server/
 .vite/
 test-results/
 playwright-report/

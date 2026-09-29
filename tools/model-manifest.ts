@@ -3,6 +3,7 @@ import { dirname, join, resolve } from 'node:path';
 import type { Plugin } from 'vite';
 import { SAVE_HEADER } from './default-project.ts';
 import { servesRust } from './accounts.ts';
+import { savesChanges } from './serving.ts';
 
 /**
  * The models a project ships with, found rather than listed.
@@ -235,7 +236,7 @@ export function modelManifest(): Plugin {
     configResolved(config) {
       publicDir = config.publicDir || 'public';
       root = config.root;
-      saves = config.command === 'serve' && process.env['TACTICAL_BOOT'] !== 'builtin';
+      saves = savesChanges(config.command, config.mode);
       rust = servesRust(config.command);
     },
     resolveId(id) {

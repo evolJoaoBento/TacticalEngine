@@ -88,3 +88,28 @@ async fn a_mark_is_kept_and_the_marks_answered_back() {
     }
     let _ = std::fs::remove_dir_all(&root);
 }
+
+#[tokio::test]
+async fn the_lists_the_page_loads_are_read_on_every_request() {
+    let root = folder("lists");
+    std::fs::create_dir_all(root.join("public/models")).unwrap();
+    std::fs::write(root.join("public/models/Quim.glb"), b"glTF").unwrap();
+    std::fs::write(root.join("projects/model-ancestries.json"), r#"{ "quim": "dwarf" }"#).unwrap();
+    let models = send(&root, "GET", "/__models/shipped", "", false).await;
+    assert_eq!((models.0, models.2.as_deref(), models.3.as_deref()), (StatusCode::OK, Some("application/json"), Some("no-store")));
+    assert_eq!(serde_json::from_str::<serde_json::Value>(&models.1).unwrap(), json!([{ "id": "quim", "url": "/models/Quim.glb", "scale": 1, "ancestry": "dwarf" }]));
+    // A model added, an ancestry changed: the next request has them.
+    std::fs::write(root.join("public/models/Arty.glb"), b"glTF").unwrap();
+    std::fs::write(root.join("projects/model-ancestries.json"), r#"{ "quim": "human" }"#).unwrap();
+    let again: serde_json::Value = serde_json::from_str(&send(&root, "GET", "/__models/shipped", "", false).await.1).unwrap();
+    assert_eq!(again, json!([{ "id": "arty", "url": "/models/Arty.glb", "scale": 1 }, { "id": "quim", "url": "/models/Quim.glb", "scale": 1, "ancestry": "human" }]));
+
+    assert_eq!(send(&root, "GET", "/__art/marks", "", false).await.1, "{}");
+    std::fs::write(root.join("projects/art-provenance.json"), r#"{ "model:arty": "ai-assisted", "bad": "x" }"#).unwrap();
+    let marks = send(&root, "GET", "/__art/marks", "", false).await;
+    assert_eq!((marks.0, marks.1.as_str(), marks.3.as_deref()), (StatusCode::OK, r#"{"model:arty":"ai-assisted"}"#, Some("no-store")));
+    // Reading is all they do.
+    assert_eq!(send(&root, "POST", "/__art/marks", "{}", true).await.0, StatusCode::METHOD_NOT_ALLOWED);
+    let _ = std::fs::remove_dir_all(&root);
+}
+

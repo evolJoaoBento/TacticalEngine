@@ -191,6 +191,20 @@ fn respond(archive: &Archive, path: &str, method: &str, headers: &HeaderMap, bod
     }
 }
 
+/// Where the page asks for the art marks when it opens.
+pub const MARKS_URL: &str = "/__art/marks";
+
+/// The art marks as the page loads them (`GET /__art/marks`): read on every request, so a change is in
+/// the next page's marks without building the client again.
+pub async fn marks(State(archive): State<Archive>) -> Response<Body> {
+    let root = archive.root.clone();
+    let map = tokio::task::spawn_blocking(move || read_provenance(&root)).await.expect("the marks");
+    let mut response = Response::new(Body::from(Value::Object(map).to_string()));
+    response.headers_mut().insert(header::CONTENT_TYPE, HeaderValue::from_static("application/json"));
+    response.headers_mut().insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
+    response
+}
+
 /// `/__art/provenance`, `/projects/default.json` and `/__project/save`, as an axum handler.
 pub async fn handle(State(archive): State<Archive>, method: Method, uri: Uri, headers: HeaderMap, body: Body) -> Response<Body> {
     let path = uri.path().to_string();

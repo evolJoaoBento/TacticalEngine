@@ -27,6 +27,7 @@ hex = "0.4"
 sha2 = "0.10"
 subtle = "2"
 url = "2"
+tower-http = { version = "0.6", features = ["fs"] }
 
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }

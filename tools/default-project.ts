@@ -32,7 +32,7 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import type { Plugin } from 'vite';
-import { servesRust } from './serving.ts';
+import { forRustServer, savesChanges, servesRust } from './serving.ts';
 
 /** Where the file is, from the project root, and where the page asks for it. */
 export const PROJECT_FILE = 'projects/default.json';
@@ -114,14 +114,16 @@ export function writeProject(root: string, text: string): void {
 }
 
 /** How the page should open, and whether it may save back: read once, when the server starts. */
-function bootFacts(command: 'serve' | 'build'): { boot: 'file' | 'builtin'; saves: boolean } {
+function bootFacts(command: 'serve' | 'build', mode = 'development'): { boot: 'file' | 'builtin'; saves: boolean } {
   const boot = process.env['TACTICAL_BOOT'] === 'builtin' ? 'builtin' : 'file';
-  return { boot, saves: command === 'serve' && boot === 'file' };
+  return { boot, saves: boot === 'file' && savesChanges(command, mode) };
 }
 
 export function defaultProject(): Plugin {
   let root = process.cwd();
   let facts = bootFacts('serve');
+  // A build the Rust server serves reads the project from it, live: it carries no copy.
+  let served = false;
   // Where the site is served from: a project page on GitHub is served under its own name, and a
   // page there asking for `/projects/...` would ask the wrong site.
   let base = '/';
@@ -130,7 +132,8 @@ export function defaultProject(): Plugin {
     configResolved(config) {
       root = config.root;
       base = config.base;
-      facts = bootFacts(config.command);
+      facts = bootFacts(config.command, config.mode);
+      served = forRustServer(config.mode);
     },
     resolveId(id) {
       return id === VIRTUAL ? RESOLVED : null;
@@ -168,6 +171,7 @@ export function defaultProject(): Plugin {
     },
     /** A built site opens on the same project, read-only: there is no server there to write it. */
     generateBundle() {
+      if (served) return;
       const file = resolve(root, PROJECT_FILE);
       if (existsSync(file)) this.emitFile({ type: 'asset', fileName: PROJECT_FILE, source: readFileSync(file) });
     },

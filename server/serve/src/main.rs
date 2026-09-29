@@ -1,7 +1,9 @@
-//! `tactical-serve [--root <repository>] [--host 127.0.0.1] [--port 8430]`
+//! `tactical-serve [--root <repository>] [--site <built client>] [--host 127.0.0.1] [--port 8430]`
 //!
-//! Started by the Vite dev server (`tools/rust-server.ts`), which passes the moved routes through to
-//! it; or by hand, `npm run server`. It keeps its files under `--root`, the repository by default.
+//! Started by the Vite dev server (`tools/rust-server.ts`), which passes the routes through to it; or on
+//! its own - `npm run build:server`, then `npm run server` - when it serves the game itself: the built
+//! client from `--site` (`dist-server` by default) and the assets live from `public/`. It keeps its files
+//! under `--root`, the repository by default.
 
 use std::net::SocketAddr;
 use std::path::PathBuf;
@@ -21,6 +23,7 @@ async fn main() {
     let root = argument("--root").map(PathBuf::from).unwrap_or_else(|| std::env::current_dir().expect("a working directory"));
     let host = argument("--host").unwrap_or_else(|| "127.0.0.1".into());
     let port: u16 = argument("--port").and_then(|port| port.parse().ok()).unwrap_or(8430);
+    let site = argument("--site").map(PathBuf::from).unwrap_or_else(|| root.join(serve::SITE));
     let address: SocketAddr = format!("{host}:{port}").parse().expect("a host and a port");
     let listener = match tokio::net::TcpListener::bind(address).await {
         Ok(listener) => listener,
@@ -29,8 +32,19 @@ async fn main() {
             std::process::exit(1);
         }
     };
+    // The game itself when there is a built client to serve; the routes alone when there is not.
+    let serves_the_game = site.join("index.html").is_file();
+    // The private card art only to this machine: never when the server listens beyond it.
+    let private_art = address.ip().is_loopback();
+    let app = if serves_the_game { serve::site(root.clone(), site.clone(), private_art) } else { serve::app(root.clone()) };
     println!("tactical-serve: listening on http://{address}, keeping files under {}", root.display());
-    axum::serve(listener, serve::app(root))
+    if serves_the_game {
+        println!("tactical-serve: serving the game from {} - open http://{address}/", site.display());
+        if !private_art {
+            println!("tactical-serve: listening beyond this machine, so the private card art in public/cards is not served");
+        }
+    }
+    axum::serve(listener, app)
         .with_graceful_shutdown(async {
             let _ = tokio::signal::ctrl_c().await;
         })
