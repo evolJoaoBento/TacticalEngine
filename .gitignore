@@ -46,3 +46,7 @@ public/cards/
 
 # graft's local graph cache — regenerable, not committed (run `graft build`).
 /graft/
+
+# Accounts, sessions and the store's listings and files (tools/accounts.ts, tools/store.ts): this
+# machine's own, and a password file, however hashed, is never the public repository's.
+/data/

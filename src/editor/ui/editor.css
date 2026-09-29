@@ -289,3 +289,21 @@
 /* A workspace's fields too: left to the browser they are white, under text the editor colours for a dark page. */
 .ph-editor .ph-workspace-panel .ph-input { padding: 4px 8px; border: 1px solid var(--ph-line); border-radius: 3px; background: var(--ph-field); color: var(--ph-text); }
 .ph-editor input:focus-visible, .ph-editor select:focus-visible, .ph-editor textarea:focus-visible { outline: 1px solid var(--ph-accent-line); outline-offset: 0; }
+
+/* How art was made (AiMark.tsx): a little tag in the picture's corner - red AI for AI generated, yellow AI
+   for AI assisted, green Human for human made - and the menu that changes the mark. The note is the
+   game's (ai-note.css). */
+.ph-editor .ph-ai-badge { position: absolute; top: 3px; right: 3px; z-index: 2; padding: 2px 4px; border-radius: 3px; border: 1px solid #e0443a; background: #d7362c; color: #fff; font: 800 8px/1 system-ui, sans-serif; letter-spacing: 0.06em; cursor: pointer; pointer-events: auto; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5); }
+.ph-editor .ph-ai-badge.is-ai-assisted { border-color: #f2c233; background: #e0ae16; color: #241a02; }
+.ph-editor .ph-ai-badge.is-human-made { border-color: #4cae6c; background: #2f8a4d; color: #fff; }
+.ph-editor .ph-ai-badge.is-inline { position: static; display: inline-block; vertical-align: middle; margin-left: 4px; }
+.ph-editor .ph-ai-badge:hover, .ph-editor .ph-ai-badge:focus-visible { outline: 1px solid #fff; }
+.ph-editor .ph-ai-frame { position: relative; display: inline-block; flex: none; }
+.ph-editor .ph-ai-menu-backdrop { position: fixed; inset: 0; z-index: 70; pointer-events: auto; }
+.ph-editor .ph-ai-menu { position: fixed; min-width: 180px; padding: 6px; border-radius: 4px; border: 1px solid var(--ph-line); background: var(--ph-raised); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.55); display: flex; flex-direction: column; gap: 2px; }
+.ph-editor .ph-ai-menu-head { padding: 2px 6px 5px; color: var(--ph-faint); font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; }
+.ph-editor .ph-ai-menu-item { padding: 5px 8px; border: 0; border-radius: 3px; background: transparent; color: var(--ph-text); text-align: left; cursor: pointer; }
+.ph-editor .ph-ai-menu-item:hover { background: var(--ph-field); }
+.ph-editor .ph-ai-menu-item.is-on { color: #ff6b61; font-weight: 700; }
+.ph-editor .ph-ai-menu-said { padding: 4px 6px 2px; color: var(--ph-muted); font-size: 11px; }
+

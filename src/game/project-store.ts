@@ -19,12 +19,16 @@
  */
 
 import { BOOT, PROJECT_URL, SAVE_HEADER, SAVE_URL, SAVES } from 'virtual:boot-project';
+import { withListedPacks } from './listed-packs';
+import { GameProjects } from './game-projects';
+import { browserStore } from './save-slots';
 import { migrateDocument } from '../engine/scene/migrate';
 import { projectSchema } from '../engine/scene/schema';
 import { hollowVaultMap } from './demo-map';
 import { buildDemoScene, buildProjectScene, type DemoScene } from './demo-scene';
 
-export type BootSource = 'file' | 'missing' | 'invalid' | 'builtin';
+/** `game` is a game New Game began, opened from this browser (`game-projects.ts`): never saved over the default. */
+export type BootSource = 'file' | 'missing' | 'invalid' | 'builtin' | 'game';
 
 export interface Booted {
   demo: DemoScene;
@@ -41,6 +45,8 @@ export interface BootOptions {
   boot?: 'file' | 'builtin';
   /** Where to report why the file was not used, so the player is told rather than the demo quietly opening. */
   problems?: string[];
+  /** The games New Game began, for `?project=<id>`; the browser's own when left out. */
+  games?: GameProjects;
 }
 
 const builtin = (): DemoScene => buildDemoScene(hollowVaultMap());
@@ -60,6 +66,13 @@ export async function bootDemo(options: BootOptions = {}): Promise<Booted> {
 
 async function open(options: BootOptions): Promise<Booted> {
   const search = options.search ?? globalThis.location?.search ?? '';
+  // A game New Game began is opened from the browser, whatever the server would open.
+  const game = new URLSearchParams(search).get('project');
+  if (game !== null) {
+    const text = (options.games ?? new GameProjects(browserStore())).read(game);
+    if (text === null) return { demo: builtin(), source: 'invalid', problem: `There is no game called "${game}" in this browser, so the demo opened instead.` };
+    return fromText(text, options, 'game');
+  }
   if (bootMode(search, options.boot ?? BOOT) === 'builtin') return { demo: builtin(), source: 'builtin', problem: null };
 
   const fetcher = options.fetcher ?? ((url: string, init?: RequestInit) => fetch(url, init));
@@ -73,6 +86,11 @@ async function open(options: BootOptions): Promise<Booted> {
     return { demo: builtin(), source: 'invalid', problem: `The saved project could not be read (${reasonOf(failure)}), so the demo opened instead.` };
   }
 
+  return fromText(text, options, 'file');
+}
+
+/** A project's text, opened: migrated, checked, its packs laid; the demo, and why, when it will not. */
+function fromText(text: string, options: BootOptions, source: 'file' | 'game'): Booted {
   // Migrated before it is checked, the way a project opened by hand is: a file written by an
   // older build is brought up to date on the way in rather than refused.
   try {
@@ -82,7 +100,8 @@ async function open(options: BootOptions): Promise<Booted> {
       const where = issue === undefined ? '' : ` at ${issue.path.join('.')}`;
       return { demo: builtin(), source: 'invalid', problem: `The saved project would not load (${issue?.message ?? 'invalid'}${where}), so the demo opened instead. The file has been left as it is.` };
     }
-    return { demo: buildProjectScene(parsed.data, parsed.data.id), source: 'file', problem: null };
+    // The packs it lists are laid over it before anything reads it (`listed-packs.ts`).
+    return { demo: buildProjectScene(withListedPacks(parsed.data, options.problems), parsed.data.id), source, problem: null };
   } catch (failure) {
     return { demo: builtin(), source: 'invalid', problem: `The saved project would not load (${reasonOf(failure)}), so the demo opened instead. The file has been left as it is.` };
   }

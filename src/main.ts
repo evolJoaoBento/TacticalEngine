@@ -26,9 +26,11 @@ import { syncTalks } from './game/talks';
 import { driveFloaters, type LiveFloater } from './game/ui/floaters';
 import { PartyHud } from './game/ui/PartyHud';
 import { bootDemo, saveDefault, savesToDefault } from './game/project-store';
+import { withListedPacks, withoutPackEntries } from './game/listed-packs';
+import { showMainMenu, startOf } from './game/start';
 import { STEER_EVERY, STEER_HOLD, steerStep } from './game/steer';
 import { landWalkers, standingNow } from './game/land';
-import { hoverLine } from './game/hover';
+import { hoverLine, noteArtOnBoard } from './game/hover';
 import { dropCard, type Drop } from './game/party-drop';
 import { LevelUpPanel } from './game/ui/LevelUpPanel';
 import { deriveCharacter } from './engine/character/sheet';
@@ -61,7 +63,7 @@ import { migrateDocument } from './engine/scene/migrate';
 import { forgetFile, saveProjectFile } from './editor/project-file';
 import { describePack, packOf, readPack } from './engine/content/pack/document';
 import type { AdversaryDef } from './engine/content/types';
-import { AUTO_SLOT, QUICK_SLOT, SaveSlots, browserStore } from './game/save-slots';
+import { AUTO_SLOT, QUICK_SLOT, SaveSlots, browserStore, projectOfSlot, projectSlot, sharedBrowserStore } from './game/save-slots';
 import { CardArtImports, loadCardArtIndex, useCardArtImports, useCardArtIndex } from './game/ui/card-art';
 import { DEMO_REACH, answerPending, attackWithSelected, moveSelectedTo, endTurn, refreshWorld, syncPools, syncRoster, gatherParty, reachableInteractable, useSelectedOn, buildProjectScene, setSheet, type DemoScene } from './game/demo-scene';
 import { inCombat, scriptPending } from './game/moment';
@@ -336,6 +338,8 @@ const webgl2 = typeof WebGL2RenderingContext !== 'undefined' && gl instanceof We
 
 // `let`, because loading a project restarts the game on it. It opens on the default project, a file
 // that Ctrl+S writes back, so an edit that is saved is what opens next time (`game/project-store.ts`).
+// The main menu, unless the address has already chosen a game (`game/start.ts`): it opens the page again on what it chose.
+const start = startOf(); if (start.menu) await showMainMenu();
 const booted = await bootDemo({ problems: errors });
 let demo = booted.demo;
 let savesDefault = savesToDefault(booted.source);
@@ -579,6 +583,7 @@ function playAt(sceneId: string, tile: number | null): boolean {
 }
 
 function setMode(next: 'play' | 'edit'): void {
+  if (start.locked && next === 'edit') return; // Load Game and New Game play the game; the editor is Edit Game's
   // Going back to play is a scene entry like any other: whatever the editor did
   // to the room the party is standing in has to reach the room they walk back
   // into. `DemoScene` remembers what it last stood the scene up from, so no
@@ -689,7 +694,7 @@ function renderPanel(): void {
 }
 
 async function saveProject(): Promise<void> {
-  const text = JSON.stringify(withoutUnusedEmbedded(session.project, Object.values(DEMO_MODELS)), null, 2); // an embedded model nothing names stays in the browser, not the file
+  const text = JSON.stringify(withoutPackEntries(withoutUnusedEmbedded(session.project, Object.values(DEMO_MODELS))), null, 2); // an embedded model nothing names stays in the browser, not the file; what a listed pack lays, the pack lays again
   const outcome = savesDefault && (await saveDefault(text)) === 'written' ? 'written' : await saveProjectFile(text, `${session.project.id}.json`);
   // A closed dialog is not a save: the project stays dirty and the tab still warns.
   if (outcome !== 'cancelled') session.markSaved();
@@ -701,7 +706,7 @@ async function saveProject(): Promise<void> {
  * another. Not a save: no scenes, no party, nothing marked saved.
  */
 function exportPack(): void {
-  const blob = new Blob([JSON.stringify(packOf(session.project), null, 2)], { type: 'application/json' });
+  const blob = new Blob([JSON.stringify(packOf(withoutPackEntries(session.project)), null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
@@ -755,7 +760,7 @@ function loadProjectText(text: string, label = 'the project'): string {
   }
   let fresh: DemoScene;
   try {
-    fresh = buildProjectScene(parsed.data, parsed.data.id);
+    fresh = buildProjectScene(withListedPacks(parsed.data, errors), parsed.data.id);
   } catch (failure) {
     // A project that parses can still be unplayable: an adversary with no stat
     // block, a start scene that is not there. Say so and keep the game running.
@@ -878,7 +883,7 @@ const camera = new PerspectiveCamera(45, window.innerWidth / window.innerHeight,
  */
 const orbit = new OrbitCamera({ yaw: 0, pitch: 0.85 });
 /** Over whoever is selected, and whoever comes out of a portal (`game/camera-focus.ts`). */
-const focus = new CameraFocus(orbit, view, () => ({ grid: demo.grid, at: (id) => { const who = demo.state.entity(id); return who === undefined || who.tile === NO_TILE ? null : who.at; }, talking: mode === 'play' ? talkingTo(demo) : null }));
+const focus = new CameraFocus(orbit, view, () => ({ grid: demo.grid, at: (id) => { const who = demo.state.entity(id); return who === undefined || who.tile === NO_TILE ? null : who.at; }, talking: mode === 'play' ? talkingTo(demo) : null, selected: mode === 'play' ? demo.party.selected : null }));
 
 /** Put the camera over a coordinate the designer typed, at the level they are building on. */
 function navigateBuilding(x: number, y: number): void {
@@ -1289,13 +1294,13 @@ function whereWeAre(): string {
 function saveTo(id: string | undefined, name: string, quiet = false): boolean {
   const text = serialiseSave(demo);
   if (text === null) return false;
-  const slot = slots.write(text, name, whereWeAre(), id);
+  const slot = slots.write(text, name, whereWeAre(), id, demo.project.id);
   if (!quiet) note(demo, slot === null ? 'This browser will not let the game save.' : `Saved: ${name}.`, 'system');
   return slot !== null;
 }
 
 function saveNow(): boolean {
-  return saveTo(QUICK_SLOT, 'Quick save');
+  return saveTo(projectSlot(QUICK_SLOT, demo.project.id), 'Quick save');
 }
 
 /** Load a slot back into the game. */
@@ -1326,7 +1331,7 @@ let lastRoom = demo.scene.id;
 function autosaveOnTravel(): void {
   if (demo.scene.id === lastRoom) return;
   lastRoom = demo.scene.id;
-  if (saveBlockedBy(demo) === null) saveTo(AUTO_SLOT, 'Autosave', true);
+  if (saveBlockedBy(demo) === null) saveTo(projectSlot(AUTO_SLOT, demo.project.id), 'Autosave', true);
 }
 
 
@@ -1542,7 +1547,7 @@ function renderPlayPanel(): void {
       },
       within: reachableInteractable(demo),
       saveBlocked: saveBlockedBy(demo),
-      saves: slots.list(),
+      saves: slots.list().filter((slot) => projectOfSlot(slot) === demo.project.id), // a save of another project will not load here
       onSave: () => {
         saveNow();
         refreshPlay();
@@ -1576,6 +1581,7 @@ function renderPlayPanel(): void {
   );
 }
 refreshPlay();
+if (start.edit) setMode('edit'); else if (start.load !== null) loadSlot(start.load);
 
 /** Press on the board in the editor. Whatever the press took hold of lifts off the ground, to be carried. */
 function pressAt(event: PointerEvent, at: Spot): void {
@@ -1696,6 +1702,7 @@ canvas.addEventListener('pointermove', (event) => {
     return;
   }
   if (mode === 'edit') {
+    noteArtOnBoard(() => view.artUnder(aim(event))); // how the art under the pointer was made, as in play
     // The ghost only needs where the pointer is; working out the cell costs a
     // raycast against the terrain meshes, so a hover does not pay for one.
     if (placementTool()) lastBuildPointer = { clientX: event.clientX, clientY: event.clientY };
@@ -1713,7 +1720,7 @@ canvas.addEventListener('pointermove', (event) => {
   resting = { clientX: event.clientX, clientY: event.clientY, drawn: performance.now() };
   const over = ground?.tile ?? NO_TILE;
   view.showCursor(over);
-  view.spotlight(aim(event), over);
+  view.spotlight(aim(event), over); noteArtOnBoard(() => view.artUnder(aim(event)));
   hoverWalk(ground);
   // A card aimed at the ground redraws its shape as the pointer moves, so what
   // it would catch is on the board before the click rather than in the log
@@ -1729,7 +1736,7 @@ canvas.addEventListener('pointerleave', () => {
   steering = null;
   resting = null;
   lastBuildPointer = null;
-  view.showCursor(NO_TILE);
+  view.showCursor(NO_TILE); noteArtOnBoard(null);
   view.clearPath();
 });
 
@@ -2343,7 +2350,7 @@ const state = {
     return ok;
   },
   load: (): boolean => {
-    const ok = loadSlot(QUICK_SLOT);
+    const ok = loadSlot(projectSlot(QUICK_SLOT, demo.project.id));
     refreshPlay();
     return ok;
   },
@@ -2361,7 +2368,7 @@ const state = {
   saves: (): { id: string; name: string; where: string; savedAt: number }[] =>
     slots.list().map((slot) => ({ id: slot.id, name: slot.name, where: slot.where, savedAt: slot.savedAt })),
   saveBlocked: (): string | null => saveBlockedBy(demo),
-  saveText: (): string | null => slots.read(QUICK_SLOT),
+  saveText: (): string | null => slots.read(projectSlot(QUICK_SLOT, demo.project.id)),
 
   mode: (): 'play' | 'edit' => mode,
   setMode,
@@ -2453,7 +2460,7 @@ frame();
 // Card art: whatever is in `public/cards/`, plus anything imported into this
 // browser. One fetch, and a miss is silent - most machines have no directory at
 // all, and every card can draw its own emblem instead.
-useCardArtImports(new CardArtImports(browserStore()));
+useCardArtImports(new CardArtImports(sharedBrowserStore()));
 void loadCardArtIndex().then((index) => {
   useCardArtIndex(index);
   // The action bar was drawn before the index arrived, so redraw it - but only

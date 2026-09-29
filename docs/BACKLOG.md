@@ -12,6 +12,236 @@ head and shoulders is already the creature tool's, on the same rail. Only what i
 the mode's id is still `combat`, so `mode-combat`, the tool lists and every test that picks it are
 as they were. Older entries below still say Combat. Unit `editor/modes.test.ts`.
 
+## Every model in the Store, and your own models — done
+
+Every `.glb` in `public/models` is a free Store listing by *The engine* (`engineListings` in
+`tools/store.ts`: claimed as its art mark says, marked AI until admin shows its work, never taken down,
+gone with its file). **Get** on a model puts it into the player's own folder,
+`data/users/<account>/models/imported/` (`tools/your-models.ts`: one copy per file, known by its hash),
+and the listing reads *In your models*; a picture is still downloaded. The editor lays the player's
+models under every project they open (`EditorShell`, without making it unsaved) and lists them on the
+Models page; a save keeps only the used ones. Opening any project - to play or to edit - imports the
+models it carries on the fly (`importCarriedModels` from `openProject`): embedded `.glb` files the folder
+lacks, and models in another player's folder. Tried end to end on the dev server with two throwaway
+accounts, deleted after; unit `tests/unit/your-models.test.ts`, `game/your-models.test.ts`, the store and
+save-trim tests; e2e `your-models.spec.ts`, `accounts-store.spec.ts`. Open: a model in a player's folder is
+served to anybody signed in, so a project that uses a model bought later would hand it on - that wants
+deciding when payments open; and IndexedDB `model-memory.ts` still keeps browser imports beside this.
+
+**Next, at the user's choice: the server becomes Rust, and the rules move into it.** The browser keeps
+rendering and input; a Rust server holds the assets, the accounts, the Store, your models, projects and
+saves, and runs the game - the engine's rules ported from TypeScript - for play from anywhere, co-op, and
+light clients. The dev plugins' routes (`tools/*.ts`) are the contract the Rust server answers first.
+
+## The Store is show your work — done
+
+The user's rule, on top of the Store below: a listing need not be for sale, nor come with evidence -
+but without **How I Made It** and a **Process Proof** it is **marked AI** (`markOf`), whatever it claims,
+and there is nothing to vote on (`castVote` refuses). The creator shows the work later (**Show your
+work**, the `update` route: How I Made It, more pictures up to six, the claim, free or for sale), and
+then the claim - Human made, AI Assisted, AI Generated - is the mark, in the editor's tag colours.
+**For sale** needs the work shown and never AI generated (`judgeSale`, checked on publish and on every
+update, so emptying How I Made It on a listing for sale is refused); AI Assisted sells on showing how
+the AI was used. There are no payments: a listing for sale reads *payments open later* and its download
+answers 402 to anybody but its creator (`mayGet`). Listings from before carry over (`readListings`: one
+`proof` becomes `proofs`, claimed AI generated, free). Tried end to end on the dev server with two
+throwaway accounts, deleted after; unit `tests/unit/store.test.ts`, `game/store.test.ts`; e2e
+`accounts-store.spec.ts`. Open: a picture's cover is the picture itself, so one for sale can be seen,
+if not downloaded - a watermarked preview belongs with payments; and votes stand when a claim changes.
+
+## Accounts, per-player saves, and the Store — done
+
+The dev server keeps accounts now (`tools/accounts.ts`): sign in or make an account before the menu,
+admin/admin made on the first start, passwords as salted scrypt hashes and sessions in an HttpOnly
+cookie, all in a git-ignored `data/`. Each player's games and saves are their own: `browserStore` keys
+them by account (`userKey`), admin keeping the old keys so nothing saved before is lost; Load Game lists
+only the player's. The **Store** (`tools/store.ts`, `ui/Store.tsx`) is the user's design: a creator
+publishes a model or picture with **How I Made It** and a **Process Proof**; the listing reads
+**Human-Crafted Authenticity: 94% (45 Likes / 3 Dislikes)** above the process text and proof; players
+Like or Dislike it, one vote each and never their own; Get downloads it, there is no money; the creator
+or admin takes it down. All of it tried end to end against the dev server (a throwaway account made
+and deleted); the tests' server keeps no accounts, so the e2e test stands the routes in and the rest of
+the suite plays as nobody, as before. Next: a published model installable into the engine in a click
+(the "+ Model to the engine" route), and a price if the store is ever to sell.
+
+## Three tags, three colours — done
+
+Every piece of art in the editor carries a tag now, not only AI art: red AI for AI generated, yellow AI
+for AI assisted, green Human for human made (`AiBadge`). The note says AI Assisted in yellow; art made by
+hand puts up none. The e2e test reads the yellow and the green.
+
+## AI transparency in the game — done
+
+The game says how its art was made as the editor does: hovering a creature, prop, object or tile model
+on the board (`SceneView.artUnder`, the model id kept on every drawn group), a party portrait, a card's
+picture or emblem, an equipment card, or New Game's pictures and minis puts up the note in the
+bottom-right corner - one shared note now (`src/game/ui/AiNote.tsx`), faded red in a serif hand, the
+editor's too. The provenance module moved to `src/game/`. The e2e test hovers a party member's figure
+on the board and a portrait, and reads the note's style.
+
+## Art made with AI marked in the editor — done
+
+Every picture the editor shows of a piece of art carries how it was made: a red AI badge (solid for AI
+Generated, outlined for AI Assisted, none for Human made) on the strip thumbnails, the Models page's
+previews, the Cards page's preview and the Tiles page's tiles with a model, and a red note in the
+bottom-right corner while one is hovered (`src/editor/ui/AiMark.tsx`). The starting rule is the user's:
+only the card illustrations from the printed material are made by hand, the rest AI generated
+(`src/editor/art-provenance.ts`). The badge, or a right-click on any picture, changes it, and the change
+is kept for that art in every project (`projects/art-provenance.json`, written by the guarded route in
+`tools/art-provenance.ts`, tried end to end against the dev server). The e2e test marks a prop assisted,
+human made and back, and reads the refusal of the tests' own server.
+
+## Starting equipment chosen at New Game — done
+
+Gear was the class's, handed out. Now there is an Equipment step between the Traits and the name: a
+deck of the catalogue's tier-1 primary weapons (magic ones only for a subclass that casts), then one of
+its tier-1 armour, each the catalogue's own card with its picture, the class's suggestion on top. The
+two are sleeved into the row as Weapon and Armor; Choose again brings back the deck of the one taken
+back; a subclass that stops casting drops a magic weapon. The sheet takes them (`sheetFor`) and shows
+them on the naming sheet's gear line; the class's second weapon comes along only when the weapon chosen
+leaves a hand free. The e2e test takes a broadsword and gambeson over the Guardian's suggestion and
+finds both on the saved character.
+
+## + Model to the engine — done
+
+A model added in the editor lived in the project that added it, so New Game could never offer it and
+it could be given no ancestry. **+ Model to the engine** sends the `.glb` to the dev server, which
+writes it into `public/models` (`MODEL_ADD_URL` in `tools/model-manifest.ts`: the project save's guard,
+binary glTF only, never over a model already there by id) without reloading the page that sent it; it
+is in the project at once and has its Ancestry to give. Tried end to end against the dev server: the
+file written, a second refused, a request without the page's header refused, and the served list
+carrying it with the ancestry given. `public/models` stays out of git; the lock is still how a model
+reaches another machine.
+
+## Models given ancestries for good, + Model at the top, and creatures of the project's own — done
+
+A model's ancestry was its file's name and nothing else. Now the editor's Models page gives each
+shipped model an **Ancestry**, kept for every project in `projects/model-ancestries.json` (tracked) by a
+guarded dev-server route in `tools/model-manifest.ts` - the project save's guard, one file, refused
+under the tests' server - and served with the model list; New Game offers an ancestry the models given
+it, then the ones named for it, then the company (`character-models.ts`). The file starts with the
+eight named ones; a unit test holds every entry to a shipped model and a pack ancestry. **+ Model** is
+at the top of the Models page. And the editor makes creatures: **Copy as new** in the Encounters side
+copies the picked one into the project (`adversary-edits.ts`, drawn with its original's model, one
+undo), and a creature of the project's own has its stat block there to change, a change kept only
+when it still parses as one (`CreatureEditor.tsx`); the strip and Project → Check read the project's
+own at once. Features come with a copy and are not yet edited there.
+
+## The camera on a leash to whoever is played — done
+
+In play the camera could be panned anywhere, the character left far off screen. Its target is on a
+leash to whoever is selected now (`CameraFocus.tick`, `OrbitCamera.leash`): eight tiles, and no
+further; a pan runs into it and eases to a stop, and a walk off draws the camera along at that
+distance. A conversation's hold keeps its own place, and the editor pans freely - from wherever play
+left the camera, which is why the prop-placing e2e test now frames the room (Home) before it points
+across it. The e2e test pans
+with the keys until the camera stops, and finds the editor's same pan carrying it much further.
+
+## New Game's traits are stickers on their card, the name is written on the game's own sheet, and the grain is wood — done
+
+The Traits step is the Traits card itself now, zoomed up on the table, its modifiers die-cut stickers
+stuck on crooked and traded by drag or click; the trait that matters most - the subclass's spellcast
+trait, or where a class that casts none leans (`keyTrait`) - is underlined; the card in the row keeps
+the stickers and the line. The last step is the loadout's own sheet (`SheetPaper.tsx`, shared with
+`LoadoutPanel.tsx`), its numbers worked out as the game will (`sheet-preview.ts` - a test holds them to
+the camp's own once it is open), the name written on its name line and Begin at its foot. And the
+table's plain stripes became a grain (`wood-grain.svg`, after the user's filter), faint and in the
+table's own brown.
+
+## Traits shared out at New Game, and the row's names on slips of paper — done
+
+New Game laid each class's traits for it; now there is a Traits step after the domain cards, as the
+SRD has it: the starting spread, +2 +1 +1 +0 +0 −1, as six tokens on a sheet of the six traits and
+what each is rolled for, laid where the class leans. A token dragged onto another trait, or a click on
+one and then the other, trades the two - the spread cannot be broken (`swapTraits`); Suggested puts
+them back; Choose sleeves the sheet into the row as a Traits card, and Choose again brings it back as
+it was left. The sheet the camp is made with takes them (`sheetFor`), and the e2e test finds them in
+the saved game. The names under the row's cards sat half under the sleeves: they are lower now, each
+on a torn slip of paper, and the step titles below them moved down to match.
+
+## New Game's cards are inspected to be read, and their words always fit — done
+
+A card clicked on New Game's table no longer lifts with a Choose beside it: it is taken up and zoomed
+to the middle of the table from wherever it lay, the rest dimmed, with Put back and Choose (a click off
+it, or Esc, puts it back the way it came). Chosen, the sleeve slides up over it there. A card in the
+row opens the same way, with Choose again. The deck draws its next card under the top one, and every
+card's picture is loaded as the table opens, so a card taken up, dragged off or zoomed never leaves a
+blank behind or shows one while its picture loads. And every card's words fit it: `fit-text.ts` sets them at
+the largest size at which all of them show, down to 4 px - the zoom is for reading the small ones. The
+e2e test zooms a card, puts it back both ways, and finds no card on the table whose words run over.
+
+## New Game's cards wear their art — done
+
+The domain cards showed their pictures in the game and not in New Game: the art index is read at the
+game's boot, which the menu comes before. `showMainMenu` reads it now. And the ancestries, communities,
+classes and subclasses wear art too, when the machine has it: `choiceArtFor` looks up `<kind>-<id>`
+in the same index (`ancestry-clank`, `class-guardian`), an illustration across the top of the card, a
+class's banner hung from its edge; with none, the card is its words. The pictures are the same
+reference's as the domain cards', in the git-ignored `public/cards/` - never committed, never built.
+The e2e test serves an index and pictures of its own, so it runs the same on a machine without them.
+
+## Minis seen from above and turned in the hand; everything on from the left; sleeves from below — done
+
+The table looks straight down on the minis now, and they come on from off its left edge into their
+line - as does everything that comes onto the table: a deck, the title, a card set in the row, the
+name card. A click on a mini no longer rings it: it is taken up close, facing the player, and dragging
+left or right turns it about its own upright - only that, so it never tips - and Choose or Put back
+(or a click on the table, or Esc) follow. A mini is not sleeved: chosen, it stands in the row as it is
+seen from above, on the bare table - nothing drawn round it - (`ui/mini-portraits.ts`, which replaced the turning card). The cards' sleeves are
+hard-edged rectangles now, and come up from the bottom of the screen.
+
+## The models in New Game, as minis on the table — done
+
+The Model step is not a deck of portraits any more: the figures stand on the wooden table as
+miniatures (`ui/mini-table.ts`) - dropped into a line, shadows on the wood, a name plate at each one's
+feet. One is picked up by a press and a drag (it lifts and leans as it is carried) and put down where
+it is let go; a double-click on the bare table walks them back into line; a click rings it in gold and
+puts Choose on its plate. The camera keeps one scale however few stand there, and the line spreads for
+wide figures. The chosen model's card in the row holds the figure turning (`ui/model-turntable.ts`,
+one off-screen context for every such card). The e2e test clicks the figure itself on the canvas,
+carries one across the table, lines them up again, and finds the chosen card's figure drawn and turning.
+
+## New Game at a card table, the camp on its ground, and models for four ancestries — done
+
+New Game is a wooden table now (`ui/NewGame.tsx`, `ui/table.css`): a face-up deck per choice, only
+its top card seen; cards dragged off and put down anywhere; a double-click on the table gathers them
+back, which the tip at the bottom says; a click lifts a card and puts Choose beside it; chosen, it is
+sleeved and set in the row along the top, the table swept and the next deck dealt; Choose again from
+the row takes the sleeve off and brings its deck back. Text-only domain cards (47 of 189 have no
+script) are marked. The camp's ground floated: it was painted as terrain with structure tile kinds;
+it is laid as level-0 floor pieces on plain ground now, as the demo's is. The user's eight new models
+- Fungril, Faerie, Faun and Ribbet, male and female - are named for their ancestries
+(`faun-female.glb`...), shrunk from 11-26 MB to 2-3 MB each (originals in `public/models/heavy/`), on
+Hugging Face and in `models.lock.json`. And the shipped character pack had lost the printed text of
+seven cards (the tool kept the abilities file's blank copy); it keeps the content file's words now,
+and a test pins that only Rogue's Dodge, blank in both files, is left without them.
+
+## A main menu, New Game, and packs a project lists — done
+
+The page opens on a **main menu** (`game/start.ts`, `ui/MainMenu.tsx`): **New Game**, **Load Game**
+(played only - no editor, `Ctrl+E` refused), **Edit Game** (the app as it was). Each choice opens
+the page again by address; the tests' server skips the menu, `?menu` reaches it, and Settings has
+**Main menu**. **New Game** (`ui/NewGame.tsx`) is ancestry, model, community, class, subclass, two
+domain cards and a name, each a row of cards; Begin builds a camp (`camp.ts`) with the character as
+the party and the company as figures round the fire, keeps it in the browser (`game-projects.ts`)
+and opens it (`?play&project=`). Saves record their project (`SaveSlot.project`), each game has its
+own quick save and autosave, and Load Game lists them under their game.
+
+Projects now **list packs** (`project.packs`, `game/listed-packs.ts`): shipped packs laid over the
+project as it opens and left out when it is saved. The first is `srd-characters` - the SRD's
+classes, subclasses, ancestries, communities and cards with their scripts, shipped by the user's
+choice (26 September 2026), written by `tools/ship-srd-characters.mjs`. Project ▾ lists and unlists
+it, one undo step.
+
+Decisions the user can overturn: a model is an ancestry's by its **file name** (`elf-…glb`), not a
+field in the Models workspace, since new models arrive as files; the company's models stand in for
+an ancestry with none of its own. Traits and gear per class are the engine's (`new-character.ts`).
+
+**Still open:** the camp's company is scenery - talking to them and taking them along is the next
+step; the creation wizard does not ask for experiences, traits or gear (defaults, editable in Edit
+Game); no starting items; the six company models belong to no ancestry; Load Game cannot delete a
+game yet. Unit `listed-packs.test.ts`, `camp.test.ts`, `start.test.ts`; e2e `main-menu.spec.ts`.
+
 ## The passives' emblems are gone from the top of the screen — done
 
 The row of round emblems at the top centre (`.relics` in `ActionBar.tsx`) showed the selected

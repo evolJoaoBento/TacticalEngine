@@ -11,6 +11,7 @@ import type { ModelAsset } from '../engine/render/assets';
 import { modelNamesIn } from '../engine/scene/model-references';
 import type { ProjectDoc } from '../engine/scene/schema';
 import type { Edit } from './session';
+import { ownerOfModelUrl } from '../game/your-models';
 
 /**
  * The project as a save writes it: without the embedded models - imported into the Models panel,
@@ -20,6 +21,9 @@ import type { Edit } from './session';
  * carried 80 MB of them. One that is placed is kept, so the file still draws everything in it; one
  * left out is still remembered, and still offered in the editor.
  *
+ * A model from the player's own folder (`game/your-models.ts`) is laid under every project they open
+ * in the same way, so one that nothing names is left out too.
+ *
  * `alsoNamed` is what the game draws by that the project does not say: its own table of models.
  * The project being edited is not touched - the answer is a copy, or the same object when there is
  * nothing to leave out.
@@ -27,7 +31,8 @@ import type { Edit } from './session';
 export function withoutUnusedEmbedded(project: ProjectDoc, alsoNamed: Iterable<string> = []): ProjectDoc {
   const named = modelNamesIn(project);
   for (const id of alsoNamed) named.add(id);
-  const kept = project.assets.filter((asset) => !asset.url.startsWith('data:') || named.has(asset.id));
+  const laid = (url: string): boolean => url.startsWith('data:') || ownerOfModelUrl(url) !== null;
+  const kept = project.assets.filter((asset) => !laid(asset.url) || named.has(asset.id));
   return kept.length === project.assets.length ? project : { ...project, assets: kept };
 }
 

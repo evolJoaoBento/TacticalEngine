@@ -117,6 +117,8 @@ export function buildTileModels(grid: TileGrid, layout: TileLayout, build: Build
     const lift = built.spec.groundOffset ?? 0;
     const group = new Group();
     group.name = `tiles:${typeId}`;
+    // Which model every tile in it is, for whatever asks what the pointer is over (`SceneView.artUnder`).
+    group.userData['model'] = kind.model;
     if (mesh === null) {
       // Not instanceable - a procedural build of many parts, or a placeholder standing in
       // while the file is still on its way. One per tile, as it was, and the redraw when
@@ -210,6 +212,7 @@ function buildPieceModels(grid: TileGrid, layout: TileLayout, build: BuildModel)
     const lift = built.spec.groundOffset ?? 0;
     const group = new Group();
     group.name = `pieces:${typeId}`;
+    group.userData['model'] = kind.model;
     if (mesh === null) {
       // Still on its way, or a build of many parts: one per piece, as the ground does.
       for (const piece of pieces) {

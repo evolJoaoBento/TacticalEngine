@@ -33,11 +33,12 @@ two thirds.
 | Characters | SRD classes/ancestries/communities/armor/weapons; sheets deriving the real numbers |
 | Scripting | One schema for conditions and effects; a stepper that pauses for input |
 | Interaction | Use a thing: keys, locked text, an action roll, effects and prose per outcome |
-| Editor | Terrain/height/props/objects/enemies/triggers/spawns, undo, validation, JSON save+load |
+| Editor | Terrain/height/props/objects/enemies/triggers/spawns, creatures of the project's own (copied from one, stat block edited; features not yet), undo, validation, JSON save+load |
 | UI | Narrative log with tone, the conversation panel, and the roll prompt a script raises |
 | Campaign | Two scenes, travel between them, and state that outlives a room |
 | Saving | A campaign put down and picked up: rooms, pack, flags, and the dice position |
 | Quests | Start, tick, finish; a journal; a demo quest across two rooms |
+| Accounts & store | Sign in on the dev server, each player's games and saves their own; a store of published art where creators show their work - How I Made It and Process Proof - and are marked AI until they do, with a Human-Crafted Authenticity vote on work shown; for sale only with the work shown and never AI generated (no payments yet; dev server only); every engine model listed, and Get puts a model into the player's own models, which every project they open has and which a project they open adds to on the fly |
 | Presentation | Orbit/pan/zoom camera, hover cursor, party HUD with pips, dice read out |
 | Progression | Tiered level-ups with recorded advancements, subclasses, domain cards, multiclass |
 | Equipping | Weapons and armor from the pack onto a character, reversible, pools reconciled |

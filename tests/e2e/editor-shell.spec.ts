@@ -289,3 +289,42 @@ test('the scene picker switches the room being edited, and the top bar undoes', 
   expect(await pieces()).toEqual(before);
   expect(errors).toEqual([]);
 });
+
+test('Encounters: a creature copied as a new one is the project\u2019s own, changed, and in the strip to place', async ({ page }) => {
+  const errors = await editing(page);
+  await page.locator('[data-testid="mode-combat"]').click();
+  const strip = page.locator('[data-testid="combat-library"]');
+  await strip.locator('[data-testid="library-search"]').fill('hound');
+  const hound = strip.locator('[data-item]').first();
+  const original = (await hound.getAttribute('data-item'))!;
+  await hound.click();
+  // A creature the build ships is only copied, never changed where it stands.
+  await expect(page.getByTestId('picked-creature-name')).toContainText('Hound');
+  await expect(page.getByTestId('creature-editor')).toHaveCount(0);
+
+  await page.getByTestId('copy-creature').click();
+  const editor = page.getByTestId('creature-editor');
+  await expect(editor).toBeVisible();
+  await expect(page.getByTestId('picked-creature-name')).toContainText('(copy)');
+  await page.getByTestId('creature-name').fill('Ember Hound');
+  await page.getByTestId('creature-hp').fill('11');
+  await page.getByTestId('creature-hp').press('Tab');
+  // A change that would not leave a whole stat block is refused, with the reason, and not made.
+  await page.getByTestId('creature-hp').fill('0');
+  await page.getByTestId('creature-hp').press('Tab');
+  await expect(page.getByTestId('creature-refused')).toContainText('Hit Points is too small');
+  await page.screenshot({ path: 'test-results/creature-editor.png' });
+
+  const made = await page.evaluate((from) => {
+    const project = JSON.parse(window.__engine!.exportProject()) as { adversaries: { id: string; name: string; hitPoints: number }[]; adversaryModels: Record<string, string> };
+    const def = project.adversaries.find((entry) => entry.id === `${from}-copy`);
+    return { def, model: project.adversaryModels[`${from}-copy`] };
+  }, original);
+  expect(made.def).toMatchObject({ name: 'Ember Hound', hitPoints: 11 });
+  // Drawn as the one it was copied from.
+  expect(made.model).toBe(original);
+  // In the strip, to be placed like any other.
+  await strip.locator('[data-testid="library-search"]').fill('ember');
+  await expect(strip.locator(`[data-item="${original}-copy"]`)).toBeVisible();
+  expect(errors).toEqual([]);
+});

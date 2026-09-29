@@ -22,11 +22,13 @@ the repo has moved between machines, so never hardcode a path or a home director
   instruction. All content text is English.
 - **`legacy/` is never modified.** It is the original prototype, kept runnable. Read
   `docs/research/legacy-*.md` instead of its sources.
-- **The only rules text vendored is the equipment catalogue.** `tools/srd-sources/` is gone and
-  the engine ships its own starter pack; the one exception, chosen by the user on 25 September 2026,
-  is `src/engine/content/equipment/catalogue.json` - the loot cards' stats and text, SRD Public
-  Game Content under the DPCGL - with its pictures (the user's own art) on Hugging Face beside the
-  models. Both the 2.0 and 1.0 attributions must survive; `docs/CONTEXT.md` holds the wording, and
+- **The rules text vendored is the equipment and the character content, nothing else.**
+  `tools/srd-sources/` is gone and the engine ships its own starter pack; the exceptions, each the
+  user's choice, are `src/engine/content/equipment/catalogue.json` (25 September 2026: the loot
+  cards' stats and text, their pictures - the user's own art - on Hugging Face beside the models)
+  and `src/engine/content/pack/shipped/srd-characters.json` (26 September 2026: the classes,
+  subclasses, ancestries, communities and cards, with the scripts they run - text only). Both are
+  SRD Public Game Content under the DPCGL. Both the 2.0 and 1.0 attributions must survive; `docs/CONTEXT.md` holds the wording, and
   is now the only place that does.
 - **The engine core is DOM-free**, there is one effect schema, RNG is seeded, and every module is
   tested. `npx tsc --noEmit` is the only static check — there is no lint and no formatter, so match

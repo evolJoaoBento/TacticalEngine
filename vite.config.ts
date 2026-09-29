@@ -3,11 +3,15 @@ import { fileURLToPath, URL } from 'node:url';
 import { publicAssets } from './tools/build-public-assets.ts';
 import { modelManifest } from './tools/model-manifest.ts';
 import { defaultProject } from './tools/default-project.ts';
+import { artProvenance } from './tools/art-provenance.ts';
+import { accounts } from './tools/accounts.ts';
+import { store } from './tools/store.ts';
+import { yourModels } from './tools/your-models.ts';
 
 const dir = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 
 export default defineConfig({
-  plugins: [publicAssets(), modelManifest(), defaultProject()],
+  plugins: [publicAssets(), modelManifest(), defaultProject(), artProvenance(), accounts(), store(), yourModels()],
   oxc: { jsx: { runtime: 'automatic', importSource: 'preact' } },
   resolve: {
     alias: {

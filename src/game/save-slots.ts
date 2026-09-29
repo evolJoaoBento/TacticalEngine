@@ -13,6 +13,8 @@
  * id every time.
  */
 
+import { currentUser, userKey } from './accounts';
+
 export interface SlotStore {
   get(key: string): string | null;
   set(key: string, value: string): void;
@@ -26,7 +28,24 @@ export interface SaveSlot {
   savedAt: number;
   /** A line for the list: where the party was. */
   where: string;
+  /**
+   * The project the save is of, so the main menu's Load Game can open the right one. Left out by
+   * saves written before it was recorded, which were all of the demo (`DEFAULT_SAVE_PROJECT`).
+   */
+  project?: string;
 }
+
+/** The project a save that does not say is of: the only one there was when saves did not say. */
+export const DEFAULT_SAVE_PROJECT = 'demo';
+
+/**
+ * A fixed slot - the quick save, the autosave - for one project: its own, so a camp's quick save
+ * never writes over the demo's. The demo keeps the bare name, which its saves always had.
+ */
+export const projectSlot = (slot: string, project: string): string => (project === DEFAULT_SAVE_PROJECT ? slot : `${slot}-${project}`);
+
+/** The project a slot is a save of. */
+export const projectOfSlot = (slot: SaveSlot): string => slot.project ?? DEFAULT_SAVE_PROJECT;
 
 export const QUICK_SLOT = 'quick';
 export const AUTO_SLOT = 'auto';
@@ -78,9 +97,9 @@ export class SaveSlots {
    * Write a slot. A fixed id overwrites; a new id is minted when none is given.
    * Returns the slot as listed, or null when the store refused.
    */
-  write(text: string, name: string, where: string, id?: string): SaveSlot | null {
+  write(text: string, name: string, where: string, id?: string, project?: string): SaveSlot | null {
     const slotId = id ?? `s${this.now().toString(36)}${Math.floor(Math.random() * 1296).toString(36)}`;
-    const slot: SaveSlot = { id: slotId, name, savedAt: this.now(), where };
+    const slot: SaveSlot = { id: slotId, name, savedAt: this.now(), where, ...(project === undefined ? {} : { project }) };
     try {
       this.store.set(SLOT_PREFIX + slotId, text);
       const index = this.readIndex().filter((entry) => entry.id !== slotId);
@@ -126,13 +145,22 @@ export class SaveSlots {
   }
 }
 
-/** A store over `localStorage`, or a dead one when the browser refuses. */
-export function browserStore(): SlotStore {
+/**
+ * A store over `localStorage`, each player's keys apart from every other's (`userKey`, `accounts.ts`):
+ * the games and saves a store holds are the signed-in player's own. Admin, and nobody signed in, keep
+ * the keys as they always were.
+ */
+export function browserStore(user: string | null = currentUser()): SlotStore {
   return {
-    get: (key) => window.localStorage.getItem(key),
-    set: (key, value) => window.localStorage.setItem(key, value),
-    remove: (key) => window.localStorage.removeItem(key),
+    get: (key) => window.localStorage.getItem(userKey(key, user)),
+    set: (key, value) => window.localStorage.setItem(userKey(key, user), value),
+    remove: (key) => window.localStorage.removeItem(userKey(key, user)),
   };
+}
+
+/** A store over `localStorage` shared by every player: what belongs to the browser, not to one of them (imported card art). */
+export function sharedBrowserStore(): SlotStore {
+  return browserStore(null);
 }
 
 /** A store over a `Map`, for tests. */

@@ -64,6 +64,9 @@ export interface TopBarProps {
   onImportPack: (files: readonly File[]) => void;
   /** The project's content, written out as a pack file another project can import. */
   onExportPack: () => void;
+  /** The shipped packs a project can list, and whether this one does. */
+  packs?: readonly { id: string; name: string; description: string; listed: boolean }[];
+  onTogglePack?: (id: string) => void;
   onCheck: () => void;
   onUndo: () => void;
   onRedo: () => void;
@@ -171,6 +174,24 @@ export function TopBar(props: TopBarProps): preact.JSX.Element {
             >
               Export pack
             </button>
+            {/* The shipped packs this project is played with: laid over it when it opens, left out of
+                the file when it is saved. A tick is listed; a click lists it or stops. */}
+            {(props.packs ?? []).length === 0 ? null : <div class="ph-sep" />}
+            {(props.packs ?? []).map((pack) => (
+              <button
+                key={pack.id}
+                class="ph-item"
+                data-testid={`pack-${pack.id}`}
+                aria-pressed={pack.listed ? 'true' : 'false'}
+                title={`${pack.description}. ${pack.listed ? 'Listed: this project is played with it.' : 'Not listed.'}`}
+                onClick={() => {
+                  props.onMenu(null);
+                  props.onTogglePack?.(pack.id);
+                }}
+              >
+                {pack.listed ? '✓ ' : ''}{pack.name}
+              </button>
+            ))}
             <button
               class="ph-item"
               data-testid="check-project"

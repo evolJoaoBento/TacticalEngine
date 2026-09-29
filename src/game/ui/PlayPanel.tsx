@@ -19,6 +19,7 @@ import { SettingsModal } from './SettingsModal';
 import { GearFace } from './GearBinder';
 import type { GearCard } from '../gear';
 import './hud.css';
+import { ArtNote } from './AiNote';
 
 
 /**
@@ -157,6 +158,8 @@ export function PlayPanel(props: PlayPanelProps): preact.JSX.Element | null {
 
   return (
     <div className="play panel">
+      {/* How the art under the pointer was made, in the corner: the board's, the cards', the portraits'. */}
+      <ArtNote />
       <RollStage
         rolls={props.rolls}
         millis={props.millis}

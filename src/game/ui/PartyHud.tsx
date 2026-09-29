@@ -16,6 +16,7 @@ import { dropTargetAt, type Drop } from '../party-drop';
 import { chainSpans, strandedIds } from './party-chain';
 import { WOUND_MS, markedNow, woundsSince } from './hud-wounds';
 import { PIP_ICONS, type PipIcon } from './pool-icons';
+import { artNoteHandlers } from './AiNote';
 
 export interface HudMember {
   id: string;
@@ -37,6 +38,8 @@ export interface HudMember {
   group: number | null;
   /** In a conversation set aside while somebody else is selected: held until it is picked up again. */
   talking?: boolean;
+  /** The model they are drawn with, for the note on their photo that says how it was made. */
+  model?: string;
 }
 
 export interface PartyHudProps {
@@ -235,7 +238,7 @@ export function PartyHud(props: PartyHudProps): preact.JSX.Element | null {
           }}
         >
           {shot === null ? null : (
-            <span className="hud-shot" data-testid="portrait">
+            <span className="hud-shot" data-testid="portrait" {...artNoteHandlers(member.model === undefined ? null : `model:${member.model}`)}>
               {/* Not the browser's own image drag: a press on the photo picks the card up, like a press anywhere else on it. */}
               <img src={shot} alt="" aria-hidden="true" draggable={false} />
             </span>

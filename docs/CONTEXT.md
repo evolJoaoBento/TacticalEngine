@@ -60,7 +60,7 @@ Dev server: `npm run dev` → http://127.0.0.1:8420. Playwright starts its own s
 - Legacy prototype (what the user built, to be ported/superseded): `legacy/js/*.js`, `legacy/README.md`.
   Static analysis of it lives in `docs/research/legacy-{game,campaign,editor-ui,models}.md` — read those before
   re-reading the legacy sources; they carry `file:line` anchors and a port verdict per behaviour.
-- **No SRD material is vendored any more, but the equipment.** `tools/srd-sources/` held the
+- **No SRD material is vendored any more, but the equipment and the character content.** `tools/srd-sources/` held the
   official 2.0 text and two community data sets; it is gone, along with the card and adversary
   libraries built from it. The engine ships `src/engine/content/pack/starter.ts` — its own
   high-fantasy pack, nobody else's content — and reads anything else as an imported pack, through
@@ -72,6 +72,14 @@ Dev server: `npm run dev` → http://127.0.0.1:8420. Playwright starts its own s
   `tools/loot-cards.mjs` from the user's card export. Their pictures are the user's own art: 44 MB of
   WebP at 750×1050 on Hugging Face beside the models (`equipment.lock.json`, fetched by `npm run models` into
   `public/equipment/`), never in git.
+
+  The second is the character content, by the user's choice on 26 September 2026, for New Game:
+  the SRD's 9 classes, 18 subclasses, 18 ancestries, 9 communities and their cards - the domain
+  cards and every feature, each a card - with the 185 abilities, 54 conditions and 3 scripts they
+  run, as `src/engine/content/pack/shipped/srd-characters.json`. `tools/ship-srd-characters.mjs`
+  writes it from the git-ignored export in `packs/` through the engine's own reader. Weapons, armour
+  and adversaries from that export stay local. A project uses it by listing it
+  (`project.packs`, `game/listed-packs.ts`).
 
   The catalogue was not discarded. `tools/export-pack.ts` (deleted with the sources, retrievable
   from history) wrote it out as `packs/srd.json`, the content as one `contentPackSchema` document,
