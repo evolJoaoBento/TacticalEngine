@@ -12,6 +12,15 @@ head and shoulders is already the creature tool's, on the same rail. Only what i
 the mode's id is still `combat`, so `mode-combat`, the tool lists and every test that picks it are
 as they were. Older entries below still say Combat. Unit `editor/modes.test.ts`.
 
+## Combat runs in Rust, roll for roll — done
+
+`server/engine/src/combat` is `src/engine/combat` ported - targeting, areas and moves under pressure,
+stat blocks' features, attacks rolled from the same seeds to the same outcomes and landed on the same
+pools, defences by policy and by plan, and encounters' turns - on the part of the scene state a fight
+touches (`server/engine/src/scene/state.rs`). Held to `server/fixtures/combat.json`. Found on the way:
+`tilesInArea` scanned between tiles when a band table's reach was fractional; fixed on both sides.
+`docs/SERVER.md` has the detail; the script module is next.
+
 ## The content schemas read in Rust, in zod's own words — done
 
 `server/engine/src/content/schema.rs` and `document.rs` are the content schemas and `readPack` ported,

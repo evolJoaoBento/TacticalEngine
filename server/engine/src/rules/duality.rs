@@ -11,7 +11,8 @@ pub const GOOD_DIE_SIDES: u32 = 12;
 pub const BAD_DIE_SIDES: u32 = 12;
 pub const ADVANTAGE_DIE_SIDES: u32 = 6;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum RollOutcome {
     CriticalSuccess,
     SuccessWithGood,
@@ -52,11 +53,14 @@ pub struct DualityRollOptions {
     pub reaction: Option<bool>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+/// As JSON, the TypeScript's `DualityRoll`: `goodSides` only when the Light Die was not a d12.
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DualityRoll {
     pub good: u32,
     pub bad: u32,
     /// The Light Die's faces, only when they were not twelve.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub good_sides: Option<u32>,
     /// +d6, -d6, or 0 when advantage and disadvantage cancel.
     pub advantage_die: f64,

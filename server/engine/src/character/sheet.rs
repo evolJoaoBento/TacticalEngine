@@ -3,6 +3,7 @@
 //! and the attack a weapon makes. A sheet names its content by id; an id the content lacks is reported
 //! and the character is derived without it, as the TypeScript does.
 
+use crate::combat::attack::{AttackProfile, AttackerKind, DefenderProfile};
 use crate::character::progression::{held_cards, progression_bonuses, subclass_stage, tier_of, LevelRecord, Tier};
 use crate::content::abilities::{abilities_for, AbilityDef, AbilityModifier, Requires, Stat};
 use crate::content::features::gear_effects;
@@ -325,28 +326,6 @@ pub fn wielded_trait(spellcast_trait: Option<Trait>, weapon: WeaponTrait) -> Tra
     }
 }
 
-/// Who makes an attack. A character's is always `pc`.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub enum AttackerKind {
-    Pc,
-    Adversary,
-}
-
-/// The attack a character makes, ready for the attack roll (`combat/attack.ts`'s `AttackProfile`, the
-/// part a sheet fills in; the rest arrives with the combat port).
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct AttackProfile {
-    pub kind: AttackerKind,
-    pub name: String,
-    pub modifier: DiceExpression,
-    #[serde(rename = "trait")]
-    pub trait_: Trait,
-    pub range: RangeBand,
-    pub damage: ParsedDamage,
-    pub proficiency: f64,
-}
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Hand {
     Primary,
@@ -369,10 +348,12 @@ pub fn attack_profile(character: &DerivedCharacter, which: Hand) -> AttackProfil
         kind: AttackerKind::Pc,
         name,
         modifier: DiceExpression { count: 0.0, sides: 0.0, modifier: traits.of(trait_) },
-        trait_,
+        trait_: Some(trait_),
         range,
         damage,
-        proficiency: character.proficiency,
+        proficiency: Some(character.proficiency),
+        direct: None,
+        double: None,
     }
 }
 
@@ -388,14 +369,8 @@ pub fn trait_part(plus_trait: Option<Trait>, halve_trait: Option<bool>, traits: 
 }
 
 /// How this character is attacked: Evasion and thresholds.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
-pub struct DefenderProfile {
-    pub difficulty: f64,
-    pub thresholds: DamageThresholds,
-}
-
 pub fn defender_profile(character: &DerivedCharacter) -> DefenderProfile {
-    DefenderProfile { difficulty: character.evasion, thresholds: character.thresholds }
+    DefenderProfile { difficulty: character.evasion, thresholds: character.thresholds, defenses: None }
 }
 
 /// The starting pools for a character entering a scene.

@@ -3,7 +3,8 @@
 //! die, never more; only a ranged attack is made through it.
 
 /// Whether an obstruction stands between an attacker and their target.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum Cover {
     None,
     Cover,

@@ -138,3 +138,69 @@ mod tests {
 pub fn utf16_cmp(a: &str, b: &str) -> std::cmp::Ordering {
     a.encode_utf16().cmp(b.encode_utf16())
 }
+
+/// `Number(text)` for a string: JavaScript's whitespace trimmed, empty is 0, `Infinity`, hex, octal and
+/// binary literals, decimals with an exponent; anything else NaN.
+pub fn number_of(text: &str) -> f64 {
+    let text = trim(text);
+    if text.is_empty() {
+        return 0.0;
+    }
+    match text {
+        "Infinity" | "+Infinity" => return f64::INFINITY,
+        "-Infinity" => return f64::NEG_INFINITY,
+        _ => {}
+    }
+    let radix = |digits: &str, base: u32| -> f64 {
+        if digits.is_empty() || !digits.chars().all(|c| c.is_digit(base)) {
+            return f64::NAN;
+        }
+        digits.chars().fold(0.0, |total, c| total * f64::from(base) + f64::from(c.to_digit(base).unwrap()))
+    };
+    let lower = text.get(..2).map(str::to_ascii_lowercase);
+    match lower.as_deref() {
+        Some("0x") => return radix(&text[2..], 16),
+        Some("0o") => return radix(&text[2..], 8),
+        Some("0b") => return radix(&text[2..], 2),
+        _ => {}
+    }
+    // A decimal: [+-] digits [. digits] [e [+-] digits], at least one digit before the exponent.
+    let bytes = text.as_bytes();
+    let mut i = 0;
+    if matches!(bytes.first(), Some(b'+' | b'-')) {
+        i += 1;
+    }
+    let start = i;
+    while i < bytes.len() && bytes[i].is_ascii_digit() {
+        i += 1;
+    }
+    let mut digits = i - start;
+    if i < bytes.len() && bytes[i] == b'.' {
+        i += 1;
+        let fraction = i;
+        while i < bytes.len() && bytes[i].is_ascii_digit() {
+            i += 1;
+        }
+        digits += i - fraction;
+    }
+    if digits == 0 {
+        return f64::NAN;
+    }
+    if i < bytes.len() && (bytes[i] == b'e' || bytes[i] == b'E') {
+        i += 1;
+        if matches!(bytes.get(i), Some(b'+' | b'-')) {
+            i += 1;
+        }
+        let exponent = i;
+        while i < bytes.len() && bytes[i].is_ascii_digit() {
+            i += 1;
+        }
+        if i == exponent {
+            return f64::NAN;
+        }
+    }
+    if i != bytes.len() {
+        return f64::NAN;
+    }
+    text.parse().unwrap_or(f64::NAN)
+}

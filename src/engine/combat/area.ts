@@ -89,8 +89,9 @@ export function tilesInArea(
   if (!grid.isTile(origin)) return out;
   const radius = options.radius ?? AREA_OF_EFFECT_BAND;
   const table = options.bandTiles;
-  // Bound the scan by the radius in tiles rather than sweeping the whole grid.
-  const reach = maxTiles(radius, table);
+  // Bound the scan by the radius in tiles rather than sweeping the whole grid - in whole tiles, so a
+  // table whose band ends part-way across a tile still scans tiles and not the spaces between them.
+  const reach = Math.ceil(maxTiles(radius, table));
   const ox = grid.xOf(origin);
   const oy = grid.yOf(origin);
   for (let y = Math.max(0, oy - reach); y <= Math.min(grid.height - 1, oy + reach); y++) {

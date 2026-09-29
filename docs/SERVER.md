@@ -97,7 +97,7 @@ added after, so the rules are not redesigned while they are being transliterated
 
 ```bash
 cd server && cargo test                                         # the Rust port against its fixtures
-npx vitest run src/engine/grid/grid.golden.test.ts src/engine/rules/rules.golden.test.ts src/engine/character/character.golden.test.ts src/engine/dialogue/dialogue.golden.test.ts src/engine/content/content.golden.test.ts   # the fixtures are still what TypeScript does
+npx vitest run src/engine/grid/grid.golden.test.ts src/engine/rules/rules.golden.test.ts src/engine/character/character.golden.test.ts src/engine/dialogue/dialogue.golden.test.ts src/engine/content/content.golden.test.ts src/engine/combat/combat.golden.test.ts   # the fixtures are still what TypeScript does
 npm run build:server && npm run server                          # the game from the Rust server alone, on 8430
 npm run server                                                  # (npm run dev starts it too, for the routes alone)
 npx vitest run tests/unit/accounts.golden.test.ts tests/unit/store.golden.test.ts   # the fixtures are still what TypeScript does
@@ -301,5 +301,24 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
   - **One difference, until the scene is ported**: `readPack` brings an older document up to date first
     (`scene/migrate.ts`), and that is not ported. Everything the server reads is at the current format
     (6), so `read_pack` refuses an older or unversioned document by name instead of reading it half-right.
-  - **Next**: `combat`, then `script` - which takes the tape out of the dialogue and the opaque parts out of
-    the content schemas.
+  - **Combat is ported** (`server/engine/src/combat`: `targeting`, `area`, `adversary_features`, `attack`,
+    `defense`, `encounter`), on the part of the scene state a fight reads and writes
+    (`server/engine/src/scene/state.rs`: creatures in the order they came, with their tile and spot, pools,
+    conditions and side; the Shadow pool; each encounter's progress - the rest comes with the scene's port).
+    The rule results now serialize as the TypeScript writes them (a Duality roll, the GM's Die, a damage
+    roll, resolved damage), the character's attack and defender profiles are combat's, and an ability
+    carries what a reaction to damage needs (its kind, trigger, cost, what it does, whether it fires by
+    itself). `combat.golden.test.ts` draws everything off seeded streams over two of the grid fixture's
+    grids: 800 targetings, 240 areas and moves under pressure, stat blocks' features (Relentless, Momentum,
+    Terrifying, Horde, Minion, read off names and brackets as JavaScript reads them), 700 attacks - each
+    from its own seed, the dice stream's position after recorded, then landed on a scene - 500 defences by
+    policy and by plan with their previews, and eight encounters of 120 turns each under both turn
+    policies. `golden_combat.rs` replays all of it; 28 of 32 deliberate mutations fail it, and the other
+    four are equivalent (a space `parseDice` ignores, a zero reduction passed or not, a ward loop that
+    stops or goes on past nothing to save, Armor Slots planned against damage they cannot touch).
+  - **A defect fixed on the way**: `tilesInArea` scanned from `origin - reach`, and with a band table whose
+    reach ends part-way across a tile it scanned the spaces between tiles, answering fractional "tiles"
+    and missing real ones. Nothing calls it with such a table yet. The scan is bounded in whole tiles now,
+    in both languages (`src/engine/combat/area.test.ts`).
+  - **Next**: `script` - effects, conditions, the runner and the world - which takes the tape out of the
+    dialogue and the opaque parts out of the content schemas; then the game layer.

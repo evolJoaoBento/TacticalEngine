@@ -193,7 +193,8 @@ pub fn max_dice(expression: &DiceExpression) -> f64 {
     expression.count * expression.sides
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DiceRoll {
     /// Every face, in roll order.
     pub rolls: Vec<u32>,

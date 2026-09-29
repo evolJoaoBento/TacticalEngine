@@ -16,7 +16,7 @@ pub const NOTHING_STACKED: i16 = -1;
 pub const SLAB_BLOCKS: f64 = 0.35;
 
 /// A place on the board in tile units, continuous: (0, 0) is the centre of the first tile.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Spot {
     pub x: f64,
     pub y: f64,

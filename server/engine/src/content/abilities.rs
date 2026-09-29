@@ -3,6 +3,8 @@
 //! order the action bar lists them. The scripts, costs and targets are the world's, and wait for its port.
 
 use crate::content::pack::{CardDef, CardGrant};
+use crate::rules::damage::DamageSeverity;
+use crate::rules::dice::DamageType;
 use crate::rules::jump::Trait;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -77,13 +79,97 @@ pub struct AbilitySource {
     pub card: String,
 }
 
-/// An ability, cut to what a sheet reads: the card it sits on and its modifiers.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum AbilityKind {
+    #[default]
+    Action,
+    Reaction,
+    Passive,
+}
+
+/// What using it costs: Light, Stress, the GM's Shadow.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct AbilityCost {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub good: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stress: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bad: Option<f64>,
+}
+
+fn one() -> f64 {
+    1.0
+}
+
+fn either() -> String {
+    "either".into()
+}
+
+/// What a reaction to incoming damage does, once its cost is paid (`damageReactionSchema`).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "camelCase", rename_all_fields = "camelCase")]
+pub enum DamageReaction {
+    /// Step the severity down, `only` narrowing it to one band.
+    ReduceSeverity {
+        #[serde(default = "one")]
+        steps: f64,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        only: Option<DamageSeverity>,
+    },
+    /// Roll dice off the damage before thresholds.
+    ReduceDamage { dice: String },
+    /// Mark more Armor Slots than the one.
+    ExtraArmor {
+        #[serde(default = "one")]
+        slots: f64,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        only: Option<DamageType>,
+    },
+    /// Stand in the way: the attack lands on the holder instead. Always asked.
+    Redirect,
+    /// Reroll the attack or the damage. Always asked.
+    Reroll {
+        #[serde(default = "either")]
+        what: String,
+    },
+}
+
+fn yes() -> bool {
+    true
+}
+
+/// An ability, cut to what the engine's ported parts read: the card it sits on, its bonuses, and - for a
+/// reaction to damage - its kind, trigger, cost and what it does. The rest (effects, targets, uses) is
+/// the script's, and waits for its port.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct AbilityDef {
     pub id: String,
     pub source: AbilitySource,
     #[serde(default)]
     pub modifiers: Vec<AbilityModifier>,
+    #[serde(default)]
+    pub kind: AbilityKind,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub trigger: Option<String>,
+    #[serde(default)]
+    pub cost: AbilityCost,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reaction: Option<DamageReaction>,
+    /// Whether a reaction the policy allows fires without being asked.
+    #[serde(default = "yes")]
+    pub auto: bool,
+}
+
+/// Whether a reaction fires without asking: one that is `auto`, and neither stands in the way nor rerolls
+/// - those are always the player's to choose.
+pub fn is_automatic(ability: &AbilityDef) -> bool {
+    match &ability.reaction {
+        None => false,
+        Some(_) if !ability.auto => false,
+        Some(reaction) => !matches!(reaction, DamageReaction::Redirect | DamageReaction::Reroll { .. }),
+    }
 }
 
 /// The ids of the cards in the loadout: the sheet's own list, cut to cards held, or the first five held.

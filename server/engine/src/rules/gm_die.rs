@@ -16,7 +16,8 @@ pub struct GmRollOptions {
     pub reaction: Option<bool>,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct GmRoll {
     pub die: u32,
     pub advantage_die: f64,

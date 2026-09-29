@@ -6,11 +6,13 @@
 //! builds to WebAssembly for the editor's playtest.
 
 pub mod character;
+pub mod combat;
 pub mod content;
 pub mod dialogue;
 pub mod grid;
 pub mod js;
 pub mod rng;
 pub mod rules;
+pub mod scene;
 pub mod schema;
 pub mod zod;

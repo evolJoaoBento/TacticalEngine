@@ -53,7 +53,8 @@ pub fn nearer_band(a: RangeBand, b: RangeBand) -> RangeBand {
 }
 
 /// The upper bound of each band in tiles.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct BandTiles {
     pub melee: f64,
     pub very_close: f64,

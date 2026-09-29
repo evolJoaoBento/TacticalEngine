@@ -8,7 +8,8 @@
 use super::tile_grid::{TileGrid, SLAB_BLOCKS};
 use crate::rules::cover::{combine_cover, Cover};
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct LineOfSightRules {
     /// How much higher than both ends a tile must stand before it blocks sight, in levels of ground.
     pub blocking_height_margin: f64,

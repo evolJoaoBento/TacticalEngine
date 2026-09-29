@@ -6,7 +6,8 @@ use crate::js;
 use crate::rng::{RangeError, Rng};
 use crate::rules::dice::{max_dice, parse_dice, roll_dice, with_proficiency, DamageType, DiceExpression, DiceRoll};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum DamageSeverity {
     None,
     Minor,
@@ -128,13 +129,16 @@ pub fn armor_score(base: f64, bonus: f64) -> f64 {
 }
 
 /// Damage taken off before thresholds: "3", "1d10", only against one type or every kind.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct DamageReduction {
     pub dice: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub only: Option<DamageType>,
 }
 
-#[derive(Clone, Debug, Default, PartialEq)]
+/// As JSON, every list may be left out.
+#[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(default)]
 pub struct DamageDefenses {
     pub resistances: Vec<DamageType>,
     pub immunities: Vec<DamageType>,
@@ -187,7 +191,8 @@ pub fn apply_defenses(amount: f64, types: &[DamageType], defenses: &DamageDefens
     amount
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum CriticalRule {
     /// The official text: add the maximum the damage dice can show.
     MaxDicePlusRoll,
@@ -220,6 +225,24 @@ pub struct DamageRollResult {
     pub total: f64,
 }
 
+/// As JSON, the TypeScript's `{ ...roll, expression, critical, criticalBonus, bonus, total }`: the dice
+/// roll's own fields, its `total` replaced by the damage's.
+impl serde::Serialize for DamageRollResult {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        use serde::ser::SerializeMap;
+        let mut map = serializer.serialize_map(Some(8))?;
+        map.serialize_entry("rolls", &self.roll.rolls)?;
+        map.serialize_entry("diceTotal", &self.roll.dice_total)?;
+        map.serialize_entry("modifier", &self.roll.modifier)?;
+        map.serialize_entry("expression", &self.expression)?;
+        map.serialize_entry("critical", &self.critical)?;
+        map.serialize_entry("criticalBonus", &self.critical_bonus)?;
+        map.serialize_entry("bonus", &self.bonus)?;
+        map.serialize_entry("total", &self.total)?;
+        map.end()
+    }
+}
+
 /// Roll damage: Proficiency scales the dice, a critical adds its bonus, and a flat bonus goes on last.
 pub fn roll_damage(rng: &mut Rng, expression: &DiceExpression, options: &DamageRollOptions) -> Result<DamageRollResult, RangeError> {
     let expression = with_proficiency(expression, options.proficiency);
@@ -235,13 +258,15 @@ pub fn roll_damage(rng: &mut Rng, expression: &DiceExpression, options: &DamageR
     Ok(DamageRollResult { roll, expression, critical: options.critical, critical_bonus, bonus: options.bonus, total })
 }
 
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(default)]
 pub struct IncomingDamage {
     pub amount: f64,
     pub types: Vec<DamageType>,
     /// Direct damage cannot be reduced by Armor Slots.
     pub direct: bool,
     /// The band named outright, with no number to compare.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub severity: Option<DamageSeverity>,
 }
 
@@ -254,7 +279,8 @@ pub struct ResolveDamageOptions {
     pub rolled_reduction: Option<f64>,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ResolvedDamage {
     pub incoming: f64,
     pub reduced: f64,
