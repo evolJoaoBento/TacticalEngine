@@ -66,8 +66,12 @@ added after, so the rules are not redesigned while they are being transliterated
 - **The schemas' defaults are load-bearing.** zod's `.default()` chains let a project written years
   ago still load. serde must parse the same JSON: `#[serde(default)]` field by field, checked against
   the shipped projects and packs as fixtures.
-- **Floating point**: rules use `+ - * /` and `Math.sqrt` (exact in IEEE on both sides). Anything
-  else (`Math.pow`, trig) is checked for where it reaches the rules before its module is ported. And a
+- **Floating point**: `+ - * /` and `Math.sqrt` are exact in IEEE on both sides; the rest is not, and
+  is reproduced as V8 computes it (`server/engine/src/js.rs`). `Math.hypot` is V8's scaled Kahan sum, not
+  `f64::hypot` - which differs in the last bit on the grid's own inputs, and fails the fixture - and
+  `Math.round` rounds a half upwards (`Math.round(-0.5)` is -0), where `f64::round` goes away from zero:
+  at a body's rim by the map's edge that is whether a tile is on the board. `Math.max`/`min` keep +0
+  over -0. The typed arrays keep their precision (`lift` is `f32`). And a
   float read from JSON must be read exactly: `serde_json` needs `float_roundtrip`, or a number the
   TypeScript wrote comes back a digit off (found on the Store's timestamps).
 - **A value-level fixture can hide a byte-level difference**: both sides of the comparison go through
@@ -93,6 +97,7 @@ added after, so the rules are not redesigned while they are being transliterated
 
 ```bash
 cd server && cargo test                                         # the Rust port against its fixtures
+npx vitest run src/engine/grid/grid.golden.test.ts              # the grid's fixture is still what TypeScript does
 npm run build:server && npm run server                          # the game from the Rust server alone, on 8430
 npm run server                                                  # (npm run dev starts it too, for the routes alone)
 npx vitest run tests/unit/accounts.golden.test.ts tests/unit/store.golden.test.ts   # the fixtures are still what TypeScript does
@@ -206,3 +211,18 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     as meant, but the browser logs a 404 as a console error, and 116 e2e tests failed on it.) The dev server's two file watchers retired with it; the one
     that reloads the other open pages when a model arrives stays. This is the first thing the page is
     told at run time rather than at build time - the shape phase 3 carries on.
+- **Phase 2** - started 29 September 2026.
+  - **The grid is ported** (`server/engine/src/grid`: `terrain`, `tile_grid`, `los`, `pathfinding`,
+    `walk`, with `rules/cover`): tiles and what stands on them, sight and cover, reachability and A*,
+    and the walk - a creature's body, its smoothed line, its cost. `src/engine/grid/grid.golden.test.ts`
+    builds four grids through the real API (the default palette with stacked pieces, lifts, a barred
+    edge and a void cell; a palette of its own with fractional costs and smoke; a flat room, all ties;
+    a corridor) and writes `server/fixtures/grid.json`: every tile's answers, sight and cover for every
+    pair under three margins (about 27,000), traces, 1,500 reachability fields and 375 sets of paths
+    under five movement rules and five contexts, and the walk over 3,400 spots, 480 segments, 240
+    settlings and 120 smoothed lines with everything measured along them. `golden_grid.rs` replays it,
+    every float to the last bit. The TypeScript's binary heap is ported sift for sift, since which of
+    two equally cheap tiles comes first decides which route is walked; a heap that breaks ties the
+    other way fails the fixture, and so do Rust's own `round` and `hypot`.
+  - **Next**: `src/engine/rules` - checks, damage and thresholds, Hope and Fear, ranges - then
+    `character`, each against a fixture the same way.

@@ -12,6 +12,14 @@ head and shoulders is already the creature tool's, on the same rail. Only what i
 the mode's id is still `combat`, so `mode-combat`, the tool lists and every test that picks it are
 as they were. Older entries below still say Combat. Unit `editor/modes.test.ts`.
 
+## The grid runs in Rust, to the last bit — done (phase 2 begun)
+
+`server/engine/src/grid` is `src/engine/grid` ported - tiles, sight and cover, reachability and A*, the
+walk - held to `server/fixtures/grid.json`, which `grid.golden.test.ts` writes from four grids and tens of
+thousands of answers. JavaScript's `Math.round`, `Math.hypot` and the TypeScript's heap are reproduced
+exactly (`server/engine/src/js.rs`); each of the three, done Rust's way instead, fails the fixture.
+`docs/SERVER.md` has the detail; the rules module is next.
+
 ## The page asks the server for its models and marks as it opens — done
 
 `src/game/engine-lists.ts` asks `GET /__models/shipped` and `GET /__art/marks` with a top-level `await`,
