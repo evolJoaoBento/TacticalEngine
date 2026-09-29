@@ -12,6 +12,13 @@ head and shoulders is already the creature tool's, on the same rail. Only what i
 the mode's id is still `combat`, so `mode-combat`, the tool lists and every test that picks it are
 as they were. Older entries below still say Combat. Unit `editor/modes.test.ts`.
 
+## The rules run in Rust, die for die — done
+
+`server/engine/src/rules` is `src/engine/rules` ported - dice, the Duality Dice, the GM's Die, ranges,
+countdowns, cover, damage, the pools, jumps - held to `server/fixtures/rules.json`, where every roll carries
+the dice stream's position after it. `parseDice`'s regexes are matched by hand with JavaScript's whitespace.
+`docs/SERVER.md` has the detail; the character module is next.
+
 ## The grid runs in Rust, to the last bit — done (phase 2 begun)
 
 `server/engine/src/grid` is `src/engine/grid` ported - tiles, sight and cover, reachability and A*, the

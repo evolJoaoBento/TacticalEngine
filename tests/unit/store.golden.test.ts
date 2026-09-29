@@ -59,7 +59,7 @@ const PUBLISHES: unknown[] = [
   { title: '   ', asset: { name: 'a.png', data: b64(PNG) } },
   { title: T(80), asset: { name: 'a.png', data: b64(PNG) } },
   { title: T(81), asset: { name: 'a.png', data: b64(PNG) } },
-  { title: `  ${T(80)} ﻿`, asset: { name: 'a.png', data: b64(PNG) } },
+  { title: `  ${T(80)}\u00a0\ufeff`, asset: { name: 'a.png', data: b64(PNG) } },
   { title: '\u0085Golem', asset: { name: 'a.png', data: b64(PNG) } },
   { title: '🎲'.repeat(40), asset: { name: 'a.png', data: b64(PNG) } },
   { title: '🎲'.repeat(41), asset: { name: 'a.png', data: b64(PNG) } },

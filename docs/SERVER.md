@@ -97,7 +97,7 @@ added after, so the rules are not redesigned while they are being transliterated
 
 ```bash
 cd server && cargo test                                         # the Rust port against its fixtures
-npx vitest run src/engine/grid/grid.golden.test.ts              # the grid's fixture is still what TypeScript does
+npx vitest run src/engine/grid/grid.golden.test.ts src/engine/rules/rules.golden.test.ts   # the fixtures are still what TypeScript does
 npm run build:server && npm run server                          # the game from the Rust server alone, on 8430
 npm run server                                                  # (npm run dev starts it too, for the routes alone)
 npx vitest run tests/unit/accounts.golden.test.ts tests/unit/store.golden.test.ts   # the fixtures are still what TypeScript does
@@ -224,5 +224,14 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     every float to the last bit. The TypeScript's binary heap is ported sift for sift, since which of
     two equally cheap tiles comes first decides which route is walked; a heap that breaks ties the
     other way fails the fixture, and so do Rust's own `round` and `hypot`.
-  - **Next**: `src/engine/rules` - checks, damage and thresholds, Hope and Fear, ranges - then
-    `character`, each against a fixture the same way.
+  - **The rules are ported** (`server/engine/src/rules`: `dice`, `duality`, `gm_die`, `range`,
+    `countdown`, `cover`, `damage`, `resources`, `jump`). `src/engine/rules/rules.golden.test.ts` drives every
+    function over edge-heavy inputs into `server/fixtures/rules.json`, and every roll records where the dice
+    stream stood after it - so the Rust draws the same dice in the same order, and refuses (a fractional or
+    impossible count, bad sides) without drawing any, as the TypeScript throws. `parseDice` is the
+    TypeScript's four regular expressions matched by hand: JavaScript's `\s` (U+FEFF yes, U+0085 no) and its
+    replacement rule (`'$11d$2'` is group one then a one, so `d6+d8` is refused). Three deliberate
+    mutations - Rust's whitespace, a fractional count let through, the Help dice drawn before the advantage
+    die - each fail the fixture; the last one did not until two cases rolled with both, which the fixture now has.
+  - **Next**: `src/engine/character` - a sheet derived into a character - which needs the content
+    schemas, so it begins the serde port of the project document.
