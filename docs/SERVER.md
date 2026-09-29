@@ -97,7 +97,7 @@ added after, so the rules are not redesigned while they are being transliterated
 
 ```bash
 cd server && cargo test                                         # the Rust port against its fixtures
-npx vitest run src/engine/grid/grid.golden.test.ts src/engine/rules/rules.golden.test.ts src/engine/character/character.golden.test.ts src/engine/dialogue/dialogue.golden.test.ts src/engine/content/content.golden.test.ts src/engine/combat/combat.golden.test.ts   # the fixtures are still what TypeScript does
+npx vitest run src/engine/grid/grid.golden.test.ts src/engine/rules/rules.golden.test.ts src/engine/character/character.golden.test.ts src/engine/dialogue/dialogue.golden.test.ts src/engine/content/content.golden.test.ts src/engine/combat/combat.golden.test.ts src/engine/script/script.golden.test.ts   # the fixtures are still what TypeScript does
 npm run build:server && npm run server                          # the game from the Rust server alone, on 8430
 npm run server                                                  # (npm run dev starts it too, for the routes alone)
 npx vitest run tests/unit/accounts.golden.test.ts tests/unit/store.golden.test.ts   # the fixtures are still what TypeScript does
@@ -249,8 +249,9 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     or 4; 2,264 plans tried, every refusal in the same words and order; what each gear feature plainly
     says; and what `parseSheet` lets in.
     `golden_character.rs` replays it; 27 of 28 deliberate mutations fail it (the 28th, a pair of any
-    length let past the schema, is still refused by serde's `[T; 2]`). The modifiers' `when` stays the
-    JSON it was written in until the conditions are ported with the script.
+    length let past the schema, is still refused by serde's `[T; 2]`). The modifiers' `when` is kept as
+    the JSON it was written in - read in full by the script's schema - until the conditions' evaluation
+    is ported.
   - **A defect found by the port, and fixed on both sides**: the Proficiency advancement cost both picks
     and added nothing (`levelUp` added `takenNow.get('proficiency')`, a key its `tier:kind` map never
     held). Both now count the box where the sheet is derived, as a Hit Point box is, and the fixture was
@@ -266,9 +267,9 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     and a set written for the corners through 1,689 steps. `golden_dialogue.rs` walks the same
     graphs against that tape: the same questions in the same order (a node's view is built twice on
     entering it, as the TypeScript builds it), none left unasked, the same view, prompt and journal.
-    When `script` is ported its world becomes the host, and the tape comes out. Conditions, effects and
-    a check's own fields stay the JSON they were written in; `parse_dialogue` checks the dialogue's own
-    shape in full and only that those are objects in the right places. 19 of 20 deliberate mutations
+    When `script` is ported its world becomes the host, and the tape comes out. `parse_dialogue` is on
+    the zod-alike now, reading conditions, effects and checks with the script's schemas, and its refusals
+    are compared with zod's word for word. 19 of 20 deliberate mutations
     fail the fixture; the 20th (an empty node list let past the schema) is still refused, since the
     start cannot be one of no nodes. Several of the game's own nodes are never shown in the replay:
     they are walked through by design, or gated on quest state the fixture's small world lacks.
@@ -288,13 +289,13 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     `[]` says "expected array to have >=1 items"); a union falls back to the one option that failed only
     on checks, or else "Invalid input". Every schema the engine reads content with is here: weapon,
     armor, class, ancestry, community, subclass, card, experience, adversary, ability, condition, code,
-    item, loot table, quest - and `readPack`, `packOf`, `describePack`. Conditions and effects are
-    `script/`'s and pass through as they came. `content.golden.test.ts` reads 1,807 real entries (the
+    item, loot table, quest - and `readPack`, `packOf`, `describePack`. Conditions and effects are read
+    with the script's schemas. `content.golden.test.ts` reads 1,807 real entries (the
     shipped SRD characters and the default project as written, the starter pack, the equipment
     catalogue), breaks samples of each kind at every field two levels down twelve ways, writes out 29
-    corners and 12 documents, into `server/fixtures/content.json`. `golden_content.rs` compares 5,832
-    breaks word for word, and leaves 156 - refused for something inside a condition or effect - to the
-    script port. Of 24 deliberate mutations 22 fail it; the other two are equivalent here (a string length
+    corners and 12 documents, into `server/fixtures/content.json`. `golden_content.rs` compares every
+    one of the 5,988 breaks word for word (156 of them waited, refused inside a condition or effect, until
+    the script's schemas were ported). Of 24 deliberate mutations 22 fail it; the other two are equivalent here (a string length
     counted in bytes - no content string has a minimum above one - and a default read through its own
     schema, which every default passes). Every weapon, armour, class, ancestry, subclass and card the
     schemas read also reads into the character's types.
@@ -320,5 +321,22 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     reach ends part-way across a tile it scanned the spaces between tiles, answering fractional "tiles"
     and missing real ones. Nothing calls it with such a table yet. The scan is bounded in whole tiles now,
     in both languages (`src/engine/combat/area.test.ts`).
-  - **Next**: `script` - effects, conditions, the runner and the world - which takes the tape out of the
-    dialogue and the opaque parts out of the content schemas; then the game layer.
+  - **Script, in five parts.** At 7,000 lines it is ported the way phase 2 has gone, bottom up: (1) the
+    schema, (2) the conditions' evaluation, with marks, zones and countdowns, (3) the runner, (4) the
+    world, (5) hooks in QuickJS. `rquickjs` does not build for `wasm32-unknown-unknown` as the engine crate
+    must, so the hooks may live in the serve crate, or behind a feature, with the engine asking for them
+    through a trait - to be settled when that part comes.
+  - **The script's schema is ported** (`server/engine/src/script/schema.rs`): target selectors, the 31
+    conditions and the 80 effects, checks and choice options, on the zod-alike - which gained `lazy` (the
+    vocabulary holds itself: a branch holds effects, `not` holds a condition), `record` (hook arguments;
+    a bad key is fatal, and an own `__proto__` is dropped from the output as JavaScript's assignment drops
+    it) and `null` - and the walks that visit every effect and condition inside a script.
+    `script.golden.test.ts` reads every selector, condition and effect the shipped content and the default
+    project carry, and one of every kind written out (the content leaves about thirty kinds unused), 795 in
+    all, breaks samples of each kind at every field two levels down twelve ways - 8,532 breaks - and walks
+    each effect. `golden_script.rs` compares every one word for word. With it, nothing is opaque any more:
+    the content schemas read conditions and effects in full, and the dialogue schema is on the zod-alike.
+    15 of 16 deliberate mutations fail the fixtures; the 16th (the amount union's options in another
+    order) is equivalent, as its options never overlap by type.
+  - **Next**: the conditions' evaluation (`script/conditions.ts`, with `marks`, `zones`, `countdowns`),
+    against the world's reads as a trait.

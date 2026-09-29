@@ -1,15 +1,16 @@
 //! Dialogue as authored data (`src/engine/dialogue/schema.ts`): nodes of lines and replies, a reply's
 //! check and where it leads, and where a node sits on the editor's canvas.
 //!
-//! Conditions, effects and a check's own fields are `script/`'s, which is not ported yet: they are kept
-//! as the JSON they were written in, handed to a `DialogueHost` to answer, and `parse_dialogue` checks
-//! only that they are there in the right place. What it checks in full is the dialogue's own shape - the
-//! id, the start, the nodes and their links, and the two refinements: no node id twice, and a start that
-//! is one of the nodes.
+//! Conditions, effects and a check's own fields are `script/`'s (`crate::script::schema`): `parse_dialogue`
+//! reads them in full, as zod does, with the dialogue's own shape and its two refinements - no node id
+//! twice, and a start that is one of the nodes. They are kept as the JSON they read to, and handed to a
+//! `DialogueHost` to answer.
 
-use crate::schema::{array, content_id, fail, number, object, optional, required, string, Checked, SchemaError};
+use crate::script::schema as script;
+use crate::zod::*;
 use serde::{Deserialize, Serialize};
-use serde_json::{Map, Value};
+use serde_json::{json, Map, Value};
+use std::sync::OnceLock;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct DialogueLine {
@@ -106,83 +107,68 @@ pub struct Dialogue {
     pub nodes: Vec<DialogueNode>,
 }
 
-/// A condition, an effect or a check request: `script/`'s to check in full; here, an object.
-fn opaque(value: &Value, path: &str) -> Checked {
-    object(value, path).map(|_| ())
+/// `dialogueCheckSchema`: the ordinary check request, and where to go on success or failure.
+fn dialogue_check() -> Schema {
+    let mut fields = script::check_request_fields();
+    fields.push(opt("gotoOnSuccess", string().min(1.0)));
+    fields.push(opt("gotoOnFailure", string().min(1.0)));
+    object(fields)
 }
 
-fn effects(value: &Value, path: &str) -> Checked {
-    array(value, path, opaque)
+fn effects() -> Schema {
+    array(lazy(script::effect))
 }
 
-fn link(value: &Value, path: &str) -> Checked {
-    string(value, path, true)
+fn choice() -> Schema {
+    object(vec![
+        req("text", string().min(1.0)),
+        opt("detail", string()),
+        opt("available", lazy(script::condition)),
+        opt("enabled", lazy(script::condition)),
+        opt("check", dialogue_check()),
+        opt("effects", effects()),
+        opt("goto", string().min(1.0)),
+    ])
 }
 
-fn line(value: &Value, path: &str) -> Checked {
-    let fields = object(value, path)?;
-    optional(fields, "speaker", path, |v, p| string(v, p, false))?;
-    required(fields, "text", path, |v, p| string(v, p, false))
+fn node() -> Schema {
+    object(vec![
+        req("id", string().min(1.0)),
+        opt("kind", literal(json!("consequence"))),
+        opt("position", object(vec![req("x", number()), req("y", number())])),
+        def("lines", array(object(vec![opt("speaker", string()), req("text", string())])), || json!([])),
+        opt("onEnter", effects()),
+        opt("choices", array(choice())),
+        opt("goto", string().min(1.0)),
+    ])
 }
 
-fn check(value: &Value, path: &str) -> Checked {
-    let fields = object(value, path)?;
-    optional(fields, "gotoOnSuccess", path, link)?;
-    optional(fields, "gotoOnFailure", path, link)
-}
-
-fn choice(value: &Value, path: &str) -> Checked {
-    let fields = object(value, path)?;
-    required(fields, "text", path, |v, p| string(v, p, true))?;
-    optional(fields, "detail", path, |v, p| string(v, p, false))?;
-    optional(fields, "available", path, opaque)?;
-    optional(fields, "enabled", path, opaque)?;
-    optional(fields, "check", path, check)?;
-    optional(fields, "effects", path, effects)?;
-    optional(fields, "goto", path, link)
-}
-
-fn node(value: &Value, path: &str) -> Checked {
-    let fields = object(value, path)?;
-    required(fields, "id", path, |v, p| string(v, p, true))?;
-    optional(fields, "kind", path, |v, p| if v.as_str() == Some("consequence") { Ok(()) } else { fail(p, "expected consequence") })?;
-    optional(fields, "position", path, |v, p| {
-        let point = object(v, p)?;
-        required(point, "x", p, number)?;
-        required(point, "y", p, number)
-    })?;
-    optional(fields, "lines", path, |v, p| array(v, p, line))?;
-    optional(fields, "onEnter", path, effects)?;
-    optional(fields, "choices", path, |v, p| array(v, p, choice))?;
-    optional(fields, "goto", path, link)
-}
-
-fn check_dialogue(value: &Value) -> Checked {
-    let path = "dialogue";
-    let fields = object(value, path)?;
-    required(fields, "id", path, content_id)?;
-    required(fields, "start", path, link)?;
-    required(fields, "nodes", path, |v, p| match v.as_array() {
-        Some(nodes) if nodes.is_empty() => fail(p, "a dialogue has at least one node"),
-        _ => array(v, p, node),
-    })
-}
-
-/// Parse an untrusted dialogue: checked, then read, every field it does not know dropped.
-pub fn parse_dialogue(value: &Value) -> Result<Dialogue, SchemaError> {
-    check_dialogue(value)?;
-    let dialogue: Dialogue = serde_json::from_value(value.clone()).map_err(|_| SchemaError { path: "dialogue".into(), message: "not a dialogue" })?;
-    // A repeated node id makes `DialogueRunner` refuse the dialogue; caught here, a bad file is refused
-    // on load rather than mid-conversation.
-    let mut seen: Vec<&str> = Vec::new();
-    for (i, node) in dialogue.nodes.iter().enumerate() {
-        if seen.contains(&node.id.as_str()) {
-            return Err(SchemaError { path: format!("dialogue.nodes[{i}].id"), message: "duplicate node id" });
+/// No node id twice, and a start that is one of the nodes: a bad file is refused on load rather than
+/// mid-conversation.
+fn nodes_hold_together(dialogue: &Map<String, Value>, found: &mut Refinements) {
+    let nodes = dialogue.get("nodes").and_then(Value::as_array).map_or(&[][..], Vec::as_slice);
+    let mut seen: Vec<&Value> = Vec::new();
+    for (i, node) in nodes.iter().enumerate() {
+        let id = &node["id"];
+        if seen.contains(&id) {
+            found.add(vec![Key::Name("nodes".into()), Key::Index(i), Key::Name("id".into())], format!("duplicate node id \"{}\"", id.as_str().unwrap_or_default()));
         }
-        seen.push(&node.id);
+        seen.push(id);
     }
-    if !seen.contains(&dialogue.start.as_str()) {
-        return Err(SchemaError { path: "dialogue.start".into(), message: "start is not one of the dialogue's nodes" });
+    let start = dialogue.get("start").unwrap_or(&Value::Null);
+    if !seen.contains(&start) {
+        found.add(vec![Key::Name("start".into())], format!("start \"{}\" is not one of the dialogue's nodes", start.as_str().unwrap_or_default()));
     }
-    Ok(dialogue)
+}
+
+/// `dialogueSchema`.
+pub fn dialogue_schema() -> &'static Schema {
+    static SCHEMA: OnceLock<Schema> = OnceLock::new();
+    SCHEMA.get_or_init(|| object(vec![req("id", content_id()), req("start", string().min(1.0)), req("nodes", array(node()).min(1.0))]).refine(nodes_hold_together))
+}
+
+/// Parse an untrusted dialogue as zod does: every issue, or the dialogue with its defaults put in.
+pub fn parse_dialogue(value: &Value) -> Result<Dialogue, Vec<Issue>> {
+    let read = dialogue_schema().parse(value)?;
+    Ok(serde_json::from_value(read).expect("what the schema reads is a dialogue"))
 }

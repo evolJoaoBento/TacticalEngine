@@ -84,6 +84,12 @@ pub enum Schema {
     Object { fields: Vec<Field>, refines: Vec<Refine> },
     Union(Vec<Schema>),
     Tagged { key: &'static str, variants: Vec<(&'static str, Schema)> },
+    /// `z.record(key, value)`: an object of any keys, each key and value checked.
+    Record { key: Box<Schema>, value: Box<Schema> },
+    /// `z.null()`.
+    Null,
+    /// A schema defined elsewhere, reached through a function so a schema can hold itself.
+    Lazy(fn() -> &'static Schema),
     Opaque,
 }
 
@@ -119,6 +125,15 @@ pub fn tagged(key: &'static str, variants: Vec<(&'static str, Schema)>) -> Schem
 }
 pub fn opaque() -> Schema {
     Schema::Opaque
+}
+pub fn record(key: Schema, value: Schema) -> Schema {
+    Schema::Record { key: Box::new(key), value: Box::new(value) }
+}
+pub fn null() -> Schema {
+    Schema::Null
+}
+pub fn lazy(schema: fn() -> &'static Schema) -> Schema {
+    Schema::Lazy(schema)
 }
 
 pub fn req(key: &'static str, schema: Schema) -> Field {
@@ -345,6 +360,38 @@ impl Schema {
                     }
                 }
             }
+            Schema::Record { key, value } => {
+                let Some(Value::Object(given)) = input else {
+                    expected(issues, path, "record");
+                    return Value::Null;
+                };
+                let mut out = Map::new();
+                for (k, v) in given {
+                    path.push(Key::Name(k.clone()));
+                    let mut own = Vec::new();
+                    key.read(Some(&Value::String(k.clone())), &mut Vec::new(), &mut own);
+                    if own.is_empty() {
+                        let read = value.read(Some(v), path, issues);
+                        // An own `__proto__` sets the prototype of JavaScript's output, not a key of it.
+                        if k != "__proto__" {
+                            out.insert(k.clone(), read);
+                        }
+                    } else {
+                        issues.push(Issue { path: path.clone(), message: "Invalid key in record".into(), fatal: true });
+                    }
+                    path.pop();
+                }
+                Value::Object(out)
+            }
+            Schema::Null => {
+                if input == Some(&Value::Null) {
+                    Value::Null
+                } else {
+                    expected(issues, path, "null");
+                    Value::Null
+                }
+            }
+            Schema::Lazy(schema) => schema().read(input, path, issues),
             Schema::Opaque => input.cloned().unwrap_or(Value::Null),
         }
     }
@@ -363,6 +410,8 @@ impl Schema {
                     })
                     .collect(),
             ),
+            (Schema::Lazy(schema), _) => schema().mask(value),
+            (Schema::Record { value: inner, .. }, Value::Object(given)) => Value::Object(given.iter().map(|(k, v)| (k.clone(), inner.mask(v))).collect()),
             (Schema::Tagged { key, variants }, Value::Object(given)) => match variants.iter().find(|(name, _)| given.get(*key).and_then(Value::as_str) == Some(name)) {
                 Some((_, schema)) => schema.mask(value),
                 None => value.clone(),
@@ -375,6 +424,7 @@ impl Schema {
     pub fn touches_opaque(&self, value: Option<&Value>, path: &[Key]) -> bool {
         match self {
             Schema::Opaque => true,
+            Schema::Lazy(schema) => schema().touches_opaque(value, path),
             Schema::Tagged { key, variants } => {
                 let tag = value.and_then(|v| v.get(*key)).and_then(Value::as_str);
                 variants.iter().find(|(name, _)| Some(*name) == tag).is_some_and(|(_, schema)| schema.touches_opaque(value, path))
@@ -451,6 +501,11 @@ mod tests {
         let safe_then_refine = object(vec![req("a", int())]).refine(|_, found| found.add(vec![], "R".into()));
         assert_eq!(messages(&safe_then_refine, json!({ "a": 1152921504606846976_u64 })), ["Too big: expected int to be <=9007199254740991", "R"]);
         assert_eq!(messages(&union(vec![int().min(5.0), int().min(10.0)]), json!(1)), ["Invalid input"]);
+        assert_eq!(messages(&null(), json!(3)), ["Invalid input: expected null, received number"]);
+        // A bad key stops the refinements of the object holding the record; a bad value does too.
+        let with_record = object(vec![req("r", record(string().min(1.0), number()))]).refine(|_, found| found.add(vec![], "R".into()));
+        assert_eq!(messages(&with_record, json!({ "r": { "": 1 } })), ["Invalid key in record"]);
+        assert_eq!(messages(&with_record, json!({ "r": { "a": "x" } })), ["Invalid input: expected number, received string"]);
         assert_eq!(messages(&tagged("kind", vec![("a", object(vec![req("kind", literal(json!("a")))]))]), json!({ "kind": 3 })), ["Invalid discriminator value. Expected 'a'"]);
     }
 }

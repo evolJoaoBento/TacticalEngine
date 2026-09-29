@@ -12,6 +12,15 @@ head and shoulders is already the creature tool's, on the same rail. Only what i
 the mode's id is still `combat`, so `mode-combat`, the tool lists and every test that picks it are
 as they were. Older entries below still say Combat. Unit `editor/modes.test.ts`.
 
+## The effect vocabulary reads in Rust, in zod's own words — done
+
+`server/engine/src/script/schema.rs` is the script's schema ported - target selectors, conditions,
+effects, checks, choice options, and the walks through them - on the zod-alike (which gained lazy
+references, records and `null`). Held to `server/fixtures/script.json`: every selector, condition and
+effect the content carries, one of every kind written out, and 8,532 breaks, word for word. With it the
+content schemas and the dialogue schema read conditions and effects in full. The first of script's five
+parts; `docs/SERVER.md` has the plan, and the conditions' evaluation is next.
+
 ## Combat runs in Rust, roll for roll — done
 
 `server/engine/src/combat` is `src/engine/combat` ported - targeting, areas and moves under pressure,
@@ -27,7 +36,7 @@ touches (`server/engine/src/scene/state.rs`). Held to `server/fixtures/combat.js
 on a zod-alike (`server/engine/src/zod.rs`) that reads as zod 4.5.4 reads - the same output, and the same
 issues, path for path and word for word, since `readPack` shows zod's messages to the player. Held to
 `server/fixtures/content.json`: every shipped entry, thousands of generated breaks, corners and whole
-documents. Conditions and effects pass through until `script/` is ported. `read_pack` refuses an older
+documents. Conditions and effects are read with the script's schemas. `read_pack` refuses an older
 document, since migration is the scene's and not ported. `docs/SERVER.md` has the detail; combat is next.
 
 ## Dialogue runs in Rust, question for question — done

@@ -1,8 +1,8 @@
 //! `server/fixtures/content.json` replayed: every content entry the engine ships read as zod read it -
 //! the same output with the same defaults put in - and every break of it refused with the same issues,
 //! path for path and word for word; whole documents read by `read_pack` to the same pack, the same issues
-//! and the same refusals. Conditions and effects are not ported, so they are compared blanked, and a case
-//! zod refused for something inside one is left to the script port - counted, and kept few.
+//! and the same refusals - conditions and effects included, now that the script's schemas are ported
+//! (`tests/golden_script.rs` holds those on their own).
 
 use engine::content::document::{describe_pack, pack_of, read_pack, PackDocument, OLDER_FORMAT, PACK_LISTS};
 use engine::content::pack::{AncestryDef, ArmorDef, CardDef, ClassDef, SubclassDef, WeaponDef};
@@ -120,9 +120,8 @@ fn every_break_is_refused_in_zods_words() {
             }
         }
     }
-    assert!(tally.compared > 5000, "{} compared", tally.compared);
-    assert!(tally.left_to_script * 10 < tally.compared, "{} of {} left to the script port", tally.left_to_script, tally.compared);
-    eprintln!("breaks: {} compared, {} refused inside a condition or effect and left to the script port", tally.compared, tally.left_to_script);
+    assert!(tally.compared > 5900, "{} compared", tally.compared);
+    assert_eq!(tally.left_to_script, 0, "nothing opaque is left in the content schemas");
 }
 
 #[test]

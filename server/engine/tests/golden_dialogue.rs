@@ -167,14 +167,14 @@ fn the_layout_and_the_graph_readers_agree() {
 }
 
 #[test]
-fn dialogues_are_let_in_or_turned_away_as_zod_does() {
+fn dialogues_are_let_in_or_turned_away_in_zods_words() {
     let fixture = fixture();
     let cases = fixture["parse"].as_array().expect("parse");
-    assert!(cases.iter().filter(|c| c.get("error").is_some()).count() > 15);
+    assert!(cases.iter().filter(|c| c.get("issues").is_some()).count() > 15);
     for case in cases {
         match (parse_dialogue(&case["value"]), case.get("parsed")) {
             (Ok(dialogue), Some(parsed)) => check!(serde_json::to_value(&dialogue).unwrap(), parsed, "parsed {}", case["value"]),
-            (Err(_), None) => {}
+            (Err(issues), None) => check!(json!(issues), &case["issues"], "refused {}", case["value"]),
             (got, _) => panic!("{} parsed as {got:?}, the TypeScript {}", case["value"], if case.get("parsed").is_some() { "let it in" } else { "turned it away" }),
         }
     }

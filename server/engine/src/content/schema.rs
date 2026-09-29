@@ -1,8 +1,9 @@
 //! The content schemas (`src/engine/content/pack/schema.ts`, `abilities.ts`, `conditions.ts`, `items.ts`,
 //! `quests.ts`, and the scene's `codeSchema`), written against `crate::zod` field for field and check for
 //! check, in the TypeScript's order, so a reading reports what zod reports. Conditions and effects are
-//! `script/`'s and stay opaque until it is ported.
+//! `script/`'s schemas (`crate::script::schema`), read in full.
 
+use crate::script::schema as script;
 use crate::zod::*;
 use serde_json::{json, Map, Value};
 use std::sync::OnceLock;
@@ -210,7 +211,7 @@ fn ability_modifier() -> Schema {
         opt("plusProficiency", boolean()),
         opt("perToken", content_id()),
         opt("requires", one_of(&["unarmored", "armored", "meleeWeapon"])),
-        opt("when", opaque()),
+        opt("when", lazy(script::condition)),
         opt("against", boolean()),
         opt("anyRoll", boolean()),
     ])
@@ -240,7 +241,7 @@ fn damage_defenses() -> Schema {
 }
 
 fn effects() -> Schema {
-    array(opaque())
+    array(lazy(script::effect))
 }
 
 fn ability() -> Schema {
@@ -281,11 +282,11 @@ fn ability() -> Schema {
                 def("kind", one_of(&["none", "self", "adversary", "ally", "creature", "group", "point"]), || json!("none")),
                 def("range", one_of(RANGE_BANDS), || json!("melee")),
                 opt("fallen", boolean()),
-                opt("when", opaque()),
+                opt("when", lazy(script::condition)),
             ]),
             || json!({ "kind": "none", "range": "melee" }),
         ),
-        opt("available", opaque()),
+        opt("available", lazy(script::condition)),
         def("inCombatOnly", boolean(), || json!(false)),
         def("action", boolean(), || json!(true)),
         def("effects", effects(), empty_list),
@@ -298,7 +299,7 @@ fn ability() -> Schema {
                 opt("damage", string().min(1.0)),
                 opt("double", boolean()),
                 opt("severity", one_of(&["minor", "major", "severe", "massive"])),
-                opt("when", opaque()),
+                opt("when", lazy(script::condition)),
             ]),
         ),
         opt("reaction", damage_reaction()),
@@ -334,7 +335,7 @@ fn condition_def() -> Schema {
         opt("endsWhen", one_of(&["hit", "attacks", "damaged", "rolls"])),
         opt(
             "payout",
-            object(vec![req("on", literal(json!("attacked"))), opt("when", opaque()), opt("auto", boolean()), opt("keeps", boolean()), def("effects", effects(), empty_list)]),
+            object(vec![req("on", literal(json!("attacked"))), opt("when", lazy(script::condition)), opt("auto", boolean()), opt("keeps", boolean()), def("effects", effects(), empty_list)]),
         ),
         opt("onEnter", object(vec![def("effects", effects(), empty_list)])),
         opt("insteadOfDeath", object(vec![req("clears", int().positive()), req("says", string().min(1.0))])),

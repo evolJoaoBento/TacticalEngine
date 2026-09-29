@@ -351,7 +351,7 @@ function golden() {
   ];
   const parse = shapes.map((value) => {
     const result = dialogueSchema.safeParse(value);
-    return result.success ? { value, parsed: result.data } : { value, error: true };
+    return result.success ? { value, parsed: result.data } : { value, issues: result.error.issues.map((issue) => ({ path: issue.path, message: issue.message })) };
   });
 
   return {

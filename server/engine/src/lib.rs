@@ -15,4 +15,5 @@ pub mod rng;
 pub mod rules;
 pub mod scene;
 pub mod schema;
+pub mod script;
 pub mod zod;
