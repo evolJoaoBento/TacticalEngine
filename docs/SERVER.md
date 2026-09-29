@@ -1,0 +1,107 @@
+# The server: Rust, and the rules in it
+
+The plan for turning Tactical Engine into a client and a server, as the user chose it on 29 September
+2026. This file is the plan and the record of how far it has got; `docs/BACKLOG.md` points here.
+
+## What was chosen
+
+- **A Rust server that runs the game.** The rules - combat, scripts, dialogue, the grid, movement,
+  saves - are ported from TypeScript to Rust and computed on the server. The server also holds the
+  assets, the accounts, the Store, each player's models, the projects and the saves.
+- **The client stays TypeScript**: three.js rendering, input, the editor's UI. It connects to the
+  server the way a browser connects to a website.
+- **Why**: play from anywhere (sign in on any machine and your games are there), **co-op** (several
+  players in one game), and **light clients** (a phone does not run the rules).
+- **Where first**: this machine, as the dev server runs now; a public host once it works.
+
+## The shape
+
+```
+Browser (TypeScript, three.js, Preact)          Rust server (this repository's server/)
+  renders the board, plays the events   <-- WS --  runs a game session: the engine crate
+  sends intents: move, attack, use,     -- WS -->    steps the rules, seeded dice
+    answer a prompt, end the turn                  + a sandboxed JS runtime for project hooks
+  the editor's UI                       <-HTTPS->  accounts, sessions, the Store, your models,
+  (playtest: the engine as WebAssembly)              assets, projects, saves
+```
+
+- **HTTPS** carries what the dev plugins carry today, **under the same paths**: `/__accounts/*`,
+  `/__store/*`, `/__models/*`, `/__art-provenance`, the default project. The plugins in `tools/*.ts`
+  and the e2e stand-ins for them are the contract; the Rust server answers it route by route.
+- **A WebSocket per game session** carries play: the client sends intents, the server answers with
+  what happened (log lines, dice, floaters, prompts) and the state to draw. The client's game layer
+  becomes a view of that state.
+- **Two crates, kept apart**: `engine` is the rules alone - no files, no clock, no network, no tokio -
+  so it compiles to WebAssembly for the editor's playtest as well as into the server; `serve` is axum,
+  and owns everything that touches the disk or a socket.
+
+## How the port stays honest: the TypeScript engine is the oracle
+
+The rules are about 20,000 lines of TypeScript (`src/engine` without `render`) and about 9,000 more in
+`src/game` (movement, rooms, interaction, saves, shops), behind some 2,700 unit tests. A port that is
+"close" silently breaks content, so every module is ported against **golden fixtures**:
+
+1. A TypeScript test drives the module through many cases and compares against
+   `server/fixtures/<module>.json` (`UPDATE_GOLDEN=1` writes it instead). So a fixture is always
+   what TypeScript really does.
+2. A Rust test replays the same fixture and asserts the same answers.
+3. Only when both pass is the module ported.
+
+This works because the engine is **deterministic**: every roll comes from `core/rng.ts`, SplitMix32
+over 32-bit integers with FNV-1a for text seeds, and nothing in `src/engine` calls `Math.random` (a hook
+that tries is refused). Rust reproduces it bit for bit with wrapping `u32` arithmetic; the seed hash
+reads UTF-16 code units, as JavaScript's `charCodeAt` does.
+
+The TypeScript engine keeps working the whole way: the port grows beside it, and the client switches
+to the server only when a whole session plays the same. Single-player parity comes first; co-op is
+added after, so the rules are not redesigned while they are being transliterated.
+
+## Things to get right
+
+- **Project hooks are JavaScript** (`script/hooks.ts`: `project.code[]`, compiled with `new
+  Function`). The shipped SRD pack carries 3, the default project 2; everything else a card does is
+  data. The server runs them in an embedded JS engine (QuickJS through `rquickjs`) with the same
+  `ctx` API, no host access, and limits on memory and time. On a server with other players'
+  projects this is a **security boundary**, not the honest-mistake guard it is in a browser.
+- **The schemas' defaults are load-bearing.** zod's `.default()` chains let a project written years
+  ago still load. serde must parse the same JSON: `#[serde(default)]` field by field, checked against
+  the shipped projects and packs as fixtures.
+- **Floating point**: rules use `+ - * /` and `Math.sqrt` (exact in IEEE on both sides). Anything
+  else (`Math.pow`, trig) is checked for where it reaches the rules before its module is ported.
+- **The script interpreter** (`script/runner.ts`, `script/world.ts`, about 4,600 lines) is the
+  hardest module; its fixtures are the shipped pack's cards and the default project's scenes played
+  through, not cases written by hand.
+- **Co-op changes the rules' edges** - whose turn, who sees what, who answers a prompt. It is a phase
+  of its own, after parity.
+
+## Phases
+
+| Phase | What | Done when |
+|---|---|---|
+| 0 | This plan; the Rust toolchain; the `server/` workspace; `core/rng` ported with golden fixtures | TS and Rust both reproduce `server/fixtures/rng.json` |
+| 1 | The platform server: axum serves the built client and the `/__*` routes - accounts, then the Store, your models, the models manifest and ancestries, art provenance, the default project; the Vite dev server proxies to it; each TS plugin deleted as its route moves | `accounts-store.spec.ts`, `your-models.spec.ts` and the round-trip scripts pass against the Rust server |
+| 2 | The rules, bottom up, each against fixtures: `grid`, `rules`, `character`, `dialogue`, `content` (serde schemas), `combat`, `script` (effects, runner, world, hooks in QuickJS), then the game layer (`movement`, `room`, `interaction`, `leap`, `save`, `shop`, `equip`) | every module's fixture passes in Rust |
+| 3 | Game sessions on the server: the WebSocket protocol, the client's game layer as a view, the editor's playtest on the engine built to WebAssembly | the full e2e suite passes with play on the server |
+| 4 | Co-op: several players in a session, turn ownership, visibility, reconnecting | two browsers play one fight |
+| 5 | The internet: HTTPS, a real admin password, upload and rate limits, backups, a host | reachable from outside this machine |
+
+## Running it
+
+```bash
+cd server && cargo test                                         # the Rust port against its fixtures
+npx vitest run src/engine/core/rng.golden.test.ts               # the fixture is still what TypeScript does
+UPDATE_GOLDEN=1 npx vitest run src/engine/core/rng.golden.test.ts   # write it afresh after a TS change
+```
+
+The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide the linker), with the
+`wasm32-unknown-unknown` target for the engine's WebAssembly build:
+`cargo build -p tactical-engine --target wasm32-unknown-unknown`.
+
+## Progress
+
+- **Phase 0** - done 29 September 2026. This plan; Rust stable installed; the `server/` workspace with
+  the `engine` crate (`tactical-engine`, `server/engine/src/rng.rs`), which builds to WebAssembly; and
+  `core/rng` ported - `src/engine/core/rng.golden.test.ts` writes `server/fixtures/rng.json` (15 seeds:
+  text with accents and an emoji, numbers negative, fractional and past 2^32; every call the generator
+  has), and `server/engine/tests/golden_rng.rs` replays it bit for bit.
+- **Next: phase 1**, the platform server - accounts first, since every other route asks who is signed in.

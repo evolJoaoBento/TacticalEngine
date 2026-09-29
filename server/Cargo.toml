@@ -1,0 +1,10 @@
+# The Rust server (docs/SERVER.md). `engine` is the rules alone - no files, no clock, no network - so it
+# also builds to WebAssembly; the server crate that serves them comes in phase 1.
+[workspace]
+members = ["engine"]
+resolver = "2"
+
+[workspace.package]
+edition = "2021"
+license = "CC-BY-NC-4.0"
+publish = false

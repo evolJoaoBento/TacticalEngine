@@ -32,6 +32,8 @@ deciding when payments open; and IndexedDB `model-memory.ts` still keeps browser
 rendering and input; a Rust server holds the assets, the accounts, the Store, your models, projects and
 saves, and runs the game - the engine's rules ported from TypeScript - for play from anywhere, co-op, and
 light clients. The dev plugins' routes (`tools/*.ts`) are the contract the Rust server answers first.
+The plan, its phases and its progress are `docs/SERVER.md`; phase 0 (the toolchain, the `server/`
+workspace, the dice ported bit for bit against a fixture TypeScript writes) is done.
 
 ## The Store is show your work — done
 

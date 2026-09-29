@@ -1,0 +1,15 @@
+[package]
+name = "tactical-engine"
+version = "0.1.0"
+description = "Tactical Engine's rules, ported from src/engine and held to the TypeScript engine's golden fixtures"
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "engine"
+
+[dependencies]
+
+[dev-dependencies]
+serde_json = "1"

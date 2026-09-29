@@ -50,3 +50,5 @@ public/cards/
 # Accounts, sessions and the store's listings and files (tools/accounts.ts, tools/store.ts): this
 # machine's own, and a password file, however hashed, is never the public repository's.
 /data/
+# The Rust server's build output (docs/SERVER.md).
+/server/target/
