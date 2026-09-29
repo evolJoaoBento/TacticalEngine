@@ -5,64 +5,8 @@
 //! missing field: zod's `optional` refuses it, and so does this.
 
 use crate::character::sheet::CharacterSheet;
-use serde_json::{Map, Value};
-
-/// Where a sheet first fails, and why.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct SchemaError {
-    pub path: String,
-    pub message: &'static str,
-}
-
-type Checked = Result<(), SchemaError>;
-
-fn fail(path: &str, message: &'static str) -> Checked {
-    Err(SchemaError { path: path.to_string(), message })
-}
-
-fn object<'a>(value: &'a Value, path: &str) -> Result<&'a Map<String, Value>, SchemaError> {
-    value.as_object().ok_or_else(|| SchemaError { path: path.to_string(), message: "expected an object" })
-}
-
-fn string(value: &Value, path: &str, non_empty: bool) -> Checked {
-    match value.as_str() {
-        None => fail(path, "expected a string"),
-        Some("") if non_empty => fail(path, "expected at least one character"),
-        Some(_) => Ok(()),
-    }
-}
-
-/// `z.number().int()`, with bounds when given.
-fn int(value: &Value, path: &str, min: Option<f64>, max: Option<f64>) -> Checked {
-    let Some(n) = value.as_f64() else { return fail(path, "expected a number") };
-    if !n.is_finite() || n.fract() != 0.0 {
-        return fail(path, "expected a whole number");
-    }
-    if min.is_some_and(|min| n < min) || max.is_some_and(|max| n > max) {
-        return fail(path, "out of range");
-    }
-    Ok(())
-}
-
-/// A field that may be missing; present, it must pass.
-fn optional(fields: &Map<String, Value>, key: &str, path: &str, check: impl Fn(&Value, &str) -> Checked) -> Checked {
-    match fields.get(key) {
-        None => Ok(()),
-        Some(value) => check(value, &format!("{path}.{key}")),
-    }
-}
-
-fn required(fields: &Map<String, Value>, key: &str, path: &str, check: impl Fn(&Value, &str) -> Checked) -> Checked {
-    match fields.get(key) {
-        None => fail(&format!("{path}.{key}"), "required"),
-        Some(value) => check(value, &format!("{path}.{key}")),
-    }
-}
-
-fn array(value: &Value, path: &str, each: impl Fn(&Value, &str) -> Checked) -> Checked {
-    let Some(items) = value.as_array() else { return fail(path, "expected an array") };
-    items.iter().enumerate().try_for_each(|(i, item)| each(item, &format!("{path}[{i}]")))
-}
+use crate::schema::{array, fail, int, object, optional, required, string, Checked, SchemaError};
+use serde_json::Value;
 
 /// `z.tuple([a, a])`: exactly two.
 fn pair(value: &Value, path: &str, each: impl Fn(&Value, &str) -> Checked) -> Checked {

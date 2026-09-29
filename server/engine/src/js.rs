@@ -131,3 +131,10 @@ mod tests {
         assert_eq!(hypot(1.0, 1.0), std::f64::consts::SQRT_2);
     }
 }
+
+/// The order `Array.prototype.sort` puts strings in with no comparator: by UTF-16 code unit, so a
+/// character past U+FFFF (two surrogates, from U+D800) sorts before one from U+E000 to U+FFFF, which
+/// Rust's own `str` order puts the other way round.
+pub fn utf16_cmp(a: &str, b: &str) -> std::cmp::Ordering {
+    a.encode_utf16().cmp(b.encode_utf16())
+}

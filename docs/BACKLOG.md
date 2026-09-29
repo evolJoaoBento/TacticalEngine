@@ -12,6 +12,16 @@ head and shoulders is already the creature tool's, on the same rail. Only what i
 the mode's id is still `combat`, so `mode-combat`, the tool lists and every test that picks it are
 as they were. Older entries below still say Combat. Unit `editor/modes.test.ts`.
 
+## Dialogue runs in Rust, question for question — done
+
+`server/engine/src/dialogue` is `src/engine/dialogue` ported: the authored shape and its checks, the
+editor's layout and graph readers, and the walk. The walk asks `script/` (not ported yet) its four
+questions through a `DialogueHost`; `dialogue.golden.test.ts` records the ones the TypeScript dialogue
+asks, with their answers, and the Rust must ask exactly those, in that order, to the same end
+(`server/fixtures/dialogue.json`). When `script` is ported, its world replaces the tape. Found on the
+way: a reply chosen while another's script waits drops the new script's first journal entries; kept on
+both sides for now. `docs/SERVER.md` has the detail; the content schemas are next.
+
 ## The Proficiency box counts — done
 
 Taking the Proficiency advancement at tier 3 or 4 cost both picks and added nothing: `levelUp` added

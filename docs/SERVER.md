@@ -97,7 +97,7 @@ added after, so the rules are not redesigned while they are being transliterated
 
 ```bash
 cd server && cargo test                                         # the Rust port against its fixtures
-npx vitest run src/engine/grid/grid.golden.test.ts src/engine/rules/rules.golden.test.ts src/engine/character/character.golden.test.ts   # the fixtures are still what TypeScript does
+npx vitest run src/engine/grid/grid.golden.test.ts src/engine/rules/rules.golden.test.ts src/engine/character/character.golden.test.ts src/engine/dialogue/dialogue.golden.test.ts   # the fixtures are still what TypeScript does
 npm run build:server && npm run server                          # the game from the Rust server alone, on 8430
 npm run server                                                  # (npm run dev starts it too, for the routes alone)
 npx vitest run tests/unit/accounts.golden.test.ts tests/unit/store.golden.test.ts   # the fixtures are still what TypeScript does
@@ -255,5 +255,26 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     and added nothing (`levelUp` added `takenNow.get('proficiency')`, a key its `tier:kind` map never
     held). Both now count the box where the sheet is derived, as a Hit Point box is, and the fixture was
     written afresh (`docs/CRPG-GAPS.md`).
-  - **Next**: `src/engine/dialogue`, then the rest of the content schemas - the serde port of the
-    project document the character module began.
+  - **Dialogue is ported** (`server/engine/src/dialogue`: `schema`, `layout`, `runner`), with the
+    hand-written schema checks now shared (`server/engine/src/schema.rs`) and JavaScript's string `sort()`
+    order (`js::utf16_cmp`: by UTF-16 unit, so a character past U+FFFF sorts before U+E000-U+FFFF). The
+    walk stands on `script/`, which is not ported, so it asks `script/`'s four questions - does a
+    condition hold, run these effects, answer this prompt, what modifier would a check add - of a
+    `DialogueHost`. `dialogue.golden.test.ts` wraps the real TypeScript modules (`vi.mock` over the
+    originals) to record every one of those questions the dialogue itself asks, with its answer, step by
+    step - not the ones a script asks inside a run - while a seeded player drives the game's dialogues
+    and a set written for the corners through 1,689 steps. `golden_dialogue.rs` walks the same
+    graphs against that tape: the same questions in the same order (a node's view is built twice on
+    entering it, as the TypeScript builds it), none left unasked, the same view, prompt and journal.
+    When `script` is ported its world becomes the host, and the tape comes out. Conditions, effects and
+    a check's own fields stay the JSON they were written in; `parse_dialogue` checks the dialogue's own
+    shape in full and only that those are objects in the right places. 19 of 20 deliberate mutations
+    fail the fixture; the 20th (an empty node list let past the schema) is still refused, since the
+    start cannot be one of no nodes. Several of the game's own nodes are never shown in the replay:
+    they are walked through by design, or gated on quest state the fixture's small world lacks.
+  - **A quirk kept on purpose**: choosing a reply while another reply's script waits on a prompt - the
+    dialogue allows it - starts a new script but reads its journal on from where the old one stood, so
+    the new script's first entries are dropped (`consumed` is not reset). The Rust does the same; the
+    fixture has a play that shows it.
+  - **Next**: the rest of the content schemas - the serde port of the project document the character
+    and dialogue modules began - then `combat`.

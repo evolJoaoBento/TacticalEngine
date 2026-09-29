@@ -7,7 +7,9 @@
 
 pub mod character;
 pub mod content;
+pub mod dialogue;
 pub mod grid;
 pub mod js;
 pub mod rng;
 pub mod rules;
+pub mod schema;
