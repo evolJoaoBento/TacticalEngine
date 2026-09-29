@@ -197,5 +197,12 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     alone; beyond it `/cards/` is the build's empty index, as a static site's is (`site_routes.rs`).
     Tried in a real browser on 8430, no Vite: signed in, the Store's 52 listings, the card art, the Hollow
     Vault drawn with its 38 models, no request failed; Ctrl+S in the editor saved through the server (204).
-  - **Phase 1 is done.** What Vite still does in development is serve the page itself and build the two
-    lists the page loads (the models, the marks) - which move to the server with the protocol, in phase 3.
+  - **Phase 1 is done.** What Vite still does in development is serve the page itself.
+  - **The two lists the page opens with are asked of the server** (`src/game/engine-lists.ts`, a top-level
+    `await`): `GET /__models/shipped` and `GET /__art/marks`, read on every request, so a model added while
+    the server runs is in the next page's list with no build - tried from the Rust server alone (51 models,
+    a file copied in, 52 after a reload) and through the dev server. The tests' server answers both itself;
+    a static build does not ask. (The first cut answered the tests' server with a 404 - the page fell back
+    as meant, but the browser logs a 404 as a console error, and 116 e2e tests failed on it.) The dev server's two file watchers retired with it; the one
+    that reloads the other open pages when a model arrives stays. This is the first thing the page is
+    told at run time rather than at build time - the shape phase 3 carries on.

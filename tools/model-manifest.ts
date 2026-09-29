@@ -30,9 +30,11 @@ import { savesChanges } from './serving.ts';
  * the next page load gets, without reloading the page that wrote it.
  *
  * **Both routes are the Rust server's now** (`server/serve/src/manifest.rs`, passed through by
- * `rust-server.ts`, held to `server/fixtures/model-manifest.json`, which these functions write). What
- * stays here is the list itself - the virtual module - which watches the folder and the ancestries
- * file for what the server writes, and the quiet mark for the page that sent a model.
+ * `rust-server.ts`, held to `server/fixtures/model-manifest.json`, which these functions write), and so
+ * is **the list the page opens with** (`GET /__models/shipped`, asked by `src/game/engine-lists.ts`, read
+ * on every request). What stays here is the list a build carries - the virtual module, which the page
+ * falls back on where no server answers - the watcher that reloads the other open pages when a model
+ * arrives, and the quiet mark for the page that sent it.
  *
  * **A model added to the engine** comes the same way (`MODEL_ADD_URL`): the editor's Models page sends
  * a `.glb` and this writes it into `public/models` under the name it was sent with, tidied to an id
@@ -66,6 +68,8 @@ const ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 /** Where the editor sends a model to add to the engine, and the most it may weigh. */
 export const MODEL_ADD_URL = '/__models/add';
+/** Where the page asks for the list as it opens (`src/game/engine-lists.ts`): the Rust server's answer. */
+export const SHIPPED_URL = '/__models/shipped';
 export const MODEL_ADD_LIMIT = 64 * 1024 * 1024;
 
 /**
@@ -282,17 +286,6 @@ export function modelManifest(): Plugin {
       };
       for (const event of ['add', 'unlink', 'change'] as const) server.watcher.on(event, changed);
 
-      // The ancestries file is the Rust server's to write now: whoever writes it, the next page load reads
-      // the new list. The page that wrote it is not reloaded - it keeps what it chose.
-      const ancestries = resolve(root, ANCESTRY_FILE);
-      server.watcher.add(ancestries);
-      const listChanged = (file: string): void => {
-        if (resolve(file).toLowerCase() !== ancestries.toLowerCase()) return;
-        const module = server.moduleGraph.getModuleById(RESOLVED);
-        if (module !== undefined) server.moduleGraph.invalidateModule(module);
-      };
-      for (const event of ['add', 'unlink', 'change'] as const) server.watcher.on(event, listChanged);
-
       if (rust) {
         // `/__models/add` and `/__models/ancestry` are the Rust server's (`server/serve/src/manifest.rs`,
         // proxied by `rust-server.ts`). One thing is still this side's: the page that sends a model has it
@@ -307,7 +300,14 @@ export function modelManifest(): Plugin {
         return;
       }
 
-      // Where there is no Rust server - the tests', or a build - the engine's models are not changed here.
+      // Where there is no Rust server - the tests' - the engine's models are not changed here, and the list
+      // the page asks for is the one the virtual module carries, read the same way. Answered, not refused:
+      // a refusal is a console error on every page load, and every e2e test fails on one.
+      server.middlewares.use(SHIPPED_URL, (_request, response) => {
+        response.setHeader('content-type', 'application/json');
+        response.setHeader('cache-control', 'no-store');
+        response.end(JSON.stringify(shippedModels(publicDir, readModelAncestries(root))));
+      });
       server.middlewares.use(MODEL_ADD_URL, (_request, response) => {
         response.statusCode = 403;
         response.end('this server does not add models to the engine');

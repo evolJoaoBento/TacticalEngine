@@ -13,7 +13,8 @@
  * The editor's red AI badge and the note in the bottom-right corner (`ui/AiMark.tsx`) read this.
  */
 
-import { PROVENANCE, PROVENANCE_URL } from 'virtual:art-provenance';
+import { PROVENANCE_URL } from 'virtual:art-provenance';
+import { PROVENANCE } from './engine-lists';
 import { SAVE_HEADER } from 'virtual:boot-project';
 import { artFor, CARD_ART_DIRECTORY } from './ui/card-art';
 

@@ -9,7 +9,8 @@
  * a reload; New Game, opened afterwards, is served the file as it now is.
  */
 
-import { ANCESTRY_URL, MODEL_ADD_URL, SHIPPED_MODELS } from 'virtual:shipped-models';
+import { ANCESTRY_URL, MODEL_ADD_URL } from 'virtual:shipped-models';
+import { SHIPPED_MODELS } from './engine-lists';
 import { SAVE_HEADER } from 'virtual:boot-project';
 
 const kept = new Map<string, string>(SHIPPED_MODELS.flatMap((model) => (model.ancestry === undefined ? [] : [[model.id, model.ancestry] as [string, string]])));

@@ -12,6 +12,15 @@ head and shoulders is already the creature tool's, on the same rail. Only what i
 the mode's id is still `combat`, so `mode-combat`, the tool lists and every test that picks it are
 as they were. Older entries below still say Combat. Unit `editor/modes.test.ts`.
 
+## The page asks the server for its models and marks as it opens — done
+
+`src/game/engine-lists.ts` asks `GET /__models/shipped` and `GET /__art/marks` with a top-level `await`,
+before anything is built; the Rust server reads both on every request, so a model added while it runs is
+in the next page's list with no build. No server - a static site, the tests' - and the page opens on
+the lists the build carries. Two dev-server watchers retired. Learned doing it: with `strictPort`, a
+bulk edit of `tools/` starts overlapping restarts that fail and leave the dev server on its old config
+- restart it cleanly after one.
+
 ## The game runs from the Rust server alone — done (phase 1 done)
 
 `npm run build:server` builds the client for the Rust server into `dist-server` (no copy of `public/`,

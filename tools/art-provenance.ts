@@ -21,12 +21,15 @@ import { savesChanges, servesRust } from './serving.ts';
  *
  * **The route is the Rust server's now** (`server/serve/src/art_and_project.rs`, passed through by
  * `rust-server.ts`, held to `server/fixtures/art-and-project.json`, which these functions write - the
- * file to the byte, its keys in `localeCompare`'s order). What stays here is the marks the page loads
- * (the virtual module), which watches the file for what the server writes.
+ * file to the byte, its keys in `localeCompare`'s order), and so are the marks the page opens with
+ * (`GET /__art/marks`, asked by `src/game/engine-lists.ts`, read on every request). What stays here is the
+ * marks a build carries (the virtual module), for where no server answers.
  */
 
 export const PROVENANCE_FILE = 'projects/art-provenance.json';
 export const PROVENANCE_URL = '/__art/provenance';
+/** Where the page asks for the marks as it opens (`src/game/engine-lists.ts`): the Rust server's answer. */
+export const MARKS_URL = '/__art/marks';
 const VIRTUAL = 'virtual:art-provenance';
 const RESOLVED = '\0' + VIRTUAL;
 /** The most a change may weigh: one key and one word. */
@@ -135,19 +138,17 @@ export function artProvenance(): Plugin {
       ].join('\n');
     },
     configureServer(server) {
-      // The marks file is the Rust server's to write (`server/serve/src/art_and_project.rs`): whoever
-      // writes it, the next page load is served the new marks. The page that wrote it is not reloaded.
-      const file = resolve(root, PROVENANCE_FILE);
-      server.watcher.add(file);
-      for (const event of ['add', 'unlink', 'change'] as const) {
-        server.watcher.on(event, (changed: string) => {
-          if (resolve(changed).toLowerCase() !== file.toLowerCase()) return;
-          const module = server.moduleGraph.getModuleById(RESOLVED);
-          if (module !== undefined) server.moduleGraph.invalidateModule(module);
-        });
-      }
+      // The marks and their changes are the Rust server's (`server/serve/src/art_and_project.rs`); the page
+      // asks for them as it opens (`src/game/engine-lists.ts`).
       if (servesRust('serve') && saves) return;
-      // Where there is no Rust server - the tests', or a build - the marks are not changed here.
+      // Where there is no Rust server - the tests' - the marks are not changed here, and the marks the page
+      // asks for are the file's, read as the virtual module reads it. Answered, not refused: a refusal is a
+      // console error on every page load.
+      server.middlewares.use(MARKS_URL, (_request, response) => {
+        response.setHeader('content-type', 'application/json');
+        response.setHeader('cache-control', 'no-store');
+        response.end(JSON.stringify(readProvenance(root)));
+      });
       server.middlewares.use(PROVENANCE_URL, (_request, response) => {
         response.statusCode = 403;
         response.end('this server does not keep how art was made');

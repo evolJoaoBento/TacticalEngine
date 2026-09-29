@@ -4,8 +4,8 @@ import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
 import type { Plugin, ProxyOptions } from 'vite';
 import { ACCOUNTS_URL, servesRust } from './accounts.ts';
-import { ANCESTRY_URL, MODEL_ADD_URL } from './model-manifest.ts';
-import { PROVENANCE_URL } from './art-provenance.ts';
+import { ANCESTRY_URL, MODEL_ADD_URL, SHIPPED_URL } from './model-manifest.ts';
+import { MARKS_URL, PROVENANCE_URL } from './art-provenance.ts';
 import { PROJECT_URL, SAVE_URL } from './default-project.ts';
 import { STORE_URL } from './store.ts';
 import { IMPORT_MODEL_URL, USER_MODELS_URL, YOUR_MODELS_URL } from './your-models.ts';
@@ -15,8 +15,8 @@ import { IMPORT_MODEL_URL, USER_MODELS_URL, YOUR_MODELS_URL } from './your-model
  * passed through, and the dev server starts it.
  *
  * `RUST_ROUTES` is what has moved - every route the dev plugins answered: the accounts, the Store, your
- * models, the engine's models, the art marks and the default project; each dev plugin's route leaves `tools/*.ts`
- * for `server/serve` in turn. Vite proxies each to `tactical-serve` on `TACTICAL_SERVER_PORT` (8430),
+ * models, the engine's models, the art marks and the default project, and the two lists the page asks
+ * for as it opens. Vite proxies each to `tactical-serve` on `TACTICAL_SERVER_PORT` (8430),
  * keeping the Host header, so the server sees the page's own origin and host as the plugins did, and
  * its cookies come back untouched.
  *
@@ -35,7 +35,7 @@ import { IMPORT_MODEL_URL, USER_MODELS_URL, YOUR_MODELS_URL } from './your-model
  * The routes the Rust server answers now. A proxy key is a prefix, so a player's files go by
  * `/__models/u/` - with its slash - and catch nothing else under `/__models/`.
  */
-export const RUST_ROUTES: readonly string[] = [ACCOUNTS_URL, STORE_URL, YOUR_MODELS_URL, IMPORT_MODEL_URL, `${USER_MODELS_URL}/`, MODEL_ADD_URL, ANCESTRY_URL, PROVENANCE_URL, PROJECT_URL, SAVE_URL];
+export const RUST_ROUTES: readonly string[] = [ACCOUNTS_URL, STORE_URL, YOUR_MODELS_URL, IMPORT_MODEL_URL, `${USER_MODELS_URL}/`, MODEL_ADD_URL, ANCESTRY_URL, SHIPPED_URL, PROVENANCE_URL, MARKS_URL, PROJECT_URL, SAVE_URL];
 
 export { servesRust };
 

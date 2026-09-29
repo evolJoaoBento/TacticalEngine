@@ -17,7 +17,7 @@
  * next project they make.
  */
 
-import { SHIPPED_MODELS } from 'virtual:shipped-models';
+import { SHIPPED_MODELS } from './engine-lists';
 import { modelAssetSchema } from '../engine/render/assets';
 import type { ProjectDoc } from '../engine/scene/schema';
 import { renameRetiredModels } from '../engine/scene/retired-models';
