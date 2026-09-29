@@ -238,7 +238,7 @@ pub fn derive_character(sheet: &CharacterSheet, content: &ContentPack, abilities
     // Folded into the numbers: no `when`, no tokens, and not only while swinging a Melee weapon.
     let folds = |m: &&AbilityModifier, stat: Stat| m.stat == stat && m.when.is_none() && m.per_token.is_none() && m.requires != Some(Requires::MeleeWeapon);
     // Proficiency first, because a modifier may add it to something else.
-    let proficiency = js::max(1.0, sheet.proficiency + modifiers.iter().filter(|m| folds(m, Stat::Proficiency)).fold(0.0, |sum, m| sum + m.bonus));
+    let proficiency = js::max(1.0, sheet.proficiency + grown.proficiency + modifiers.iter().filter(|m| folds(m, Stat::Proficiency)).fold(0.0, |sum, m| sum + m.bonus));
     let folded = |stat: Stat| -> f64 {
         modifiers
             .iter()

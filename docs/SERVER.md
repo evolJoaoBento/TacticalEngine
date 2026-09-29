@@ -251,8 +251,9 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     `golden_character.rs` replays it; 27 of 28 deliberate mutations fail it (the 28th, a pair of any
     length let past the schema, is still refused by serde's `[T; 2]`). The modifiers' `when` stays the
     JSON it was written in until the conditions are ported with the script.
-  - **A defect kept on purpose**: the Proficiency advancement costs both picks and adds nothing. `levelUp`
-    adds `takenNow.get('proficiency')`, and that map's keys are `tier:kind`, so the lookup always misses.
-    The Rust does the same, so the fixture holds; fix both, and the fixture, together (`docs/CRPG-GAPS.md`).
+  - **A defect found by the port, and fixed on both sides**: the Proficiency advancement cost both picks
+    and added nothing (`levelUp` added `takenNow.get('proficiency')`, a key its `tier:kind` map never
+    held). Both now count the box where the sheet is derived, as a Hit Point box is, and the fixture was
+    written afresh (`docs/CRPG-GAPS.md`).
   - **Next**: `src/engine/dialogue`, then the rest of the content schemas - the serde port of the
     project document the character module began.

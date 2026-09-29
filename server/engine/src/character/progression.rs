@@ -2,9 +2,8 @@
 //! legal, and what a sheet's recorded levels add up to. Nothing is applied unless the whole plan is
 //! legal, and a sheet is never changed in place - a level taken is a new sheet.
 //!
-//! One thing is kept as the TypeScript has it although it is not the rule: the Proficiency box adds
-//! nothing. `levelUp` counts it as `takenNow.get('proficiency')`, and that map's keys are `tier:kind`,
-//! so the lookup always misses; the tier achievement's +1 is the only Proficiency a level gives.
+//! A tier achievement's +1 Proficiency goes onto the sheet; a Proficiency box, like a Hit Point box, is
+//! recorded and counted where the sheet is derived (`progression_bonuses`).
 
 use crate::character::sheet::{CharacterSheet, Experience};
 use crate::content::pack::{ContentPack, SubclassStage};
@@ -536,7 +535,7 @@ pub fn level_up(sheet: &CharacterSheet, content: &ContentPack, plan: &LevelUpPla
     levels.push(LevelRecord { level: next, advancements: plan.advancements.clone(), domain_card: plan.domain_card.clone(), experience: plan.experience.clone() });
     Ok(CharacterSheet {
         level: next,
-        // The achievement's +1, and - as the TypeScript reads it - nothing for the Proficiency box.
+        // The tier achievement's +1. A Proficiency box is counted where the sheet is derived.
         proficiency: sheet.proficiency + if achievement { 1.0 } else { 0.0 },
         experiences: Some(experiences),
         levels: Some(levels),
@@ -552,6 +551,8 @@ pub struct ProgressionBonuses {
     pub hit_points: f64,
     pub stress: f64,
     pub evasion: f64,
+    /// "Increase your Proficiency by +1", once for each Proficiency box ticked.
+    pub proficiency: f64,
     /// By Experience name, in the order first bumped.
     #[serde(serialize_with = "as_map")]
     pub experiences: Vec<(String, f64)>,
@@ -579,6 +580,7 @@ pub fn progression_bonuses(sheet: &CharacterSheet) -> ProgressionBonuses {
             Advancement::HitPoint { .. } => bonuses.hit_points += 1.0,
             Advancement::Stress { .. } => bonuses.stress += 1.0,
             Advancement::Evasion { .. } => bonuses.evasion += 1.0,
+            Advancement::Proficiency { .. } => bonuses.proficiency += 1.0,
             Advancement::Experiences { names, .. } => {
                 for name in names {
                     match bonuses.experiences.iter_mut().find(|(known, _)| known == name) {

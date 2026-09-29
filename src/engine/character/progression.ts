@@ -382,7 +382,9 @@ export function levelUp(
     sheet: {
       ...sheet,
       level: next,
-      proficiency: sheet.proficiency + (achievement ? 1 : 0) + (takenNow.get('proficiency') ?? 0),
+      // The tier achievement's +1 is the sheet's. The Proficiency box is a recorded advancement like a
+      // Hit Point box, and `progressionBonuses` counts it where the sheet is derived.
+      proficiency: sheet.proficiency + (achievement ? 1 : 0),
       experiences: [
         ...(sheet.experiences ?? []),
         ...(plan.experience === undefined ? [] : [{ ...plan.experience }]),
@@ -402,6 +404,8 @@ export function progressionBonuses(sheet: CharacterSheet): {
   hitPoints: number;
   stress: number;
   evasion: number;
+  /** "Increase your Proficiency by +1", once for each Proficiency box ticked. */
+  proficiency: number;
   experiences: Record<string, number>;
 } {
   const traits: Partial<Record<Trait, number>> = {};
@@ -409,6 +413,7 @@ export function progressionBonuses(sheet: CharacterSheet): {
   let hitPoints = 0;
   let stress = 0;
   let evasion = 0;
+  let proficiency = 0;
   for (const record of sheet.levels ?? []) {
     for (const advancement of record.advancements) {
       switch (advancement.kind) {
@@ -424,6 +429,9 @@ export function progressionBonuses(sheet: CharacterSheet): {
         case 'evasion':
           evasion++;
           break;
+        case 'proficiency':
+          proficiency++;
+          break;
         case 'experiences':
           for (const name of advancement.names) experiences[name] = (experiences[name] ?? 0) + 1;
           break;
@@ -432,5 +440,5 @@ export function progressionBonuses(sheet: CharacterSheet): {
       }
     }
   }
-  return { traits, hitPoints, stress, evasion, experiences };
+  return { traits, hitPoints, stress, evasion, proficiency, experiences };
 }

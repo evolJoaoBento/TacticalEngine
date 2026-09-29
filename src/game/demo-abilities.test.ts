@@ -783,3 +783,18 @@ describe('the call and the step', () => {
     expect(demo.log.some((line) => line.text.includes('somewhere else'))).toBe(true);
   });
 });
+
+describe('Proficiency, as a script reads it', () => {
+  it('is the derived number: a Proficiency box recorded on the sheet counts', () => {
+    const demo = scene();
+    const sheet = demo.sheets.get('kara')!;
+    expect(demo.world.traitValue('kara', 'proficiency')).toBe(sheet.proficiency);
+    // A level-5 record with the box ticked; the sheet's own number is left as it was saved.
+    const trained = { ...sheet, level: 5, levels: [{ level: 5, advancements: [{ kind: 'proficiency' as const }], domainCard: 'none' }] };
+    demo.sheets.set('kara', trained);
+    demo.characters.set('kara', deriveCharacter(trained, characterContentFor(demo.project), demo.project.abilities).character);
+    refreshWorld(demo);
+    expect(demo.world.traitValue('kara', 'proficiency')).toBe(sheet.proficiency + 1);
+    expect(demo.world.proficiencyOf('kara')).toBe(demo.characters.get('kara')!.proficiency);
+  });
+});

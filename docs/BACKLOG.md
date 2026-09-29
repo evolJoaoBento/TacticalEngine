@@ -12,15 +12,24 @@ head and shoulders is already the creature tool's, on the same rail. Only what i
 the mode's id is still `combat`, so `mode-combat`, the tool lists and every test that picks it are
 as they were. Older entries below still say Combat. Unit `editor/modes.test.ts`.
 
+## The Proficiency box counts — done
+
+Taking the Proficiency advancement at tier 3 or 4 cost both picks and added nothing: `levelUp` added
+`takenNow.get('proficiency')`, a key its `tier:kind` map never held. Found porting the character to
+Rust. The box is now counted where the sheet is derived (`progressionBonuses`, beside Hit Points and
+Stress), so saves that took it before read right untouched; the tier achievement's +1 stays on the
+sheet. The world's `proficiencyOf` reads the derived number, so a script's "using your Proficiency"
+sees the box and any card's bonus. The Rust port does the same, held to the rewritten
+`server/fixtures/character.json`. Unit `progression.test.ts`, `demo-abilities.test.ts`.
+
 ## Characters derive and level in Rust, word for word — done
 
 `server/engine/src/character` is `src/engine/character` ported - the sheet derived into a character,
 levelling up with every refusal in the TypeScript's words and order, and `parseSheet`'s checks - with the
 content it reads (`server/engine/src/content`: the pack in a `Map`'s order, the abilities' bonuses and
 ranking, what gear features plainly say). Held to `server/fixtures/character.json`, from the game's own
-content. **Found on the way**: the Proficiency advancement adds nothing (`levelUp` reads a key its map
-never holds); the port keeps it so the fixture holds - fix both together. `docs/SERVER.md` has the detail;
-the dialogue module is next.
+content. Found on the way: the Proficiency advancement added nothing - fixed above. `docs/SERVER.md` has
+the detail; the dialogue module is next.
 
 ## The rules run in Rust, die for die — done
 
