@@ -22,7 +22,8 @@ export default defineConfig({
       '@content': dir('./src/engine/content'),
     },
   },
-  server: { port: 8420, host: '127.0.0.1' },
+  // 8420 or nothing: a restart that finds the port still held must fail, not slide onto 8421, the tests' own.
+  server: { port: 8420, strictPort: true, host: '127.0.0.1' },
   preview: { port: 8420, host: '127.0.0.1' },
   build: { target: 'es2022', sourcemap: true, chunkSizeWarningLimit: 1500 },
 });

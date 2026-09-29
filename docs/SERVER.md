@@ -153,5 +153,20 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     when it was imported and then got from the Store, before it when got first - so an index entry is
     kept as the ordered object it is, not a struct. (The Store's listings could do the same only for
     fields a later version adds, or a listing from before claims; neither is in any file yet.)
-  - **Next**: the models manifest and ancestries (`tools/model-manifest.ts`: `/__models/ancestry`,
-    `/__models/add`, the shipped list), art provenance, the default project.
+  - **The engine's models are the Rust server's** (`server/serve/src/manifest.rs`): + Model to the engine
+    (`/__models/add`, into `public/models`) and a model's ancestry for every project
+    (`/__models/ancestry`, the tracked `projects/model-ancestries.json`). `golden_manifest.rs` replays
+    `server/fixtures/model-manifest.json` - ids from file names (`İstanbul` is `i-stanbul`, as JavaScript
+    lower-cases it), ancestry files, about 80 changes and 66 uploads judged, the folder listed in
+    JavaScript's sort, and the ancestries file written after every change, to the byte. The list itself
+    still reaches the page as the dev server's virtual module - moving it means the page asking for it,
+    which is phase 3 - so the dev server now watches the ancestries file as it watched the folder, and a
+    write by either side refreshes the next page's list. Tried end to end through 8420: an ancestry set
+    and seen in the page's list, a model added and listed, every refusal; the real ancestries file
+    restored byte for byte after.
+  - Found doing it: the dev server stopped the Rust server when its HTTP server reported closed, which a
+    browser's keep-alive can hold off for good - so on a restart the old server kept the port, and the
+    new dev server passed routes to a server built from older code. It is stopped when the dev server
+    is closed now, or its process ends.
+  - **Next**: art provenance (`tools/art-provenance.ts`), the default project
+    (`tools/default-project.ts`), then the public assets; with those, phase 1 is done.

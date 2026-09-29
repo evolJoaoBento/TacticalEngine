@@ -12,6 +12,14 @@ head and shoulders is already the creature tool's, on the same rail. Only what i
 the mode's id is still `combat`, so `mode-combat`, the tool lists and every test that picks it are
 as they were. Older entries below still say Combat. Unit `editor/modes.test.ts`.
 
+## The engine's models are the Rust server's — done
+
+`/__models/add` and `/__models/ancestry` are answered by `server/serve/src/manifest.rs`, held to a fixture
+`tools/model-manifest.ts` writes (the ancestries file to the byte); the dev server keeps the model list
+(the virtual module) and now watches the ancestries file for the server's writes. The Rust server is
+stopped when the dev server closes, not when its HTTP server finally reports closed, which let an old
+server keep the port through a restart. `docs/SERVER.md` has the detail and what moves next.
+
 ## Your models are the Rust server's — done
 
 `/__models/mine`, `/__models/u/...` and `/__models/import` are answered by `server/serve/src/your_models.rs`

@@ -33,7 +33,10 @@ export default defineConfig({
     // server also refuses to save, so no test can overwrite that project by pressing Ctrl+S.
     env: { TACTICAL_BOOT: 'builtin' },
     url: `http://127.0.0.1:${PORT}`,
-    reuseExistingServer: true,
+    // Never somebody else's server: one already on this port is not the tests' - a dev server that slid
+    // over from 8420 once ran a whole suite on the file-booted project, which saves, and a test's Ctrl+S
+    // overwrote projects/default.json (29 September 2026). A taken port is an error, not a server to use.
+    reuseExistingServer: false,
     timeout: 90_000,
   },
   projects: [{ name: 'chromium', use: { browserName: 'chromium' } }],

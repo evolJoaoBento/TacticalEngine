@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFile
 import { dirname, join, resolve } from 'node:path';
 import type { Plugin } from 'vite';
 import { SAVE_HEADER } from './default-project.ts';
+import { servesRust } from './accounts.ts';
 
 /**
  * The models a project ships with, found rather than listed.
@@ -26,6 +27,11 @@ import { SAVE_HEADER } from './default-project.ts';
  * the page's own origin, one file named here, and a body that is a model id and an ancestry id or
  * nothing. It refuses when the tests are serving (`TACTICAL_BOOT=builtin`). A write updates the list
  * the next page load gets, without reloading the page that wrote it.
+ *
+ * **Both routes are the Rust server's now** (`server/serve/src/manifest.rs`, passed through by
+ * `rust-server.ts`, held to `server/fixtures/model-manifest.json`, which these functions write). What
+ * stays here is the list itself - the virtual module - which watches the folder and the ancestries
+ * file for what the server writes, and the quiet mark for the page that sent a model.
  *
  * **A model added to the engine** comes the same way (`MODEL_ADD_URL`): the editor's Models page sends
  * a `.glb` and this writes it into `public/models` under the name it was sent with, tidied to an id
@@ -223,12 +229,14 @@ export function modelManifest(): Plugin {
   let root = process.cwd();
   // Written to only by a dev server the tests are not using, as the project save is.
   let saves = process.env['TACTICAL_BOOT'] !== 'builtin';
+  let rust = false;
   return {
     name: 'tactical-model-manifest',
     configResolved(config) {
       publicDir = config.publicDir || 'public';
       root = config.root;
       saves = config.command === 'serve' && process.env['TACTICAL_BOOT'] !== 'builtin';
+      rust = servesRust(config.command);
     },
     resolveId(id) {
       return id === VIRTUAL ? RESOLVED : null;
@@ -273,69 +281,39 @@ export function modelManifest(): Plugin {
       };
       for (const event of ['add', 'unlink', 'change'] as const) server.watcher.on(event, changed);
 
-      server.middlewares.use(MODEL_ADD_URL, (request, response) => {
-        const refuse = (status: number, reason: string): void => {
-          response.statusCode = status;
-          response.end(reason);
-        };
-        if (!saves) return refuse(403, 'this server does not add models to the engine');
-        const name = new URL(request.url ?? '', 'http://local').searchParams.get('name');
-        const chunks: Buffer[] = [];
-        let size = 0;
-        request.on('data', (chunk: Buffer) => {
-          size += chunk.length;
-          if (size <= MODEL_ADD_LIMIT) chunks.push(chunk);
-        });
-        request.on('end', () => {
-          if (size > MODEL_ADD_LIMIT) return refuse(413, 'larger than a model should be - lighten it first');
-          const body = Buffer.concat(chunks);
-          const verdict = judgeModelAdd(request, name, body, (id) => shippedModels(publicDir).some((model) => model.id === id));
-          if (!verdict.ok) return refuse(verdict.status, verdict.reason);
-          try {
-            mkdirSync(folder, { recursive: true });
-            quiet.set(verdict.file, Date.now() + 5000);
-            const partial = join(folder, `${verdict.file}.part`);
-            writeFileSync(partial, body);
-            renameSync(partial, join(folder, verdict.file));
-            const module = server.moduleGraph.getModuleById(RESOLVED);
-            if (module !== undefined) server.moduleGraph.invalidateModule(module);
-            response.setHeader('content-type', 'application/json');
-            response.end(JSON.stringify({ id: verdict.id, url: `/${MODELS_DIRECTORY}/${verdict.file}` }));
-          } catch (error) {
-            quiet.delete(verdict.file);
-            refuse(500, (error as Error).message);
-          }
-        });
-      });
+      // The ancestries file is the Rust server's to write now: whoever writes it, the next page load reads
+      // the new list. The page that wrote it is not reloaded - it keeps what it chose.
+      const ancestries = resolve(root, ANCESTRY_FILE);
+      server.watcher.add(ancestries);
+      const listChanged = (file: string): void => {
+        if (resolve(file).toLowerCase() !== ancestries.toLowerCase()) return;
+        const module = server.moduleGraph.getModuleById(RESOLVED);
+        if (module !== undefined) server.moduleGraph.invalidateModule(module);
+      };
+      for (const event of ['add', 'unlink', 'change'] as const) server.watcher.on(event, listChanged);
 
-      server.middlewares.use(ANCESTRY_URL, (request, response) => {
-        const refuse = (status: number, reason: string): void => {
-          response.statusCode = status;
-          response.end(reason);
-        };
-        if (!saves) return refuse(403, 'this server does not keep models\u2019 ancestries');
-        const chunks: Buffer[] = [];
-        let size = 0;
-        request.on('data', (chunk: Buffer) => {
-          size += chunk.length;
-          if (size <= ANCESTRY_LIMIT) chunks.push(chunk);
+      if (rust) {
+        // `/__models/add` and `/__models/ancestry` are the Rust server's (`server/serve/src/manifest.rs`,
+        // proxied by `rust-server.ts`). One thing is still this side's: the page that sends a model has it
+        // already, so the file it is about to become is marked quiet before the request goes on - the
+        // watcher sees it written, and every other page reloads.
+        server.middlewares.use(MODEL_ADD_URL, (request, _response, next) => {
+          const name = new URL(request.url ?? '', 'http://local').searchParams.get('name');
+          const id = name === null || !/\.glb$/i.test(name) ? '' : modelIdOf(name);
+          if (id !== '') quiet.set(`${id}.glb`, Date.now() + 5000);
+          next();
         });
-        request.on('end', () => {
-          if (size > ANCESTRY_LIMIT) return refuse(413, 'too large to be one model and its ancestry');
-          const verdict = judgeAncestry(request, Buffer.concat(chunks).toString('utf8'));
-          if (!verdict.ok) return refuse(verdict.status, verdict.reason);
-          try {
-            const map = assignAncestry(readModelAncestries(root), verdict.model, verdict.ancestry);
-            writeModelAncestries(root, map);
-            // The next page load reads the new list; the page that wrote it is not reloaded.
-            const module = server.moduleGraph.getModuleById(RESOLVED);
-            if (module !== undefined) server.moduleGraph.invalidateModule(module);
-            response.setHeader('content-type', 'application/json');
-            response.end(JSON.stringify(map));
-          } catch (error) {
-            refuse(500, (error as Error).message);
-          }
-        });
+        return;
+      }
+
+      // Where there is no Rust server - the tests', or a build - the engine's models are not changed here.
+      server.middlewares.use(MODEL_ADD_URL, (_request, response) => {
+        response.statusCode = 403;
+        response.end('this server does not add models to the engine');
+      });
+      server.middlewares.use(ANCESTRY_URL, (_request, response) => {
+        response.statusCode = 403;
+        response.end('this server does not keep models’ ancestries');
       });
     },
   };

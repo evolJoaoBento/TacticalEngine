@@ -175,6 +175,14 @@ export function keepsAccounts(command: 'serve' | 'build'): boolean {
 }
 
 /**
+ * Whether this Vite passes routes to the Rust server (`rust-server.ts`): a dev server that keeps accounts,
+ * and not Vitest's, which loads the same config as a dev server of its own.
+ */
+export function servesRust(command: 'serve' | 'build'): boolean {
+  return keepsAccounts(command) && process.env['VITEST'] === undefined;
+}
+
+/**
  * The accounts' routes are the Rust server's now (`server/serve/src/accounts.rs`, passed through by
  * `rust-server.ts`); what is left here is the answer when there is no server - the tests', or a build -
  * which is no accounts at all.
