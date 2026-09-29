@@ -97,7 +97,7 @@ added after, so the rules are not redesigned while they are being transliterated
 
 ```bash
 cd server && cargo test                                         # the Rust port against its fixtures
-npx vitest run src/engine/grid/grid.golden.test.ts src/engine/rules/rules.golden.test.ts src/engine/character/character.golden.test.ts src/engine/dialogue/dialogue.golden.test.ts   # the fixtures are still what TypeScript does
+npx vitest run src/engine/grid/grid.golden.test.ts src/engine/rules/rules.golden.test.ts src/engine/character/character.golden.test.ts src/engine/dialogue/dialogue.golden.test.ts src/engine/content/content.golden.test.ts   # the fixtures are still what TypeScript does
 npm run build:server && npm run server                          # the game from the Rust server alone, on 8430
 npm run server                                                  # (npm run dev starts it too, for the routes alone)
 npx vitest run tests/unit/accounts.golden.test.ts tests/unit/store.golden.test.ts   # the fixtures are still what TypeScript does
@@ -276,5 +276,30 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     dialogue allows it - starts a new script but reads its journal on from where the old one stood, so
     the new script's first entries are dropped (`consumed` is not reset). The Rust does the same; the
     fixture has a play that shows it.
-  - **Next**: the rest of the content schemas - the serde port of the project document the character
-    and dialogue modules began - then `combat`.
+  - **The content schemas are ported** (`server/engine/src/content`: `schema`, `document`), on a
+    zod-alike (`server/engine/src/zod.rs`): schemas as data - strings, numbers, sets, literals, lists,
+    objects with optional and defaulted fields, unions, tagged unions, refinements - read the way zod
+    4.5.4 reads them, because `readPack` shows the player zod's own words. So the output is zod's (defaults
+    put in as written, unknown keys dropped) and a refusal is zod's, every issue with its path and message
+    in its order. zod's rules, pinned by probes and then by the fixture: a wrong type, a word not in a set,
+    a failed union or a fractional integer stops that value and skips its object's refinements; a bound,
+    a pattern or an integer past the safe range is reported and checking goes on; a length is checked on
+    anything that has one, even after its type failed, and worded by what it found (a string's `min` given
+    `[]` says "expected array to have >=1 items"); a union falls back to the one option that failed only
+    on checks, or else "Invalid input". Every schema the engine reads content with is here: weapon,
+    armor, class, ancestry, community, subclass, card, experience, adversary, ability, condition, code,
+    item, loot table, quest - and `readPack`, `packOf`, `describePack`. Conditions and effects are
+    `script/`'s and pass through as they came. `content.golden.test.ts` reads 1,807 real entries (the
+    shipped SRD characters and the default project as written, the starter pack, the equipment
+    catalogue), breaks samples of each kind at every field two levels down twelve ways, writes out 29
+    corners and 12 documents, into `server/fixtures/content.json`. `golden_content.rs` compares 5,832
+    breaks word for word, and leaves 156 - refused for something inside a condition or effect - to the
+    script port. Of 24 deliberate mutations 22 fail it; the other two are equivalent here (a string length
+    counted in bytes - no content string has a minimum above one - and a default read through its own
+    schema, which every default passes). Every weapon, armour, class, ancestry, subclass and card the
+    schemas read also reads into the character's types.
+  - **One difference, until the scene is ported**: `readPack` brings an older document up to date first
+    (`scene/migrate.ts`), and that is not ported. Everything the server reads is at the current format
+    (6), so `read_pack` refuses an older or unversioned document by name instead of reading it half-right.
+  - **Next**: `combat`, then `script` - which takes the tape out of the dialogue and the opaque parts out of
+    the content schemas.

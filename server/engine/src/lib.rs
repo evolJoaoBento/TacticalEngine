@@ -13,3 +13,4 @@ pub mod js;
 pub mod rng;
 pub mod rules;
 pub mod schema;
+pub mod zod;

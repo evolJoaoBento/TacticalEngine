@@ -12,6 +12,15 @@ head and shoulders is already the creature tool's, on the same rail. Only what i
 the mode's id is still `combat`, so `mode-combat`, the tool lists and every test that picks it are
 as they were. Older entries below still say Combat. Unit `editor/modes.test.ts`.
 
+## The content schemas read in Rust, in zod's own words — done
+
+`server/engine/src/content/schema.rs` and `document.rs` are the content schemas and `readPack` ported,
+on a zod-alike (`server/engine/src/zod.rs`) that reads as zod 4.5.4 reads - the same output, and the same
+issues, path for path and word for word, since `readPack` shows zod's messages to the player. Held to
+`server/fixtures/content.json`: every shipped entry, thousands of generated breaks, corners and whole
+documents. Conditions and effects pass through until `script/` is ported. `read_pack` refuses an older
+document, since migration is the scene's and not ported. `docs/SERVER.md` has the detail; combat is next.
+
 ## Dialogue runs in Rust, question for question — done
 
 `server/engine/src/dialogue` is `src/engine/dialogue` ported: the authored shape and its checks, the
