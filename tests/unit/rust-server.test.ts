@@ -3,6 +3,8 @@ import { ACCOUNTS_URL } from '../../tools/accounts';
 import { STORE_URL } from '../../tools/store';
 import { IMPORT_MODEL_URL, USER_MODELS_URL, YOUR_MODELS_URL } from '../../tools/your-models';
 import { ANCESTRY_URL, MODEL_ADD_URL } from '../../tools/model-manifest';
+import { PROVENANCE_URL } from '../../tools/art-provenance';
+import { PROJECT_URL, SAVE_URL } from '../../tools/default-project';
 import { RUST_ROUTES, cargoPath, rustProxy, serverPort, servesRust } from '../../tools/rust-server';
 
 /**
@@ -20,8 +22,8 @@ afterEach(() => {
 });
 
 describe('the routes the Rust server answers', () => {
-  it('are the accounts, the Store, your models and the engine\u2019s models, so far', () => {
-    expect(RUST_ROUTES).toEqual([ACCOUNTS_URL, STORE_URL, YOUR_MODELS_URL, IMPORT_MODEL_URL, `${USER_MODELS_URL}/`, MODEL_ADD_URL, ANCESTRY_URL]);
+  it('are every route the dev plugins answered', () => {
+    expect(RUST_ROUTES).toEqual([ACCOUNTS_URL, STORE_URL, YOUR_MODELS_URL, IMPORT_MODEL_URL, `${USER_MODELS_URL}/`, MODEL_ADD_URL, ANCESTRY_URL, PROVENANCE_URL, PROJECT_URL, SAVE_URL]);
   });
 
   it('catch every models route, and the models themselves in public/models not at all', () => {
@@ -40,6 +42,7 @@ describe('the routes the Rust server answers', () => {
     const to8430 = { target: 'http://127.0.0.1:8430', changeOrigin: false };
     expect(rustProxy()).toEqual({
       '/__accounts': to8430, '/__store': to8430, '/__models/mine': to8430, '/__models/import': to8430, '/__models/u/': to8430, '/__models/add': to8430, '/__models/ancestry': to8430,
+      '/__art/provenance': to8430, '/projects/default.json': to8430, '/__project/save': to8430,
     });
     process.env['TACTICAL_SERVER_PORT'] = '9555';
     expect(rustProxy()['/__accounts']!.target).toBe('http://127.0.0.1:9555');

@@ -5,6 +5,8 @@ import { join, resolve } from 'node:path';
 import type { Plugin, ProxyOptions } from 'vite';
 import { ACCOUNTS_URL, servesRust } from './accounts.ts';
 import { ANCESTRY_URL, MODEL_ADD_URL } from './model-manifest.ts';
+import { PROVENANCE_URL } from './art-provenance.ts';
+import { PROJECT_URL, SAVE_URL } from './default-project.ts';
 import { STORE_URL } from './store.ts';
 import { IMPORT_MODEL_URL, USER_MODELS_URL, YOUR_MODELS_URL } from './your-models.ts';
 
@@ -12,7 +14,8 @@ import { IMPORT_MODEL_URL, USER_MODELS_URL, YOUR_MODELS_URL } from './your-model
  * The Rust server beside the dev server (`docs/SERVER.md`, phase 1): the routes that have moved to it are
  * passed through, and the dev server starts it.
  *
- * `RUST_ROUTES` is what has moved - the accounts, the Store, your models and the engine's models, so far; each dev plugin's route leaves `tools/*.ts`
+ * `RUST_ROUTES` is what has moved - every route the dev plugins answered: the accounts, the Store, your
+ * models, the engine's models, the art marks and the default project; each dev plugin's route leaves `tools/*.ts`
  * for `server/serve` in turn. Vite proxies each to `tactical-serve` on `TACTICAL_SERVER_PORT` (8430),
  * keeping the Host header, so the server sees the page's own origin and host as the plugins did, and
  * its cookies come back untouched.
@@ -32,7 +35,7 @@ import { IMPORT_MODEL_URL, USER_MODELS_URL, YOUR_MODELS_URL } from './your-model
  * The routes the Rust server answers now. A proxy key is a prefix, so a player's files go by
  * `/__models/u/` - with its slash - and catch nothing else under `/__models/`.
  */
-export const RUST_ROUTES: readonly string[] = [ACCOUNTS_URL, STORE_URL, YOUR_MODELS_URL, IMPORT_MODEL_URL, `${USER_MODELS_URL}/`, MODEL_ADD_URL, ANCESTRY_URL];
+export const RUST_ROUTES: readonly string[] = [ACCOUNTS_URL, STORE_URL, YOUR_MODELS_URL, IMPORT_MODEL_URL, `${USER_MODELS_URL}/`, MODEL_ADD_URL, ANCESTRY_URL, PROVENANCE_URL, PROJECT_URL, SAVE_URL];
 
 export { servesRust };
 
@@ -50,21 +53,40 @@ export function rustProxy(port: number = serverPort()): Record<string, ProxyOpti
   return Object.fromEntries(RUST_ROUTES.map((route) => [route, { target: `http://127.0.0.1:${port}`, changeOrigin: false }]));
 }
 
+/**
+ * The one server this process has started, whichever dev server started it. On `globalThis`, because a
+ * restart loads this file afresh: several restarts at once (a few `tools/*.ts` saved together) each had
+ * their own idea of the server, and an older one's outlived its dev server and kept the port.
+ */
+interface Held {
+  child: ChildProcess | null;
+  build: ChildProcess | null;
+  exitHooked: boolean;
+}
+const held = ((globalThis as Record<string, unknown>)['__tacticalServe'] ??= { child: null, build: null, exitHooked: false }) as Held;
+if (!held.exitHooked) {
+  held.exitHooked = true;
+  process.once('exit', () => {
+    held.child?.kill();
+    held.build?.kill();
+  });
+}
+
 export function rustServer(): Plugin {
   let root = process.cwd();
   let on = false;
-  let child: ChildProcess | null = null;
   let closed = false;
   const say = (line: string): void => console.log(`[tactical-serve] ${line}`);
 
   const run = (binary: string, tries: number): void => {
     if (closed) return;
     const started = Date.now();
-    child = spawn(binary, ['--root', root, '--port', String(serverPort())], { cwd: root, windowsHide: true });
+    const child = spawn(binary, ['--root', root, '--port', String(serverPort())], { cwd: root, windowsHide: true });
+    held.child = child;
     child.stdout?.on('data', (chunk: Buffer) => say(chunk.toString().trim()));
     child.stderr?.on('data', (chunk: Buffer) => say(chunk.toString().trim()));
     child.on('exit', (code) => {
-      child = null;
+      if (held.child === child) held.child = null;
       // A quick exit is a port still held: by the last dev server's, which is on its way out, or by hand.
       if (closed || code === 0 || Date.now() - started > 3000) return;
       if (tries > 0) setTimeout(() => run(binary, tries - 1), 1000);
@@ -85,8 +107,12 @@ export function rustServer(): Plugin {
       if (!on) return;
       const manifest = resolve(root, 'server', 'Cargo.toml');
       const binary = resolve(root, 'server', 'target', 'release', process.platform === 'win32' ? 'tactical-serve.exe' : 'tactical-serve');
+      // Whatever an earlier dev server in this process left running goes first: this one starts its own.
+      held.child?.kill();
+      held.build?.kill();
       say('building (the first time takes a minute or two)...');
       const build = spawn(cargoPath(), ['build', '--release', '--quiet', '--manifest-path', manifest, '-p', 'tactical-serve'], { cwd: root, windowsHide: true });
+      held.build = build;
       build.stderr?.on('data', (chunk: Buffer) => say(chunk.toString().trim()));
       build.on('error', () => say('cargo was not found: install Rust (rustup) for the accounts; see docs/SERVER.md'));
       build.on('exit', (code) => {
@@ -96,24 +122,13 @@ export function rustServer(): Plugin {
       // Stopped when this dev server is closed - a restart, or the end - not when its HTTP server says it has
       // closed: that waits for every open connection, and a browser's keep-alive can hold it for good, so
       // the server outlived the dev server that started it and the next one found its port taken.
-      const stop = (): void => {
-        closed = true;
-        child?.kill();
-        build.kill();
-      };
       const close = server.close.bind(server);
       server.close = async () => {
-        stop();
+        closed = true;
+        held.child?.kill();
+        build.kill();
         return close();
       };
-      stopOnExit.add(stop);
-      server.httpServer?.on('close', () => stopOnExit.delete(stop));
     },
   };
 }
-
-/** Whatever the dev servers in this process started, stopped when the process ends. One listener, however many restarts. */
-const stopOnExit = new Set<() => void>();
-process.once('exit', () => {
-  for (const stop of stopOnExit) stop();
-});

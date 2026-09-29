@@ -20,6 +20,10 @@
  * this server never agrees - and come from the page's own origin. It writes exactly one file,
  * named here, never a path taken from the request.
  *
+ * **Reading and saving it are the Rust server's now** (`server/serve/src/art_and_project.rs`, passed
+ * through by `rust-server.ts`, held to `server/fixtures/art-and-project.json`, which `judgeSave` writes);
+ * a build still carries the file (`generateBundle`), read-only.
+ *
  * Tests run on the code-built demo, whatever the file holds (`TACTICAL_BOOT=builtin`, set by the
  * Playwright config), and with that set the save route refuses outright: an end-to-end suite that
  * could overwrite somebody's project by pressing Ctrl+S is not one anybody should run.
@@ -28,6 +32,7 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import type { Plugin } from 'vite';
+import { servesRust } from './serving.ts';
 
 /** Where the file is, from the project root, and where the page asks for it. */
 export const PROJECT_FILE = 'projects/default.json';
@@ -142,7 +147,9 @@ export function defaultProject(): Plugin {
       ].join('\n');
     },
     configureServer(server) {
-      // Read fresh on every request, never cached: the point is that a reload shows the last save.
+      // Both the file and its save are the Rust server's where there is one (`server/serve/src/art_and_project.rs`).
+      if (servesRust('serve') && facts.saves) return;
+      // Where there is none - the tests' - the file is read fresh on every request, and never saved.
       server.middlewares.use(PROJECT_URL, (request, response, next) => {
         if (request.method !== 'GET' && request.method !== 'HEAD') return next();
         const file = resolve(root, PROJECT_FILE);
@@ -154,32 +161,9 @@ export function defaultProject(): Plugin {
         response.setHeader('cache-control', 'no-store');
         response.end(readFileSync(file));
       });
-      server.middlewares.use(SAVE_URL, (request, response) => {
-        const refuse = (status: number, reason: string): void => {
-          response.statusCode = status;
-          response.end(reason);
-        };
-        if (!facts.saves) return refuse(403, 'this server does not save the default project');
-        const chunks: Buffer[] = [];
-        let size = 0;
-        request.on('data', (chunk: Buffer) => {
-          size += chunk.length;
-          if (size <= SAVE_LIMIT) chunks.push(chunk);
-        });
-        request.on('end', () => {
-          // Judged on its whole size, not on the part that was kept: a truncated body would
-          // otherwise be refused as bad JSON rather than as the too-large save it is.
-          if (size > SAVE_LIMIT) return refuse(413, 'too large to be a project');
-          const verdict = judgeSave(request, Buffer.concat(chunks).toString('utf8'));
-          if (!verdict.ok) return refuse(verdict.status, verdict.reason);
-          try {
-            writeProject(root, verdict.text);
-          } catch (failure) {
-            return refuse(500, failure instanceof Error ? failure.message : String(failure));
-          }
-          response.statusCode = 204;
-          response.end();
-        });
+      server.middlewares.use(SAVE_URL, (_request, response) => {
+        response.statusCode = 403;
+        response.end('this server does not save the default project');
       });
     },
     /** A built site opens on the same project, read-only: there is no server there to write it. */

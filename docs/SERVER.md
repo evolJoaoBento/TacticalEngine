@@ -168,5 +168,23 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     browser's keep-alive can hold off for good - so on a restart the old server kept the port, and the
     new dev server passed routes to a server built from older code. It is stopped when the dev server
     is closed now, or its process ends.
-  - **Next**: art provenance (`tools/art-provenance.ts`), the default project
-    (`tools/default-project.ts`), then the public assets; with those, phase 1 is done.
+  - **The art marks and the default project are the Rust server's** (`server/serve/src/art_and_project.rs`):
+    `/__art/provenance` into the tracked `projects/art-provenance.json`, and `/projects/default.json`
+    read fresh and saved (`/__project/save`) as the editor sent it. The marks file's keys are in
+    JavaScript's `localeCompare` order - `_ - : .`, digits, letters case set aside, then lower before
+    upper (`model:apple` before `model:Arty`) - which `locale_order` reproduces for the characters a key
+    has; `golden_art_and_project.rs` holds it to the byte over 27 changes. The page still loads the marks
+    as the dev server's virtual module, which now watches the file.
+  - **Every route a dev plugin answered is the Rust server's.** What is left of the dev server is serving
+    the page itself, the models, the card art and the two virtual lists (models, marks).
+  - Found on the way, and it cost data: two plugins changed at once restarted the dev server twice
+    over; one restart found 8420 still held and slid onto 8421, the tests' port, and a full e2e run
+    reused it - running on the file-booted project, which saves - so a test's save rewrote
+    `projects/default.json` (restored from git). `vite.config.ts` now has `strictPort: true` and
+    `playwright.config.ts` `reuseExistingServer: false`: a taken port is an error, never a server to use.
+    And the Rust server the dev server starts is held on `globalThis`: a restart loads the plugin afresh,
+    so several at once (a few `tools/*.ts` saved together) each thought they owned a server, and an older
+    one kept the port. Now each restart stops whatever is running first - five restarts at once left
+    exactly one server, started after the last.
+  - **Next**: the Rust server serves the built client and the assets (`vite build`'s output, the models,
+    the card art), so the game runs from it alone; then phase 1 is done.

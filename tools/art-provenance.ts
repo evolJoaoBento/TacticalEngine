@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from '
 import { dirname, resolve } from 'node:path';
 import type { Plugin } from 'vite';
 import { SAVE_HEADER } from './default-project.ts';
+import { servesRust } from './serving.ts';
 
 /**
  * How each piece of the engine's art was made - AI generated, AI assisted, or made by hand - kept for
@@ -17,6 +18,11 @@ import { SAVE_HEADER } from './default-project.ts';
  * key and one of the three words, or nothing to go back to the rule. It refuses when the tests are
  * serving (`TACTICAL_BOOT=builtin`). A write updates what the next page load is served, without
  * reloading the page that wrote it.
+ *
+ * **The route is the Rust server's now** (`server/serve/src/art_and_project.rs`, passed through by
+ * `rust-server.ts`, held to `server/fixtures/art-and-project.json`, which these functions write - the
+ * file to the byte, its keys in `localeCompare`'s order). What stays here is the marks the page loads
+ * (the virtual module), which watches the file for what the server writes.
  */
 
 export const PROVENANCE_FILE = 'projects/art-provenance.json';
@@ -129,33 +135,22 @@ export function artProvenance(): Plugin {
       ].join('\n');
     },
     configureServer(server) {
-      server.middlewares.use(PROVENANCE_URL, (request, response) => {
-        const refuse = (status: number, reason: string): void => {
-          response.statusCode = status;
-          response.end(reason);
-        };
-        if (!saves) return refuse(403, 'this server does not keep how art was made');
-        const chunks: Buffer[] = [];
-        let size = 0;
-        request.on('data', (chunk: Buffer) => {
-          size += chunk.length;
-          if (size <= LIMIT) chunks.push(chunk);
+      // The marks file is the Rust server's to write (`server/serve/src/art_and_project.rs`): whoever
+      // writes it, the next page load is served the new marks. The page that wrote it is not reloaded.
+      const file = resolve(root, PROVENANCE_FILE);
+      server.watcher.add(file);
+      for (const event of ['add', 'unlink', 'change'] as const) {
+        server.watcher.on(event, (changed: string) => {
+          if (resolve(changed).toLowerCase() !== file.toLowerCase()) return;
+          const module = server.moduleGraph.getModuleById(RESOLVED);
+          if (module !== undefined) server.moduleGraph.invalidateModule(module);
         });
-        request.on('end', () => {
-          if (size > LIMIT) return refuse(413, 'too large to be one mark');
-          const verdict = judgeProvenance(request, Buffer.concat(chunks).toString('utf8'));
-          if (!verdict.ok) return refuse(verdict.status, verdict.reason);
-          try {
-            const map = markProvenance(readProvenance(root), verdict.key, verdict.provenance);
-            writeProvenance(root, map);
-            const module = server.moduleGraph.getModuleById(RESOLVED);
-            if (module !== undefined) server.moduleGraph.invalidateModule(module);
-            response.setHeader('content-type', 'application/json');
-            response.end(JSON.stringify(map));
-          } catch (error) {
-            refuse(500, (error as Error).message);
-          }
-        });
+      }
+      if (servesRust('serve') && saves) return;
+      // Where there is no Rust server - the tests', or a build - the marks are not changed here.
+      server.middlewares.use(PROVENANCE_URL, (_request, response) => {
+        response.statusCode = 403;
+        response.end('this server does not keep how art was made');
       });
     },
   };

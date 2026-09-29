@@ -4,6 +4,7 @@ import { dirname, resolve } from 'node:path';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { Plugin } from 'vite';
 import { SAVE_HEADER } from './default-project.ts';
+import { keepsAccounts } from './serving.ts';
 
 /**
  * Accounts on this machine: who is playing, so their games and saves are theirs, and so the store
@@ -169,18 +170,7 @@ export function readBody(request: IncomingMessage, limit: number): Promise<Buffe
   });
 }
 
-/** Whether this server keeps accounts: a dev server the tests are not using. */
-export function keepsAccounts(command: 'serve' | 'build'): boolean {
-  return command === 'serve' && process.env['TACTICAL_BOOT'] !== 'builtin';
-}
-
-/**
- * Whether this Vite passes routes to the Rust server (`rust-server.ts`): a dev server that keeps accounts,
- * and not Vitest's, which loads the same config as a dev server of its own.
- */
-export function servesRust(command: 'serve' | 'build'): boolean {
-  return keepsAccounts(command) && process.env['VITEST'] === undefined;
-}
+export { keepsAccounts, servesRust } from './serving.ts';
 
 /**
  * The accounts' routes are the Rust server's now (`server/serve/src/accounts.rs`, passed through by

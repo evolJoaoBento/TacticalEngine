@@ -12,6 +12,15 @@ head and shoulders is already the creature tool's, on the same rail. Only what i
 the mode's id is still `combat`, so `mode-combat`, the tool lists and every test that picks it are
 as they were. Older entries below still say Combat. Unit `editor/modes.test.ts`.
 
+## The art marks and the default project are the Rust server's — done
+
+`/__art/provenance`, `/projects/default.json` and `/__project/save` are answered by
+`server/serve/src/art_and_project.rs`, held to a fixture the TypeScript writes (the marks file to the
+byte, in `localeCompare`'s order); with them every dev-plugin route is the Rust server's. The dev server
+cannot slide onto the tests' port any more (`strictPort`), and Playwright never reuses a server it did
+not start (`reuseExistingServer: false`) - the two together once let an e2e run save over
+`projects/default.json`. `docs/SERVER.md` has the detail and what is left of phase 1.
+
 ## The engine's models are the Rust server's — done
 
 `/__models/add` and `/__models/ancestry` are answered by `server/serve/src/manifest.rs`, held to a fixture
