@@ -12,6 +12,13 @@ head and shoulders is already the creature tool's, on the same rail. Only what i
 the mode's id is still `combat`, so `mode-combat`, the tool lists and every test that picks it are
 as they were. Older entries below still say Combat. Unit `editor/modes.test.ts`.
 
+## Conditions evaluate in Rust, question for question — done
+
+`server/engine/src/script/conditions.rs` evaluates a condition as the TypeScript does, asking a
+`ConditionContext` the same questions in the same order - held to a tape of a real world's answers
+(`server/fixtures/conditions.json`: 3,315 evaluations) until the world is ported. Marks, zones and
+countdown boards come with it. The second of script's five parts; the runner is next.
+
 ## The effect vocabulary reads in Rust, in zod's own words — done
 
 `server/engine/src/script/schema.rs` is the script's schema ported - target selectors, conditions,

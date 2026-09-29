@@ -88,6 +88,8 @@ pub enum Schema {
     Record { key: Box<Schema>, value: Box<Schema> },
     /// `z.null()`.
     Null,
+    /// `.nullable()`: `null`, or what the inner schema reads - its issues are its own.
+    Nullable(Box<Schema>),
     /// A schema defined elsewhere, reached through a function so a schema can hold itself.
     Lazy(fn() -> &'static Schema),
     Opaque,
@@ -131,6 +133,9 @@ pub fn record(key: Schema, value: Schema) -> Schema {
 }
 pub fn null() -> Schema {
     Schema::Null
+}
+pub fn nullable(inner: Schema) -> Schema {
+    Schema::Nullable(Box::new(inner))
 }
 pub fn lazy(schema: fn() -> &'static Schema) -> Schema {
     Schema::Lazy(schema)
@@ -391,6 +396,10 @@ impl Schema {
                     Value::Null
                 }
             }
+            Schema::Nullable(inner) => match input {
+                Some(Value::Null) => Value::Null,
+                _ => inner.read(input, path, issues),
+            },
             Schema::Lazy(schema) => schema().read(input, path, issues),
             Schema::Opaque => input.cloned().unwrap_or(Value::Null),
         }
@@ -411,6 +420,7 @@ impl Schema {
                     .collect(),
             ),
             (Schema::Lazy(schema), _) => schema().mask(value),
+            (Schema::Nullable(inner), _) if !value.is_null() => inner.mask(value),
             (Schema::Record { value: inner, .. }, Value::Object(given)) => Value::Object(given.iter().map(|(k, v)| (k.clone(), inner.mask(v))).collect()),
             (Schema::Tagged { key, variants }, Value::Object(given)) => match variants.iter().find(|(name, _)| given.get(*key).and_then(Value::as_str) == Some(name)) {
                 Some((_, schema)) => schema.mask(value),

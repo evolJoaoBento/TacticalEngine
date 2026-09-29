@@ -5,7 +5,8 @@
 use crate::js;
 use crate::rules::duality::RollOutcome;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum CountdownAdvance {
     Standard,
     AttackRoll,
@@ -35,7 +36,8 @@ impl CountdownAdvance {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum CountdownLoop {
     Reset,
     Increasing,

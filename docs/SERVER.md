@@ -97,7 +97,7 @@ added after, so the rules are not redesigned while they are being transliterated
 
 ```bash
 cd server && cargo test                                         # the Rust port against its fixtures
-npx vitest run src/engine/grid/grid.golden.test.ts src/engine/rules/rules.golden.test.ts src/engine/character/character.golden.test.ts src/engine/dialogue/dialogue.golden.test.ts src/engine/content/content.golden.test.ts src/engine/combat/combat.golden.test.ts src/engine/script/script.golden.test.ts   # the fixtures are still what TypeScript does
+npx vitest run src/engine/grid/grid.golden.test.ts src/engine/rules/rules.golden.test.ts src/engine/character/character.golden.test.ts src/engine/dialogue/dialogue.golden.test.ts src/engine/content/content.golden.test.ts src/engine/combat/combat.golden.test.ts src/engine/script/script.golden.test.ts src/engine/script/conditions.golden.test.ts   # the fixtures are still what TypeScript does
 npm run build:server && npm run server                          # the game from the Rust server alone, on 8430
 npm run server                                                  # (npm run dev starts it too, for the routes alone)
 npx vitest run tests/unit/accounts.golden.test.ts tests/unit/store.golden.test.ts   # the fixtures are still what TypeScript does
@@ -338,5 +338,21 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     the content schemas read conditions and effects in full, and the dialogue schema is on the zod-alike.
     15 of 16 deliberate mutations fail the fixtures; the 16th (the amount union's options in another
     order) is equivalent, as its options never overlap by type.
-  - **Next**: the conditions' evaluation (`script/conditions.ts`, with `marks`, `zones`, `countdowns`),
-    against the world's reads as a trait.
+  - **The conditions' evaluation is ported** (`server/engine/src/script/conditions.rs`, with `marks`,
+    `zones` and `countdowns`): `evaluate` walks a condition asking a `ConditionContext` - twenty reads of
+    the world: flags, variables, pools, bands, factions, who a selector names, whether a hook is defined
+    and what it answers - and a `DiceHand` for `chance`, in the TypeScript's order and with its
+    short-circuits; `compare` is JavaScript's `===` between script values and orders only numbers; a
+    hook's reads are gathered (the actor, then the fight) before it is asked, as the TypeScript gathers
+    them. As with dialogue, the world is not ported, so `conditions.golden.test.ts` wraps a real one and
+    tapes every question the evaluation asks, with its answer: 207 conditions - every one the content
+    carries and a set written so each kind is met both ways - in three worlds (a character acting, an
+    adversary, nobody), under four bindings, with and without dice: 3,315 evaluations and 4,703 taped
+    questions. `golden_conditions.rs` asks them again, in order, none left over, to the same verdicts.
+    Countdown boards - armed in `Map` order, ticked on action-roll and Hit Point cues, looped with their
+    start re-rolled, reaped as their owners fall or leave, ended with the scene - are replayed from the
+    stream's position before each advance to its position after; zone and countdown snapshots read as zod
+    reads them (the zod-alike gained `nullable`); mark keys parse alike. 25 of 25 deliberate mutations
+    fail the fixtures, three of them only once a case was added for each (a `spent` count the evaluator
+    must ignore, a variable read twice, a looping start rolled below one).
+  - **Next**: the runner (`script/runner.ts`), with the world's writes as a trait beside its reads.
