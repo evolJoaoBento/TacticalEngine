@@ -6,8 +6,9 @@
 //! walks, pushes and blinks a script moves a creature by.
 //!
 //! The content it reads - sheets derived, stat blocks, abilities, cards, conditions, loot tables - is
-//! borrowed for the world's life (`WorldContent`): the TypeScript asks for the cards and the hooks afresh
-//! each time so an editor's change is seen at once, and here a changed project is a new world. Hooks are
+//! shared, fixed for the world's life (`WorldContent`, behind an `Rc` so whoever builds worlds can keep it
+//! and build the next one from it): the TypeScript asks for the cards and the hooks afresh each time so an
+//! editor's change is seen at once, and here a changed project is a new world. Hooks are
 //! asked through `Hooks` (`script::hooks`), the world lending each a `HookReader` over itself.
 //!
 //! Split as the TypeScript's sections are: `scenario` (what outlives a scene), `reads`, `zones`,
@@ -49,6 +50,7 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 /// Everything the world reads and never writes: the content a fight is played with, and the table's rules.
+#[derive(Clone)]
 pub struct WorldContent {
     /// Trait modifiers for a check rolled as the party: the party's best hand at each trait.
     pub traits: HashMap<Trait, f64>,
@@ -158,7 +160,7 @@ pub const FALLBACK_THRESHOLDS: DamageThresholds = DamageThresholds { major: 6.0,
 pub struct SceneScriptWorld<'w> {
     pub state: SceneState,
     pub scenario: ScenarioState,
-    content: &'w WorldContent,
+    content: Rc<WorldContent>,
     /// Whether a creature has already had the spotlight this GM turn: whoever runs the turn says; a world
     /// with nobody keeping turns says no, and everyone joins a swarm.
     pub spotlight_spent: Box<dyn Fn(&str) -> bool + 'w>,
@@ -173,7 +175,7 @@ pub struct SceneScriptWorld<'w> {
 }
 
 impl<'w> SceneScriptWorld<'w> {
-    pub fn new(state: SceneState, scenario: ScenarioState, content: &'w WorldContent, hooks: Rc<dyn Hooks + 'w>) -> Self {
+    pub fn new(state: SceneState, scenario: ScenarioState, content: Rc<WorldContent>, hooks: Rc<dyn Hooks + 'w>) -> Self {
         SceneScriptWorld { state, scenario, content, spotlight_spent: Box::new(|_| false), in_combat: None, hooks, damaged: Vec::new(), entered: Vec::new() }
     }
 
@@ -183,7 +185,22 @@ impl<'w> SceneScriptWorld<'w> {
         self
     }
 
-    pub fn content(&self) -> &'w WorldContent {
-        self.content
+    pub fn content(&self) -> &WorldContent {
+        &self.content
+    }
+
+    /// The content, to build the next world from.
+    pub fn shared_content(&self) -> Rc<WorldContent> {
+        Rc::clone(&self.content)
+    }
+
+    /// Read other content from here on: the party's sheets changed under a world that reads them live.
+    pub fn set_content(&mut self, content: Rc<WorldContent>) {
+        self.content = content;
+    }
+
+    /// The hooks, to build the next world with.
+    pub fn hooks(&self) -> Rc<dyn Hooks + 'w> {
+        Rc::clone(&self.hooks)
     }
 }

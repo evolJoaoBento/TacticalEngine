@@ -3,7 +3,8 @@
 //! condition wears, read from the holder's chair; the swing a block prints, the damage it shrugs off, the
 //! dice on either scale of a roll, and the reactions it may answer with.
 
-use super::SceneScriptWorld;
+use super::{SceneScriptWorld, WorldContent};
+use crate::scene::state::SceneState;
 use crate::character::sheet::{granted_cards, lent_cards, trait_part, DerivedCharacter};
 use crate::combat::attack::condition_modifiers;
 use crate::content::abilities::{abilities_for, stat_blocks_of, AbilityDef, AbilityKind, AbilityModifier, Requires, Stat};
@@ -31,6 +32,42 @@ fn net(advantage: f64) -> Advantage {
     Advantage { advantage: js::max(0.0, advantage), disadvantage: js::max(0.0, -advantage) }
 }
 
+/// What a creature holds (`held_by`), borrowing the content alone.
+pub(super) fn held_by_in<'c>(content: &'c WorldContent, state: &SceneState, id: &str) -> Vec<&'c AbilityDef> {
+    if let Some(character) = content.characters.get(id) {
+        let granted: Vec<CardDef> = match &content.cards {
+            None => character.granted.clone(),
+            Some(cards) => granted_cards(&character.sheet, cards).into_iter().chain(lent_to_in(content, state, id)).cloned().collect(),
+        };
+        return abilities_for(character.sheet.loadout.as_deref(), &character.cards, &granted, &content.abilities);
+    }
+    let mut own = state.entity(id).map(|e| abilities_for_adversary_in(content, &e.definition)).unwrap_or_default();
+    own.extend(abilities_on_in(content, &lent_to_in(content, state, id)));
+    own
+}
+
+/// The cards the conditions on a creature lend it: none in a world handed no cards.
+pub(super) fn lent_to_in<'c>(content: &'c WorldContent, state: &SceneState, id: &str) -> Vec<&'c CardDef> {
+    match (state.entity(id), &content.cards) {
+        (Some(entity), Some(cards)) => lent_cards(&entity.conditions, cards),
+        _ => Vec::new(),
+    }
+}
+
+/// The abilities on these cards, in the library's order.
+pub(super) fn abilities_on_in<'c>(content: &'c WorldContent, cards: &[&CardDef]) -> Vec<&'c AbilityDef> {
+    if cards.is_empty() {
+        return Vec::new();
+    }
+    content.abilities.iter().filter(|a| cards.iter().any(|card| card.id == a.source.card)).collect()
+}
+
+/// The scripted features of a stat block, borrowing the content alone.
+pub(super) fn abilities_for_adversary_in<'c>(content: &'c WorldContent, definition: &str) -> Vec<&'c AbilityDef> {
+    let cards: &[CardDef] = content.cards.as_deref().unwrap_or(&[]);
+    content.abilities.iter().filter(|a| stat_blocks_of(a, cards).is_some_and(|blocks| blocks.iter().any(|b| b == definition))).collect()
+}
+
 impl<'w> SceneScriptWorld<'w> {
     /// A condition read from somebody's chair: `id` acting, the bindings naming whoever it is about.
     pub(super) fn holds_as(&mut self, id: &str, when: &Value, bindings: &TargetBindings) -> bool {
@@ -42,46 +79,17 @@ impl<'w> SceneScriptWorld<'w> {
 
     /// The abilities a creature holds: a character's in bar order, or a stat block's features and what a
     /// condition on it lends.
-    pub fn held_by(&self, id: &str) -> Vec<&'w AbilityDef> {
-        let content = self.content;
-        if let Some(character) = content.characters.get(id) {
-            let granted: Vec<CardDef> = match &content.cards {
-                None => character.granted.clone(),
-                Some(cards) => granted_cards(&character.sheet, cards).into_iter().chain(self.lent_to(id)).cloned().collect(),
-            };
-            return abilities_for(character.sheet.loadout.as_deref(), &character.cards, &granted, &content.abilities);
-        }
-        let mut own = self.state.entity(id).map(|e| self.abilities_for_adversary(&e.definition)).unwrap_or_default();
-        own.extend(self.abilities_on(&self.lent_to(id)));
-        own
-    }
-
-    /// The cards the conditions on a creature lend it: none in a world handed no cards.
-    fn lent_to(&self, id: &str) -> Vec<&'w CardDef> {
-        let content = self.content;
-        match (self.state.entity(id), &content.cards) {
-            (Some(entity), Some(cards)) => lent_cards(&entity.conditions, cards),
-            _ => Vec::new(),
-        }
-    }
-
-    /// The abilities on these cards, in the library's order.
-    fn abilities_on(&self, cards: &[&CardDef]) -> Vec<&'w AbilityDef> {
-        if cards.is_empty() {
-            return Vec::new();
-        }
-        self.content.abilities.iter().filter(|a| cards.iter().any(|card| card.id == a.source.card)).collect()
+    pub fn held_by(&self, id: &str) -> Vec<&AbilityDef> {
+        held_by_in(&self.content, &self.state, id)
     }
 
     /// The scripted features of a stat block, named by the definition so every creature off it shares them.
-    pub fn abilities_for_adversary(&self, definition: &str) -> Vec<&'w AbilityDef> {
-        let content = self.content;
-        let cards: &[CardDef] = content.cards.as_deref().unwrap_or(&[]);
-        content.abilities.iter().filter(|a| stat_blocks_of(a, cards).is_some_and(|blocks| blocks.iter().any(|b| b == definition))).collect()
+    pub fn abilities_for_adversary(&self, definition: &str) -> Vec<&AbilityDef> {
+        abilities_for_adversary_in(&self.content, definition)
     }
 
     /// The stat block a definition names, out of the content this fight is played with.
-    pub fn adversary_def(&self, definition: &str) -> Option<&'w AdversaryDef> {
+    pub fn adversary_def(&self, definition: &str) -> Option<&AdversaryDef> {
         self.content.adversaries.get(definition)
     }
 
@@ -91,10 +99,12 @@ impl<'w> SceneScriptWorld<'w> {
     pub fn modifiers_of(&mut self, id: &str, pool: bool, bindings: &TargetBindings) -> Vec<AbilityModifier> {
         let Some(entity) = self.state.entity(id) else { return Vec::new() };
         let conditions = entity.conditions.clone();
-        let character: Option<&'w DerivedCharacter> = self.content.characters.get(id);
-        let mine: Vec<&'w AbilityModifier> = match character {
+        // Kept apart from the world, which the gates below are read against.
+        let content = self.shared_content();
+        let character: Option<&DerivedCharacter> = content.characters.get(id);
+        let mine: Vec<&AbilityModifier> = match character {
             Some(character) => character.modifiers.iter().collect(),
-            None => self.held_by(id).into_iter().filter(|a| a.kind == AbilityKind::Passive).flat_map(|a| a.modifiers.iter()).collect(),
+            None => held_by_in(&content, &self.state, id).into_iter().filter(|a| a.kind == AbilityKind::Passive).flat_map(|a| a.modifiers.iter()).collect(),
         };
         let mut out = Vec::new();
         for m in mine {
@@ -106,7 +116,7 @@ impl<'w> SceneScriptWorld<'w> {
             }
         }
         if character.is_some() {
-            let lent: Vec<&'w AbilityModifier> = self.abilities_on(&self.lent_to(id)).into_iter().filter(|a| a.kind == AbilityKind::Passive).flat_map(|a| a.modifiers.iter()).collect();
+            let lent: Vec<&AbilityModifier> = abilities_on_in(&content, &lent_to_in(&content, &self.state, id)).into_iter().filter(|a| a.kind == AbilityKind::Passive).flat_map(|a| a.modifiers.iter()).collect();
             for m in lent {
                 if m.when.as_ref().is_none_or(|when| self.holds_as(id, when, bindings)) {
                     out.push(m.clone());
@@ -125,7 +135,8 @@ impl<'w> SceneScriptWorld<'w> {
     /// target bound; a passive with a gate and nobody to read it against says nothing.
     pub fn standard_attack_of(&mut self, definition: &str, between: Option<(&str, &str)>) -> Swing {
         let mut swing = Swing::default();
-        for ability in self.abilities_for_adversary(definition) {
+        let content = self.shared_content();
+        for ability in abilities_for_adversary_in(&content, definition) {
             let Some(said) = ability.standard_attack.as_ref().filter(|_| ability.kind == AbilityKind::Passive) else { continue };
             if let Some(when) = &said.when {
                 let Some((attacker, target)) = between else { continue };
@@ -275,20 +286,27 @@ impl<'w> SceneScriptWorld<'w> {
     }
 
     /// The reactions to incoming damage a creature holds.
-    pub fn reactions_of(&mut self, id: &str) -> Vec<&'w AbilityDef> {
+    pub fn reactions_of(&mut self, id: &str) -> Vec<AbilityDef> {
         self.reactions_for(id, "incomingDamage", None)
     }
 
     /// The reactions a creature holds that answer this trigger, each card's gate read with its holder
     /// acting. Stunned - whatever blocks reactions - silences them all. No bindings binds the holder to itself.
-    pub fn reactions_for(&mut self, id: &str, trigger: &str, bindings: Option<&TargetBindings>) -> Vec<&'w AbilityDef> {
+    pub fn reactions_for(&mut self, id: &str, trigger: &str, bindings: Option<&TargetBindings>) -> Vec<AbilityDef> {
+        let content = self.shared_content();
+        self.reactions_for_in(&content, id, trigger, bindings).into_iter().cloned().collect()
+    }
+
+    /// `reactions_for`, answered out of content the caller holds apart from the world, so what it answers
+    /// can be kept while the world changes.
+    pub fn reactions_for_in<'c>(&mut self, content: &'c WorldContent, id: &str, trigger: &str, bindings: Option<&TargetBindings>) -> Vec<&'c AbilityDef> {
         if self.blocks(id, ConditionBlock::Reactions) {
             return Vec::new();
         }
         let own = TargetBindings { targets: vec![id.to_string()], ..TargetBindings::default() };
         let bindings = bindings.unwrap_or(&own).clone();
         let mut offered = Vec::new();
-        for ability in self.held_by(id) {
+        for ability in held_by_in(content, &self.state, id) {
             if ability.kind != AbilityKind::Reaction || ability.trigger.as_deref() != Some(trigger) {
                 continue;
             }

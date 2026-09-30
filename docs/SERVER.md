@@ -97,7 +97,7 @@ added after, so the rules are not redesigned while they are being transliterated
 
 ```bash
 cd server && cargo test                                         # the Rust port against its fixtures
-npx vitest run src/engine/grid/grid.golden.test.ts src/engine/rules/rules.golden.test.ts src/engine/character/character.golden.test.ts src/engine/dialogue/dialogue.golden.test.ts src/engine/content/content.golden.test.ts src/engine/combat/combat.golden.test.ts src/engine/script/script.golden.test.ts src/engine/script/conditions.golden.test.ts src/engine/script/runner.golden.test.ts src/engine/script/hooks.golden.test.ts src/engine/scene/scene.golden.test.ts src/engine/scene/room.golden.test.ts src/engine/scene/party.golden.test.ts   # the fixtures are still what TypeScript does (runner.golden writes runner.json and world.json)
+npx vitest run src/engine/grid/grid.golden.test.ts src/engine/rules/rules.golden.test.ts src/engine/character/character.golden.test.ts src/engine/dialogue/dialogue.golden.test.ts src/engine/content/content.golden.test.ts src/engine/combat/combat.golden.test.ts src/engine/script/script.golden.test.ts src/engine/script/conditions.golden.test.ts src/engine/script/runner.golden.test.ts src/engine/script/hooks.golden.test.ts src/engine/scene/scene.golden.test.ts src/engine/scene/room.golden.test.ts src/engine/scene/party.golden.test.ts src/game/session.golden.test.ts   # the fixtures are still what TypeScript does (runner.golden writes runner.json and world.json)
 npm run build:server && npm run server                          # the game from the Rust server alone, on 8430
 npm run server                                                  # (npm run dev starts it too, for the routes alone)
 npx vitest run tests/unit/accounts.golden.test.ts tests/unit/store.golden.test.ts   # the fixtures are still what TypeScript does
@@ -507,6 +507,45 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     `golden_party.rs` replays it. 41 of 42 deliberate mutations fail it; the 42nd (a walk inside a
     circle measured for leaving it as well as for every point being in it) is equivalent, a circle being
     convex.
-  - **Next**: (3) the session built from a project (`game/room.ts` and the head of `demo-scene.ts`): the
-    room stood up with its party, pathfinder, triggers and world, the log, the roster and the pools
-    carried between rooms, travel - and hooks reaching the world through a factory.
+  - **A game is played from a project** (`server/engine/src/game/`): `Session::build` is
+    `buildProjectScene` - the project's objects made props, every sheet derived with the project's content, the opening room
+    stood up (`build_runtime`: its grid, every placement's stat block - the project's own before the shipped
+    pack, none substituted - the party on the spawns with the pools it carries, the party's control, the
+    triggers and the world). Then what happens between actions: `refresh_world`, `set_sheet`,
+    `sync_roster` (a sheet added arrives beside the party, one removed walks off), `sync_pools`,
+    `gather_party` and `free_tile_near`, `travel_to` (a room remembered comes back as it was left),
+    `sync_authored_encounters` (a room made to agree with its document, back from the editor),
+    `enter_saved_scene`; and the log's `note`, with the creatures a line names found in it in UTF-16
+    units, as JavaScript finds them. `game/rules.rs` is the demo's house rules, `game/content.rs` the
+    content a project plays with.
+    - **What the app ships is handed in** (`Shipped`: the characters with the equipment catalogue, the stat
+      blocks, the abilities, the conditions), not embedded: the engine carries no content, and where the
+      server reads it from is phase 3's to settle. **So are the hooks** (`HooksFor`): the engine runs no
+      JavaScript, and keeping a project's last compile, as `hooksFor` does, is the caller's to do.
+    - **The world now shares its content** (`Rc<WorldContent>`) instead of borrowing it, so a session can
+      own the world it plays in. The world owns the room's state and the scenario, and a world rebuilt is
+      built over them. The world's reads that handed back references into the content while it changed
+      itself read from a content handle the caller holds (`held_by_in` and its siblings), `reactions_for`
+      answers owned abilities, and `defend` takes the content it reads its reactions from. What the world
+      reads of the project is fixed when it is built, as the TypeScript's traits are; the sheets, which the
+      TypeScript's world reads live, are handed to it again whenever they change.
+    - **Left for the parts that play them**: the log's words for a script's journal (`record`), the
+      destination a script asked for (`settleTravel`), what waits on the player, a fight and the GM's
+      turn, and arriving by portal. `openProject`'s renaming of retired models and adding of shipped ones
+      are the renderer's - so a project the server writes back would differ from the browser's in model
+      ids. **Part 5 must gate `sync_roster`**: the TypeScript walks a member the project dropped off the
+      board only out of a fight, and with no fight yet the Rust always does.
+    `session.golden.test.ts` writes `server/fixtures/session.json`: the shipped content once, the three
+    projects once each (the demo's, the default project, and the default project carrying a stat block, a
+    condition, a step height and an old object of its own), and fifteen sessions of forty steps - travel,
+    the roster, sheets written back, wounds, the party gathered (on a member, deep in a wall), a save
+    loaded, the world rebuilt, placements renamed, dropped and added and triggers moved as the editor
+    does, lines with names that overlap - each followed by the room, everybody in it, the party, the rooms
+    remembered, the log's new lines, the world's content and the scenario. `server/hooks/tests/
+    golden_session.rs` replays it with the hooks compiled in QuickJS. 43 of 47 deliberate mutations fail
+    it; of the rest two are equivalent (a Hit Point floor no sheet reaches; an object left an object,
+    which plays as the prop it would have become - `room.json` holds the making of it) and two wait for
+    what reaches them (zones read again, and marked spots forgotten, when nothing between actions sets
+    either). The world's 93 still all fail `golden_world.rs` after the change to how it holds its content.
+  - **Next**: (4) movement, leaps, interaction, props and talk, and what drives a script from play - and
+    with them the log's words for a journal.

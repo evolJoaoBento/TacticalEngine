@@ -3,7 +3,7 @@
 //! lands, an attack made from a script (a swarm piling in behind it), creatures summoned or stood in the
 //! place of another, and a reaction roll.
 
-use super::{Blow, SceneScriptWorld, FALLBACK_DIFFICULTY, FALLBACK_THRESHOLDS};
+use super::{Blow, SceneScriptWorld, WorldContent, FALLBACK_DIFFICULTY, FALLBACK_THRESHOLDS};
 use crate::character::sheet::{attack_profile, Hand};
 use crate::combat::attack::{apply_attack, resolve_attack, AttackOptions, AttackProfile, AttackRequest, AttackerKind, DefenderProfile};
 use crate::combat::defense::{resolve_defense, ArmorPolicy, Defender, Defense};
@@ -90,14 +90,15 @@ impl<'w> SceneScriptWorld<'w> {
     }
 
     /// Decide and pay the defence against one blow - Armor Slots and reactions under the world's policy -
-    /// paying the Light and Stress the reactions cost. The caller marks what the result says.
-    pub fn defend(&mut self, id: &str, damage: &IncomingDamage, rng: &mut Rng) -> Defense<'w> {
+    /// paying the Light and Stress the reactions cost. The caller marks what the result says. The reactions
+    /// are read out of `content`, the world's own (`shared_content`), held by the caller.
+    pub fn defend<'c>(&mut self, content: &'c WorldContent, id: &str, damage: &IncomingDamage, rng: &mut Rng) -> Defense<'c> {
         let Some(entity) = self.state.entity(id).cloned() else {
             return Defense { resolved: resolve_damage(damage, &FALLBACK_THRESHOLDS, &ResolveDamageOptions::default()), armor_slots_marked: 0.0, reactions: Vec::new(), good_spent: 0.0, stress_marked: 0.0 };
         };
         let against = self.defender_of(&entity);
         let armor_slots = self.armor_for(id);
-        let reactions = self.reactions_of(id);
+        let reactions = self.reactions_for_in(content, id, "incomingDamage", None);
         let defender = Defender { thresholds: against.thresholds, defenses: against.defenses, armor_slots, stress: entity.stress, good: entity.good, reactions };
         let defense = resolve_defense(rng, damage, &defender, self.content.defense).expect("a defence's dice are whole");
         if defense.good_spent > 0.0 {
@@ -114,7 +115,8 @@ impl<'w> SceneScriptWorld<'w> {
         if !self.state.entity(id).is_some_and(|e| e.alive) {
             return DealtDamage { incoming: 0.0, reduced: 0.0, hp_marked: 0.0, armor_slots_spent: 0.0, fell: false, reactions: Vec::new() };
         }
-        let defense = self.defend(id, damage, rng);
+        let content = self.shared_content();
+        let defense = self.defend(&content, id, damage, rng);
         let resolved = defense.resolved;
         let entity = self.state.entity_mut(id).expect("still here");
         if resolved.armor_slots_spent > 0.0 {
@@ -253,7 +255,8 @@ impl<'w> SceneScriptWorld<'w> {
 
     /// What an adversary swings, from its stat block, with what its passives say against this target.
     fn adversary_profile(&mut self, definition: &str, between: Option<(&str, &str)>) -> Option<AttackProfile> {
-        let def = self.content.adversaries.get(definition)?;
+        let content = self.shared_content();
+        let def = content.adversaries.get(definition)?;
         let swing = self.standard_attack_of(definition, between);
         Some(AttackProfile {
             kind: AttackerKind::Adversary,

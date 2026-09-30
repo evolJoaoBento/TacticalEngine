@@ -9,6 +9,7 @@ pub mod character;
 pub mod combat;
 pub mod content;
 pub mod dialogue;
+pub mod game;
 pub mod grid;
 pub mod js;
 pub mod rng;

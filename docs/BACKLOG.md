@@ -12,6 +12,15 @@ head and shoulders is already the creature tool's, on the same rail. Only what i
 the mode's id is still `combat`, so `mode-combat`, the tool lists and every test that picks it are
 as they were. Older entries below still say Combat. Unit `editor/modes.test.ts`.
 
+## A game is played in Rust from a project — done
+
+`server/engine/src/game/` stands a game up from a project as `buildProjectScene` does and plays what
+happens between actions: travel and rooms remembered, the roster and pools, sheets written back, the party
+gathered, a save entered, a room made to agree with its edited document, and the log. The shipped content
+and the hooks are handed in. The world now shares its content rather than borrowing it. Held to
+`server/fixtures/session.json`. The third part of the game layer's six; movement, interaction and props are
+next.
+
 ## The party moves in Rust — done
 
 `server/engine/src/scene/party.rs` is `Party` ported: selection, order, groups and held members, the ground

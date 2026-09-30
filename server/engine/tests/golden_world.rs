@@ -642,7 +642,8 @@ fn probe(world: &mut SceneScriptWorld, call: &str, a: &[Value], dice: &mut Rng) 
         }
         "dealDamage" => to(&world.deal_damage(&s(0), &from(&a[1]), dice)),
         "defend" => {
-            let d = world.defend(&s(0), &from(&a[1]), dice);
+            let content = world.shared_content();
+            let d = world.defend(&content, &s(0), &from(&a[1]), dice);
             let reactions: Vec<Value> = d
                 .reactions
                 .iter()
@@ -755,7 +756,7 @@ fn probe(world: &mut SceneScriptWorld, call: &str, a: &[Value], dice: &mut Rng) 
         "advantageAgainst" => to(&world.advantage_against(&from::<Vec<String>>(&a[0]))),
         "reactionsFor" => {
             let given: Option<TargetBindings> = (!a[2].is_null()).then(|| bindings(2));
-            ids_of(&world.reactions_for(&s(0), &s(1), given.as_ref()))
+            ids_of(&world.reactions_for(&s(0), &s(1), given.as_ref()).iter().collect::<Vec<_>>())
         }
         "standardAttackOf" => {
             let between: Option<(String, String)> = (!a[1].is_null()).then(|| (text(&a[1][0]).to_string(), text(&a[1][1]).to_string()));
@@ -814,7 +815,10 @@ fn every_script_changes_the_world_as_the_typescript_did() {
     let runs = runner_fixture["runs"].as_array().unwrap();
     let worlds = world_fixture["runs"].as_array().unwrap();
     assert_eq!(runs.len(), worlds.len(), "the two fixtures were written together");
-    let contents: HashMap<String, (WorldContent, Vec<String>)> = world_fixture["contents"].as_object().unwrap().iter().map(|(key, spec)| (key.clone(), content_of(spec))).collect();
+    let contents: HashMap<String, (Rc<WorldContent>, Vec<String>)> = world_fixture["contents"].as_object().unwrap().iter().map(|(key, spec)| {
+        let (content, defined) = content_of(spec);
+        (key.clone(), (Rc::new(content), defined))
+    }).collect();
     let (mut steps_replayed, mut probes_asked) = (0, 0);
     for (run, played) in runs.iter().zip(worlds) {
         assert_eq!((&run["source"], &run["seed"]), (&played["source"], &played["seed"]), "the two fixtures were written together");
@@ -825,7 +829,7 @@ fn every_script_changes_the_world_as_the_typescript_did() {
         let mut scenario = ScenarioState::default();
         scenario.restore(&start["scenario"]).expect("a scenario");
         let step: Shared = Rc::new(RefCell::new(Step { calls: VecDeque::new(), hooks: VecDeque::new(), at: String::new() }));
-        let mut world = SceneScriptWorld::new(scene_of(grid, start), scenario, content, Rc::new(TapedHooks { defined: defined.clone(), step: step.clone() }));
+        let mut world = SceneScriptWorld::new(scene_of(grid, start), scenario, content.clone(), Rc::new(TapedHooks { defined: defined.clone(), step: step.clone() }));
         let spotlit: Vec<String> = from(&start["spotlit"]);
         world.spotlight_spent = Box::new(move |id| spotlit.iter().any(|s| s == id));
         let world = Rc::new(RefCell::new(world));

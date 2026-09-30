@@ -91,7 +91,7 @@ impl<'w> SceneScriptWorld<'w> {
         *self.state.encounter(id)
     }
 
-    fn condition(&self, name: &str) -> Option<&'w ConditionDef> {
+    fn condition(&self, name: &str) -> Option<&ConditionDef> {
         self.content.condition_defs.get(name)
     }
 
@@ -109,7 +109,7 @@ impl<'w> SceneScriptWorld<'w> {
         self.condition(condition).map_or_else(|| condition.to_string(), |def| def.name.clone())
     }
 
-    pub fn condition_def(&self, condition: &str) -> Option<&'w ConditionDef> {
+    pub fn condition_def(&self, condition: &str) -> Option<&ConditionDef> {
         self.condition(condition)
     }
 
@@ -230,7 +230,7 @@ impl<'w> SceneScriptWorld<'w> {
     }
 
     /// The acting character's sheet, when the actor is a party member with one.
-    pub(super) fn actor_character(&self) -> Option<&'w DerivedCharacter> {
+    pub(super) fn actor_character(&self) -> Option<&DerivedCharacter> {
         self.content.characters.get(self.scenario.actor_id.as_deref()?)
     }
 
@@ -242,7 +242,9 @@ impl<'w> SceneScriptWorld<'w> {
     /// otherwise, and what the actor's cards add to any action roll - read from the actor's chair even when
     /// the trait is the party's. Spellcast and weapon checks are the actor's alone.
     pub fn check_modifier(&mut self, trait_: &str, as_: &str) -> Option<f64> {
-        let character = self.actor_character();
+        // Kept apart from the world, which the actor's bonuses are read against.
+        let content = self.shared_content();
+        let character = self.scenario.actor_id.as_deref().and_then(|id| content.characters.get(id));
         let actor = self.scenario.actor_id.clone();
         let any = match &actor {
             None => 0.0,
@@ -342,7 +344,8 @@ impl<'w> SceneScriptWorld<'w> {
             return 0.0;
         }
         let mut lifted = 0.0;
-        for ability in self.held_by(id) {
+        let content = self.shared_content();
+        for ability in super::modifiers::held_by_in(&content, &self.state, id) {
             let Some(lift) = &ability.lift else { continue };
             if lift.only == "spellcast" && trait_ != "spellcast" {
                 continue;
