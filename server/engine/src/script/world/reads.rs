@@ -364,7 +364,7 @@ impl<'w> SceneScriptWorld<'w> {
         lifted
     }
 
-    pub fn hook_defined(&mut self, id: &str) -> bool {
+    pub fn hook_defined(&self, id: &str) -> bool {
         self.hooks.defined(id)
     }
 

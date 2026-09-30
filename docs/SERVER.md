@@ -97,7 +97,7 @@ added after, so the rules are not redesigned while they are being transliterated
 
 ```bash
 cd server && cargo test                                         # the Rust port against its fixtures
-npx vitest run src/engine/grid/grid.golden.test.ts src/engine/rules/rules.golden.test.ts src/engine/character/character.golden.test.ts src/engine/dialogue/dialogue.golden.test.ts src/engine/content/content.golden.test.ts src/engine/combat/combat.golden.test.ts src/engine/script/script.golden.test.ts src/engine/script/conditions.golden.test.ts src/engine/script/runner.golden.test.ts   # the fixtures are still what TypeScript does (the last writes runner.json and world.json)
+npx vitest run src/engine/grid/grid.golden.test.ts src/engine/rules/rules.golden.test.ts src/engine/character/character.golden.test.ts src/engine/dialogue/dialogue.golden.test.ts src/engine/content/content.golden.test.ts src/engine/combat/combat.golden.test.ts src/engine/script/script.golden.test.ts src/engine/script/conditions.golden.test.ts src/engine/script/runner.golden.test.ts src/engine/script/hooks.golden.test.ts   # the fixtures are still what TypeScript does (runner.golden writes runner.json and world.json)
 npm run build:server && npm run server                          # the game from the Rust server alone, on 8430
 npm run server                                                  # (npm run dev starts it too, for the routes alone)
 npx vitest run tests/unit/accounts.golden.test.ts tests/unit/store.golden.test.ts   # the fixtures are still what TypeScript does
@@ -406,5 +406,33 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     were grown against deliberate mutations: 72 written first, the fixture strengthened until each failed
     it; then 18 written fresh, 13 of which failed at once and the rest once a probe asked their question;
     then 3 more for the calls added last. 93 of 93 fail it now, with the runner's 37 of 41 as before.
-  - **Next**: hooks in QuickJS (part 5), behind the `Hooks` seam - in the serve crate or behind a
-    feature, since `rquickjs` does not build for `wasm32-unknown-unknown`; with it the last tape comes out.
+  - **Hooks are ported** (`server/hooks`, the `tactical-hooks` crate, on `rquickjs`; the engine's side is
+    `server/engine/src/script/hooks.rs`). The engine stays free of any JavaScript engine, and still builds
+    to wasm32: it asks a `Hooks` trait, and lends the hook a `HookReader` over the world while it runs -
+    `ctx.pool`, `ctx.select` against the bindings the hook was run under (which `HookReads` now carries),
+    and the rest. The crate compiles a project's code as `compileHooks` does - `new Function`, the same 24
+    names shadowed, `Math.random` refusing - and builds each call's `ctx` from the TypeScript's own code run
+    inside QuickJS (`prelude.js`): `hookReads`; `createRng` started from the scenario's stream, so its
+    errors are the TypeScript's words and the stream is taken up where the hook left it; the queue and the
+    log. Each call gets a runtime of its own, with no host but the reads and limits on memory (32 MB),
+    stack and work - interrupt checks counted, not timed, so a hook stopped is stopped on every machine. A
+    runtime to itself is also what lets a read reach another hook: a modifier gated on one, read while a
+    hook asks a Difficulty. A read the TypeScript's world throws on - a pool no creature has - throws in the
+    hook here too. Where QuickJS and V8 differ: an error the engine raises itself is worded its own way
+    (its kind is the same), there is no `Intl`, and a hook past its limits fails where the browser would
+    carry on.
+    `hooks.golden.test.ts` runs the five hooks the default project and the SRD pack carry (25 cases) and
+    47 cases written for the rest of the `ctx` - every read, of every kind of argument; every die; the last
+    roll; the queue; what a hook may not touch; what it throws; the language, numbers and sorting - through
+    the engine's own `compileHooks`, `hookReads` and `runHook` in the demo world, taping each read that
+    reaches the world, into `server/fixtures/hooks.json`. `golden_hooks.rs` holds QuickJS to the same
+    reads, outcome, queue and dice: an error in the hook's words or the shims' word for word, the engine's
+    by its kind. The runner's fixture gained a hook of its own, run and asked in every run's project, and
+    `world.json` the code each content was played with, so `golden_runs.rs` replays all 868 runs with
+    nothing taped - the Rust runner, the Rust world, the hooks compiled and run in QuickJS - to the same
+    prompts, journal, dice and world. `boundary.rs` holds what the TypeScript cannot show: a loop, an
+    allocation and a recursion stopped; nothing reachable but the reads; the dice the scenario's stream; a
+    read reaching a hook. 25 of 26 deliberate mutations - in the prelude, the bridge and the world's reader - fail them; the 26th (a log's tone written as undefined rather than left out) is equivalent, JSON having no undefined, and the runner's 37 of 41 and the world's 93 of 93 hold on the fixtures as they now stand. The serve crate builds no worlds yet:
+    `QuickJsHooks::compile` is where the game layer's port plugs a project's code in.
+  - **Next**: the game layer (`movement`, `room`, `interaction`, `leap`, `save` - with the scenario
+    snapshot's schema - `shop`, `equip`), and with it a world the server builds from a project.

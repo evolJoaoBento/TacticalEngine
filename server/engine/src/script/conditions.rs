@@ -49,7 +49,8 @@ pub struct InteractableState {
     pub removed: bool,
 }
 
-/// What a hook is handed when it is asked a question: its arguments, and the scene as the question saw it.
+/// What a hook is handed when it is asked a question: its arguments, and the scene as the question saw it -
+/// with the bindings whole, which `ctx.select` reads selectors against.
 #[derive(Clone, Debug, PartialEq)]
 pub struct HookReads {
     pub args: Value,
@@ -57,6 +58,7 @@ pub struct HookReads {
     pub targets: Vec<String>,
     pub hit: Vec<String>,
     pub in_combat: bool,
+    pub bindings: TargetBindings,
 }
 
 /// What a condition is evaluated against. Conditions never change it; the `&mut` is for a context that
@@ -261,7 +263,7 @@ pub fn evaluate<C: ConditionContext + DiceHand + ?Sized>(condition: &Value, cont
             // What a hook reads is gathered first, as the TypeScript gathers it: the actor, then the fight.
             let actor = context.actor_id();
             let in_combat = context.in_combat();
-            let reads = HookReads { args: condition.get("args").cloned().unwrap_or_else(|| json!({})), actor, targets: bindings.targets.clone(), hit: bindings.hit.clone(), in_combat };
+            let reads = HookReads { args: condition.get("args").cloned().unwrap_or_else(|| json!({})), actor, targets: bindings.targets.clone(), hit: bindings.hit.clone(), in_combat, bindings: bindings.clone() };
             context.run_hook(id, &reads)
         }
         "self" => {

@@ -1,7 +1,8 @@
 # The Rust server (docs/SERVER.md). `engine` is the rules alone - no files, no clock, no network - so it
-# also builds to WebAssembly; `serve` is the server, which answers the dev plugins' routes one by one.
+# also builds to WebAssembly; `hooks` runs a project's JavaScript in QuickJS, which does not; `serve` is
+# the server, which answers the dev plugins' routes one by one.
 [workspace]
-members = ["engine", "serve"]
+members = ["engine", "hooks", "serve"]
 resolver = "2"
 
 [workspace.package]

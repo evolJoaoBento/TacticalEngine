@@ -1501,7 +1501,7 @@ impl<'a, W: ScriptWorld + ?Sized> ScriptRunner<'a, W> {
                 let bindings = self.bindings();
                 let actor = self.world.actor_id();
                 let in_combat = self.world.in_combat();
-                let reads = HookReads { args: effect.get("args").cloned().unwrap_or_else(|| json!({})), actor, targets: bindings.targets, hit: bindings.hit, in_combat };
+                let reads = HookReads { args: effect.get("args").cloned().unwrap_or_else(|| json!({})), actor, targets: bindings.targets.clone(), hit: bindings.hit.clone(), in_combat, bindings };
                 let last_roll = self.last_roll.as_ref().map(|r| LastRoll { total: r.total, critical: r.critical, outcome: r.outcome });
                 let run = self.world.run_hook_effect(hook, &reads, last_roll, self.rng);
                 if !run.ok {

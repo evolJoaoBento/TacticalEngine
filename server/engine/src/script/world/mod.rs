@@ -8,7 +8,7 @@
 //! The content it reads - sheets derived, stat blocks, abilities, cards, conditions, loot tables - is
 //! borrowed for the world's life (`WorldContent`): the TypeScript asks for the cards and the hooks afresh
 //! each time so an editor's change is seen at once, and here a changed project is a new world. Hooks are
-//! the one part not ported: the world asks them through `Hooks`, which the QuickJS part will fill.
+//! asked through `Hooks` (`script::hooks`), the world lending each a `HookReader` over itself.
 //!
 //! Split as the TypeScript's sections are: `scenario` (what outlives a scene), `reads`, `zones`,
 //! `modifiers` (what a creature holds and what it adds), `targets` (who a selector names), `writes`,
@@ -29,6 +29,7 @@ pub use modifiers::Swing;
 pub use reads::{ArmorAidOn, Instead, Mark};
 pub use scenario::*;
 pub use zones::Footprint;
+pub use crate::script::hooks::{HookReader, Hooks, NoHooks};
 
 use crate::character::sheet::DerivedCharacter;
 use crate::combat::defense::{ArmorPolicy, DefensePolicy};
@@ -38,16 +39,14 @@ use crate::content::conditions::ConditionDef;
 use crate::content::items::LootTable;
 use crate::content::pack::CardDef;
 use crate::grid::pathfinding::MovementRules;
-use crate::rng::Rng;
 use crate::rules::damage::DamageThresholds;
 use crate::rules::dice::DamageType;
 use crate::rules::jump::Trait;
 use crate::rules::range::{BandTiles, DEFAULT_BAND_TILES};
 use crate::scene::state::SceneState;
-use crate::script::conditions::HookReads;
-use crate::script::runner::{HookRun, LastRoll};
 use serde::Serialize;
 use std::collections::HashMap;
+use std::rc::Rc;
 
 /// Everything the world reads and never writes: the content a fight is played with, and the table's rules.
 pub struct WorldContent {
@@ -98,31 +97,6 @@ impl WorldContent {
 
     fn table(&self) -> &BandTiles {
         self.band_tiles.as_ref().unwrap_or(&DEFAULT_BAND_TILES)
-    }
-}
-
-/// Logic in code, by id: what the world asks when a condition or an effect names a hook. Until the hooks'
-/// own part, every world is handed one of these by whoever builds it.
-pub trait Hooks {
-    fn defined(&mut self, id: &str) -> bool;
-    /// Asked as a condition: whether it holds. Only called for a hook `defined` said was there.
-    fn run(&mut self, id: &str, reads: &HookReads) -> bool;
-    /// Run as an effect: it may throw dice off the stream, and queues effects.
-    fn run_effect(&mut self, id: &str, reads: &HookReads, last_roll: Option<LastRoll>, rng: &mut Rng) -> HookRun;
-}
-
-/// A project with no code: nothing is defined.
-pub struct NoHooks;
-
-impl Hooks for NoHooks {
-    fn defined(&mut self, _id: &str) -> bool {
-        false
-    }
-    fn run(&mut self, _id: &str, _reads: &HookReads) -> bool {
-        false
-    }
-    fn run_effect(&mut self, id: &str, _reads: &HookReads, _last_roll: Option<LastRoll>, _rng: &mut Rng) -> HookRun {
-        HookRun { ok: false, message: format!("no hook \"{id}\""), queued: Vec::new() }
     }
 }
 
@@ -190,7 +164,8 @@ pub struct SceneScriptWorld<'w> {
     pub spotlight_spent: Box<dyn Fn(&str) -> bool + 'w>,
     /// Whether a fight is running, when something other than the scene's encounters says so.
     in_combat: Option<Box<dyn Fn(&SceneState) -> bool + 'w>>,
-    hooks: Box<dyn Hooks + 'w>,
+    /// Shared rather than owned, so the world can lend itself to a hook while the hooks are asked.
+    hooks: Rc<dyn Hooks + 'w>,
     /// Blows that landed since anyone last looked.
     damaged: Vec<DamageNote>,
     /// Crossings into ground that bites, waiting for somebody with a runner.
@@ -198,7 +173,7 @@ pub struct SceneScriptWorld<'w> {
 }
 
 impl<'w> SceneScriptWorld<'w> {
-    pub fn new(state: SceneState, scenario: ScenarioState, content: &'w WorldContent, hooks: Box<dyn Hooks + 'w>) -> Self {
+    pub fn new(state: SceneState, scenario: ScenarioState, content: &'w WorldContent, hooks: Rc<dyn Hooks + 'w>) -> Self {
         SceneScriptWorld { state, scenario, content, spotlight_spent: Box::new(|_| false), in_combat: None, hooks, damaged: Vec::new(), entered: Vec::new() }
     }
 

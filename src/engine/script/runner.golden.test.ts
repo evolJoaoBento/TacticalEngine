@@ -172,7 +172,7 @@ function cardsJson(cards: ContentPack['cards']) {
 }
 
 /** What a world was built with, read off the world itself: its private options are what it plays. */
-function contentOf(world: SceneScriptWorld, project: Parameters<typeof characterContentFor>[0]) {
+function contentOf(world: SceneScriptWorld, project: Parameters<typeof characterContentFor>[0], code: readonly { id: string; name: string; source: string }[]) {
   const w = world as unknown as {
     traits: object; lootTables: Map<string, unknown>; characters: Map<string, DerivedCharacter>; adversaries: Map<string, unknown>;
     bandTiles?: object; movement?: object; defense: object; abilities: unknown[]; cards: (() => ContentPack['cards']) | null;
@@ -192,6 +192,7 @@ function contentOf(world: SceneScriptWorld, project: Parameters<typeof character
     movement: w.movement ?? null,
     defense: w.defense,
     hooks: [...w.hooks().keys()],
+    code: code.map(({ id, name, source }) => ({ id, name, source })),
   };
 }
 
@@ -701,6 +702,26 @@ function changes(was: ReturnType<typeof standing>, now: ReturnType<typeof standi
 }
 
 const log = { kind: 'log', text: 'x' };
+/**
+ * A hook of the fixture's own, in every run's project: every read, against whatever the run has made of the
+ * world - a foe turned, a target named - so the world a hook reads is held to the TypeScript's, hook and all.
+ */
+const PROBE_CODE = {
+  id: 'probe-reads',
+  name: 'Probe reads',
+  notes: '',
+  source: [
+    'var a = ctx.actor, t = ctx.targets[0];',
+    'var out = [ctx.inCombat, ctx.targets, ctx.hit, ctx.pool(a, "hitPoints"), ctx.pool(a, "stress", "marked"), ctx.select({ kind: "target" }), ctx.select({ kind: "hit" }),',
+    '  ctx.select({ kind: "adversaries", range: "far", around: "target" }), ctx.countAlive("neutral"), ctx.countAlive("party"), ctx.difficultyOf(t), ctx.factionOf(t),',
+    '  ctx.tokens(a, "ward"), ctx.variable("v"), ctx.flag("f"), ctx.hasCondition(a, "hidden"), ctx.bandTo(a, t)];',
+    'try { out.push(ctx.pool(a, "nonsense")); } catch (e) { out.push(e.name); }',
+    'if (ctx.log === undefined) return ctx.inCombat === false;',
+    'out.push(ctx.rng.nextInt(3000000000), ctx.rng.nextInt(3000000000), ctx.lastRoll);',
+    'ctx.log(JSON.stringify(out));',
+    'return true;',
+  ].join('\n'),
+};
 /** Stands for the stat block of one of the demo's own foes, so a summons has something to call. */
 const FOE = '<foe>';
 /** Scripts for the corners the content does not reach. */
@@ -753,6 +774,8 @@ const WRITTEN: unknown[][] = [
   [{ kind: 'attack', target: { kind: 'adversaries', range: 'veryFar' }, range: 'veryFar', onHit: [{ kind: 'log', text: 'hit' }], onMiss: [{ kind: 'log', text: 'missed' }] }],
   [{ kind: 'attack', target: { kind: 'adversaries', range: 'veryFar', nearest: 1 }, range: 'veryFar', damageDice: 'weapon', onHit: [{ kind: 'damage', dice: 'same', target: { kind: 'hit' } }], onMiss: [{ kind: 'markStress', amount: 1 }] }],
   [{ kind: 'attack', by: 'target', target: { kind: 'party' }, range: 'veryFar', onMiss: [{ kind: 'log', text: 'it missed' }] }],
+  // The fixture's own hook, run and asked, with a foe turned first so there is somebody neutral to count.
+  [{ kind: 'setAttitude', attitude: 'friendly' }, { kind: 'run', hook: 'probe-reads', args: { n: 1 } }, { kind: 'branch', when: { kind: 'hook', hook: 'probe-reads' }, then: [log], otherwise: [{ kind: 'log', text: 'no' }] }],
   // One die is enough unless a check says otherwise, and an Experience costs Light the roller may not have.
   [{ kind: 'diceCheck', dice: 'd6', times: 1, atLeast: 1, then: [log], otherwise: [{ kind: 'log', text: 'no' }] }],
   [{ kind: 'loseGood', amount: 9, target: { kind: 'actor' } }, { kind: 'check', check: { trait: 'presence', difficulty: 12 } }, { kind: 'check', check: { trait: 'instinct', difficulty: 10 } }],
@@ -820,6 +843,7 @@ function play(source: string, effects: Effect[], seed: string) {
   // Only the GM replaces a creature, so a script that does is always played by a foe.
   const byFoe = effects.some((e) => e.kind === 'replace');
   const demo = buildDemoScene(hollowVaultMap(), seed);
+  demo.project.code.push(PROBE_CODE);
   const gen = createRng(`${seed}:options`);
   const ids = demo.state.allEntities().map((e) => e.id);
   const party = demo.state.entitiesOf('party').map((e) => e.id);
@@ -850,7 +874,7 @@ function play(source: string, effects: Effect[], seed: string) {
   rec.rng = rng;
   const world = demo.world;
   const start = startOf(demo);
-  const content = contentOf(world, demo.project);
+  const content = contentOf(world, demo.project, demo.project.code);
   const runner = new ScriptRunner(recorded(world), rng, options);
   const steps: unknown[] = [];
   const hookSteps: unknown[][] = [];

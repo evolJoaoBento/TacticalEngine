@@ -12,6 +12,15 @@ head and shoulders is already the creature tool's, on the same rail. Only what i
 the mode's id is still `combat`, so `mode-combat`, the tool lists and every test that picks it are
 as they were. Older entries below still say Combat. Unit `editor/modes.test.ts`.
 
+## Hooks run in QuickJS, and nothing is taped — done
+
+`server/hooks` (the `tactical-hooks` crate) runs a project's hooks in QuickJS behind the engine's `Hooks`
+trait, the engine lending each hook a reader over the world while it runs; the engine itself stays free of
+any JavaScript engine and builds to wasm32. A hook meets the `ctx` the browser builds, from the same code,
+in a runtime of its own with limits on memory, stack and work. Held to `server/fixtures/hooks.json` (72
+cases, read for read) and, with nothing taped, to every run the runner's fixture holds. Script is ported;
+the game layer is next.
+
 ## The world scripts change is Rust's own — done
 
 `server/engine/src/script/world/` is `SceneScriptWorld` ported: what the runner and the conditions ask,

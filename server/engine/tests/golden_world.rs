@@ -9,145 +9,23 @@
 //! probed: the world asked directly, on a seeded stream, what a fight asks beyond a script - writes between
 //! the reads so there is something to read - each answer held to the TypeScript's.
 
-use engine::character::sheet::{derive_character, CharacterSheet};
-use engine::combat::defense::DefensePolicy;
 use engine::content::abilities::AbilityDef;
-use engine::content::adversaries::AdversaryDef;
-use engine::content::conditions::ConditionDef;
-use engine::content::items::LootTable;
-use engine::content::pack::{CardDef, ContentPack};
-use engine::grid::pathfinding::MovementRules;
-use engine::grid::terrain::{TerrainPalette, TerrainType};
-use engine::grid::tile_grid::{Origin, TileGrid};
 use engine::rng::Rng;
 use engine::rules::dice::ParsedDamage;
-use engine::rules::jump::Trait;
-use engine::rules::range::{BandTiles, RangeBand};
-use engine::scene::state::{EncounterState, Faction, SceneState};
+use engine::rules::range::RangeBand;
+use engine::scene::state::{EncounterState, Faction};
 use engine::script::conditions::{ConditionContext, DiceHand, HookReads, InteractableState, TargetBindings};
 use engine::script::runner::*;
-use engine::script::world::{Hooks, ScenarioState, SceneScriptWorld, WorldContent};
+use engine::script::world::{HookReader, Hooks, ScenarioState, SceneScriptWorld, WorldContent};
 use serde_json::{json, Value};
 use std::cell::RefCell;
 use std::collections::{HashMap, VecDeque};
 use std::rc::Rc;
 
-fn fixture(name: &str) -> Value {
-    let path = format!("{}/../fixtures/{name}", env!("CARGO_MANIFEST_DIR"));
-    serde_json::from_str(&std::fs::read_to_string(path).expect("written by src/engine/script/runner.golden.test.ts")).expect("JSON")
-}
-
-/// Two JSON answers the same: numbers by value, objects by their keys whatever the order.
-fn same(a: &Value, b: &Value) -> bool {
-    match (a, b) {
-        (Value::Number(x), Value::Number(y)) => x.as_f64() == y.as_f64(),
-        (Value::Array(x), Value::Array(y)) => x.len() == y.len() && x.iter().zip(y).all(|(p, q)| same(p, q)),
-        (Value::Object(x), Value::Object(y)) => x.len() == y.len() && x.iter().all(|(k, v)| y.get(k).is_some_and(|w| same(v, w))),
-        _ => a == b,
-    }
-}
-
-macro_rules! check {
-    ($got:expr, $wanted:expr, $($what:tt)*) => {{
-        let (got, wanted): (Value, &Value) = ($got, $wanted);
-        assert!(same(&got, wanted), "{}:\n  rust       {}\n  typescript {}", format!($($what)*), got, wanted);
-    }};
-}
-
-fn from<T: serde::de::DeserializeOwned>(value: &Value) -> T {
-    serde_json::from_value(value.clone()).unwrap_or_else(|e| panic!("{e}: {value}"))
-}
-
-fn to<T: serde::Serialize>(value: &T) -> Value {
-    serde_json::to_value(value).expect("serializes")
-}
-
-// --- The world's inputs ----------------------------------------------------------------------------------
-
-fn grid_of(spec: &Value) -> TileGrid {
-    let types = spec["palette"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .map(|t| TerrainType {
-            passable: t["passable"].as_bool().unwrap(),
-            cost: t["cost"].as_f64().unwrap_or(f64::INFINITY),
-            provides_cover: t["providesCover"].as_bool().unwrap(),
-            blocks_sight: t["blocksSight"].as_bool().unwrap(),
-            ..TerrainType::new(t["id"].as_str().unwrap())
-        })
-        .collect();
-    let mut grid = TileGrid::new(spec["width"].as_i64().unwrap() as i32, spec["height"].as_i64().unwrap() as i32, TerrainPalette::new(types).expect("a palette"));
-    let each = |key: &str| spec[key].as_array().unwrap().iter().map(|v| v.as_f64().unwrap()).collect::<Vec<_>>();
-    grid.heights = each("heights").iter().map(|&h| h as i16).collect();
-    grid.terrain = each("terrain").iter().map(|&t| t as u8).collect();
-    grid.overlay = each("overlay").iter().map(|&o| o as i16).collect();
-    grid.lift = each("lift").iter().map(|&l| l as f32).collect();
-    grid.barred = each("barred").iter().map(|&b| b as u8).collect();
-    grid.origin = Origin { x: spec["origin"]["x"].as_i64().unwrap() as i32, y: spec["origin"]["y"].as_i64().unwrap() as i32 };
-    grid
-}
-
-/// The content a world was built with, the characters derived here from their sheets - and held to what
-/// the TypeScript derived, since everything after reads them.
-fn content_of(spec: &Value) -> (WorldContent, Vec<String>) {
-    let pack: ContentPack = from(&spec["pack"]);
-    let abilities: Vec<AbilityDef> = from(&spec["abilities"]);
-    let mut characters = HashMap::new();
-    for (sheet, derived) in spec["sheets"].as_array().unwrap().iter().zip(spec["derived"].as_array().unwrap()) {
-        let sheet: CharacterSheet = from(sheet);
-        let (character, _) = derive_character(&sheet, &pack, &abilities);
-        let ids = |cards: &[CardDef]| cards.iter().map(|c| c.id.clone()).collect::<Vec<_>>();
-        let view = json!({
-            "id": sheet.id, "cards": ids(&character.cards), "granted": ids(&character.granted), "modifiers": to(&character.modifiers),
-            "proficiency": character.proficiency, "evasion": character.evasion, "thresholds": to(&character.thresholds), "traits": to(&character.traits),
-        });
-        check!(view, derived, "{} derived", sheet.id);
-        characters.insert(sheet.id.clone(), character);
-    }
-    let traits = spec["traits"].as_object().unwrap().iter().map(|(t, v)| (Trait::from_name(t).expect("a trait"), v.as_f64().unwrap())).collect();
-    let movement = (!spec["movement"].is_null()).then(|| {
-        let m = &spec["movement"];
-        MovementRules {
-            diagonals: m["diagonals"].as_bool().unwrap(),
-            max_step_height: m["maxStepHeight"].as_f64().unwrap_or(f64::INFINITY),
-            allow_corner_cutting: m["allowCornerCutting"].as_bool().unwrap(),
-            diagonal_cost_multiplier: m["diagonalCostMultiplier"].as_f64().unwrap(),
-        }
-    });
-    let content = WorldContent {
-        traits,
-        characters,
-        adversaries: from::<Vec<AdversaryDef>>(&spec["adversaries"]).into_iter().map(|a| (a.id.clone(), a)).collect(),
-        band_tiles: (!spec["bandTiles"].is_null()).then(|| from::<BandTiles>(&spec["bandTiles"])),
-        movement,
-        defense: from::<DefensePolicy>(&spec["defense"]),
-        abilities,
-        cards: (!spec["cards"].is_null()).then(|| from::<Vec<CardDef>>(&spec["cards"])),
-        condition_defs: WorldContent::index_conditions(from::<Vec<ConditionDef>>(&spec["conditionDefs"])),
-        loot_tables: from::<Vec<LootTable>>(&spec["lootTables"]).into_iter().map(|t| (t.id.clone(), t)).collect(),
-    };
-    (content, from(&spec["hooks"]))
-}
-
-/// The scene a run began in: restored from its snapshot, then the room's things put back where the
-/// TypeScript had them, blocking what it had them block.
-fn scene_of(grid: &Value, start: &Value) -> SceneState {
-    let mut state = SceneState::new(start["scene"]["sceneId"].as_str().unwrap(), grid_of(grid), None);
-    state.restore(&start["scene"]).expect("a snapshot of this room");
-    let layout = &start["layout"];
-    let doors: Vec<String> = from(&layout["doors"]);
-    let footprints: HashMap<String, Vec<i32>> = layout["footprints"].as_array().unwrap().iter().map(|p| (p[0].as_str().unwrap().to_string(), from(&p[1]))).collect();
-    for pair in layout["tiles"].as_array().unwrap() {
-        let id = pair[0].as_str().unwrap();
-        let footprint = footprints.get(id).cloned().unwrap_or_default();
-        state.place_interactable(id, pair[1].as_i64().unwrap() as i32, doors.iter().any(|d| d == id), &footprint);
-    }
-    for tile in layout["blocking"].as_array().unwrap() {
-        state.set_interactable_blocking(tile.as_i64().unwrap() as i32, true);
-    }
-    state
-}
+#[macro_use]
+#[path = "support/world.rs"]
+mod support;
+use support::*;
 
 // --- Hooks, taped --------------------------------------------------------------------------------------
 
@@ -180,13 +58,13 @@ impl TapedHooks {
 }
 
 impl Hooks for TapedHooks {
-    fn defined(&mut self, id: &str) -> bool {
+    fn defined(&self, id: &str) -> bool {
         self.defined.iter().any(|d| d == id)
     }
-    fn run(&mut self, _id: &str, reads: &HookReads) -> bool {
+    fn run(&self, _id: &str, reads: &HookReads, _world: &mut dyn HookReader) -> bool {
         self.next("runHook", reads)["answer"] == true
     }
-    fn run_effect(&mut self, _id: &str, reads: &HookReads, last_roll: Option<LastRoll>, rng: &mut Rng) -> HookRun {
+    fn run_effect(&self, _id: &str, reads: &HookReads, last_roll: Option<LastRoll>, rng: &mut Rng, _world: &mut dyn HookReader) -> HookRun {
         let next = self.next("runHookEffect", reads);
         check!(json!(last_roll), &next["lastRoll"], "{}: the hook's last roll", self.step.borrow().at);
         *rng = Rng::from_state(from(&next["after"]));
@@ -644,46 +522,6 @@ impl ScriptWorld for Checked<'_> {
     }
 }
 
-fn status_json(status: &RunStatus, journal: &[Value], since: usize) -> Value {
-    let mut out = match status {
-        RunStatus::Done => json!({ "status": "done" }),
-        RunStatus::Waiting(prompt) => json!({ "status": "waiting", "prompt": prompt }),
-    };
-    out["journalLength"] = json!(journal.len());
-    out["newEntries"] = Value::Array(journal[since.min(journal.len())..].to_vec());
-    out
-}
-
-// --- What a step changed --------------------------------------------------------------------------------
-
-/// The scene and scenario as they stand, in the parts a step reports.
-fn standing(world: &SceneScriptWorld) -> Value {
-    let scene = world.state.snapshot();
-    json!({ "entities": scene["entities"], "interactables": scene["interactables"], "encounters": scene["encounters"], "bad": scene["bad"], "scenario": world.scenario.snapshot() })
-}
-
-/// Each creature that changed (null for one gone), and each other part that did, whole.
-fn changes(was: &Value, now: &Value) -> Value {
-    let mut out = serde_json::Map::new();
-    let mut entities = serde_json::Map::new();
-    let (before, after) = (was["entities"].as_object().unwrap(), now["entities"].as_object().unwrap());
-    for id in before.keys().chain(after.keys()) {
-        let (a, b) = (before.get(id), after.get(id));
-        if !matches!((a, b), (Some(a), Some(b)) if same(a, b)) {
-            entities.insert(id.clone(), b.cloned().unwrap_or(Value::Null));
-        }
-    }
-    if !entities.is_empty() {
-        out.insert("entities".into(), Value::Object(entities));
-    }
-    for part in ["interactables", "encounters", "bad", "scenario"] {
-        if !same(&was[part], &now[part]) {
-            out.insert(part.into(), now[part].clone());
-        }
-    }
-    Value::Object(out)
-}
-
 // --- Probes: the world asked directly -------------------------------------------------------------------
 
 fn text(v: &Value) -> &str {
@@ -987,7 +825,7 @@ fn every_script_changes_the_world_as_the_typescript_did() {
         let mut scenario = ScenarioState::default();
         scenario.restore(&start["scenario"]).expect("a scenario");
         let step: Shared = Rc::new(RefCell::new(Step { calls: VecDeque::new(), hooks: VecDeque::new(), at: String::new() }));
-        let mut world = SceneScriptWorld::new(scene_of(grid, start), scenario, content, Box::new(TapedHooks { defined: defined.clone(), step: step.clone() }));
+        let mut world = SceneScriptWorld::new(scene_of(grid, start), scenario, content, Rc::new(TapedHooks { defined: defined.clone(), step: step.clone() }));
         let spotlit: Vec<String> = from(&start["spotlit"]);
         world.spotlight_spent = Box::new(move |id| spotlit.iter().any(|s| s == id));
         let world = Rc::new(RefCell::new(world));

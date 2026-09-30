@@ -3,7 +3,7 @@
 //! scripts carry - bands, durations, attitudes - are read here into what the world's own methods take.
 
 use super::fight::AttackAsked;
-use super::SceneScriptWorld;
+use super::{HookReader, SceneScriptWorld};
 use crate::rng::Rng;
 use crate::rules::damage::IncomingDamage;
 use crate::rules::dice::ParsedDamage;
@@ -92,7 +92,8 @@ impl ConditionContext for SceneScriptWorld<'_> {
         SceneScriptWorld::hook_defined(self, id)
     }
     fn run_hook(&mut self, id: &str, reads: &HookReads) -> bool {
-        self.hooks.run(id, reads)
+        let hooks = self.hooks.clone();
+        hooks.run(id, reads, &mut Reading { world: self, bindings: &reads.bindings })
     }
     fn tokens_on(&mut self, id: &str, ability: &str) -> f64 {
         SceneScriptWorld::tokens_on(self, id, ability)
@@ -319,6 +320,54 @@ impl ScriptWorld for SceneScriptWorld<'_> {
         SceneScriptWorld::roll_reaction(self, id, difficulty, trait_, rng)
     }
     fn run_hook_effect(&mut self, id: &str, reads: &HookReads, last_roll: Option<LastRoll>, rng: &mut Rng) -> HookRun {
-        self.hooks.run_effect(id, reads, last_roll, rng)
+        let hooks = self.hooks.clone();
+        hooks.run_effect(id, reads, last_roll, rng, &mut Reading { world: self, bindings: &reads.bindings })
+    }
+}
+
+/// The world as a hook reads it, `select` against the bindings the hook was run under.
+struct Reading<'r, 'w> {
+    world: &'r mut SceneScriptWorld<'w>,
+    bindings: &'r TargetBindings,
+}
+
+impl HookReader for Reading<'_, '_> {
+    fn pool(&mut self, id: &str, pool: &str, measure: &str) -> Result<Option<f64>, String> {
+        if self.world.state.entity(id).is_some() && !matches!(pool, "hitPoints" | "stress" | "armorSlots" | "good") {
+            return Err(format!("Cannot read properties of undefined (reading '{pool}')"));
+        }
+        Ok(self.world.pool_value(id, pool, measure))
+    }
+    fn has_condition(&mut self, id: &str, condition: &str) -> bool {
+        self.world.has_condition(id, condition)
+    }
+    fn band_to(&mut self, from: &str, to: &str) -> Option<RangeBand> {
+        self.world.band_to(from, to)
+    }
+    fn difficulty_of(&mut self, id: &str) -> Option<f64> {
+        self.world.difficulty_of(id)
+    }
+    fn select(&mut self, selector: &Value) -> Vec<String> {
+        self.world.resolve_targets(selector, self.bindings)
+    }
+    fn flag(&mut self, name: &str) -> bool {
+        self.world.has_flag(name)
+    }
+    fn variable(&mut self, name: &str) -> Value {
+        self.world.get_var(name)
+    }
+    fn count_alive(&mut self, faction: &str) -> f64 {
+        match faction {
+            "party" => self.world.count_alive(Faction::Party),
+            "adversary" => self.world.count_alive(Faction::Adversary),
+            "neutral" => self.world.count_alive(Faction::Neutral),
+            _ => 0.0,
+        }
+    }
+    fn faction_of(&mut self, id: &str) -> Option<Faction> {
+        self.world.faction_of(id)
+    }
+    fn tokens(&mut self, id: &str, ability: &str) -> f64 {
+        self.world.tokens_on(id, ability)
     }
 }
