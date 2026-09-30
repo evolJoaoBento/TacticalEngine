@@ -567,9 +567,9 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     - **A prompt waits between calls**: a script runner can be put down (`ScriptRunner::suspend`) and
       picked up again with the world and the dice (`SuspendedRunner::attach`), and the dialogue runner holds
       its dialogue by `Rc`, so a conversation in progress waits in the session.
-    - **The fight's parts refuse, loudly**: a journal that would start a fight, a card offered on a roll to a
-      table that asks (`ask_defender`), a creature answering the party's roll, a countdown a roll would
-      move: each returns an error naming it, rather than doing something else quietly. `sync_roster` walks a
+    - **The fight's parts refuse, loudly**: a card offered on a roll to a table that asks (`ask_defender`),
+      a creature answering the party's roll, a countdown a roll would move: each returns an error naming
+      it, rather than doing something else quietly. (A journal that starts a fight refused here until 4b.) `sync_roster` walks a
       member the project dropped off the board only out of a fight, as the TypeScript does.
     - What the app ships gained the catalogue's item names (`Shipped::items`), for loot and keys.
     `play.golden.test.ts` writes `server/fixtures/play.json`: the demo's project, the default project, and a
@@ -585,5 +585,41 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     until a finished script can raise another; a conversation's outer script with no target, when the
     conversation hands its own to every script inside it) and three need a fight (talking to the dead, a
     conversation set aside broken off with somebody still standing, a swing's miss).
-  - **Next**: (4b) walking - `moveSelectedTo` and the walk, a trigger beginning its fight, the movement
-    circle, closing on a thing or a target, leaps out of a fight.
+  - **The party walks, pushes and jumps** (`server/engine/src/game/{movement,leap,fight}.rs`), in a fight
+    and out of one: a click's meaning (`aim_of_move` - the walk, the nearest reachable spot out of a fight,
+    as far as the circle allows in one, or a push), the walk (`walk_the_move`: a trigger stops it where it
+    fires and begins its fight at once, since nothing waits for tokens to arrive; the others follow out of a
+    fight), the movement circle and the push circle, the ground lit and the ground a push would open,
+    closing on a thing, a creature to talk to or a target to strike, and the previews. The rolled moves are
+    real: a push past the circle (`run_for_it` - the roll is the action; a success pushes the circle out a
+    step and walks on, a failure holds them and hands the spotlight over), and a jump (`plan_jump`, a
+    run-up found at a tenth of a tile, the arc kept clear of walls and ground, `leap_to` and the landing -
+    getting up, going on alone, a trigger landed on, falling hurt, the fail condition). Both wait on their
+    roll as a prompt (`OnDone::Run`, `OnDone::Leap`) when the dice are not rolled for them.
+    - **A fight begins, stops and is closed** (`fight.rs`): an attitude turned hostile, a trigger, or a
+      journal's `started` begins it; `ended` stands everybody down under a truce; `close_fight` ends the
+      scene's conditions and the creatures' countdowns and forgets per-scene uses, once, in the log's words.
+      Every action in a fight is spent (`act`), under the table's spotlight rules.
+    - **What a fight answers stays part 5's, and says so**: `settle_fight` is the quiet half of settling -
+      it runs only when nothing waits to be answered, and returns an error naming it when something does (a
+      blow or a zone crossing queued, a creature at its threshold or dead, somebody fallen, a countdown
+      reaped). The GM's turn is not ported: once the spotlight passes to the GM, nobody in the party acts.
+    - The project's jump rules are read (`jump_rules_for`, each field the engine's where it says nothing).
+    `walk.golden.test.ts` writes `server/fixtures/walk.json` (about 5.8 MB): the demo, the default project, a
+    drill yard built on it (a trip-wire that lays its user prone, a horn that begins the fight, a white flag
+    that ends it, a platform three blocks up, a trigger on its corner) and the drill yard for somebody who
+    cannot jump; 30 sessions of clicks - moves, previews, reach, approaches, talk, strikes, uses, answers,
+    selection, travel, pushes and jumps with the arc and the Jump button's landings - and six tours of the
+    drill yard, one fight each: prone and up, a jump asked, asked again, let go and made, onto the platform
+    and off it, the fight begun by a landing or by the horn after a flag with no fight, pushes answered and
+    let go, a detour inside the circle, one put outside it, the flag waved and the horn blown again. Each
+    step is followed by the fight (its view, log and circles) and everything `play.json` records. A step that
+    would settle a fight with a blow still queued, and a jump whose fall hurts, are probed and not made.
+    `server/hooks/tests/golden_walk.rs` replays it (about 7 s at `opt-level = 1`, a minute unoptimised). 61 of
+    66 deliberate mutations fail it; of the rest two are equivalent (a strike previewed from where they
+    already stand, to which a walk plans no route anyway; a failed push's spotlight, which a failed roll
+    already hands over), one is equivalent here (whether closing on a thing came up short, which only an
+    animated view reads), and two are not reached (a fight begun again while it is on, and a spot inside the
+    circle whose only way there leaves it).
+  - **Next**: part 5, the fight loop - the blows and crossings answered (`playDamageReactions`), creatures
+    at their threshold and dead, death moves, countdowns, the GM's turn, and attacks.

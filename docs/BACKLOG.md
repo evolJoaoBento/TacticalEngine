@@ -4,6 +4,16 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## The party walks, pushes and jumps in Rust — done
+
+`server/engine/src/game/{movement,leap,fight}.rs` walk the party as the page does, in a fight and out of
+one: a click's meaning, the walk and the trigger it crosses, the movement and push circles, closing on a
+thing or a target, the previews, and the rolled moves - a push past the circle and a jump, run-up, arc and
+landing - each waiting on its roll as a prompt. A fight begins (a trigger, a hostile turn, a journal),
+stops under a truce and is closed; every action in one is spent. What a fight answers - blows, deaths,
+countdowns, the GM's turn - returns an error naming it. Held to `server/fixtures/walk.json`. The game
+layer's fourth part done; the fight loop is next.
+
 ## The Combat workspace is Encounters, with a figure for its icon — done
 
 The editor's third mode reads **Encounters** on its tab and in its tooltip (`MODE_LABELS` in

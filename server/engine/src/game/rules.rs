@@ -19,6 +19,14 @@ pub const DEMO_MOVEMENT: MovementRules = MovementRules { diagonals: true, diagon
 /// The body a creature in the demo walks with.
 pub const DEMO_WALK: WalkRules = WalkRules { max_step_height: DEMO_MOVEMENT.max_step_height, ..DEFAULT_WALK };
 
+/// The jump rules a project plays by (`jumpRulesFor`): its own, or the engine's where it has said nothing.
+pub fn jump_rules_for(project: &Value) -> JumpRules {
+    match project.get("jump").filter(|j| j.is_object()) {
+        Some(jump) => JumpRules::from_json(jump),
+        None => JumpRules::default(),
+    }
+}
+
 /// How high a step a project's rooms allow: its jump rules', or the engine's where it has said nothing.
 fn step_height(project: &Value) -> f64 {
     project.get("jump").filter(|j| j.is_object()).and_then(|j| j["stepHeight"].as_f64()).unwrap_or(JumpRules::default().step_height)

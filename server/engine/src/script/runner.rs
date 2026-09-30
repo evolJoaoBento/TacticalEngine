@@ -491,6 +491,11 @@ impl SuspendedRunner {
     pub fn entries(&self) -> &[Value] {
         &self.journal
     }
+
+    /// The last action roll the script made, for what it was rolled for to read.
+    pub fn last_action_roll(&self) -> Option<&DualityRoll> {
+        self.last_roll.as_ref()
+    }
 }
 
 pub struct ScriptRunner<'a, W: ScriptWorld + ?Sized> {

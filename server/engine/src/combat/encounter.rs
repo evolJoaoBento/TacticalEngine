@@ -291,6 +291,13 @@ impl EncounterRunner {
         Some(fresh)
     }
 
+    /// Every circle drawn so far, by its owner, read without drawing one: for a view, or a replay to hold to.
+    pub fn circles(&self) -> Vec<(String, Circle)> {
+        let mut drawn: Vec<(String, Circle)> = self.circles.iter().map(|(id, c)| (id.clone(), *c)).collect();
+        drawn.sort_by(|a, b| crate::js::utf16_cmp(&a.0, &b.0));
+        drawn
+    }
+
     /// Draw a circle again from where its owner stands now.
     pub fn reanchor(&mut self, state: &SceneState, id: &str) {
         if let (Some(entity), Some(circle)) = (state.entity(id), self.circles.get_mut(id)) {

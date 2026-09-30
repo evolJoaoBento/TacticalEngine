@@ -143,6 +143,35 @@ impl Default for JumpRules {
     }
 }
 
+impl JumpRules {
+    /// The rules as a project's `jump` holds them once read, each one it leaves out the engine's.
+    pub fn from_json(value: &serde_json::Value) -> JumpRules {
+        let base = JumpRules::default();
+        let n = |key: &str, or: f64| value[key].as_f64().unwrap_or(or);
+        let t = |key: &str, or: Trait| value[key].as_str().and_then(Trait::from_name).unwrap_or(or);
+        let b = |key: &str, or: bool| value[key].as_bool().unwrap_or(or);
+        JumpRules {
+            enabled: b("enabled", base.enabled),
+            step_height: n("stepHeight", base.step_height),
+            reach_trait: t("reachTrait", base.reach_trait),
+            reach_base: n("reachBase", base.reach_base),
+            reach_per_point: n("reachPerPoint", base.reach_per_point),
+            range_base: n("rangeBase", base.range_base),
+            range_per_point: n("rangePerPoint", base.range_per_point),
+            flat_roll: b("flatRoll", base.flat_roll),
+            roll_trait: t("rollTrait", base.roll_trait),
+            difficulty: n("difficulty", base.difficulty),
+            drop_trait: t("dropTrait", base.drop_trait),
+            drop_base: n("dropBase", base.drop_base),
+            drop_per_point: n("dropPerPoint", base.drop_per_point),
+            harder_every: n("harderEvery", base.harder_every),
+            fall_die: n("fallDie", base.fall_die),
+            half_on_success: b("halfOnSuccess", base.half_on_success),
+            fail_condition: value["failCondition"].as_str().map_or(base.fail_condition.clone(), str::to_string),
+        }
+    }
+}
+
 /// What a jump asks: the roll's Difficulty (nothing for a drop the legs simply take), and the dice of
 /// falling damage waiting at the bottom.
 #[derive(Clone, Copy, Debug, PartialEq)]

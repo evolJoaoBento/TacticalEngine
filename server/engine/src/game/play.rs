@@ -8,12 +8,12 @@
 //! again with the world and the dice when it is answered, and a conversation keeps its runner and the
 //! script inside it the same way.
 //!
-//! The fight is not here. A journal that would start one - a script's Start a fight, a creature turned
-//! hostile - is refused with an error, as are the reaction cards a roll would offer a table that asks
-//! (`ask_defender`), a creature's answer to the party's roll, and countdowns a roll would move: each comes
-//! with the fight, and refusing beats quietly doing something else.
+//! A fight a journal starts or stops is `fight`'s. What a fight plays is not here: the reaction cards a roll
+//! would offer a table that asks (`ask_defender`), a creature's answer to the party's roll, and countdowns a
+//! roll would move are refused with an error naming them - refusing beats quietly doing something else.
 
 use super::content::item_name;
+use super::fight::not_yet;
 use super::log::{name_of, note, speak, write_down, LogLine};
 use super::session::Session;
 use crate::dialogue::runner::{DialogueHost, DialogueRunner, DialogueStatus, DialogueView, ScriptResult};
@@ -43,11 +43,15 @@ fn outcome(status: &'static str, lines: Vec<LogLine>) -> Result<UseOutcome, Stri
 }
 
 /// What to do once a script finishes.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum OnDone {
     Nothing,
     /// A creature's conversation: the fight counted again, and a GM's turn it stopped played on.
     Converse,
+    /// A push past the circle: walk on, or be held, as the roll says.
+    Run { id: String, destination: i32, aimed: Option<crate::grid::tile_grid::Spot> },
+    /// A jump: land, as the roll says.
+    Leap { id: String, leap: super::leap::Leap, read: bool },
 }
 
 /// A conversation in progress.
@@ -83,6 +87,11 @@ pub struct PendingScript {
 }
 
 impl PendingScript {
+    /// A rolled move's roll, waiting.
+    pub(super) fn new(runner: SuspendedRunner, prompt: Value, recorded: usize, on_done: OnDone) -> Self {
+        PendingScript { runner, prompt, interactable: None, recorded, dialogue: None, with: None, on_done }
+    }
+
     /// The journal so far, the runner's own.
     pub fn entries(&self) -> &[Value] {
         self.runner.entries()
@@ -154,11 +163,6 @@ fn chebyshev(grid: &TileGrid, a: i32, b: i32) -> i32 {
     (grid.x_of(a) - grid.x_of(b)).abs().max((grid.y_of(a) - grid.y_of(b)).abs())
 }
 
-/// The fight's, and it waits for the fight.
-fn not_yet(what: &str) -> String {
-    format!("{what} comes with the fight, which the server does not play yet")
-}
-
 impl Session {
     /// Whether a fight is running.
     pub fn in_combat(&self) -> bool {
@@ -208,10 +212,13 @@ impl Session {
             let line = note(self, "It is out of reach.", "system");
             return outcome("unreachable", vec![line]);
         }
-        if self.in_combat() {
-            return Err(not_yet("Using a thing in a fight"));
+        // In a fight, using a thing is what they did with the turn.
+        let fighting = self.in_combat();
+        if fighting && !self.encounter.as_ref().expect("a fight").can_act(&self.world.state, &actor) {
+            let line = note(self, "There is no time \u{2014} you have acted.", "system");
+            return outcome("refused", vec![line]);
         }
-        self.world.scenario.actor_id = Some(actor);
+        self.world.scenario.actor_id = Some(actor.clone());
         let repeatable = object["repeatable"] == true;
         let (status, journal, runner) = match use_interactable(&object, &mut self.world, &mut self.rng, repeatable) {
             UseResult::Refused(refused) => {
@@ -221,6 +228,9 @@ impl Session {
             UseResult::Done(runner) => (RunStatus::Done, runner.entries().to_vec(), runner.suspend()),
             UseResult::Waiting(prompt, runner) => (RunStatus::Waiting(prompt), runner.entries().to_vec(), runner.suspend()),
         };
+        if fighting {
+            self.encounter.as_mut().expect("a fight").act(&mut self.world.state, &actor, false);
+        }
         let lines = self.record(&journal)?;
         match status {
             RunStatus::Waiting(prompt) => {
@@ -263,7 +273,7 @@ impl Session {
                 self.settle(lines)
             }
             RunStatus::Done => {
-                self.done(waiting.on_done)?;
+                self.done(waiting.on_done.clone(), &waiting.runner)?;
                 self.settle_travel(lines)
             }
         }
@@ -280,11 +290,14 @@ impl Session {
     }
 
     /// Once a script finishes (`onDone`).
-    fn done(&mut self, on_done: OnDone) -> Result<(), String> {
-        if on_done == OnDone::Converse && self.encounter.is_some() {
-            return Err(not_yet("Settling the fight after a conversation"));
+    fn done(&mut self, on_done: OnDone, runner: &SuspendedRunner) -> Result<(), String> {
+        match on_done {
+            // A creature's conversation over: the fight counted again - the one talked round may have been
+            // the last who wanted it.
+            OnDone::Converse if self.encounter.is_some() => self.settle_fight(),
+            OnDone::Run { .. } | OnDone::Leap { .. } => self.finish(on_done, runner),
+            _ => Ok(()),
         }
-        Ok(())
     }
 
     /// Pick a reply, go on, or answer a roll a reply asked for (`answerDialogue`).
@@ -346,7 +359,7 @@ impl Session {
                 self.settle(all)
             }
             RunStatus::Done => {
-                self.done(waiting.on_done)?;
+                self.done(waiting.on_done.clone(), &waiting.runner)?;
                 self.settle_travel(all)
             }
         }
@@ -439,17 +452,7 @@ impl Session {
     /// creatures turned, the pools, and what the party's rolls answer.
     fn react(&mut self, journal: &[Value]) -> Result<(), String> {
         self.react_to_things(journal);
-        for entry in journal {
-            if entry["kind"] == "attitude" && entry["attitude"] == "hostile" && !self.in_combat() && self.placement_of(text(entry, "id")).is_some() {
-                return Err(not_yet("A creature turned hostile starting its fight"));
-            }
-            if entry["kind"] == "encounter" && entry["change"] == "started" && !self.in_combat() && list(&self.scene, "encounters").iter().any(|e| e["id"] == entry["id"]) {
-                let somebody = self.world.state.all_entities().iter().any(|c| c.alive && (c.faction == Faction::Adversary || c.truce == Some(true)));
-                if somebody {
-                    return Err(not_yet("A script's Start a fight"));
-                }
-            }
-        }
+        self.react_to_fights(journal);
         self.sync_pools();
         for (roller, roll) in self.rolls_from(journal) {
             self.play_party_rolled(&roller, &roll)?;
@@ -632,7 +635,7 @@ impl Session {
     // ---- creatures ---------------------------------------------------------------------------------------
 
     /// The placement a creature was stood up from, and the encounter that placed it.
-    fn placement_of(&self, id: &str) -> Option<(Value, String)> {
+    pub(super) fn placement_of(&self, id: &str) -> Option<(Value, String)> {
         for encounter in list(&self.scene, "encounters") {
             if let Some(placement) = list(encounter, "adversaries").iter().find(|p| p["id"].as_str() == Some(id)) {
                 return Some((placement.clone(), text(encounter, "id").to_string()));
@@ -647,8 +650,9 @@ impl Session {
         if !self.world.state.entity(id).is_some_and(|e| e.alive) {
             return outcome("missing", Vec::new());
         }
+        // In a fight the talk is the action, as opening a chest is.
         if self.in_combat() {
-            return Err(not_yet("Talking in a fight"));
+            self.encounter.as_mut().expect("a fight").act(&mut self.world.state, actor, false);
         }
         self.converse(actor, id, &dialogue)
     }

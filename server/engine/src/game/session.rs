@@ -135,6 +135,8 @@ pub struct Session {
     pub ask_defender: bool,
     /// Which room this is, counted as rooms are entered: a conversation set aside in another is over.
     pub room: u64,
+    /// Whether the fight that is over has been put away: once, however it ended.
+    pub announced: bool,
 }
 
 /// Stand a room up (`buildRuntime`): its grid from the project's ground, every placement's stat block - the
@@ -244,6 +246,7 @@ impl Session {
             rolls: Vec::new(),
             ask_defender: false,
             room: 0,
+            announced: false,
         })
     }
 

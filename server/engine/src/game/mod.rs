@@ -3,7 +3,10 @@
 //! being played, the party's sheets, the rooms visited, travel between them (`session`).
 
 pub mod content;
+pub mod fight;
+pub mod leap;
 pub mod log;
+pub mod movement;
 pub mod play;
 pub mod rules;
 pub mod session;
