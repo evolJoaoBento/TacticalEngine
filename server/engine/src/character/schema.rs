@@ -97,3 +97,66 @@ pub fn parse_sheet(value: &Value) -> Result<CharacterSheet, SchemaError> {
     check_sheet(value)?;
     serde_json::from_value(value.clone()).map_err(|_| SchemaError { path: "sheet".into(), message: "not a sheet" })
 }
+
+/// `characterSheetSchema` on the zod-alike, as a project's `party` is read: every issue in zod's words.
+/// `parse_sheet` above is the door a single sheet comes in by, and says less.
+pub fn sheet_schema() -> &'static crate::zod::Schema {
+    use crate::content::schema::Kind;
+    use crate::zod::*;
+    use serde_json::json;
+    use std::sync::OnceLock;
+    static SCHEMA: OnceLock<Schema> = OnceLock::new();
+    SCHEMA.get_or_init(|| {
+        let whole = || int();
+        let trait_ = || one_of(&TRAITS);
+        let with_box = |mut fields: Vec<Field>| {
+            fields.push(opt("fromTier", union((1..=4).map(|t| literal(json!(t))).collect())));
+            object(fields)
+        };
+        let kind = |k: &'static str| req("kind", literal(json!(k)));
+        let advancement = tagged(
+            "kind",
+            vec![
+                ("traits", with_box(vec![kind("traits"), req("traits", tuple(vec![trait_(), trait_()]))])),
+                ("hitPoint", with_box(vec![kind("hitPoint")])),
+                ("stress", with_box(vec![kind("stress")])),
+                ("experiences", with_box(vec![kind("experiences"), req("names", tuple(vec![string(), string()]))])),
+                ("domainCard", with_box(vec![kind("domainCard"), req("card", string())])),
+                ("evasion", with_box(vec![kind("evasion")])),
+                ("subclass", with_box(vec![kind("subclass")])),
+                ("proficiency", with_box(vec![kind("proficiency")])),
+                ("multiclass", with_box(vec![kind("multiclass"), req("classId", string()), req("domain", string())])),
+            ],
+        );
+        let experience = || lazy(|| Kind::Experience.schema());
+        let level = object(vec![
+            req("level", int().min(2.0).max(10.0)),
+            req("advancements", array(advancement)),
+            req("domainCard", string()),
+            opt("experience", experience()),
+        ]);
+        let traits = object(TRAITS.iter().map(|t| req(t, whole())).collect());
+        let bonuses = object(["evasion", "hitPoints", "stress", "armorScore", "majorThreshold", "severeThreshold"].into_iter().map(|b| opt(b, whole())).collect());
+        object(vec![
+            req("id", string().min(1.0)),
+            req("name", string()),
+            req("level", int().min(1.0).max(10.0)),
+            req("classId", string().min(1.0)),
+            opt("ancestryId", string()),
+            opt("communityId", string()),
+            req("traits", traits),
+            req("proficiency", int().min(1.0)),
+            opt("primaryWeaponId", string()),
+            opt("secondaryWeaponId", string()),
+            opt("armorId", string()),
+            opt("experiences", array(experience())),
+            opt("bonuses", bonuses),
+            opt("subclassId", string()),
+            opt("domainCards", array(string())),
+            opt("loadout", array(string())),
+            opt("levels", array(level)),
+            opt("scars", int().min(0.0)),
+            opt("model", string().min(1.0)),
+        ])
+    })
+}

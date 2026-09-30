@@ -166,9 +166,10 @@ describe('sparse construction', () => {
     const broken = [
       { ...tile, rotation: 4 },
       { ...tile, x: 1_000_001 },
-      { ...tile, shape: 'unknown' },
       { ...tile, level: NaN },
     ];
+    // Whether a structure exists is the project's to say, knowing what it declares (`projectSchema`).
+    expect(buildingTilesSchema.safeParse({ '0,0,0': { ...tile, shape: 'unknown' } }).success).toBe(true);
     for (const value of broken) {
       expect(buildingTilesSchema.safeParse({ '0,0,0': value }).success).toBe(false);
     }

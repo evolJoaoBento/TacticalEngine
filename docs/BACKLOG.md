@@ -12,6 +12,15 @@ head and shoulders is already the creature tool's, on the same rail. Only what i
 the mode's id is still `combat`, so `mode-combat`, the tool lists and every test that picks it are
 as they were. Older entries below still say Combat. Unit `editor/modes.test.ts`.
 
+## Project files read in Rust, old ones brought up to date — done
+
+`server/engine/src/scene/document.rs` and `migrate.rs` are the scene and project documents and their
+migration ported, so the server reads a project file - an old one too - as the page does, issue for issue;
+a pack is migrated before it is read, where it was refused. Held to `server/fixtures/scene.json`. Found on
+the way: a project building with a structure of its own was refused on a fresh page; fixed on both sides.
+The first part of the game layer, whose six parts `docs/SERVER.md` lays out; a room stood up from its
+document is next.
+
 ## Hooks run in QuickJS, and nothing is taped — done
 
 `server/hooks` (the `tactical-hooks` crate) runs a project's hooks in QuickJS behind the engine's `Hooks`

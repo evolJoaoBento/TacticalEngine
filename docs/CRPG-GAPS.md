@@ -435,6 +435,12 @@ chosen level, and a walk over the cell reads whichever kind ends up on top. Grou
 cell already holds — still drawn, still saved, edited in the Tiles workspace — and is no longer
 painted. Elevation stays its own tool because low walls and tall walls play differently.
 
+**A project's own structures load** (fixed 30 September 2026, found porting the documents to Rust).
+Whether a piece's structure exists was asked of a registry that only building a grid for a project
+sets, so on a fresh page a project that declared a structure and built with it was refused ("No
+structure called ..."), and the demo opened in its place. The project's schema asks it now, of the
+engine's four structures and the project's own.
+
 A **scene list** sits in the panel: switch, add, rename, delete, and choose which scene the
 project opens on. Editing a scene is decoupled from playing one — browsing rooms in the editor
 does not move the party, abandon their fight, or throw away a prompt they were holding, and the

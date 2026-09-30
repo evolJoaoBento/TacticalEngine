@@ -10,7 +10,7 @@ use crate::zod::*;
 use serde_json::{json, Map, Value};
 use std::sync::OnceLock;
 
-const TRAITS: &[&str] = &["agility", "strength", "finesse", "instinct", "presence", "knowledge"];
+pub const TRAITS: &[&str] = &["agility", "strength", "finesse", "instinct", "presence", "knowledge"];
 const RANGE_BANDS: &[&str] = &["melee", "veryClose", "close", "far", "veryFar", "outOfRange"];
 const POOLS: &[&str] = &["hitPoints", "stress", "armorSlots", "good"];
 const MEASURES: &[&str] = &["available", "marked", "max"];
@@ -46,6 +46,11 @@ fn effects() -> Schema {
 
 fn traits_or(extra: &'static str) -> Schema {
     union(vec![one_of(TRAITS), literal(json!("spellcast")), literal(json!(extra))])
+}
+
+/// `checkTraitSchema`: a trait, the actor's Spellcast trait, or the trait of their weapon.
+pub fn check_trait() -> Schema {
+    traits_or("weapon")
 }
 
 /// `hookArgsSchema`: named values content hands a hook.

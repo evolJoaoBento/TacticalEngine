@@ -14,3 +14,5 @@ name = "engine"
 serde = { version = "1", features = ["derive"] }
 # float_roundtrip: floats read exactly, as JavaScript wrote them.
 serde_json = { version = "1", features = ["float_roundtrip", "preserve_order"] }
+# NFKD, as `String.prototype.normalize` does it: what an id is made from a name by. Pure Rust.
+unicode-normalization = "0.1"

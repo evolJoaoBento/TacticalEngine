@@ -15,7 +15,7 @@
  */
 
 import { z } from 'zod';
-import { BUILD_LIMIT, buildingTilesSchema, structureTypeSchema } from './building';
+import { BUILD_LIMIT, DEFAULT_STRUCTURES, buildingTilesSchema, structureTypeSchema } from './building';
 import { DECO_SPAN_MAX } from './deco-span';
 import { propFunctionSchema, shopSchema } from './prop-function-schema';
 import { itemSchema, lootTableSchema } from '../content/items';
@@ -477,6 +477,16 @@ export const projectSchema = z
         ctx.addIssue({ code: 'custom', path: ['scenes', i, 'id'], message: `duplicate scene id "${scene.id}"` });
       }
       ids.add(scene.id);
+    });
+
+    // Every piece built of a structure there is: the engine's four, and the project's own.
+    const structures = new Set([...DEFAULT_STRUCTURES, ...(project.structureTypes ?? [])].map((s) => s.id));
+    project.scenes.forEach((scene, i) => {
+      for (const [key, tile] of Object.entries(scene.buildingTiles ?? {})) {
+        if (!structures.has(tile.shape)) {
+          ctx.addIssue({ code: 'custom', path: ['scenes', i, 'buildingTiles', key], message: `No structure called ${JSON.stringify(tile.shape)}` });
+        }
+      }
     });
     const dialogueIds = new Set<string>();
     project.dialogues.forEach((dialogue, i) => {

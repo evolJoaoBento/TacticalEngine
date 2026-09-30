@@ -4,7 +4,7 @@
 //! and the same refusals - conditions and effects included, now that the script's schemas are ported
 //! (`tests/golden_script.rs` holds those on their own).
 
-use engine::content::document::{describe_pack, pack_of, read_pack, PackDocument, OLDER_FORMAT, PACK_LISTS};
+use engine::content::document::{describe_pack, pack_of, read_pack, PackDocument, PACK_LISTS};
 use engine::content::pack::{AncestryDef, ArmorDef, CardDef, ClassDef, SubclassDef, WeaponDef};
 use engine::content::schema::Kind;
 use engine::zod::Key;
@@ -174,14 +174,6 @@ fn documents_read_as_read_pack_reads_them() {
     let pack = pack_of(lists);
     check!(masked_pack(&pack), &masked_wanted(&packed["pack"]), "packOf");
     check!(json!(describe_pack(&pack)), &packed["described"], "packOf described");
-}
-
-#[test]
-fn an_older_document_is_refused_until_migration_is_ported() {
-    for doc in [json!({ "cards": [] }), json!({ "formatVersion": 5, "cards": [] }), json!({ "formatVersion": "6", "cards": [] })] {
-        let reading = read_pack(&doc, "old");
-        assert_eq!(reading.refused.as_deref(), Some(OLDER_FORMAT), "{doc}");
-    }
 }
 
 #[test]

@@ -1,10 +1,6 @@
 //! A content pack as a document (`src/engine/content/pack/document.ts`): reading one entry by entry, so
-//! one bad weapon costs that weapon and not the file, and saying what it holds.
-//!
-//! One difference from the TypeScript, until the scene is ported: `readPack` first brings an older
-//! document up to date (`scene/migrate.ts`), and that migration is not ported. Everything the server
-//! reads today - the shipped SRD characters, the default project - is at the current format; an older or
-//! unversioned document is refused here by name (`OLDER_FORMAT`) rather than read half-right.
+//! one bad weapon costs that weapon and not the file, and saying what it holds. An older document is
+//! brought up to date first (`scene::migrate`); a newer one is refused by name.
 
 use crate::content::schema::Kind;
 use crate::js;
@@ -44,9 +40,6 @@ const NAMES: [(&str, &str); 11] = [
     ("condition", "conditions"),
     ("script", "scripts"),
 ];
-
-/// The refusal for a document this port cannot migrate yet.
-pub const OLDER_FORMAT: &str = "it is in an older format, which this server cannot bring up to date yet";
 
 /// A pack document: every list, read entries only, and the format it was stamped with, if any.
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -97,15 +90,14 @@ pub fn read_pack(raw: &Value, source: &str) -> PackReading {
     let mut issues: Vec<ContentIssue> = Vec::new();
     let refuse = |issues: Vec<ContentIssue>, reason: String| PackReading { pack: PackDocument::default(), issues, refused: Some(reason) };
 
-    let Value::Object(doc) = raw else { return refuse(issues, "it is not a JSON object".into()) };
-    let claimed = doc.get("formatVersion").and_then(Value::as_f64);
+    let Value::Object(given) = raw else { return refuse(issues, "it is not a JSON object".into()) };
+    let claimed = given.get("formatVersion").and_then(Value::as_f64);
     if let Some(claimed) = claimed.filter(|&c| c > CURRENT_FORMAT_VERSION) {
         let (claimed, current) = (js::number_to_string(claimed), js::number_to_string(CURRENT_FORMAT_VERSION));
         return refuse(issues, format!("it was written by a newer build (format {claimed}; this one reads up to {current})"));
     }
-    if claimed.filter(|c| c.is_finite()).unwrap_or(1.0) < CURRENT_FORMAT_VERSION {
-        return refuse(issues, OLDER_FORMAT.into());
-    }
+    let migrated = crate::scene::migrate::migrate_document(raw);
+    let doc = migrated.as_object().expect("an object migrates to an object");
 
     let mut pack = PackDocument::default();
     let mut offered = 0;

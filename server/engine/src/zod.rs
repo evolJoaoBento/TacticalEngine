@@ -75,8 +75,9 @@ pub struct Field {
 }
 
 pub enum Schema {
-    String { min: Option<usize>, pattern: Option<(fn(&str) -> bool, &'static str)> },
-    Number { int: bool, min: Option<(f64, bool)>, max: Option<f64> },
+    /// `trim` is zod's overwrite: the text is trimmed before the checks after it read it.
+    String { min: Option<usize>, pattern: Option<(fn(&str) -> bool, &'static str)>, trim: bool },
+    Number { int: bool, min: Option<(f64, bool)>, max: Option<f64>, multiple_of: Option<f64> },
     Boolean,
     Enum(&'static [&'static str]),
     Literal(Value),
@@ -84,8 +85,10 @@ pub enum Schema {
     Object { fields: Vec<Field>, refines: Vec<Refine> },
     Union(Vec<Schema>),
     Tagged { key: &'static str, variants: Vec<(&'static str, Schema)> },
-    /// `z.record(key, value)`: an object of any keys, each key and value checked.
-    Record { key: Box<Schema>, value: Box<Schema> },
+    /// `z.record(key, value)`: an object of any keys, each key and value checked, then refined whole.
+    Record { key: Box<Schema>, value: Box<Schema>, refines: Vec<Refine> },
+    /// `z.tuple([...])`: exactly these, in order.
+    Tuple(Vec<Schema>),
     /// `z.null()`.
     Null,
     /// `.nullable()`: `null`, or what the inner schema reads - its issues are its own.
@@ -96,13 +99,13 @@ pub enum Schema {
 }
 
 pub fn string() -> Schema {
-    Schema::String { min: None, pattern: None }
+    Schema::String { min: None, pattern: None, trim: false }
 }
 pub fn number() -> Schema {
-    Schema::Number { int: false, min: None, max: None }
+    Schema::Number { int: false, min: None, max: None, multiple_of: None }
 }
 pub fn int() -> Schema {
-    Schema::Number { int: true, min: None, max: None }
+    Schema::Number { int: true, min: None, max: None, multiple_of: None }
 }
 pub fn boolean() -> Schema {
     Schema::Boolean
@@ -129,7 +132,10 @@ pub fn opaque() -> Schema {
     Schema::Opaque
 }
 pub fn record(key: Schema, value: Schema) -> Schema {
-    Schema::Record { key: Box::new(key), value: Box::new(value) }
+    Schema::Record { key: Box::new(key), value: Box::new(value), refines: Vec::new() }
+}
+pub fn tuple(items: Vec<Schema>) -> Schema {
+    Schema::Tuple(items)
 }
 pub fn null() -> Schema {
     Schema::Null
@@ -155,9 +161,9 @@ impl Schema {
     /// `.min(n)`: characters for a string, items for an array, the least value for a number.
     pub fn min(self, n: f64) -> Schema {
         match self {
-            Schema::String { pattern, .. } => Schema::String { min: Some(n as usize), pattern },
+            Schema::String { pattern, trim, .. } => Schema::String { min: Some(n as usize), pattern, trim },
             Schema::Array { item, .. } => Schema::Array { item, min: Some(n as usize) },
-            Schema::Number { int, max, .. } => Schema::Number { int, min: Some((n, true)), max },
+            Schema::Number { int, max, multiple_of, .. } => Schema::Number { int, min: Some((n, true)), max, multiple_of },
             _ => panic!("min on a schema without one"),
         }
     }
@@ -165,33 +171,54 @@ impl Schema {
     /// `.positive()`: more than nothing.
     pub fn positive(self) -> Schema {
         match self {
-            Schema::Number { int, max, .. } => Schema::Number { int, min: Some((0.0, false)), max },
+            Schema::Number { int, max, multiple_of, .. } => Schema::Number { int, min: Some((0.0, false)), max, multiple_of },
             _ => panic!("positive on a schema that is not a number"),
         }
     }
 
     pub fn max(self, n: f64) -> Schema {
         match self {
-            Schema::Number { int, min, .. } => Schema::Number { int, min, max: Some(n) },
+            Schema::Number { int, min, multiple_of, .. } => Schema::Number { int, min, max: Some(n), multiple_of },
             _ => panic!("max on a schema that is not a number"),
+        }
+    }
+
+    /// `.multipleOf(step)`, checked after the bounds as the schemas write it, by zod's own remainder.
+    pub fn multiple_of(self, step: f64) -> Schema {
+        match self {
+            Schema::Number { int, min, max, .. } => Schema::Number { int, min, max, multiple_of: Some(step) },
+            _ => panic!("multipleOf on a schema that is not a number"),
+        }
+    }
+
+    /// `.trim()`, written before the checks it comes ahead of.
+    pub fn trim(self) -> Schema {
+        match self {
+            Schema::String { min, pattern, .. } => Schema::String { min, pattern, trim: true },
+            _ => panic!("trim on a schema that is not a string"),
         }
     }
 
     /// `.regex(pattern, message)`, the pattern written as a test.
     pub fn regex(self, test: fn(&str) -> bool, message: &'static str) -> Schema {
         match self {
-            Schema::String { min, .. } => Schema::String { min, pattern: Some((test, message)) },
+            Schema::String { min, trim, .. } => Schema::String { min, pattern: Some((test, message)), trim },
             _ => panic!("regex on a schema that is not a string"),
         }
     }
 
+    /// `.superRefine(...)` on an object or a record: run on what was read, when nothing was fatal.
     pub fn refine(self, refine: Refine) -> Schema {
         match self {
             Schema::Object { fields, mut refines } => {
                 refines.push(refine);
                 Schema::Object { fields, refines }
             }
-            _ => panic!("refine on a schema that is not an object"),
+            Schema::Record { key, value, mut refines } => {
+                refines.push(refine);
+                Schema::Record { key, value, refines }
+            }
+            _ => panic!("refine on a schema that is neither an object nor a record"),
         }
     }
 
@@ -210,21 +237,23 @@ impl Schema {
         let fatal = |issues: &mut Vec<Issue>, path: &[Key], message: String| issues.push(Issue { path: path.to_vec(), message, fatal: true });
         let expected = |issues: &mut Vec<Issue>, path: &[Key], what: &str| fatal(issues, path, format!("Invalid input: expected {what}, received {}", received(input)));
         match self {
-            Schema::String { min, pattern } => {
+            Schema::String { min, pattern, trim } => {
                 let Some(Value::String(text)) = input else {
                     expected(issues, path, "string");
                     length_at_least(input, *min, path, issues);
                     return Value::Null;
                 };
+                let trimmed = Value::String(js::trim(text).to_string());
+                let (text, input) = if *trim { (js::trim(text), Some(&trimmed)) } else { (text.as_str(), input) };
                 length_at_least(input, *min, path, issues);
                 if let Some((test, message)) = pattern {
                     if !test(text) {
                         issues.push(Issue { path: path.clone(), message: (*message).to_string(), fatal: false });
                     }
                 }
-                Value::String(text.clone())
+                Value::String(text.to_string())
             }
-            Schema::Number { int, min, max } => {
+            Schema::Number { int, min, max, multiple_of } => {
                 let Some(n) = input.filter(|v| v.is_number()).and_then(Value::as_f64) else {
                     expected(issues, path, "number");
                     return Value::Null;
@@ -251,6 +280,14 @@ impl Schema {
                 if let Some(most) = *max {
                     if n > most {
                         issues.push(Issue { path: path.clone(), message: format!("Too big: expected number to be <={}", js::number_to_string(most)), fatal: false });
+                    }
+                }
+                if let Some(step) = *multiple_of {
+                    // zod's `floatSafeRemainder`: a multiple to within four epsilons of the quotient.
+                    let ratio = n / step;
+                    let tolerance = 4.0 * f64::EPSILON * js::max(ratio.abs(), 1.0);
+                    if (ratio - js::round(ratio)).abs() >= tolerance {
+                        issues.push(Issue { path: path.clone(), message: format!("Invalid number: must be a multiple of {}", js::number_to_string(step)), fatal: false });
                     }
                 }
                 input.cloned().unwrap_or(Value::Null)
@@ -365,11 +402,12 @@ impl Schema {
                     }
                 }
             }
-            Schema::Record { key, value } => {
+            Schema::Record { key, value, refines } => {
                 let Some(Value::Object(given)) = input else {
                     expected(issues, path, "record");
                     return Value::Null;
                 };
+                let from = issues.len();
                 let mut out = Map::new();
                 for (k, v) in given {
                     path.push(Key::Name(k.clone()));
@@ -386,7 +424,38 @@ impl Schema {
                     }
                     path.pop();
                 }
+                if !issues[from..].iter().any(|i| i.fatal) {
+                    for refine in refines {
+                        refine(&out, &mut Refinements { base: path, issues });
+                    }
+                }
                 Value::Object(out)
+            }
+            Schema::Tuple(items) => {
+                let Some(Value::Array(given)) = input else {
+                    expected(issues, path, "tuple");
+                    return Value::Null;
+                };
+                // Too few is the end of it; too many is said, and the items it has are still read.
+                if given.len() < items.len() {
+                    fatal(issues, path, format!("Too small: expected array to have >={} items", items.len()));
+                    return Value::Null;
+                }
+                if given.len() > items.len() {
+                    fatal(issues, path, format!("Too big: expected array to have <={} items", items.len()));
+                }
+                let out: Vec<Value> = items
+                    .iter()
+                    .zip(given)
+                    .enumerate()
+                    .map(|(index, (schema, value))| {
+                        path.push(Key::Index(index));
+                        let out = schema.read(Some(value), path, issues);
+                        path.pop();
+                        out
+                    })
+                    .collect();
+                Value::Array(out)
             }
             Schema::Null => {
                 if input == Some(&Value::Null) {
@@ -421,6 +490,7 @@ impl Schema {
             ),
             (Schema::Lazy(schema), _) => schema().mask(value),
             (Schema::Nullable(inner), _) if !value.is_null() => inner.mask(value),
+            (Schema::Tuple(items), Value::Array(given)) => Value::Array(given.iter().zip(items).map(|(v, s)| s.mask(v)).collect()),
             (Schema::Record { value: inner, .. }, Value::Object(given)) => Value::Object(given.iter().map(|(k, v)| (k.clone(), inner.mask(v))).collect()),
             (Schema::Tagged { key, variants }, Value::Object(given)) => match variants.iter().find(|(name, _)| given.get(*key).and_then(Value::as_str) == Some(name)) {
                 Some((_, schema)) => schema.mask(value),
@@ -517,5 +587,35 @@ mod tests {
         assert_eq!(messages(&with_record, json!({ "r": { "": 1 } })), ["Invalid key in record"]);
         assert_eq!(messages(&with_record, json!({ "r": { "a": "x" } })), ["Invalid input: expected number, received string"]);
         assert_eq!(messages(&tagged("kind", vec![("a", object(vec![req("kind", literal(json!("a")))]))]), json!({ "kind": 3 })), ["Invalid discriminator value. Expected 'a'"]);
+    }
+
+    /// What zod 4.5.4 said, on `node`, to the four the scene schemas brought in.
+    #[test]
+    fn multiples_tuples_trimming_and_refined_records() {
+        let quarter = number().min(-10.0).max(10.0).multiple_of(0.25);
+        for ok in [0.25, -0.75, 2.5] {
+            assert!(quarter.parse(&json!(ok)).is_ok(), "{ok}");
+        }
+        for bad in [0.3, 1.1, 1e-7, 3.000000001] {
+            assert_eq!(messages(&quarter, json!(bad)), ["Invalid number: must be a multiple of 0.25"], "{bad}");
+        }
+        assert_eq!(messages(&quarter, json!(11.1)), ["Too big: expected number to be <=10", "Invalid number: must be a multiple of 0.25"]);
+        let pair = tuple(vec![string(), string()]);
+        assert_eq!(pair.parse(&json!(["a", "b"])), Ok(json!(["a", "b"])));
+        assert_eq!(messages(&pair, json!(["a"])), ["Too small: expected array to have >=2 items"]);
+        assert_eq!(messages(&pair, json!(["a", "b", "c"])), ["Too big: expected array to have <=2 items"]);
+        assert_eq!(messages(&pair, json!("x")), ["Invalid input: expected tuple, received string"]);
+        assert_eq!(messages(&pair, json!([1, 2, 3])), ["Too big: expected array to have <=2 items", "Invalid input: expected string, received number", "Invalid input: expected string, received number"]);
+        let trimmed = object(vec![def("pair", string().trim(), || json!("")), opt("n", string().trim().min(2.0))]);
+        assert_eq!(trimmed.parse(&json!({ "pair": "  a b  " })), Ok(json!({ "pair": "a b" })));
+        assert_eq!(messages(&trimmed, json!({ "n": " a " })), ["Too small: expected string to have >=2 characters"]);
+        assert_eq!(trimmed.parse(&json!({ "n": "  abc " })), Ok(json!({ "pair": "", "n": "abc" })));
+        let refined = record(string(), object(vec![req("s", string())])).refine(|map, found| {
+            for key in map.keys() {
+                found.add(vec![Key::Name(key.clone())], format!("R {key}"));
+            }
+        });
+        assert_eq!(messages(&refined, json!({ "a": { "s": "x" }, "b": { "s": 1 } })), ["Invalid input: expected string, received number"]);
+        assert_eq!(messages(&refined, json!({ "a": { "s": "x" } })), ["R a"]);
     }
 }

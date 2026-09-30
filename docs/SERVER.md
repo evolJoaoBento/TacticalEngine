@@ -88,7 +88,7 @@ added after, so the rules are not redesigned while they are being transliterated
 |---|---|---|
 | 0 | This plan; the Rust toolchain; the `server/` workspace; `core/rng` ported with golden fixtures | TS and Rust both reproduce `server/fixtures/rng.json` |
 | 1 | The platform server: axum serves the built client and the `/__*` routes - accounts, then the Store, your models, the models manifest and ancestries, art provenance, the default project; the Vite dev server proxies to it; each TS plugin deleted as its route moves | `accounts-store.spec.ts`, `your-models.spec.ts` and the round-trip scripts pass against the Rust server |
-| 2 | The rules, bottom up, each against fixtures: `grid`, `rules`, `character`, `dialogue`, `content` (serde schemas), `combat`, `script` (effects, runner, world, hooks in QuickJS), then the game layer (`movement`, `room`, `interaction`, `leap`, `save`, `shop`, `equip`) | every module's fixture passes in Rust |
+| 2 | The rules, bottom up, each against fixtures: `grid`, `rules`, `character`, `dialogue`, `content` (serde schemas), `combat`, `script` (effects, runner, world, hooks in QuickJS), then the game layer - the scene document and the room stood up from it, the party, the session (`demo-scene.ts`: building from a project, the fight loop, the GM's turn, prompts), and `movement`, `room`, `interaction`, `leap`, `save`, `shop`, `equip` on it | every module's fixture passes in Rust |
 | 3 | Game sessions on the server: the WebSocket protocol, the client's game layer as a view, the editor's playtest on the engine built to WebAssembly | the full e2e suite passes with play on the server |
 | 4 | Co-op: several players in a session, turn ownership, visibility, reconnecting | two browsers play one fight |
 | 5 | The internet: HTTPS, a real admin password, upload and rate limits, backups, a host | reachable from outside this machine |
@@ -97,7 +97,7 @@ added after, so the rules are not redesigned while they are being transliterated
 
 ```bash
 cd server && cargo test                                         # the Rust port against its fixtures
-npx vitest run src/engine/grid/grid.golden.test.ts src/engine/rules/rules.golden.test.ts src/engine/character/character.golden.test.ts src/engine/dialogue/dialogue.golden.test.ts src/engine/content/content.golden.test.ts src/engine/combat/combat.golden.test.ts src/engine/script/script.golden.test.ts src/engine/script/conditions.golden.test.ts src/engine/script/runner.golden.test.ts src/engine/script/hooks.golden.test.ts   # the fixtures are still what TypeScript does (runner.golden writes runner.json and world.json)
+npx vitest run src/engine/grid/grid.golden.test.ts src/engine/rules/rules.golden.test.ts src/engine/character/character.golden.test.ts src/engine/dialogue/dialogue.golden.test.ts src/engine/content/content.golden.test.ts src/engine/combat/combat.golden.test.ts src/engine/script/script.golden.test.ts src/engine/script/conditions.golden.test.ts src/engine/script/runner.golden.test.ts src/engine/script/hooks.golden.test.ts src/engine/scene/scene.golden.test.ts   # the fixtures are still what TypeScript does (runner.golden writes runner.json and world.json)
 npm run build:server && npm run server                          # the game from the Rust server alone, on 8430
 npm run server                                                  # (npm run dev starts it too, for the routes alone)
 npx vitest run tests/unit/accounts.golden.test.ts tests/unit/store.golden.test.ts   # the fixtures are still what TypeScript does
@@ -434,5 +434,38 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     allocation and a recursion stopped; nothing reachable but the reads; the dice the scenario's stream; a
     read reaching a hook. 25 of 26 deliberate mutations - in the prelude, the bridge and the world's reader - fail them; the 26th (a log's tone written as undefined rather than left out) is equivalent, JSON having no undefined, and the runner's 37 of 41 and the world's 93 of 93 hold on the fixtures as they now stand. The serve crate builds no worlds yet:
     `QuickJsHooks::compile` is where the game layer's port plugs a project's code in.
-  - **Next**: the game layer (`movement`, `room`, `interaction`, `leap`, `save` - with the scenario
-    snapshot's schema - `shop`, `equip`), and with it a world the server builds from a project.
+- **The game layer, in six parts.** The row above first named seven modules, about 1,800 lines. Each
+  of them works on the session (`DemoScene`, `game/demo-scene.ts`, 4,373 lines), on the party
+  (`scene/party.ts`, 784) and on scene code not yet ported (about 2,300 lines): some 9,000 lines in all,
+  which phase 3 needs on the server anyway. Bottom up: (1) the scene document - (1a) the documents, their
+  schema and their migration, (1b) a room stood up from one: its grid, its state, reshaping, triggers,
+  prop functions, interaction - (2) the party; (3) the session built from a project (`room`, the log,
+  roster and pools, travel), hooks reaching it through a factory; (4) movement, leaps, interaction, props
+  and talk, and what drives a script from play; (5) the fight loop - attacks, the GM's turn, defence and
+  death prompts; (6) `shop`, `equip`, gear, and `save` with the scenario snapshot's schema.
+  - **The documents are ported** (`server/engine/src/scene/document.rs`, `migrate.rs`): the scene and
+    project schemas on the zod-alike, with what they are built of - the prop functions and the shop, the
+    building layer's pieces, structures and keys, a model asset, the jump rules, and a character sheet
+    as zod reads it (`character::schema::sheet_schema`; `parse_sheet` stays the door a lone sheet comes
+    in by) - and `migrateDocument`, every step, following JavaScript's ways with an object's keys (a key
+    renamed moves to the end, one assigned keeps its place) and building ids as the TypeScript does
+    (`toContentId`, NFKD by `unicode-normalization`). `read_pack` migrates now, as `readPack` does, where
+    it refused an older document by name. The zod-alike gained `multipleOf` (zod's own tolerance),
+    `trim`, `tuple` and a record refined whole; and `js::number_to_string` writes a large whole number
+    as JavaScript does - its shortest digits and then zeros, `1152921504606847000` for 2^60 - where it
+    wrote every digit, which no earlier fixture had reached.
+    `scene.golden.test.ts` writes `server/fixtures/scene.json`: the documents older builds really wrote
+    (the captured version-1 project and save, the version-3 project), the default project with its
+    version taken off so every step walks real data, and 17 written for each step's corners, migrated;
+    the projects read whole and as packs; a sample project using every part of the schema broken twelve
+    ways at 200 places, deeper inside a scene (2,400 cases); 25 corners the breaks cannot reach; names
+    made into ids. `golden_scene.rs` replays it, issue for issue and field for field. 36 of 37
+    deliberate mutations fail it; the 37th (a document of this version migrated rather than returned)
+    is equivalent, every step being skipped and the version written as it was.
+  - **A defect fixed on the way**: whether a building piece's structure exists was asked of a registry
+    only a grid built for a project sets, so a project building with a structure of its own was refused
+    on a fresh page ("No structure called ..."). The project's schema asks it now, of the engine's four
+    and the project's own, in both languages (`src/engine/scene/schema.test.ts`).
+  - **Next**: (1b) a room stood up from its document - `grid-from-scene` (with `building` and
+    `deco-span`), `sceneStateFromScene` and placements, `reshape`, `triggers`, `prop-functions`,
+    `interact` - held, where it can be, to the starting worlds `world.json` already holds.

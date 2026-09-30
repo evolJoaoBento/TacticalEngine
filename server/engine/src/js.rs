@@ -75,8 +75,9 @@ pub fn trim(text: &str) -> &str {
     text.trim_matches(is_space)
 }
 
-/// A number as `String(n)` writes it: whole numbers without a point, `1e+21` from there up, and
-/// JavaScript's exponent form below a millionth.
+/// A number as `String(n)` writes it (`Number::toString`): the shortest digits that read back as the same
+/// number, laid out by where the point falls - whole numbers to 21 digits in full, padded with zeros past
+/// the digits they need; decimals down to a millionth; the exponent form, with its sign, beyond either.
 pub fn number_to_string(x: f64) -> String {
     if x.is_nan() {
         return "NaN".into();
@@ -87,18 +88,28 @@ pub fn number_to_string(x: f64) -> String {
     if x == 0.0 {
         return "0".into();
     }
-    let magnitude = x.abs();
-    if magnitude >= 1e21 || magnitude < 1e-6 {
-        let text = format!("{x:e}");
-        return match text.split_once('e') {
-            Some((mantissa, exponent)) if !exponent.starts_with('-') => format!("{mantissa}e+{exponent}"),
-            _ => text,
-        };
-    }
-    if x.fract() == 0.0 {
-        format!("{x:.0}")
+    // Rust's `{:e}` is the shortest round trip, as JavaScript's digits are.
+    let shortest = format!("{:e}", x.abs());
+    let (mantissa, exponent) = shortest.split_once('e').expect("an exponent");
+    let digits: String = mantissa.chars().filter(char::is_ascii_digit).collect();
+    let k = digits.len() as i32;
+    let n = exponent.parse::<i32>().expect("a whole exponent") + 1;
+    let zeros = |count: i32| "0".repeat(count.max(0) as usize);
+    let body = if k <= n && n <= 21 {
+        format!("{digits}{}", zeros(n - k))
+    } else if 0 < n && n <= 21 {
+        format!("{}.{}", &digits[..n as usize], &digits[n as usize..])
+    } else if -6 < n && n <= 0 {
+        format!("0.{}{digits}", zeros(-n))
     } else {
-        format!("{x}")
+        let point = if k > 1 { format!("{}.{}", &digits[..1], &digits[1..]) } else { digits.clone() };
+        let sign = if n - 1 >= 0 { "+" } else { "-" };
+        format!("{point}e{sign}{}", (n - 1).abs())
+    };
+    if x < 0.0 {
+        format!("-{body}")
+    } else {
+        body
     }
 }
 
@@ -108,7 +119,7 @@ mod tests {
 
     #[test]
     fn numbers_are_written_as_javascript_writes_them() {
-        for (x, text) in [(0.0, "0"), (-0.0, "0"), (3.0, "3"), (-2.0, "-2"), (0.5, "0.5"), (1e20, "100000000000000000000"), (1e21, "1e+21"), (1.5e22, "1.5e+22"), (1e-7, "1e-7")] {
+        for (x, text) in [(0.0, "0"), (-0.0, "0"), (3.0, "3"), (-2.0, "-2"), (0.5, "0.5"), (1e20, "100000000000000000000"), (1e21, "1e+21"), (1.5e22, "1.5e+22"), (1e-7, "1e-7"), (1152921504606846976.0, "1152921504606847000"), (123e-20, "1.23e-18"), (0.000001, "0.000001"), (-0.000123, "-0.000123"), (123456.789, "123456.789"), (1e-6, "0.000001"), (-1e21, "-1e+21"), (2.5e-7, "2.5e-7"), (9007199254740993.0, "9007199254740992")] {
             assert_eq!(number_to_string(x), text, "{x}");
         }
     }
