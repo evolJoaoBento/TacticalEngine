@@ -97,7 +97,7 @@ added after, so the rules are not redesigned while they are being transliterated
 
 ```bash
 cd server && cargo test                                         # the Rust port against its fixtures
-npx vitest run src/engine/grid/grid.golden.test.ts src/engine/rules/rules.golden.test.ts src/engine/character/character.golden.test.ts src/engine/dialogue/dialogue.golden.test.ts src/engine/content/content.golden.test.ts src/engine/combat/combat.golden.test.ts src/engine/script/script.golden.test.ts src/engine/script/conditions.golden.test.ts src/engine/script/runner.golden.test.ts src/engine/script/hooks.golden.test.ts src/engine/scene/scene.golden.test.ts src/engine/scene/room.golden.test.ts   # the fixtures are still what TypeScript does (runner.golden writes runner.json and world.json)
+npx vitest run src/engine/grid/grid.golden.test.ts src/engine/rules/rules.golden.test.ts src/engine/character/character.golden.test.ts src/engine/dialogue/dialogue.golden.test.ts src/engine/content/content.golden.test.ts src/engine/combat/combat.golden.test.ts src/engine/script/script.golden.test.ts src/engine/script/conditions.golden.test.ts src/engine/script/runner.golden.test.ts src/engine/script/hooks.golden.test.ts src/engine/scene/scene.golden.test.ts src/engine/scene/room.golden.test.ts src/engine/scene/party.golden.test.ts   # the fixtures are still what TypeScript does (runner.golden writes runner.json and world.json)
 npm run build:server && npm run server                          # the game from the Rust server alone, on 8430
 npm run server                                                  # (npm run dev starts it too, for the routes alone)
 npx vitest run tests/unit/accounts.golden.test.ts tests/unit/store.golden.test.ts   # the fixtures are still what TypeScript does
@@ -488,4 +488,25 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     `server/hooks/tests/golden_runs.rs` replays those against the real world with the hooks run, dice
     for dice. 49 of 50 deliberate mutations fail the two; the 50th (a pair id trimmed or not before
     it is looked for) is equivalent, since the schema trims every pair id a document holds.
-  - **Next**: (2) the party (`scene/party.ts`): selection, following, and a move for a whole party.
+  - **The party is ported** (`server/engine/src/scene/party.rs`): selection and Tab, the party's order,
+    who walks with whom (link, unlink, the ranks closed behind somebody leaving a group), who is held;
+    the ground a member reaches and the ground their movement covers - the straighter line's reach past
+    the count of squares, and inside a circle only what a walk reaches without leaving it; a walk planned
+    and made, aimed at a spot, begun mid-walk, a step within one's own tile, cut short where the
+    allowance or the circle runs out and backed up to where a body can stand; the followers walking down
+    the leader's trail a pace apart, the ones it cannot place left standing unless walked into or left
+    behind; and a walk stopped where the figure got to. The TypeScript's `Party` holds its scene; this one
+    holds only what is its own - selection, groups, order, held members, trails - and is handed the
+    scene each time, so the state stays the one owner of who stands where. `alongTheLine`, private and
+    called by nothing, is not ported.
+    `party.golden.test.ts` writes `server/fixtures/party.json`: 113 sessions of 30 to 40 orders - the
+    demo's vault with the demo's own party, and rooms written from a seed with walls, marsh, raised
+    ground, pieces, solid props, a door and creatures in the way, under party options and movement rules
+    of every sort, the rules changed and members falling part-way - each order's answer and, after it,
+    everybody's tile and spot with the party's selection, order, groups, held members and trails.
+    `golden_party.rs` replays it. 41 of 42 deliberate mutations fail it; the 42nd (a walk inside a
+    circle measured for leaving it as well as for every point being in it) is equivalent, a circle being
+    convex.
+  - **Next**: (3) the session built from a project (`game/room.ts` and the head of `demo-scene.ts`): the
+    room stood up with its party, pathfinder, triggers and world, the log, the roster and the pools
+    carried between rooms, travel - and hooks reaching the world through a factory.
