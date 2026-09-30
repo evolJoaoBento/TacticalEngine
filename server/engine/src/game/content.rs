@@ -30,6 +30,37 @@ pub struct Shipped {
     pub abilities: Vec<AbilityDef>,
     /// The starter pack's conditions, then the rules' (`STARTER_CONDITIONS`, `SRD_CONDITIONS`).
     pub conditions: Vec<ConditionDef>,
+    /// The equipment catalogue's items, by what the log calls them (`EQUIPMENT.items`).
+    #[serde(default)]
+    pub items: Vec<ItemName>,
+}
+
+/// An item, as far as a line of the log reads it.
+#[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct ItemName {
+    pub id: String,
+    pub name: String,
+}
+
+/// Every item a project can name, and what it is called (`itemsFor`): its own, then the catalogue's it has
+/// not replaced.
+pub fn items_for(shipped: &Shipped, project: &Value) -> Vec<ItemName> {
+    let own: Vec<ItemName> = list(project, "items").iter().map(|i| ItemName { id: i["id"].as_str().unwrap_or_default().into(), name: i["name"].as_str().unwrap_or_default().into() }).collect();
+    if own.is_empty() {
+        return shipped.items.clone();
+    }
+    let mut all = own.clone();
+    all.extend(shipped.items.iter().filter(|i| !own.iter().any(|o| o.id == i.id)).cloned());
+    all
+}
+
+/// What one item is called (`itemOf`): the project's own, else the catalogue's.
+pub fn item_name(shipped: &Shipped, project: &Value, id: &str) -> Option<String> {
+    list(project, "items")
+        .iter()
+        .find(|i| i["id"].as_str() == Some(id))
+        .and_then(|i| i["name"].as_str().map(str::to_string))
+        .or_else(|| shipped.items.iter().find(|i| i.id == id).map(|i| i.name.clone()))
 }
 
 impl Shipped {

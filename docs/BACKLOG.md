@@ -12,6 +12,14 @@ head and shoulders is already the creature tool's, on the same rail. Only what i
 the mode's id is still `combat`, so `mode-combat`, the tool lists and every test that picks it are
 as they were. Older entries below still say Combat. Unit `editor/modes.test.ts`.
 
+## The things in a room are used in Rust, and its creatures talked to — done
+
+`server/engine/src/game/play.rs` uses a room's things and talks to its creatures as the page does, out of a
+fight: a thing used or refused, its prompt waiting until it is answered, conversations had and set aside,
+containers, portals and travel, and the journal written down and acted on. The fight's parts refuse with
+an error until the fight is ported. Held to `server/fixtures/play.json`. The first half of the game layer's
+fourth part; walking is next.
+
 ## A game is played in Rust from a project — done
 
 `server/engine/src/game/` stands a game up from a project as `buildProjectScene` does and plays what

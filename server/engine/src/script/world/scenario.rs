@@ -65,6 +65,10 @@ impl<V> Ordered<V> {
     pub fn values(&self) -> impl Iterator<Item = &V> {
         self.0.iter().map(|(_, v)| v)
     }
+
+    pub fn into_entries(self) -> Vec<(String, V)> {
+        self.0
+    }
 }
 
 /// A quest's progress. A quest with no entry has not been started.

@@ -4,5 +4,6 @@
 
 pub mod content;
 pub mod log;
+pub mod play;
 pub mod rules;
 pub mod session;

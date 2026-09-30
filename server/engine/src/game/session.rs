@@ -13,11 +13,14 @@
 //! Hooks come from the caller (`HooksFor`): the engine runs no JavaScript, and compiling a project's code
 //! once and keeping it - as `hooksFor` keeps the last compile - is the caller's to do.
 //!
-//! What waits on the player, a fight, the GM's turn, and turning a script's journal into log lines come with
-//! the parts that play them.
+//! Using the room's things and talking to its creatures is `play`'s; a fight and the GM's turn come with
+//! the part that plays them.
 
 use super::content::{abilities_of, character_content_for, stat_block_for, world_content_for, Shipped};
-use super::log::{name_of, note, LogLine};
+use super::log::{name_of, note, Floater, LogLine, RollShow};
+use super::play::{PendingScript, SetAside};
+use crate::combat::encounter::EncounterRunner;
+use crate::dialogue::schema::Dialogue;
 use super::rules::{movement_for, DEMO_BAND_TILES};
 use crate::character::sheet::{derive_character, starting_pools, CharacterSheet, DerivedCharacter};
 use crate::grid::terrain::TerrainPalette;
@@ -108,6 +111,30 @@ pub struct Session {
     pub triggers: TriggerIndex,
     /// What scripts read and write; it owns the room's state and the scenario.
     pub world: SceneScriptWorld<'static>,
+    /// A script waiting on the player: a roll, a choice, a conversation.
+    pub pending: Option<PendingScript>,
+    /// A room a script asked to travel to, gone to once the script settles.
+    pub destination: Option<String>,
+    /// The fight, while one is running.
+    pub encounter: Option<EncounterRunner>,
+    /// The project's conversations, by id.
+    pub dialogues: HashMap<String, Rc<Dialogue>>,
+    /// The container whose window is open.
+    pub opened: Option<String>,
+    /// The room and the portal the party is to step out beside, once travel settles.
+    pub arriving: Option<(String, String)>,
+    /// Conversations set aside, by who is having them.
+    pub(crate) talks: Ordered<SetAside>,
+    /// Numbers over heads, for whoever draws them.
+    pub floaters: Vec<Floater>,
+    /// How creatures got where they are - walked, thrown, put down - for whoever moves the tokens.
+    pub motions: Vec<Value>,
+    /// Duality rolls the party made, for whoever shows the dice.
+    pub rolls: Vec<RollShow>,
+    /// Ask the party what it answers a roll or a blow with, rather than deciding for them.
+    pub ask_defender: bool,
+    /// Which room this is, counted as rooms are entered: a conversation set aside in another is over.
+    pub room: u64,
 }
 
 /// Stand a room up (`buildRuntime`): its grid from the project's ground, every placement's stat block - the
@@ -186,6 +213,11 @@ impl Session {
         let runtime = build_runtime(&shipped, &hooks_for, &project, &opening, &characters, ScenarioState::default(), None, None)?;
         let mut synced_placements = Ordered::default();
         synced_placements.set(&start, playable_placements(&opening, &runtime.world.state.grid));
+        let mut dialogues = HashMap::new();
+        for dialogue in list(&project, "dialogues") {
+            let dialogue: Dialogue = serde_json::from_value(dialogue.clone()).map_err(|e| e.to_string())?;
+            dialogues.insert(dialogue.id.clone(), Rc::new(dialogue));
+        }
         Ok(Session {
             project,
             shipped,
@@ -200,6 +232,18 @@ impl Session {
             party: runtime.party,
             triggers: runtime.triggers,
             world: runtime.world,
+            pending: None,
+            destination: None,
+            encounter: None,
+            dialogues,
+            opened: None,
+            arriving: None,
+            talks: Ordered::default(),
+            floaters: Vec::new(),
+            motions: Vec::new(),
+            rolls: Vec::new(),
+            ask_defender: false,
+            room: 0,
         })
     }
 
@@ -279,8 +323,9 @@ impl Session {
             note(self, &format!("{name} joins the party."), "system");
             joined.push(id);
         }
+        // Not out of a fight: pulling a creature from under a spotlight is not an edit, and a leaver waits.
         let listed: Vec<String> = list(&self.project, "party").iter().map(|s| text(s, "id").to_string()).collect();
-        let members: Vec<String> = self.world.state.entities_of(Faction::Party).map(|e| e.id.clone()).collect();
+        let members: Vec<String> = if self.in_combat() { Vec::new() } else { self.world.state.entities_of(Faction::Party).map(|e| e.id.clone()).collect() };
         for id in members {
             if listed.contains(&id) {
                 continue;
@@ -437,6 +482,7 @@ impl Session {
         // A marked spot is a tile, and a tile means nothing in another room.
         runtime.world.forget_spots();
         self.install(runtime, selected.as_deref())?;
+        self.arrive_by_portal();
         let intro = text(&target, "intro").to_string();
         if !intro.is_empty() {
             note(self, &intro, "narration");
@@ -444,12 +490,18 @@ impl Session {
         Ok(true)
     }
 
-    /// Make a freshly built room the one being played (`install`), its document and state made to agree.
+    /// Make a freshly built room the one being played (`install`), its document and state made to agree. A
+    /// fight does not follow the party through a door, and a script that was waiting belongs to the room it
+    /// was asked in.
     fn install(&mut self, runtime: Runtime, selected: Option<&str>) -> Result<(), String> {
         self.scene = runtime.scene;
         self.party = runtime.party;
         self.triggers = runtime.triggers;
         self.world = runtime.world;
+        self.encounter = None;
+        self.pending = None;
+        self.destination = None;
+        self.room += 1;
         self.sync_authored_encounters()?;
         if let Some(selected) = selected.filter(|s| self.party.members(&self.world.state).iter().any(|m| m == s)) {
             self.party.select(&self.world.state, selected);

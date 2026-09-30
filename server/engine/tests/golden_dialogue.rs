@@ -116,7 +116,7 @@ fn every_conversation_walks_as_the_typescript_walked_it() {
                 Some(targets) => json!({ "targets": targets }),
                 None => json!({}),
             };
-            let mut runner = DialogueRunner::new(&dialogue, options).expect("no repeated nodes");
+            let mut runner = DialogueRunner::new(std::rc::Rc::new(dialogue.clone()), options).expect("no repeated nodes");
             let mut seen = 0;
             for (i, step) in play["steps"].as_array().expect("steps").iter().enumerate() {
                 let at = format!("{} seed {} step {i} {}", dialogue.id, play["seed"], step["move"]);
@@ -144,7 +144,7 @@ fn every_conversation_walks_as_the_typescript_walked_it() {
 fn a_repeated_node_is_refused_in_the_same_words() {
     let fixture = fixture();
     let dialogue: Dialogue = serde_json::from_value(fixture["repeated"]["dialogue"].clone()).expect("a dialogue");
-    let refusal = DialogueRunner::new(&dialogue, json!({})).err().expect("refused");
+    let refusal = DialogueRunner::new(std::rc::Rc::new(dialogue.clone()), json!({})).err().expect("refused");
     assert_eq!(json!(refusal), fixture["repeated"]["refusal"]);
 }
 

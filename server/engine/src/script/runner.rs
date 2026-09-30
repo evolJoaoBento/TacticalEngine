@@ -460,6 +460,39 @@ fn outcome_effects(check: &Value, outcome: RollOutcome) -> Vec<Value> {
     order.iter().find_map(|key| list(check, key)).unwrap_or_default()
 }
 
+/// A script put down between answers (`ScriptRunner::suspend`).
+pub struct SuspendedRunner {
+    journal: Vec<Value>,
+    stack: Vec<Frame>,
+    pending: Option<Pending>,
+    subject: Option<String>,
+    targets: Vec<String>,
+    roll_as: String,
+    hit: Vec<String>,
+    last_roll: Option<DualityRoll>,
+    last_damage: Option<LastDamage>,
+    counts: [f64; 3],
+    answering: Option<BoundRoll>,
+    point: i32,
+    pub spotlight_to_gm: bool,
+    pub rolled: bool,
+    pub cancelled: bool,
+    pub vaulted: bool,
+}
+
+impl SuspendedRunner {
+    /// Pick the script up again, in this world with these dice.
+    pub fn attach<'a, W: ScriptWorld + ?Sized>(self, world: &'a mut W, rng: &'a mut Rng) -> ScriptRunner<'a, W> {
+        let SuspendedRunner { journal, stack, pending, subject, targets, roll_as, hit, last_roll, last_damage, counts, answering, point, spotlight_to_gm, rolled, cancelled, vaulted } = self;
+        ScriptRunner { world, rng, journal, stack, pending, subject, targets, roll_as, hit, last_roll, last_damage, counts, answering, point, spotlight_to_gm, rolled, cancelled, vaulted }
+    }
+
+    /// Everything that has happened so far.
+    pub fn entries(&self) -> &[Value] {
+        &self.journal
+    }
+}
+
 pub struct ScriptRunner<'a, W: ScriptWorld + ?Sized> {
     world: &'a mut W,
     rng: &'a mut Rng,
@@ -521,6 +554,14 @@ impl<'a, W: ScriptWorld + ?Sized> ScriptRunner<'a, W> {
     /// Everything that has happened so far.
     pub fn entries(&self) -> &[Value] {
         &self.journal
+    }
+
+    /// Put the script down between answers: everything it knows but the world and the dice, to be picked up
+    /// again with them (`SuspendedRunner::attach`). A prompt waits longer than the call that raised it, and a
+    /// runner borrows the world it plays in only while it plays.
+    pub fn suspend(self) -> SuspendedRunner {
+        let ScriptRunner { world: _, rng: _, journal, stack, pending, subject, targets, roll_as, hit, last_roll, last_damage, counts, answering, point, spotlight_to_gm, rolled, cancelled, vaulted } = self;
+        SuspendedRunner { journal, stack, pending, subject, targets, roll_as, hit, last_roll, last_damage, counts, answering, point, spotlight_to_gm, rolled, cancelled, vaulted }
     }
 
     /// The last action roll this script made, for a caller that reuses it.

@@ -97,7 +97,7 @@ added after, so the rules are not redesigned while they are being transliterated
 
 ```bash
 cd server && cargo test                                         # the Rust port against its fixtures
-npx vitest run src/engine/grid/grid.golden.test.ts src/engine/rules/rules.golden.test.ts src/engine/character/character.golden.test.ts src/engine/dialogue/dialogue.golden.test.ts src/engine/content/content.golden.test.ts src/engine/combat/combat.golden.test.ts src/engine/script/script.golden.test.ts src/engine/script/conditions.golden.test.ts src/engine/script/runner.golden.test.ts src/engine/script/hooks.golden.test.ts src/engine/scene/scene.golden.test.ts src/engine/scene/room.golden.test.ts src/engine/scene/party.golden.test.ts src/game/session.golden.test.ts   # the fixtures are still what TypeScript does (runner.golden writes runner.json and world.json)
+npx vitest run src/engine/grid/grid.golden.test.ts src/engine/rules/rules.golden.test.ts src/engine/character/character.golden.test.ts src/engine/dialogue/dialogue.golden.test.ts src/engine/content/content.golden.test.ts src/engine/combat/combat.golden.test.ts src/engine/script/script.golden.test.ts src/engine/script/conditions.golden.test.ts src/engine/script/runner.golden.test.ts src/engine/script/hooks.golden.test.ts src/engine/scene/scene.golden.test.ts src/engine/scene/room.golden.test.ts src/engine/scene/party.golden.test.ts src/game/session.golden.test.ts src/game/play.golden.test.ts   # the fixtures are still what TypeScript does (runner.golden writes runner.json and world.json)
 npm run build:server && npm run server                          # the game from the Rust server alone, on 8430
 npm run server                                                  # (npm run dev starts it too, for the routes alone)
 npx vitest run tests/unit/accounts.golden.test.ts tests/unit/store.golden.test.ts   # the fixtures are still what TypeScript does
@@ -533,8 +533,7 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
       destination a script asked for (`settleTravel`), what waits on the player, a fight and the GM's
       turn, and arriving by portal. `openProject`'s renaming of retired models and adding of shipped ones
       are the renderer's - so a project the server writes back would differ from the browser's in model
-      ids. **Part 5 must gate `sync_roster`**: the TypeScript walks a member the project dropped off the
-      board only out of a fight, and with no fight yet the Rust always does.
+      ids.
     `session.golden.test.ts` writes `server/fixtures/session.json`: the shipped content once, the three
     projects once each (the demo's, the default project, and the default project carrying a stat block, a
     condition, a step height and an old object of its own), and fifteen sessions of forty steps - travel,
@@ -547,5 +546,44 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     which plays as the prop it would have become - `room.json` holds the making of it) and two wait for
     what reaches them (zones read again, and marked spots forgotten, when nothing between actions sets
     either). The world's 93 still all fail `golden_world.rs` after the change to how it holds its content.
-  - **Next**: (4) movement, leaps, interaction, props and talk, and what drives a script from play - and
-    with them the log's words for a journal.
+  - **Part 4 is two halves.** What the game state part 4 needs, inventoried: a prompt waiting (a
+    script's, with the conversation it opened), the fight (only begun - its loop is part 5's), where a
+    script sends the party, the conversations, and what a view is handed (motions, numbers over heads, dice)
+    are real; `ambush` and `approaching` exist only so a fight waits for tokens to finish drawing, and on a
+    server a walk arrives in the same call, so they are not ported; the GM's turn is part 5's. The log's
+    words for a journal land here, not with the fight: every use of a thing goes through `record`, whose
+    reaction to a party's roll ends conditions that last until it - a world change on the first lock picked.
+    (4a) using things and talking, out of a fight; (4b) walking - triggers begin fights - the movement
+    circle, closing on a thing or a target, leaps.
+  - **Things are used and creatures talked to** (`server/engine/src/game/play.rs`): `use_selected_on` - in
+    reach, refused in the thing's own words, run - and the prompt it stops on held until
+    `answer_pending`, the conversation `settle` opens on a `startDialogue` had reply by reply
+    (`answer_dialogue`, `resume_outer`), `record` (the journal written down and acted on: the room's things
+    and where a script sends the party, pools, a party roll's conditions spent), `settle_travel`, a
+    creature on nobody's side talked to (`talk_now`), a container's window read and taken from, a portal's
+    partner in this room or another (arriving beside it when travel settles), and a conversation set aside
+    for somebody else and brought back (`sync_talks`). `game/log.rs` writes a journal down - every
+    sentence, the dice, the numbers over heads, the tokens' motions - and a conversation's lines.
+    - **A prompt waits between calls**: a script runner can be put down (`ScriptRunner::suspend`) and
+      picked up again with the world and the dice (`SuspendedRunner::attach`), and the dialogue runner holds
+      its dialogue by `Rc`, so a conversation in progress waits in the session.
+    - **The fight's parts refuse, loudly**: a journal that would start a fight, a card offered on a roll to a
+      table that asks (`ask_defender`), a creature answering the party's roll, a countdown a roll would
+      move: each returns an error naming it, rather than doing something else quietly. `sync_roster` walks a
+      member the project dropped off the board only out of a fight, as the TypeScript does.
+    - What the app ships gained the catalogue's item names (`Shipped::items`), for loot and keys.
+    `play.golden.test.ts` writes `server/fixtures/play.json`: the demo's project, the default project, and a
+    proving ground built on it (a portal to another room and one with no partner, a conversation nobody
+    wrote, a stair that sends the party away and then asks for a roll, a condition that ends on the next
+    roll and one that swells Hit Points, loot named from the catalogue, a party with no talent and a card
+    that answers a failed roll), 24 sessions of 40 steps and a tour of the proving ground - things used,
+    prompts answered, conversations had and set aside, windows read, taken from and shut, travel - each
+    followed by the prompt waiting, the window open, everybody's place and pools, the log's new lines, what
+    a view is handed, the room's things and the scenario. A session is cut where a fight would begin.
+    `server/hooks/tests/golden_play.rs` replays it with the hooks compiled. 55 of 60 deliberate mutations
+    fail it; of the rest two are equivalent here (travel settled while a prompt waits, which nothing does
+    until a finished script can raise another; a conversation's outer script with no target, when the
+    conversation hands its own to every script inside it) and three need a fight (talking to the dead, a
+    conversation set aside broken off with somebody still standing, a swing's miss).
+  - **Next**: (4b) walking - `moveSelectedTo` and the walk, a trigger beginning its fight, the movement
+    circle, closing on a thing or a target, leaps out of a fight.

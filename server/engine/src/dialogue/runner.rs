@@ -12,6 +12,7 @@ use crate::dialogue::schema::{Dialogue, DialogueLine, NodeKind};
 use serde::Serialize;
 use serde_json::{json, Value};
 use std::collections::HashMap;
+use std::rc::Rc;
 
 /// What a script run or resume came to: waiting on a prompt, or done, with the run's whole journal so
 /// far - a resumed run's journal carries on from where it stood.
@@ -71,9 +72,10 @@ pub enum DialogueStatus {
     Ended,
 }
 
-pub struct DialogueRunner<'a> {
-    dialogue: &'a Dialogue,
-    by_id: HashMap<&'a str, usize>,
+pub struct DialogueRunner {
+    /// Shared, so a conversation in progress can wait between answers without borrowing its dialogue.
+    dialogue: Rc<Dialogue>,
+    by_id: HashMap<String, usize>,
     journal: Vec<Value>,
     /// Who the conversation is with, handed to every script inside it.
     with: Value,
@@ -88,13 +90,13 @@ pub struct DialogueRunner<'a> {
     ended: bool,
 }
 
-impl<'a> DialogueRunner<'a> {
+impl DialogueRunner {
     /// `options` is the script options the conversation passes on: `{ targets?, subject? }`. A dialogue
     /// that repeats a node id is refused, in the TypeScript's words.
-    pub fn new(dialogue: &'a Dialogue, options: Value) -> Result<Self, String> {
+    pub fn new(dialogue: Rc<Dialogue>, options: Value) -> Result<Self, String> {
         let mut by_id = HashMap::new();
         for (index, node) in dialogue.nodes.iter().enumerate() {
-            if by_id.insert(node.id.as_str(), index).is_some() {
+            if by_id.insert(node.id.clone(), index).is_some() {
                 return Err(format!("dialogue \"{}\" repeats node \"{}\"", dialogue.id, node.id));
             }
         }
@@ -118,22 +120,34 @@ impl<'a> DialogueRunner<'a> {
         &self.journal
     }
 
+    /// The id of the node a view shows.
+    pub fn node_id(&self, view: &DialogueView) -> &str {
+        &self.dialogue.nodes[view.node].id
+    }
+
+    /// The dialogue being had.
+    pub fn id(&self) -> &str {
+        &self.dialogue.id
+    }
+
     /// The node a view names.
-    pub fn lines(&self, view: &DialogueView) -> &'a [DialogueLine] {
+    pub fn lines(&self, view: &DialogueView) -> &[DialogueLine] {
         &self.dialogue.nodes[view.node].lines
     }
 
     /// Enter the first node.
     pub fn start(&mut self, host: &mut impl DialogueHost) -> DialogueStatus {
-        let start = self.dialogue.start.clone();
+        let dialogue = Rc::clone(&self.dialogue);
+        let start = dialogue.start.clone();
         self.enter(&start, host)
     }
 
     /// Pick a reply, by its index in the current node. An index that names no reply, or one hidden or
     /// locked, changes nothing.
     pub fn choose(&mut self, index: i64, host: &mut impl DialogueHost) -> DialogueStatus {
+        let dialogue = Rc::clone(&self.dialogue);
         let Some(node_index) = self.current.filter(|_| !self.ended) else { return DialogueStatus::Ended };
-        let node = &self.dialogue.nodes[node_index];
+        let node = &dialogue.nodes[node_index];
         let choices = node.choices.as_deref().unwrap_or(&[]);
         let Some(choice) = usize::try_from(index).ok().and_then(|i| choices.get(i)) else { return self.talking(node_index, host) };
         if !host.evaluate(choice.available.as_ref()) {
@@ -167,24 +181,26 @@ impl<'a> DialogueRunner<'a> {
 
     /// Move on from a node with no replies - the "continue" button. With replies, one must be chosen.
     pub fn advance(&mut self, host: &mut impl DialogueHost) -> DialogueStatus {
+        let dialogue = Rc::clone(&self.dialogue);
         let Some(node_index) = self.current.filter(|_| !self.ended) else { return DialogueStatus::Ended };
         if !self.visible_choices(node_index, host).is_empty() {
             return self.talking(node_index, host);
         }
-        match self.dialogue.nodes[node_index].goto.clone() {
+        match dialogue.nodes[node_index].goto.clone() {
             Some(goto) => self.enter(&goto, host),
             None => self.finish(),
         }
     }
 
     fn enter(&mut self, id: &str, host: &mut impl DialogueHost) -> DialogueStatus {
+        let dialogue = Rc::clone(&self.dialogue);
         let Some(&node_index) = self.by_id.get(id) else {
             // A dangling link ends the conversation rather than failing it; `dangling_links` finds them.
             self.ended = true;
             return DialogueStatus::Ended;
         };
         self.current = Some(node_index);
-        match &self.dialogue.nodes[node_index].on_enter {
+        match &dialogue.nodes[node_index].on_enter {
             Some(effects) if !effects.is_empty() => self.run_script(&effects.clone(), None, Some(node_index), host),
             _ => self.after_enter(node_index, host),
         }
@@ -193,7 +209,8 @@ impl<'a> DialogueRunner<'a> {
     /// After a node's `onEnter`: a consequence goes on, a node with nothing to answer and somewhere to
     /// go walks straight on, and anything else is said - a closing line is shown before it ends.
     fn after_enter(&mut self, node_index: usize, host: &mut impl DialogueHost) -> DialogueStatus {
-        let node = &self.dialogue.nodes[node_index];
+        let dialogue = Rc::clone(&self.dialogue);
+        let node = &dialogue.nodes[node_index];
         if node.kind == Some(NodeKind::Consequence) {
             return match node.goto.clone() {
                 None => self.finish(),
@@ -216,6 +233,7 @@ impl<'a> DialogueRunner<'a> {
     }
 
     fn after_script(&mut self, result: ScriptResult, host: &mut impl DialogueHost) -> DialogueStatus {
+        let dialogue = Rc::clone(&self.dialogue);
         self.journal.extend(result.journal.iter().skip(self.consumed).cloned());
         self.consumed = result.journal.len();
         if let Some(prompt) = result.prompt {
@@ -226,7 +244,7 @@ impl<'a> DialogueRunner<'a> {
 
         // A check inside a choice routes by its outcome: the last check the conversation recorded.
         if let Some((node_index, choice_index)) = self.pending_check.take() {
-            let choice = &self.dialogue.nodes[node_index].choices.as_ref().expect("a checked reply")[choice_index];
+            let choice = &dialogue.nodes[node_index].choices.as_ref().expect("a checked reply")[choice_index];
             let check = choice.check.as_ref().expect("a checked reply has its check");
             let last = self.journal.iter().rev().find(|e| e["kind"] == "check");
             let succeeded = last.is_some_and(|e| e["roll"]["success"] == Value::Bool(true));
@@ -260,7 +278,8 @@ impl<'a> DialogueRunner<'a> {
     /// The replies shown: every `available` asked first, then each shown reply's `enabled` and its
     /// check's modifier, in turn.
     fn visible_choices(&self, node_index: usize, host: &mut impl DialogueHost) -> Vec<ViewOption> {
-        let choices = self.dialogue.nodes[node_index].choices.as_deref().unwrap_or(&[]);
+        let dialogue = Rc::clone(&self.dialogue);
+        let choices = dialogue.nodes[node_index].choices.as_deref().unwrap_or(&[]);
         let shown: Vec<usize> = (0..choices.len()).filter(|&i| host.evaluate(choices[i].available.as_ref())).collect();
         shown
             .into_iter()
