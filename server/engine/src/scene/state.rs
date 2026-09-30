@@ -4,8 +4,9 @@
 //! holds. Entities are kept in the order they came, as the TypeScript's `Map` keeps them, since every
 //! roll-call of a side walks them in it.
 //!
-//! What is left - stood up from a scene document, and a snapshot from a room since grown reshaped - comes
-//! with the scene document's port.
+//! A room is stood up from its document by `scene_state_from_scene`: every encounter's creatures placed,
+//! dormant, the things that stand in the way registered, the party seated on the spawns. A snapshot taken
+//! before the room grew is restored to the same places under the numbers they have now.
 
 use crate::grid::tile_grid::{Spot, TileGrid, NO_TILE};
 use crate::grid::walk::BODY_RADIUS;
@@ -146,6 +147,41 @@ pub fn create_adversary_entity(id: &str, definition: &str, tile: i32, hit_points
         armor_slots: create_mark_pool(0.0, 0.0),
         ..create_party_entity(id, definition, tile, hit_points, stress, 0.0)
     }
+}
+
+/// How a placement is stood up (`placementOptions`): its stat block's pools, and what the placement says
+/// of this one creature - its Hit Points, its model, its name, and whether it starts on nobody's side (a
+/// bystander, or a creature that starts out friendly).
+#[derive(Clone, Debug, PartialEq)]
+pub struct PlacedAdversary {
+    pub hit_points: f64,
+    pub stress: f64,
+    pub model: Option<String>,
+    pub name: Option<String>,
+    pub faction: Faction,
+}
+
+pub fn placement_options(encounter: &Value, placement: &Value, stats: &AdversaryStats) -> PlacedAdversary {
+    let neutral = encounter.get("bystanders") == Some(&Value::Bool(true)) || placement["interaction"]["kind"] == "friendly";
+    PlacedAdversary {
+        hit_points: placement.get("hitPoints").and_then(Value::as_f64).unwrap_or(stats.hit_points),
+        stress: stats.stress,
+        model: placement.get("model").and_then(Value::as_str).map(str::to_string),
+        name: placement.get("name").and_then(Value::as_str).map(str::to_string),
+        faction: if neutral { Faction::Neutral } else { Faction::Adversary },
+    }
+}
+
+/// A placed creature's starting state, as its placement says.
+pub fn create_placed_adversary(id: &str, definition: &str, tile: i32, placed: PlacedAdversary) -> EntityState {
+    EntityState { model: placed.model, name: placed.name, ..create_adversary_entity(id, definition, tile, placed.hit_points, placed.stress, placed.faction) }
+}
+
+/// The part of a stat block it takes to stand one up on the map.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct AdversaryStats {
+    pub hit_points: f64,
+    pub stress: f64,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -543,6 +579,16 @@ impl SceneState {
 
     // ---- serialisation -------------------------------------------------------------------------------
 
+    /// What a snapshot does not hold, because the document does: where each thing stands and what it covers,
+    /// the tiles held by things in the way, and which things are doors. For a replay to hold to the TypeScript's.
+    pub fn layout(&self) -> Value {
+        let mut blocking: Vec<i32> = self.blocking_interactables.iter().copied().collect();
+        blocking.sort_unstable();
+        let mut doors: Vec<&String> = self.passable_when_open.iter().collect();
+        doors.sort_by(|a, b| js::utf16_cmp(a, b));
+        serde_json::json!({ "blocking": blocking, "tiles": self.interactable_tiles, "footprints": self.interactable_footprints, "doors": doors })
+    }
+
     /// A plain, JSON-safe snapshot, as `SceneState.snapshot` writes it.
     pub fn snapshot(&self) -> Value {
         let entities: Map<String, Value> = self.entities.iter().map(|e| (e.id.clone(), serde_json::to_value(e).expect("an entity serializes"))).collect();
@@ -558,15 +604,18 @@ impl SceneState {
         })
     }
 
-    /// Rebuild the play state from a snapshot taken in this room as it stands, the occupancy index with it.
-    /// A room that has grown since is the scene document's to reshape, and waits for its port: refused.
+    /// Rebuild the play state from a snapshot, the occupancy index with it. One taken in this room before it
+    /// grew (or after, and the growth since undone) puts everybody back in the same places, under the numbers
+    /// they have now.
     pub fn restore(&mut self, snapshot: &Value) -> Result<(), String> {
-        if let Some(room) = snapshot.get("room") {
-            let same = room["width"].as_f64() == Some(f64::from(self.grid.width))
-                && room["x"].as_f64() == Some(f64::from(self.grid.origin.x))
-                && room["y"].as_f64() == Some(f64::from(self.grid.origin.y));
-            if !same {
-                return Err("the snapshot was taken in a room shaped otherwise".into());
+        let shifted;
+        let mut snapshot = snapshot;
+        if let Some(room) = snapshot.get("room").filter(|room| room.is_object()) {
+            let (width, x, y) = (room["width"].as_f64().unwrap_or(f64::NAN), room["x"].as_f64().unwrap_or(f64::NAN), room["y"].as_f64().unwrap_or(f64::NAN));
+            let grid = &self.grid;
+            if width != f64::from(grid.width) || x != f64::from(grid.origin.x) || y != f64::from(grid.origin.y) {
+                shifted = super::reshape::shift_snapshot(snapshot, width as i32, grid.origin.x - x as i32, grid.origin.y - y as i32, grid.width, grid.height, NO_TILE);
+                snapshot = &shifted;
             }
         }
         let parse = |what: &str| snapshot.get(what).and_then(Value::as_object).ok_or_else(|| format!("a snapshot has {what}"));
@@ -628,6 +677,72 @@ impl SceneState {
     }
 }
 
+/// Every usable thing in a room as the state places it (`placementsOf`): objects, and props with a function
+/// across their whole block.
+pub fn placements_of(scene: &Value, grid: &TileGrid) -> Vec<ThingPlacement> {
+    let at = |point: &Value| grid.index_at(point["x"].as_f64().unwrap_or(f64::NAN), point["y"].as_f64().unwrap_or(f64::NAN));
+    super::prop_functions::interactables_of(scene)
+        .iter()
+        .map(|thing| {
+            let id = thing["id"].as_str().unwrap_or_default();
+            ThingPlacement {
+                id: id.to_string(),
+                tile: at(&thing["position"]),
+                door: thing["kind"] == "door",
+                blocks: thing["blocksMovement"] == true,
+                footprint: super::prop_functions::footprint_of(scene, id).into_iter().map(|(x, y)| grid.index_at(x, y)).collect(),
+            }
+        })
+        .collect()
+}
+
+/// Stand a scene up (`sceneStateFromScene`): every encounter's creatures placed and dormant until a trigger
+/// or an effect wakes them, the things that stand in the way registered, and the party seated on the spawns
+/// in order - round again when it outnumbers them. A placement beyond the board is scenery for the editor,
+/// not a creature, and is passed over; one whose stat block nobody has is reported and passed over.
+pub fn scene_state_from_scene(
+    scene: &Value,
+    grid: TileGrid,
+    adversaries: &HashMap<String, AdversaryStats>,
+    party: Vec<EntityState>,
+    bad: Option<Currency>,
+) -> Result<(SceneState, Vec<crate::content::document::ContentIssue>), String> {
+    let id = scene["id"].as_str().unwrap_or_default();
+    let things = placements_of(scene, &grid);
+    let mut state = SceneState::new(id, grid, bad);
+    let mut issues = Vec::new();
+    state.replace_interactables(&things);
+
+    let list = |value: &'_ Value, key: &str| value[key].as_array().cloned().unwrap_or_default();
+    for encounter in list(scene, "encounters") {
+        for placement in list(&encounter, "adversaries") {
+            let tile = state.grid.index_at(placement["position"]["x"].as_f64().unwrap_or(f64::NAN), placement["position"]["y"].as_f64().unwrap_or(f64::NAN));
+            if tile == NO_TILE {
+                continue;
+            }
+            let (placed, definition) = (placement["id"].as_str().unwrap_or_default(), placement["adversary"].as_str().unwrap_or_default());
+            let Some(stats) = adversaries.get(definition) else {
+                issues.push(crate::content::document::ContentIssue {
+                    source: id.to_string(),
+                    entry: placed.to_string(),
+                    field: "adversary".into(),
+                    message: format!("no stat block for adversary \"{definition}\""),
+                });
+                continue;
+            };
+            state.add_entity(create_placed_adversary(placed, definition, tile, placement_options(&encounter, &placement, stats)))?;
+        }
+    }
+
+    let spawns = list(scene, "spawns");
+    for (i, mut member) in party.into_iter().enumerate() {
+        let spawn = &spawns[i % spawns.len()];
+        member.tile = state.grid.index_at(spawn["x"].as_f64().unwrap_or(f64::NAN), spawn["y"].as_f64().unwrap_or(f64::NAN));
+        state.add_entity(member)?;
+    }
+    Ok((state, issues))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -683,8 +798,16 @@ mod tests {
         again.restore(&snapshot).unwrap();
         assert_eq!(again.entity("kara").map(|e| e.at), Some(again.grid.spot_of(7)));
         assert!(again.is_open("chest") && again.encounter_running());
-        let mut grown = SceneState::new("room", TileGrid::new(7, 4, TerrainPalette::default_palette()), None);
-        assert!(grown.restore(&snapshot).is_err());
+        // The room grew a column on the west: the same place, a tile further along and a row wider.
+        let mut grid = TileGrid::new(7, 4, TerrainPalette::default_palette());
+        grid.origin.x = 1;
+        let mut grown = SceneState::new("room", grid, None);
+        grown.restore(&state.snapshot()).unwrap();
+        assert_eq!(grown.entity("kara").map(|e| (e.tile, e.at)), Some((9, Spot { x: 2.0, y: 1.0 })));
+        // And shrunk back past where somebody stood: nowhere, rather than somewhere else.
+        let mut shrunk = SceneState::new("room", TileGrid::new(1, 1, TerrainPalette::default_palette()), None);
+        shrunk.restore(&state.snapshot()).unwrap();
+        assert_eq!(shrunk.entity("kara").map(|e| e.tile), Some(NO_TILE));
     }
 
     #[test]

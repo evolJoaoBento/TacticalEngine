@@ -45,6 +45,8 @@ import { hollowVaultMap } from '../../game/demo-map';
 import { startEncounter } from '../../game/movement';
 import { ScriptRunner, type Prompt, type Response, type RunStatus, type ScriptRunnerOptions, type ScriptWorld } from './runner';
 import { effectSchema, type Effect } from './schema';
+import { useInteractable, type UseResult } from '../scene/interact';
+import { interactablesOf } from '../scene/prop-functions';
 
 const rec = vi.hoisted(() => ({ depth: 0, calls: null as unknown[] | null, hooks: null as unknown[] | null, rng: null as unknown }));
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value ?? null)) as T;
@@ -930,6 +932,53 @@ function play(source: string, effects: Effect[], seed: string) {
   return { run: { source, seed, options: clone(options), effects: clone(effects), steps }, world: { start, content, hooks: hookSteps, changed, end, probe } };
 }
 
+/** A use as the fixture writes it: refused and why, or its status as a run's is written. */
+function useJson(result: UseResult) {
+  if (result.status === 'refused') return { status: 'refused', reason: result.reason, text: result.text };
+  return statusJson(result.status === 'waiting' ? { status: 'waiting', prompt: result.prompt, journal: result.journal } : { status: 'done', journal: result.journal }, 0);
+}
+
+/**
+ * Every usable thing in the demo's vault used as the game uses it (`useInteractable`, repeatable as the thing
+ * says), three times over, each prompt answered as a player might - from where a playthrough might find
+ * it: untouched (five times, on as many seeds), opened, dealt with, taken away, or with every key in the pack.
+ */
+function uses() {
+  const ids = interactablesOf(buildDemoScene(hollowVaultMap(), 'the things').scene).map((thing) => thing.id);
+  return ids.flatMap((id, i) =>
+    [0, 1, 2, 3, 4, 5, 6, 7, 8].map((k) => {
+      const seed = `use:${i}:${k}`;
+      const demo = buildDemoScene(hollowVaultMap(), seed);
+      const thing = interactablesOf(demo.scene).find((t) => t.id === id)!;
+      const party = demo.state.entitiesOf('party').map((e) => e.id);
+      demo.world.scenario.actorId = party[k % party.length] ?? null;
+      if (k === 1) demo.world.openInteractable(id);
+      if (k === 2) demo.world.markInteractableUsed(id);
+      if (k === 3) demo.world.removeInteractable(id);
+      if (k === 4) for (const t of interactablesOf(demo.scene)) if (t.requiresKey !== undefined) demo.world.giveKey(t.requiresKey);
+      const start = startOf(demo);
+      const content = contentOf(demo.world, demo.project, demo.project.code);
+      const rng = createRng(`${seed}:dice`);
+      const player = createRng(`${seed}:player`);
+      const acts = [0, 1, 2].map(() => {
+        const result = useInteractable(thing, demo.world, rng, { repeatable: thing.repeatable });
+        const act = { use: useJson(result), after: rng.save(), resumes: [] as unknown[] };
+        if (result.status !== 'waiting') return act;
+        let status: RunStatus = { status: 'waiting', prompt: result.prompt, journal: result.journal };
+        let seen = status.journal.length;
+        for (let step = 0; step < 8 && status.status === 'waiting'; step++) {
+          const response = answer(status.prompt, player);
+          status = result.runner.resume(response);
+          act.resumes.push({ response, status: statusJson(status, seen), after: rng.save() });
+          seen = status.journal.length;
+        }
+        return act;
+      });
+      return { thing: clone(thing), seed, start, content, acts, after: standing(demo) };
+    }),
+  );
+}
+
 function golden() {
   const all = scripts(buildDemoScene(hollowVaultMap(), 'the script list'));
   const played = all.flatMap(({ source, effects }, i) => [0, 1, 2, 3].map((k) => play(source, effects, `runner:${i}:${k}`)));
@@ -945,6 +994,10 @@ function golden() {
     const { grid, ...rest } = start;
     return { source: run.source, seed: run.seed, grid: key(kept.grids, grid), start: key(kept.starts, rest), content: key(kept.contents, content), hooks, changed, end, probe };
   });
+  const used = uses().map(({ start, content, ...use }) => {
+    const { grid, ...rest } = start;
+    return { ...use, grid: key(kept.grids, grid), start: key(kept.starts, rest), content: key(kept.contents, content) };
+  });
   return {
     runner: { about: 'src/engine/script/runner.ts run for the Rust port; written by src/engine/script/runner.golden.test.ts', runs: played.map((p) => p.run) },
     world: {
@@ -953,6 +1006,7 @@ function golden() {
       starts: Object.fromEntries(kept.starts),
       contents: Object.fromEntries(kept.contents),
       runs: worldRuns,
+      uses: used,
     },
   };
 }

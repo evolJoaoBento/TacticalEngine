@@ -12,6 +12,14 @@ head and shoulders is already the creature tool's, on the same rail. Only what i
 the mode's id is still `combat`, so `mode-combat`, the tool lists and every test that picks it are
 as they were. Older entries below still say Combat. Unit `editor/modes.test.ts`.
 
+## A room stood up in Rust from its document — done
+
+`server/engine/src/scene/` builds a room from a scene document as the page does: the grid with its building
+layer and solid props, the play state with every creature and the party, the things that can be used,
+the trigger cells, a room grown and a game restored across it, and a use refused or run. Held to
+`server/fixtures/room.json` and to the demo's uses in `world.json`. The second part of the game layer's six;
+the party is next.
+
 ## Project files read in Rust, old ones brought up to date — done
 
 `server/engine/src/scene/document.rs` and `migrate.rs` are the scene and project documents and their

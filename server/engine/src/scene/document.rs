@@ -16,13 +16,13 @@ use std::sync::OnceLock;
 pub const CURRENT_FORMAT_VERSION: u32 = 6;
 
 /// How far a piece may stand from the origin, either way.
-pub const BUILD_LIMIT: f64 = 1_000_000.0;
+pub use super::building::BUILD_LIMIT;
 
 /// The most tiles a prop may be drawn across.
-pub const DECO_SPAN_MAX: f64 = 16.0;
+pub use super::deco_span::DECO_SPAN_MAX;
 
 /// The structures the engine ships, before any a project declares.
-pub const DEFAULT_STRUCTURES: [&str; 4] = ["block", "floor", "wall", "stairs"];
+pub use super::building::DEFAULT_STRUCTURES;
 
 fn empty_list() -> Value {
     json!([])

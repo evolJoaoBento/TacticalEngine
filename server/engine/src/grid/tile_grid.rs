@@ -63,6 +63,16 @@ impl TileGrid {
         x >= 0 && y >= 0 && x < self.width && y < self.height
     }
 
+    /// The tile at a coordinate as a document writes it (`indexOf` with a JavaScript number), or `NO_TILE`:
+    /// a place a million tiles off is no tile, and nothing is lost narrowing it.
+    pub fn index_at(&self, x: f64, y: f64) -> i32 {
+        if x >= 0.0 && y >= 0.0 && x < f64::from(self.width) && y < f64::from(self.height) {
+            (y * f64::from(self.width) + x) as i32
+        } else {
+            NO_TILE
+        }
+    }
+
     /// The tile at a coordinate, or `NO_TILE`.
     pub fn index_of(&self, x: i32, y: i32) -> i32 {
         if self.in_bounds(x, y) {

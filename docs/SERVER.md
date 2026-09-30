@@ -97,7 +97,7 @@ added after, so the rules are not redesigned while they are being transliterated
 
 ```bash
 cd server && cargo test                                         # the Rust port against its fixtures
-npx vitest run src/engine/grid/grid.golden.test.ts src/engine/rules/rules.golden.test.ts src/engine/character/character.golden.test.ts src/engine/dialogue/dialogue.golden.test.ts src/engine/content/content.golden.test.ts src/engine/combat/combat.golden.test.ts src/engine/script/script.golden.test.ts src/engine/script/conditions.golden.test.ts src/engine/script/runner.golden.test.ts src/engine/script/hooks.golden.test.ts src/engine/scene/scene.golden.test.ts   # the fixtures are still what TypeScript does (runner.golden writes runner.json and world.json)
+npx vitest run src/engine/grid/grid.golden.test.ts src/engine/rules/rules.golden.test.ts src/engine/character/character.golden.test.ts src/engine/dialogue/dialogue.golden.test.ts src/engine/content/content.golden.test.ts src/engine/combat/combat.golden.test.ts src/engine/script/script.golden.test.ts src/engine/script/conditions.golden.test.ts src/engine/script/runner.golden.test.ts src/engine/script/hooks.golden.test.ts src/engine/scene/scene.golden.test.ts src/engine/scene/room.golden.test.ts   # the fixtures are still what TypeScript does (runner.golden writes runner.json and world.json)
 npm run build:server && npm run server                          # the game from the Rust server alone, on 8430
 npm run server                                                  # (npm run dev starts it too, for the routes alone)
 npx vitest run tests/unit/accounts.golden.test.ts tests/unit/store.golden.test.ts   # the fixtures are still what TypeScript does
@@ -466,6 +466,26 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     only a grid built for a project sets, so a project building with a structure of its own was refused
     on a fresh page ("No structure called ..."). The project's schema asks it now, of the engine's four
     and the project's own, in both languages (`src/engine/scene/schema.test.ts`).
-  - **Next**: (1b) a room stood up from its document - `grid-from-scene` (with `building` and
-    `deco-span`), `sceneStateFromScene` and placements, `reshape`, `triggers`, `prop-functions`,
-    `interact` - held, where it can be, to the starting worlds `world.json` already holds.
+  - **A room stands up from its document** (`server/engine/src/scene/`): `building` (the four atoms, the
+    structures a project declares, what a piece is to somebody standing on it), `deco_span`,
+    `grid_from_scene` (a project's palette and structures, the grid with its building layer stacked and
+    its solid props barred, an unknown terrain id reported once), `prop_functions` (each function as the
+    object it plays as, portals paired, objects made props), `triggers`, `reshape` (a room grown, and a
+    snapshot counted again from the corner that moved), `interact` (a use refused or run), and
+    `state::scene_state_from_scene` with `placements_of`. The TypeScript's structure registry, which
+    `paletteForProject` refills as a side effect, is a value here (`Structures`), handed to whoever builds
+    a grid, so one project's structures never leak into another's room. `SceneState::restore` now
+    reshapes a snapshot taken before the room grew, where it refused one.
+    `room.golden.test.ts` writes `server/fixtures/room.json`: the demo's rooms (and the proof that one
+    built there is the demo's own room, grid and state), the default project's, the captured version-1
+    project's with its objects as they were and made props, and 120 rooms written from a seed - pieces at
+    every shape, level and stretch, stacked, tied, numbered and a million tiles off, props solid and
+    spanning and with nested functions, overlapping triggers, bystanders and friends, creatures off the
+    board and without a stat block, heights past an `Int16Array`'s reach; then rooms grown and games
+    restored across the growth and back, snapshots shifted, 300 prop functions, portals, and 4,400 uses
+    refused or run. `golden_room.rs` replays it. `runner.golden.test.ts` adds to `world.json` every
+    usable thing in the demo's vault used three times over from nine starts, prompts answered;
+    `server/hooks/tests/golden_runs.rs` replays those against the real world with the hooks run, dice
+    for dice. 49 of 50 deliberate mutations fail the two; the 50th (a pair id trimmed or not before
+    it is looked for) is equivalent, since the schema trims every pair id a document holds.
+  - **Next**: (2) the party (`scene/party.ts`): selection, following, and a move for a whole party.

@@ -15,8 +15,7 @@ use serde_json::{json, Map, Value};
 
 type Raw = Map<String, Value>;
 
-/// What a room's objects are drawn with, by kind, when they name no model of their own.
-pub const OBJECT_BODIES: [(&str, &str); 4] = [("door", "door-prop"), ("chest", "chest-prop"), ("pillar", "pillar-prop"), ("portal", "portal-prop")];
+pub use super::prop_functions::OBJECT_BODIES;
 
 /// `String(value)`, for the JSON values a document holds; `undefined` for one it does not.
 fn text_of(value: Option<&Value>) -> String {

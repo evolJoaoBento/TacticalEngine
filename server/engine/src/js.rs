@@ -61,6 +61,15 @@ pub fn trunc(x: f64) -> f64 {
     x.trunc()
 }
 
+/// A number stored into an `Int16Array` (`ToInt16`): truncated, then wrapped round 2^16 - never saturated,
+/// as `as i16` would. Not a number, or not finite, is 0.
+pub fn to_int16(x: f64) -> i16 {
+    if !x.is_finite() {
+        return 0;
+    }
+    x.trunc().rem_euclid(65536.0) as u16 as i16
+}
+
 /// Whether JavaScript's `\s` and `trim` take this character: WhiteSpace and LineTerminator - U+FEFF
 /// included, U+0085 not, the other way round from `char::is_whitespace`.
 pub fn is_space(c: char) -> bool {
@@ -122,6 +131,15 @@ mod tests {
         for (x, text) in [(0.0, "0"), (-0.0, "0"), (3.0, "3"), (-2.0, "-2"), (0.5, "0.5"), (1e20, "100000000000000000000"), (1e21, "1e+21"), (1.5e22, "1.5e+22"), (1e-7, "1e-7"), (1152921504606846976.0, "1152921504606847000"), (123e-20, "1.23e-18"), (0.000001, "0.000001"), (-0.000123, "-0.000123"), (123456.789, "123456.789"), (1e-6, "0.000001"), (-1e21, "-1e+21"), (2.5e-7, "2.5e-7"), (9007199254740993.0, "9007199254740992")] {
             assert_eq!(number_to_string(x), text, "{x}");
         }
+    }
+
+    #[test]
+    fn int16_wraps_rather_than_saturating() {
+        assert_eq!(to_int16(40000.0), -25536);
+        assert_eq!(to_int16(-32769.0), 32767);
+        assert_eq!(to_int16(-3.7), -3);
+        assert_eq!(to_int16(65536.0 * 3.0 + 5.0), 5);
+        assert_eq!(to_int16(f64::NAN), 0);
     }
 
     #[test]
