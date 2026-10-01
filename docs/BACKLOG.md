@@ -4,6 +4,14 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## A condition that ends is named — done
+
+A rest, a hit or a blow that ends a condition said so by the id it is kept under - "Kara is no longer
+kit-braced" - in the TypeScript and, faithfully, in the Rust. Both now name it as the table reads it
+(`conditionName`), as the line for a condition put on or taken off already did; `fight.json`, `ask.json`
+and `kit.json` were written again for the one line each. And `Party.alongTheLine`, private and called by
+nothing, is gone.
+
 ## The page reaches the game through one seam — done
 
 `src/game/client.ts` is the one way `main.ts` touches the game: `game.board` to read, a method to do or ask

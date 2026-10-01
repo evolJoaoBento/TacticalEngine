@@ -556,6 +556,16 @@ describe('stepping back from a roll', () => {
     expect(demo.encounter!.canAct('finn')).toBe(true);
   });
 
+  it('names a condition a rest ends as the table reads it, not by the id it is kept under', () => {
+    const demo = scene();
+    expect(demo.world.applyCondition('kara', 'vulnerable', 'rest')).toBe(true);
+    expect(rest(demo, 'short', { moves: {} }).ok).toBe(true);
+    expect(demo.state.entity('kara')!.conditions.has('vulnerable')).toBe(false);
+    const said = demo.log.map((l) => l.text).filter((t) => t.includes('is no longer'));
+    expect(said).toEqual([`${nameOf(demo, 'kara')} is no longer ${demo.world.conditionName('vulnerable')}.`]);
+    expect(said[0]).not.toContain('vulnerable.');
+  });
+
   it('gives a once-per-rest use back when the choice it opens with is cancelled', () => {
     const demo = scene();
     carry(demo);

@@ -713,41 +713,6 @@ export class Party {
       );
   }
 
-  /**
-   * Where along the leader's line each follower stands: a tile's length back
-   * for the first, two for the next, and so on, skipping any spot a body does
-   * not fit or that is already somebody's. A follower the line runs out for is
-   * left out, for `followPositions` to place.
-   */
-  private alongTheLine(leaderId: string, route: readonly Spot[]): Map<string, { tile: number; at: Spot }> {
-    const result = new Map<string, { tile: number; at: Spot }>();
-    const leader = this.state.entity(leaderId);
-    if (leader === undefined || route.length < 2) return result;
-    const length = lineLength(route);
-    const spacing = Math.max(this.options.followDistance, 2 * this.options.walk.radius + 0.05);
-    const standing = this.leftStanding(leaderId);
-    const taken = new Set<number>([leader.tile, ...standing.map((e) => e.tile)]);
-    let back = spacing;
-    for (const follower of this.followersOf(leaderId)) {
-      const blocked = this.blockedForWalk(follower.id, false);
-      let found: { tile: number; at: Spot } | null = null;
-      while (back <= length + 1e-9) {
-        const at = pointAlong(route, length - back);
-        back += spacing;
-        const tile = this.grid.tileAtSpot(at.x, at.y);
-        // Allies are walked through out of a fight, but not stood on: a body's width clear of anyone left behind.
-        if (taken.has(tile) || !canStandAt(this.grid, at, blocked, this.walkRules())) continue;
-        if (standing.some((e) => Math.hypot(e.at.x - at.x, e.at.y - at.y) < 2 * this.options.walk.radius)) continue;
-        found = { tile, at };
-        break;
-      }
-      if (found === null) break;
-      taken.add(found.tile);
-      result.set(follower.id, found);
-    }
-    return result;
-  }
-
   /** The living members who are not walking with this leader: standing where they are, and not to be stood on. */
   private leftStanding(leaderId: string): EntityState[] {
     return this.state.entitiesOf('party').filter((e) => e.alive && e.tile !== NO_TILE && !this.linked(leaderId, e.id));

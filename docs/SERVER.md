@@ -558,8 +558,8 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     the leader's trail a pace apart, the ones it cannot place left standing unless walked into or left
     behind; and a walk stopped where the figure got to. The TypeScript's `Party` holds its scene; this one
     holds only what is its own - selection, groups, order, held members, trails - and is handed the
-    scene each time, so the state stays the one owner of who stands where. `alongTheLine`, private and
-    called by nothing, is not ported.
+    scene each time, so the state stays the one owner of who stands where. (`alongTheLine`, private and
+    called by nothing, was not ported, and is gone from the TypeScript too.)
     `party.golden.test.ts` writes `server/fixtures/party.json`: 113 sessions of 30 to 40 orders - the
     demo's vault with the demo's own party, and rooms written from a seed with walls, marsh, raised
     ground, pieces, solid props, a door and creatures in the way, under party options and movement rules

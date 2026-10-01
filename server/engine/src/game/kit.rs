@@ -705,7 +705,7 @@ impl Session {
         self.refill_tokens(if long { &["rest", "longRest", "scene", "session"] } else { &["rest", "scene"] });
         self.world.forget_spots();
         for (id, condition) in self.world.state.clear_conditions("rest") {
-            let who = name_of(self, &id);
+            let (who, condition) = (name_of(self, &id), self.world.condition_name(&condition));
             note(self, &format!("{who} is no longer {condition}."), "system");
         }
         self.sync_pools();

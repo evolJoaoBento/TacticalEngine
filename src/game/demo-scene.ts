@@ -3905,7 +3905,7 @@ function landAttack(demo: DemoScene, attack: IncomingAttack, plan: DefensePlan |
   landedFeatures(demo, attack, final.hitPointsMarked);
   playAttackedOn(demo, attack.defender, attack.attacker);
   const ended = [...demo.world.endsOnHit(attack.defender), ...(final.hitPointsMarked > 0 ? demo.world.endsOnDamage(attack.defender) : [])];
-  for (const condition of ended) note(demo, `${who} is no longer ${condition}.`, 'system');
+  for (const condition of ended) note(demo, `${who} is no longer ${demo.world.conditionName(condition)}.`, 'system');
   noteReduction(demo, who, resolved);
   note(
     demo,

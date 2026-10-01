@@ -231,6 +231,7 @@ impl Session {
             ended.extend(self.world.ends_on_damage(&attack.defender));
         }
         for condition in ended {
+            let condition = self.world.condition_name(&condition);
             note(self, &format!("{who} is no longer {condition}."), "system");
         }
         self.note_reduction(&who, Some(&resolved));
