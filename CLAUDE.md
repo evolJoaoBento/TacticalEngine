@@ -42,6 +42,7 @@ the repo has moved between machines, so never hardcode a path or a home director
 
 ```bash
 npm run models       # fetch public/models/*.glb from Hugging Face (models.lock.json); needed once per clone
+npm run wasm         # build public/wasm/engine.wasm from server/ (vitest asks it); again after a Rust change
 npm run dev          # 127.0.0.1:8420 (Playwright starts its own on 8421)
 npx tsc --noEmit     # the only static check
 npx vitest run       # unit

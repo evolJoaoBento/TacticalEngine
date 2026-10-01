@@ -2,7 +2,7 @@
 # also builds to WebAssembly; `hooks` runs a project's JavaScript in QuickJS, which does not; `serve` is
 # the server, which answers the dev plugins' routes one by one.
 [workspace]
-members = ["engine", "hooks", "serve"]
+members = ["engine", "hooks", "serve", "wasm"]
 resolver = "2"
 
 [workspace.package]

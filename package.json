@@ -16,7 +16,8 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "check": "npm run typecheck && npm run test && npm run test:e2e",
-    "models": "node tools/fetch-models.mjs"
+    "models": "node tools/fetch-models.mjs",
+    "wasm": "node tools/build-wasm.mjs"
   },
   "dependencies": {
     "@preact/signals": "2.11.2",

@@ -1,0 +1,17 @@
+[package]
+name = "tactical-wasm"
+version = "0.1.0"
+description = "Tactical Engine's engine as the page loads it: a replica behind a JSON face, built to WebAssembly (docs/SERVER.md, phase 3)"
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "wasm_face"
+# cdylib: the .wasm the page loads; rlib: the face's own tests, run natively.
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+engine = { package = "tactical-engine", path = "../engine" }
+serde = "1"
+serde_json = { version = "1", features = ["float_roundtrip", "preserve_order"] }

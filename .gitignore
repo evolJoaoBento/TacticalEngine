@@ -24,6 +24,10 @@ public/models/*.glb
 public/models/*.gltf
 public/models/*.part
 
+# The engine built to WebAssembly (`npm run wasm`, `tools/build-wasm.mjs`): made from server/ every time, so
+# never committed, as the models are not.
+public/wasm/
+
 # The equipment cards' pictures: the project's own art, published beside the models on Hugging Face
 # and named in equipment.lock.json. `npm run models` brings them down into this folder, and
 # tools/loot-cards.mjs writes them here from a card export. Guarded by tests/unit/models-lock.test.ts.

@@ -894,7 +894,21 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     the one left is the world's rebuild, which ties it to the GM turn's spotlights - which no question the
     pointer asks reads. A card whose aim waits on a project's hook (a `hook` condition) cannot be answered
     by a replica with no hooks; the WebAssembly face (2b) has to call back into the page's for it.
-  - **Next**: 2b - the engine built to WebAssembly behind a JSON face (`alloc`, `call`, no
-    `wasm-bindgen`), an `npm run wasm` build, the page's shipped content as JSON from one module, and a
-    vitest proving the `.wasm` answers `replica.json` as the native build does; then 2c, the page asking
-    both in a shadow mode and counting where they part.
+  - **The engine builds to WebAssembly behind a JSON face** (slice 2b, `server/wasm`, `tactical-wasm`).
+    A C face - `alloc`, `free`, `call`, `answer_ptr`, and memory - and nothing imported, so it stands up
+    with a bare `WebAssembly.instantiate` in a browser or in Node and needs no `wasm-bindgen`: the message
+    is JSON, `build` (a game from a project and the shipped content), `restore` (a replica), or `ask` (the
+    reach, where a push asks a roll, a walk's preview, whom a card may be aimed at, where it lands and whom
+    it catches, a jump's offer, tiles and reaches), and the answer `{ ok }` or `{ error }`. Its game runs
+    no project hooks: a card aimed only where a `hook` condition says is answered as if the hook said no.
+    `npm run wasm` (`tools/build-wasm.mjs`) builds it, about 2.4 MB, into `public/wasm/engine.wasm`,
+    git-ignored as the models are. `src/game/wasm-engine.ts` (`WasmEngine`) is the page's side - DOM-free,
+    handed the bytes - and `src/game/wasm-engine.test.ts` loads that very file and asks it every step of
+    `replica.json`, one game a session as the page will (about a minute), and is skipped with a word when
+    the file is not built. The face's own tests run natively (`cargo test -p tactical-wasm`). 7 of 7
+    deliberate mutations of the face and the loader fail the vitest.
+  - **Next**: 2c - the page building the replica beside the game (the shipped content as JSON from one
+    module, the project rebuilt into it when the editor changes it), telling it how the game stands after
+    every intent, and asking it what the pointer asks beside the game, in a shadow mode: the game still
+    answers, and every place the two part is counted (`window.__engine.replicaMismatches()`), which an
+    e2e run holds to nought.

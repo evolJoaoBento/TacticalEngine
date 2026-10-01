@@ -4,6 +4,14 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## The engine builds to WebAssembly — done
+
+`server/wasm` is the engine behind a C face that speaks JSON - `build`, `restore`, `ask` - imports nothing,
+and loads with a bare `WebAssembly.instantiate`. `npm run wasm` builds `public/wasm/engine.wasm`;
+`src/game/wasm-engine.ts` is the page's side, and its vitest asks the built file every step of
+`server/fixtures/replica.json`. Phase 3's slice 2b; 2c, the page asking it beside the game, is next.
+**Run `npm run wasm` after a Rust change**, or the vitest asks a stale engine.
+
 ## A replica stands as the game it was sent — done
 
 `src/game/replica.ts` and `server/engine/src/game/replica.rs`: how the game stands after every intent, as a
