@@ -260,7 +260,7 @@ impl Session {
     }
 
     /// "Then place this card in your vault" (`vaultAfter`).
-    fn vault_after(&mut self, id: &str, ability: &AbilityDef, runner: &SuspendedRunner) -> Result<(), String> {
+    pub(super) fn vault_after(&mut self, id: &str, ability: &AbilityDef, runner: &SuspendedRunner) -> Result<(), String> {
         if !runner.vaulted {
             return Ok(());
         }

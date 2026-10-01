@@ -64,6 +64,8 @@ pub enum OnDone {
     Answered { attack: Box<super::blow::IncomingAttack>, was: Option<String> },
     /// A card played on a miss stopped to ask something: the GM's turn goes on once it is done.
     Dodged { was: Option<String> },
+    /// An ability used from the bar: its action spent, or the card put back when its roll was stepped from.
+    Used { id: String, ability: Box<crate::content::abilities::AbilityDef>, fighting: bool },
 }
 
 /// A conversation in progress.
@@ -342,6 +344,7 @@ impl Session {
                 }
                 Ok(())
             }
+            OnDone::Used { .. } => self.done_using(on_done, runner),
             OnDone::Dodged { was } => {
                 self.world.scenario.actor_id = was;
                 self.run_gm_turn().map(|_| ())

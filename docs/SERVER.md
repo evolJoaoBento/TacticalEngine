@@ -711,5 +711,27 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     again as a plan, when a plan ends the hit and a redirect is never a plan) and five are not reached (a
     defender with nothing but "take it", Risk It All with Shadow higher and with the dice matched, a card
     against the fall that was not enough, and a named roll paid for on a script's roll).
-  - **Next**: (5c) the action bar - a card used on the character's turn (`useAbility`, `canUseAbility`: its
-    targets, a point, a shape, tokens, a card put back) - then part 6, the shop, equipment and saves.
+  - **The action bar** (`server/engine/src/game/bar.rs`): the abilities a character has, in bar order, with
+    the cards a condition lends (`abilitiesOf`); whom one may be aimed at (`abilityTargets` - a foe, an ally, a
+    fallen ally for a card that raises one, anybody, a group, only those it is worth aiming at - and a roll's
+    own selector, `scriptTargets`); the tiles a card aimed at the ground may land on and whom it would catch
+    there (`pointTiles`, `shapeAt`); whether it can be used now and why not (`canUseAbility` - not standing,
+    a question open, a passive or a reaction, nothing the engine can run, only in a fight, the GM's turn,
+    already acted, a cost in Shadow, Light or Stress, uses spent, its gate, nothing to aim at), and the bar as
+    a view reads it (`abilityList`, with the card's words and its art); and using it (`useAbility`): the only
+    valid pick taken when none was given, a group gathered, the price paid, the script run, the action spent
+    in a fight when the script is done (`OnDone::Used`), the card put back - its price returned - when its
+    roll is stepped away from, the vault. Tokens are placed again when what refills them comes round
+    (`refillTokens`). `AbilityDef` gained `inCombatOnly` and `action`, its tokens what refills them.
+    `bar.golden.test.ts` writes `server/fixtures/bar.json` (about 6 MB): the demo, the default project and a
+    workshop built on it (a card in every hand for each way a card is aimed and limited, words on the card, a
+    card a condition lends, a knot of foes by the door) - 16 sessions of the bar read, cards used on a pick
+    that is there, one that is not, a tile or nothing, rolls answered or stepped back from, tokens refilled,
+    with the fight going on around them, some with the table asked - and two tours (a mark that leaves one
+    foe the only pick, the bar of one with no Stress slot left, a fallen ally raised).
+    `server/hooks/tests/golden_bar.rs` replays it (about 7 s at `opt-level = 1`). 37 of 39 deliberate
+    mutations fail it; of the rest one is equivalent (acting twice, when under the spotlight a member who
+    has acted is still ready while the party holds it) and one is not reached (a card aimed at the ground
+    with nowhere to land, when every band reaches some floor).
+  - **Next**: part 6 - the shop, equipment and gear, the loadout, the vault and rests, and saves with the
+    scenario snapshot's schema.

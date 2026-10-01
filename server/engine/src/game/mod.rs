@@ -4,6 +4,7 @@
 
 pub mod answer;
 pub mod ask;
+pub mod bar;
 pub mod blow;
 pub mod content;
 pub mod features;

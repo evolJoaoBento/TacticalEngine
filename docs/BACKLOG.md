@@ -4,6 +4,14 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## The action bar in Rust — done
+
+`server/engine/src/game/bar.rs` runs the action bar as the page does: a character's abilities in bar order,
+whom each may be aimed at, where a card aimed at the ground may land and whom it would catch, whether it can
+be used now and why not, and using it - the price paid, the script run, the action spent, the card put back
+when its roll is stepped away from - and tokens placed again when a rest or a fight's end refills them. Held
+to `server/fixtures/bar.json`. Part 5 is done; part 6, the shop, equipment and saves, is next.
+
 ## The table is asked in Rust — done
 
 `server/engine/src/game/ask.rs` puts every question a fight asks a player as the page does, when the table

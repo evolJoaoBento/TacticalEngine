@@ -141,6 +141,10 @@ fn yes() -> bool {
     true
 }
 
+fn is_yes(value: &bool) -> bool {
+    *value
+}
+
 /// An ability, cut to what the engine's ported parts read: the card it sits on, its bonuses, and - for a
 /// reaction - its kind, trigger, gate, cost and what it does; a passive's defences and swing; its tokens;
 /// its text, target and uses, which a stat block's feature is chosen by. Conditions and effects are kept as
@@ -162,6 +166,12 @@ pub struct AbilityDef {
     /// What the user picks: nobody, themselves, a creature, a point - and how far away.
     #[serde(default, skip_serializing_if = "AbilityTarget::is_default")]
     pub target: AbilityTarget,
+    /// Only usable while a fight is running.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub in_combat_only: bool,
+    /// Whether using it spends the character's action in a fight.
+    #[serde(default = "yes", skip_serializing_if = "is_yes")]
+    pub action: bool,
     #[serde(default)]
     pub modifiers: Vec<AbilityModifier>,
     #[serde(default)]
@@ -268,6 +278,17 @@ pub struct AbilityTokens {
     pub domain: Option<String>,
     #[serde(default)]
     pub minimum: f64,
+    /// What gives the pile back: `session`, `longRest`, `rest`, `scene` or `never`.
+    #[serde(default = "long_rest", skip_serializing_if = "is_long_rest")]
+    pub refill: String,
+}
+
+fn long_rest() -> String {
+    "longRest".into()
+}
+
+fn is_long_rest(refill: &String) -> bool {
+    refill == "longRest"
 }
 
 fn any() -> String {
