@@ -215,7 +215,7 @@ impl Session {
 
     /// Use a thing with whoever is selected (`useSelectedOn`): one thing at a time, and only within reach.
     pub fn use_selected_on(&mut self, id: &str) -> Result<UseOutcome, String> {
-        if self.waiting() {
+        if self.busy() {
             return outcome("busy", Vec::new());
         }
         let Some(object) = interactables_of(&self.scene).into_iter().find(|t| text(t, "id") == id) else { return outcome("missing", Vec::new()) };

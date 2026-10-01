@@ -142,7 +142,7 @@ impl Session {
 
     /// The selected character attacks (`attackWithSelected`): nothing when the swing could not be tried.
     pub fn attack_with_selected(&mut self, target_id: &str) -> Result<Option<SwingResult>, String> {
-        if self.waiting() {
+        if self.busy() {
             return Ok(None);
         }
         let Some(id) = self.party.selected().map(str::to_string) else { return Ok(None) };

@@ -12,7 +12,7 @@
 use super::log::{name_of, note};
 use super::play::{UseOutcome, DEMO_REACH};
 use super::rules::DEMO_BAND_TILES;
-use super::session::Session;
+use super::session::{Approach, Session};
 use crate::character::sheet::{attack_profile, Hand};
 use crate::combat::targeting::{evaluate_target, Standings, TargetingOptions};
 use crate::grid::pathfinding::{Pathfinder, ReachableField};
@@ -243,8 +243,11 @@ impl Session {
         }
         match hit {
             Some(hit) => {
-                // Nobody is drawing the walk, so what it woke begins now.
-                self.start_encounter(&hit.encounter);
+                // What it woke waits for the walkers to be drawn arriving - or, with nobody drawing them, begins now.
+                self.ambush = Some(hit.encounter.clone());
+                if !self.animated {
+                    self.arrive();
+                }
                 MoveResult { moved: true, path, triggered: Some(hit.encounter), pending: false }
             }
             None => MoveResult { moved: true, path, triggered: None, pending: false },
@@ -282,7 +285,7 @@ impl Session {
     /// Walk the selected member towards a tile, or a spot in it (`moveSelectedTo`). Out of a fight the rest
     /// follow; in one they move alone, inside their circle.
     pub fn move_selected_to(&mut self, destination: i32, aimed: Option<Spot>) -> Result<MoveResult, String> {
-        if self.waiting() {
+        if self.busy() {
             return Ok(MoveResult::default());
         }
         let Some(id) = self.party.selected().map(str::to_string) else { return Ok(MoveResult::default()) };
@@ -426,15 +429,43 @@ impl Session {
         }
     }
 
-    /// Use a thing, walking up to it first when it is out of reach (`approachThenUse`); headless, the use
-    /// follows the walk at once. Its status.
+    /// Use a thing, walking up to it first when it is out of reach (`approachThenUse`): at once when it is in
+    /// reach, or - when somebody draws the walk - once the walk there is drawn ending (`arrived`). Its status.
     pub fn approach_then_use(&mut self, id: &str) -> Result<&'static str, String> {
         if let Some(who) = self.party.selected().map(str::to_string) {
-            if !self.waiting() && self.party.can_command(&self.world.state, Some(&who)) {
-                self.close_to_use(&who, id, DEMO_REACH);
+            if !self.busy() && self.party.can_command(&self.world.state, Some(&who)) && self.close_to_use(&who, id, DEMO_REACH) == "closed" && self.animated {
+                self.approaching = Some(Approach { kind: "use".into(), id: id.into(), who });
+                return Ok("walking");
             }
         }
         Ok(self.use_selected_on(id)?.status)
+    }
+
+    /// The walkers are where the board put them (`arrive`): whatever the walk woke begins now. Whether it did.
+    pub fn arrive(&mut self) -> bool {
+        let Some(encounter) = self.ambush.take() else { return false };
+        self.start_encounter(&encounter);
+        true
+    }
+
+    /// The walkers have stopped (`arrived`): do what the walk was for, with whoever walked - nothing when the
+    /// one who walked is no longer who is selected, given another order the interaction does not outlive.
+    pub fn arrived(&mut self) -> Result<bool, String> {
+        let Some(waiting) = self.approaching.take() else { return Ok(false) };
+        if self.party.selected() != Some(waiting.who.as_str()) {
+            return Ok(false);
+        }
+        if waiting.kind == "use" {
+            self.use_selected_on(&waiting.id)?;
+        } else {
+            self.talk_now(&waiting.who, &waiting.id)?;
+        }
+        Ok(true)
+    }
+
+    /// Stop wanting to get there (`cancelApproach`): whether anything was waiting.
+    pub fn cancel_approach(&mut self) -> bool {
+        self.approaching.take().is_some()
     }
 
     /// Walk up to a creature on nobody's side and talk to it (`talkTo`); a walk that falls short is the move,
@@ -444,8 +475,13 @@ impl Session {
         if !has || self.world.state.entity(id).is_none() {
             return Ok(UseOutcome { status: "missing", lines: Vec::new() });
         }
-        if self.close_to_strike(actor, id, RangeBand::Melee) == "short" {
+        let walk = self.close_to_strike(actor, id, RangeBand::Melee);
+        if walk == "short" {
             return Ok(UseOutcome { status: "unreachable", lines: Vec::new() });
+        }
+        if walk == "closed" && self.animated {
+            self.approaching = Some(Approach { kind: "talk".into(), id: id.into(), who: actor.into() });
+            return Ok(UseOutcome { status: "done", lines: Vec::new() });
         }
         self.talk_now(actor, id)
     }
@@ -455,7 +491,7 @@ impl Session {
     /// The line a click would walk (`previewWalk`); `from`, the ground the figure stands on mid-walk. Nothing
     /// when nothing would move.
     pub fn preview_walk(&mut self, destination: i32, aimed: Spot, from: Option<Spot>) -> Option<WalkPreview> {
-        if self.waiting() {
+        if self.busy() {
             return None;
         }
         let id = self.party.selected()?.to_string();
@@ -495,7 +531,7 @@ impl Session {
     /// The line a click on a creature would walk before the swing (`previewStrike`): nothing when already in
     /// reach or nothing would move.
     pub fn preview_strike(&mut self, target: &str) -> Option<Vec<Spot>> {
-        if self.waiting() {
+        if self.busy() {
             return None;
         }
         let id = self.party.selected()?.to_string();

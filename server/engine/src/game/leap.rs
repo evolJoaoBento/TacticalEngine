@@ -259,7 +259,7 @@ impl Session {
     /// there is nowhere to jump to.
     pub fn jump_aim(&mut self) -> Option<Vec<i32>> {
         let id = self.party.selected()?.to_string();
-        if self.waiting() || !self.jump_offered() {
+        if self.busy() || !self.jump_offered() {
             return None;
         }
         let tiles = self.leap_targets(&id);
@@ -442,7 +442,10 @@ impl Session {
             note(self, &format!("{name} goes on alone: the others stay where they are."), if fighting { "combat" } else { "system" });
         }
         if let Some(woke) = self.triggers.first_along(&[leap.to], &mut self.world.state) {
-            self.start_encounter(&woke.encounter);
+            self.ambush = Some(woke.encounter);
+            if !self.animated {
+                self.arrive();
+            }
         }
         let mut after = Vec::new();
         if leap.fall_dice > 0.0 {
@@ -473,7 +476,7 @@ impl Session {
     /// Jump to where the aim pointed (`jumpTo`). With the dice thrown for the player (`auto_roll`), the roll is
     /// made at once, without the prompt between the click and the dice.
     pub fn jump_to(&mut self, id: &str, destination: i32, aim: Option<Spot>, auto_roll: bool) -> Result<MoveResult, String> {
-        if self.waiting() || self.party.selected() != Some(id) || !self.jump_offered() {
+        if self.busy() || self.party.selected() != Some(id) || !self.jump_offered() {
             return Ok(MoveResult::default());
         }
         let Some(leap) = self.plan_running_jump(id, destination, aim) else { return Ok(MoveResult::default()) };

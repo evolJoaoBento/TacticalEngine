@@ -11,7 +11,9 @@
  * and after it the fight - its view, its log and every circle drawn - with everything `play.golden.test.ts`
  * records. What the fight answers is the next part's, so a step that would settle a fight with a blow still
  * waiting to be answered, and a jump whose fall hurts, are probed and not made. The output queues a view
- * drains every frame are drained after every step.
+ * drains every frame are drained after every step. And sessions walked as a page walks them (`animated`):
+ * a fight a walk wakes held until the tokens arrive (`arrive`), a use or a talk held until the walk up ends
+ * (`arrived`), or called off on the way (`cancelApproach`).
  * `UPDATE_GOLDEN=1 npx vitest run src/game/walk.golden.test.ts` writes `server/fixtures/walk.json`;
  * `server/hooks/tests/golden_walk.rs` replays it.
  */
@@ -33,11 +35,12 @@ import type { Response } from '../engine/script/runner';
 import { scenarioSnapshot } from '../engine/script/world';
 import type { RangeBand } from '../engine/rules/range';
 import { answerPending, buildDemoScene, buildProjectScene, moveSelectedTo, useSelectedOn, type DemoScene } from './demo-scene';
+import { saveBlockedBy } from './save';
 import { hollowVaultMap } from './demo-map';
 import { DEMO_ADVERSARIES, DEMO_CHARACTERS } from './demo-rules';
 import { talkTo, talksTo } from './interaction';
-import { approachThenUse } from './arrival';
-import { aimOfMove, closeToStrike, previewStrike, previewWalk, reachableTiles, underPressureTiles } from './movement';
+import { approachThenUse, arrived, cancelApproach } from './arrival';
+import { aimOfMove, arrive, closeToStrike, previewStrike, previewWalk, reachableTiles, underPressureTiles } from './movement';
 import { jumpArc, planRunningJump } from './leap';
 import { jumpAim, jumpOffered, jumpTo } from './rolled-move';
 import { setUserSetting } from './user-settings';
@@ -96,6 +99,8 @@ function view(demo: DemoScene, since: number) {
     rolls: demo.rolls.map(({ who, what, roll }) => ({ who, what, roll })),
     things: demo.state.snapshot().interactables,
     scenario: scenarioSnapshot(demo.scenario),
+    ambush: demo.ambush,
+    approaching: demo.approaching,
   });
   demo.floaters.length = 0;
   demo.motions.length = 0;
@@ -159,8 +164,9 @@ function jumpStep(demo: DemoScene, destination: number, aim: Spot | undefined, a
 /** Somebody down, or a creature fallen: the fight's answers to either are the next part's, so the session stops. */
 const somebodyDown = (demo: DemoScene): boolean => demo.state.allEntities().some((e) => !e.alive);
 
-function session(g: Rng, name: string, project: number, input: ProjectDoc, length: number) {
+function session(g: Rng, name: string, project: number, input: ProjectDoc, length: number, animated = false) {
   const demo = buildProjectScene(projectSchema.parse(clone(input)), `walk:${name}`);
+  demo.animated = animated;
   const start = view(demo, 0);
   const steps: unknown[] = [];
   for (let n = 0; n < length; n++) {
@@ -185,9 +191,19 @@ function session(g: Rng, name: string, project: number, input: ProjectDoc, lengt
       : fighting
         ? (['move', 'move', 'move', 'move', 'preview', 'reach', 'reach', 'approach', 'approach', 'strike', 'previewStrike', 'use', 'select', 'shove', 'jump', 'jump', 'arc', 'jumpAim'] as const)
         : (['move', 'move', 'move', 'move', 'move', 'preview', 'reach', 'approach', 'approach', 'talk', 'strike', 'previewStrike', 'select', 'travel', 'close', 'jump', 'jump', 'arc', 'jumpAim'] as const);
-    const kind = g.pick(kinds);
+    // Walked as a page walks: the tokens drawn arriving, the walk up drawn ending, or called off.
+    const kind = animated && g.nextInt(4) === 0 ? g.pick(['arrive', 'arrived', 'arrived', 'cancel'] as const) : g.pick(kinds);
     let step: Record<string, unknown>;
     switch (kind) {
+      case 'arrive':
+        step = { step: kind, result: arrive(demo) };
+        break;
+      case 'arrived':
+        step = { step: kind, result: arrived(demo) };
+        break;
+      case 'cancel':
+        step = { step: kind, result: cancelApproach(demo) };
+        break;
       case 'move': {
         const destination = aTile();
         const aim = g.nextInt(2) === 0 ? aSpot(destination) : undefined;
@@ -288,7 +304,7 @@ function session(g: Rng, name: string, project: number, input: ProjectDoc, lengt
     step['after'] = view(demo, since);
     steps.push(step);
   }
-  return { name, project, start, steps };
+  return { name, project, ...(animated ? { animated } : {}), start, steps };
 }
 
 /**
@@ -314,19 +330,35 @@ function drillYard(base: ProjectDoc): ProjectDoc {
   return projectSchema.parse(project);
 }
 
+/** The drill yard with the vault's fight woken by the trip-wire's tile beside the door: an ambush a walk can step into. */
+function tripYard(base: ProjectDoc): ProjectDoc {
+  const project = clone(drillYard(base));
+  const vault = project.scenes[0]!;
+  const fight = vault.encounters.find((e) => e.startsOnTrigger && e.adversaries.length > 0)!;
+  fight.triggerCells.push({ x: vault.spawns[0]!.x + 2, y: vault.spawns[0]!.y });
+  return projectSchema.parse(project);
+}
+
 /** The drill yard for somebody who cannot jump: no tile is near enough to land on. */
 function stiffLegs(base: ProjectDoc): ProjectDoc {
   return projectSchema.parse({ ...clone(base), jump: { rangeBase: 0, rangePerPoint: 0 } });
 }
 
 /** The drill yard walked on purpose: prone, a horn, a fight walked in, a shove, a flag, the horn again. */
-function tour(g: Rng, name: string, project: number, input: ProjectDoc, round: number) {
+function tour(g: Rng, name: string, project: number, input: ProjectDoc, round: number, animated = false) {
   const demo = buildProjectScene(projectSchema.parse(clone(input)), `walk:${name}`);
+  demo.animated = animated;
   const start = view(demo, 0);
   const steps: unknown[] = [];
   const record = (step: Record<string, unknown>, since: number): void => {
     step['after'] = view(demo, since);
     steps.push(step);
+  };
+  /** Walked as a page walks: whatever waits on the walk being drawn - a fight woken, a use or a talk - drawn out. */
+  const settle = (): void => {
+    if (!animated) return;
+    if (demo.ambush !== null) record({ step: 'arrive', result: arrive(demo) }, demo.log.length);
+    if (demo.approaching !== null) record({ step: 'arrived', result: arrived(demo) }, demo.log.length);
   };
   const near = (): number => {
     const at = demo.state.entity(demo.party.selected ?? '')?.tile ?? 0;
@@ -335,6 +367,7 @@ function tour(g: Rng, name: string, project: number, input: ProjectDoc, round: n
   const approach = (id: string): void => {
     const since = demo.log.length;
     record({ step: 'approach', id, result: approachThenUse(demo, id) }, since);
+    settle();
   };
   const move = (to?: number): void => {
     const since = demo.log.length;
@@ -347,6 +380,7 @@ function tour(g: Rng, name: string, project: number, input: ProjectDoc, round: n
       return;
     }
     record({ step: 'move', destination, aim: null, probed: ready, result: moveSelectedTo(demo, destination) }, since);
+    settle();
   };
   const reach = (budget?: number): void => {
     const since = demo.log.length;
@@ -358,6 +392,7 @@ function tour(g: Rng, name: string, project: number, input: ProjectDoc, round: n
       const response = answerFor(demo, g);
       record({ step: 'answer', response, result: answerPending(demo, response) }, since);
     }
+    settle();
   };
   const push = (): void => {
     // As far as the push opens: six tiles out, the first way that is a push past the circle.
@@ -393,6 +428,22 @@ function tour(g: Rng, name: string, project: number, input: ProjectDoc, round: n
     // Where the platform is, not where they are: a run-up when it is far.
     const since = demo.log.length;
     record(jumpStep(demo, demo.grid.indexOf(door.x + dx, door.y + dy), undefined, auto), since);
+    settle();
+  };
+  /**
+   * Walked as a page walks, into the trip-wire's tile, which wakes the fight: on the way nothing more is done -
+   * a walk, a use refused, a save refused - until the tokens are drawn arriving.
+   */
+  const walkIntoIt = (): void => {
+    if (!animated) return;
+    const destination = demo.grid.indexOf(door.x + 2, door.y);
+    record({ step: 'move', destination, aim: null, probed: false, result: moveSelectedTo(demo, destination) }, demo.log.length);
+    if (demo.ambush === null) return;
+    const elsewhere = near();
+    record({ step: 'move', destination: elsewhere, aim: null, probed: false, result: moveSelectedTo(demo, elsewhere) }, demo.log.length);
+    record({ step: 'use', id: 'white-flag', result: useSelectedOn(demo, 'white-flag') }, demo.log.length);
+    record({ step: 'saveBlocked', result: saveBlockedBy(demo) }, demo.log.length);
+    settle();
   };
   const cancel = (): void => {
     if (demo.pending === null) return;
@@ -420,6 +471,7 @@ function tour(g: Rng, name: string, project: number, input: ProjectDoc, round: n
   {
     // One fight a tour: a roll with Shadow hands the spotlight to the GM, whose turn is the next part's.
     gather();
+    if (round % 2 === 1) walkIntoIt();
     // Out of a fight: laid down and up again, then onto the platform - asked, asked again, let go, made.
     approach('trip-wire');
     move();
@@ -491,19 +543,22 @@ function tour(g: Rng, name: string, project: number, input: ProjectDoc, round: n
     next();
     move();
   }
-  return { name, project, start, steps };
+  return { name, project, ...(animated ? { animated } : {}), start, steps };
 }
 
 function golden() {
   const g = createRng('walk');
   const demo = buildDemoScene(hollowVaultMap(), 'walk');
   const fallback = projectSchema.parse(migrateDocument(JSON.parse(readFileSync(resolve(here, '../../projects/default.json'), 'utf8'))));
-  const projects: [string, ProjectDoc][] = [['the demo', clone(demo.project)], ['default', fallback], ['the drill yard', drillYard(fallback)], ['stiff legs', stiffLegs(drillYard(fallback))]];
+  const projects: [string, ProjectDoc][] = [['the demo', clone(demo.project)], ['default', fallback], ['the drill yard', drillYard(fallback)], ['stiff legs', stiffLegs(drillYard(fallback))], ['the trip yard', tripYard(fallback)]];
   const sessions: ReturnType<typeof session>[] = [];
-  projects.forEach(([name, project], at) => {
+  projects.slice(0, 4).forEach(([name, project], at) => {
     for (let s = 0; s < [10, 10, 6, 4][at]!; s++) sessions.push(session(g, `${name} ${s}`, at, project, at === 3 ? 30 : 40));
   });
   for (let round = 0; round < 6; round++) sessions.push(tour(g, `the drill yard, toured ${round}`, 2, projects[2]![1], round));
+  for (let round = 0; round < 4; round++) sessions.push(tour(g, `the trip yard, toured and drawn ${round}`, 4, projects[4]![1], round, true));
+  for (let s = 0; s < 4; s++) sessions.push(session(g, `default, drawn ${s}`, 1, fallback, 40, true));
+  for (let s = 0; s < 6; s++) sessions.push(session(g, `the trip yard, drawn ${s}`, 4, projects[4]![1], 40, true));
   return {
     about: 'walking, for the Rust port; written by src/game/walk.golden.test.ts',
     shipped: {

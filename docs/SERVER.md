@@ -148,11 +148,47 @@ noticing more than it must.
   per click.
 
 **Slices, in order.** (1) `GameClient` over `DemoScene`, the page and UI moved onto it, e2e green - a
-TypeScript refactor only. (2) The engine to WebAssembly with a `wasm-bindgen` face, and the per-pointer
-queries answered by it, held to the TypeScript's answers. (3) The socket: a session per signed-in player
-on the server, the dispatcher, and `GameClient` over it behind a switch. (4) Walks shown after they are
-decided. (5) Saves on the server. (6) The editor's playtest on WebAssembly. (7) The e2e suite run with play
-on the server, until it passes; then the TypeScript game layer goes.
+TypeScript refactor only. (2) The engine to WebAssembly (a C face, as it turned out, not `wasm-bindgen`),
+and the per-pointer queries answered by it, held to the TypeScript's answers. (3) The socket - re-planned
+below. (4) Walks shown after they are decided. (5) Saves on the server. (6) The editor's playtest on
+WebAssembly. (7) The e2e suite run with play on the server, until it passes; then the TypeScript game
+layer goes.
+
+**Slice 3, re-planned (1 October 2026): the page plays the Rust engine, and the socket checks it.** A
+socket answers later; `GameClient` answers now - `main.ts` uses an intent's answer on the line that asks for
+it, 120 times, and all 203 e2e specs drive the game synchronously inside `page.evaluate`. Making the seam
+asynchronous would rewrite the suite that is the proof. So the game the page plays becomes the engine built
+to WebAssembly - already the whole engine, held to the TypeScript's fixtures - which answers every intent at
+once, in the page; the same intent goes up the socket, the server (the authority) plays it too and sends its
+board back, and where the two part the page is restored from the server's. Same project, same seed, same
+engine: they part only where something is wrong, which the comparison says. Co-op (phase 4) is the same
+mechanism with another player's intents arriving as boards. In four:
+
+- **3a** - the Rust plays the page's timing: `animated`, a fight a walk wakes held until the tokens arrive
+  (`ambush`, `arrive`), a use or a talk held until the walk up ends (`approaching`, `arrived`,
+  `cancelApproach`) - headless Rust starts both at once, and the e2e suite's `moveTo; arrive(); inCombat()`
+  would change meaning.
+- **3b** - the board defined once, in the engine (`Session::board`: the replica snapshot, the fight's view
+  and log, the question open as the panel draws it - its kind, its prompt, the conversation's view and
+  prompt, whom or what it is with - the log, the queues a view drains, the dice's state); and
+  `WasmGame implements GameClient & LocalPowers` over the engine in the page, its board a facade over
+  `Session::board` with only the reads the page makes; run beside `LocalGame` and compared after every
+  intent, then flipped on behind a switch once e2e is green both ways. (The board was 3a's, and moved: the
+  replica golden stands a fresh session up each step and has no history - no log, no live question, no
+  fight's log - to hold a board to, and folding one into every play golden would churn eight fixtures for a
+  shape guessed ahead of its reader. Compared live after every intent of the whole e2e suite, it is held
+  harder than a fixture would hold it.) The default project's own cards run
+  project code (Mark the Page, Rally the Line: `run` effects), so the page's engine needs the page's hooks:
+  a host import that calls the hook's JavaScript, whose `ctx` reads the world back through an export -
+  re-entering the engine mid-call, which the face must allow by holding the world aside for the hook rather
+  than borrowed.
+- **3c** - the server's host: `Session` and QuickJS are not `Send`, so each game is a thread of its own,
+  asked over a channel and answering on a oneshot; `/__play` a websocket behind the session cookie; the
+  dispatcher held to an existing fixture's steps.
+- **3d** - the wire: each intent sent, the server's board compared, the page restored where they part; the
+  seed the server's, sent at open; the dice's state in the board, a one-number check before the deep one.
+  A question restored from the server mid-way is the one path that waits on the wire: the page shows it from
+  the board and sends the answer up without predicting it.
 
 ## Running it
 
@@ -923,6 +959,15 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     and its shapes, cards used, the GM's turns - and holds the count to nought (243 questions on the run
     that first passed). The questions the page asks inside other questions - `hoverLine`'s preview,
     `abilityList`'s targets - are not shadowed yet; they are the next to move.
-  - **Next**: phase 3 slice 3 - the socket: a session per signed-in player on the server, the dispatcher
-    over the `Session` methods, and `GameClient` over it behind a switch, the replica fed the view the
-    server sends.
+  - **The Rust plays the page's timing** (slice 3a). `Session::animated` - set where somebody draws the
+    walks, as the page does - holds a fight a walk or a leap wakes until the tokens are drawn arriving
+    (`ambush`, `arrive`) and a use or a talk at the end of a walk until it is drawn ending (`approaching`,
+    `arrived`, `cancel_approach`); headless nothing is drawn and both happen at once, as before. While an
+    ambush waits nothing else is done (`busy`: a walk, a swing, a use, a jump, a preview), and nothing is
+    saved (`save_blocked_by`, as the TypeScript's says). `walk.golden.test.ts` gains sessions walked as a page
+    walks them - on the default project, and on the trip yard (the drill yard with the vault's fight woken by
+    the trip-wire's tile beside the door) - drawn arriving, ending or called off at random, and tours that
+    walk into the ambush and try a walk, a use and a save on the way before the tokens arrive; the view
+    records the ambush and the approach. `golden_walk.rs` replays them. 11 of 11 deliberate mutations of the
+    timing fail it.
+  - **Next**: slice 3b - the board in the engine, and `WasmGame` beside `LocalGame`.

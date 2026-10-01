@@ -153,9 +153,26 @@ pub struct Session {
     /// A question the fight put to the table: the other half of the TypeScript's `pending`, never set while a
     /// script waits.
     pub asked: Option<super::ask::Asked>,
+    /// Whether somebody draws the walks (`animated`): a page does, and a fight a walk wakes waits for the
+    /// tokens to arrive (`ambush`, `arrive`), as a use or a talk waits for the walk up to end (`approaching`,
+    /// `arrived`). Headless nobody does, and both happen at once.
+    pub animated: bool,
+    /// The fight a walk woke, held until the walkers are drawn arriving.
+    pub ambush: Option<String>,
+    /// What a walk is for, held until it is drawn ending.
+    pub approaching: Option<Approach>,
     /// A replica's word that a question is open where the game is played (`game/replica.rs`): it cannot hold
     /// the question - a script paused mid-run has no form to send - only that one waits.
     pub question_open: bool,
+}
+
+/// What a walk is for (`Approach`): the thing to use, or the creature to talk to, and who walks there.
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct Approach {
+    /// `use` or `talk`.
+    pub kind: String,
+    pub id: String,
+    pub who: String,
 }
 
 /// Stand a room up (`buildRuntime`): its grid from the project's ground, every placement's stat block - the
@@ -272,6 +289,9 @@ impl Session {
             fallen: Vec::new(),
             answering: 0,
             question_open: false,
+            animated: false,
+            ambush: None,
+            approaching: None,
             asked: None,
         })
         .map(|mut session: Session| {
@@ -281,6 +301,11 @@ impl Session {
     }
 
     /// Whether a question is open (`demo.pending !== null`): one waiting, or one being answered.
+    /// Whether an order is refused now: a question open, or an ambush the party is still walking into.
+    pub fn busy(&self) -> bool {
+        self.waiting() || self.ambush.is_some()
+    }
+
     pub fn waiting(&self) -> bool {
         self.pending.is_some() || self.asked.is_some() || self.answering > 0 || self.question_open
     }

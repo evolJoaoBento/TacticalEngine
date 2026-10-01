@@ -3,8 +3,8 @@
 //! A save is state over a project, not a copy of one: it names the project it belongs to and carries only
 //! what play changed - where the party stands, what it carries, the flags, how each room was left, and where
 //! the dice had got to. A fight and a script waiting on an answer refuse to save, being live things with no
-//! form on disk; so would an approaching ambush, but headless there is none - what a walk wakes begins at
-//! once (`game/movement.rs`). A save is read through its schema (`saveSchema`), migrated at the door first.
+//! form on disk; so does an ambush the party is walking into, whose fight is not part of a save. A save is read
+//! through its schema (`saveSchema`), migrated at the door first.
 
 use super::content::{abilities_of, character_content_for};
 use super::log::LogLine;
@@ -145,6 +145,9 @@ impl Session {
     pub fn save_blocked_by(&self) -> Option<&'static str> {
         if self.in_combat() {
             return Some("Not in the middle of a fight.");
+        }
+        if self.ambush.is_some() {
+            return Some("Not while the party is approaching an ambush.");
         }
         if self.waiting() || !self.talking_aside().is_empty() {
             return Some("Not in the middle of a conversation.");

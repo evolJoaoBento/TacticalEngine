@@ -4,6 +4,13 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## The Rust plays the page's timing — done
+
+`Session::animated` holds a fight a walk wakes until the tokens arrive, and a use or a talk until the walk up
+ends, as the page does; headless both happen at once, as before. Held to `server/fixtures/walk.json`'s
+animated sessions. Phase 3's slice 3a; 3b - the board in the engine, and `WasmGame` beside `LocalGame` - is
+next.
+
 ## The page runs the Rust engine — done
 
 In development every question the pointer asks is put to the game and to a replica of it in the Rust

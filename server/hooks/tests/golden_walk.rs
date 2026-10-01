@@ -92,6 +92,8 @@ fn view(session: &mut Session, since: usize) -> Value {
         "rolls": to(&session.rolls),
         "things": state.snapshot()["interactables"],
         "scenario": session.world.scenario.snapshot(),
+        "ambush": session.ambush,
+        "approaching": session.approaching,
     });
     session.floaters.clear();
     session.motions.clear();
@@ -113,6 +115,8 @@ fn every_walk_is_walked_as_the_browser_walked_it() {
         let name = played["name"].as_str().unwrap();
         let project = &projects[played["project"].as_u64().unwrap() as usize];
         let mut session = Session::build(project, Rc::clone(&shipped), hooks_for(), &format!("walk:{name}")).expect("a game");
+        // Walked as a page walks them: what a walk wakes or is for waits for it to be drawn.
+        session.animated = played["animated"] == true;
         held!(view(&mut session, 0), &played["start"], "{name}: stood up");
         for (n, step) in played["steps"].as_array().unwrap().iter().enumerate() {
             let at = format!("{name}, step {n}: {}", step["step"]);
@@ -151,6 +155,10 @@ fn every_walk_is_walked_as_the_browser_walked_it() {
                 "previewStrike" => to(&session.preview_strike(step["id"].as_str().unwrap())),
                 "use" => to(&session.use_selected_on(step["id"].as_str().unwrap()).unwrap_or_else(|e| panic!("{at}: {e}"))),
                 "answer" => to(&session.answer_pending(&step["response"]).unwrap_or_else(|e| panic!("{at}: {e}"))),
+                "arrive" => json!(session.arrive()),
+                "arrived" => json!(session.arrived().unwrap_or_else(|e| panic!("{at}: {e}"))),
+                "cancel" => json!(session.cancel_approach()),
+                "saveBlocked" => json!(session.save_blocked_by()),
                 "select" => {
                     let next = session.party.select_next(&session.world.state);
                     held!(json!(next), &step["selected"], "{at}: selected");
