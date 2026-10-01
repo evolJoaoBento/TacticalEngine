@@ -5,8 +5,8 @@
 //! `settle_fight` is what every blow, script and turn ends on: the ground read again, what the moment
 //! raises answered (ground that bites, the wounds, a creature at its threshold, a creature's last word, a
 //! party member's death move), who is left standing counted, the countdowns a death sets off, and a fight
-//! that is over put away. The death move is Avoid Death while nobody at the table is asked; the question
-//! itself, like every question a fight puts to the table, is the next half's.
+//! that is over put away. The death move is Avoid Death while nobody at the table is asked, and put to the
+//! table (`ask`) when somebody is.
 
 use super::features::Left;
 use super::log::note;
@@ -19,11 +19,6 @@ use serde_json::{json, Value};
 
 fn list<'a>(value: &'a Value, key: &str) -> &'a [Value] {
     value.get(key).and_then(Value::as_array).map_or(&[], Vec::as_slice)
-}
-
-/// What is not played yet, and waits for the fight.
-pub(super) fn not_yet(what: &str) -> String {
-    format!("{what} comes with the fight, which the server does not play yet")
 }
 
 impl Session {
@@ -204,13 +199,15 @@ impl Session {
                 self.avoid_death(&id)?;
                 continue;
             }
-            return Err(not_yet("A death move asked of the table"));
+            let offers = self.death_offers(&id)?;
+            self.ask_death_move(&id, offers);
+            return Ok(());
         }
         Ok(())
     }
 
     /// "They temporarily drop unconscious... roll your Light Die" (`avoidDeath`).
-    fn avoid_death(&mut self, id: &str) -> Result<(), String> {
+    pub(super) fn avoid_death(&mut self, id: &str) -> Result<(), String> {
         let Some((name, level)) = self.characters.get(id).map(|c| (c.sheet.name.clone(), c.sheet.level)) else { return Ok(()) };
         note(self, &format!("{name} drops unconscious."), "system");
         let good = self.rng.die(GOOD_DIE_SIDES).map_err(|e| e.0)?;

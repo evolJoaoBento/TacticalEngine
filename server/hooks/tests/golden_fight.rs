@@ -1,4 +1,5 @@
-//! `server/fixtures/fight.json` replayed: every fight the TypeScript played with nobody at the table asked -
+//! `server/fixtures/fight.json` and `ask.json` replayed: every fight the TypeScript played, with nobody at the
+//! table asked and with the table asked - the defence, a card offered, the death move -
 //! swings closed on, rolled and landed with everything they set off, the GM's turns (adversaries walking up
 //! and swinging, features, reactions to wounds, falls and rolls, countdowns, death moves), walks, the
 //! selection, things used and prompts answered - played again by a Rust session with the project's hooks
@@ -76,7 +77,11 @@ fn view(session: &mut Session, since: usize) -> Value {
         let spotlights: Vec<Value> = session.spotlit.borrow().iter().map(|(id, n)| json!([id, n])).collect();
         json!({ "remaining": t.remaining, "acted": t.acted, "spotlights": spotlights, "features": t.features, "granted": t.granted, "halved": t.halved })
     });
-    let pending = session.pending.as_ref().map_or(Value::Null, |p| json!({ "prompt": p.prompt, "dialogue": p.dialogue.as_ref().map(|d| d.runner.id().to_string()) }));
+    let pending = match (&session.pending, &session.asked) {
+        (Some(p), _) => json!({ "prompt": p.prompt, "dialogue": p.dialogue.as_ref().map(|d| d.runner.id().to_string()) }),
+        (None, Some(asked)) => json!({ "kind": asked.kind(), "prompt": asked.prompt() }),
+        (None, None) => Value::Null,
+    };
     let entities: Vec<Value> = state
         .all_entities()
         .iter()
@@ -107,7 +112,19 @@ fn view(session: &mut Session, since: usize) -> Value {
 
 #[test]
 fn every_fight_is_fought_as_the_browser_fought_it() {
-    let fixture = fixture("fight.json");
+    let (steps, turns, swings) = replay("fight.json");
+    assert!(steps > 1000 && turns > 200 && swings > 300, "{steps} {turns} {swings}");
+}
+
+#[test]
+fn every_question_is_answered_as_the_browser_answered_it() {
+    let (steps, turns, swings) = replay("ask.json");
+    assert!(steps > 1000 && turns > 80 && swings > 150, "{steps} {turns} {swings}");
+}
+
+/// Play every session of a fixture again, step by step: how many steps, turns ended and swings it took.
+fn replay(name: &str) -> (usize, usize, usize) {
+    let fixture = fixture(name);
     let shipped: Rc<Shipped> = Rc::new(from(&fixture["shipped"]));
     let projects = fixture["projects"].as_array().unwrap();
     let (mut steps, mut turns, mut swings) = (0, 0, 0);
@@ -115,6 +132,7 @@ fn every_fight_is_fought_as_the_browser_fought_it() {
         let name = played["name"].as_str().unwrap();
         let project = &projects[played["project"].as_u64().unwrap() as usize];
         let mut session = Session::build(project, Rc::clone(&shipped), hooks_for(), &format!("fight:{name}")).expect("a game");
+        session.ask_defender = played["asks"] == true;
         held!(view(&mut session, 0), &played["start"], "{name}: stood up");
         for (n, step) in played["steps"].as_array().unwrap().iter().enumerate() {
             let at = format!("{name}, step {n}: {}", step["step"]);
@@ -128,6 +146,13 @@ fn every_fight_is_fought_as_the_browser_fought_it() {
                     session.world.state.entity_mut(step["bait"].as_str().unwrap()).expect("a member").add_condition("pit-bait");
                     session.world.state.bad.value = step["bad"].as_f64().unwrap();
                     session.start_encounter("the-pit");
+                    Value::Null
+                }
+                "wound" => {
+                    for id in step["ids"].as_array().unwrap().iter().filter_map(Value::as_str) {
+                        let member = session.world.state.entity_mut(id).expect("a member");
+                        member.hit_points.marked = member.hit_points.max - 1.0;
+                    }
                     Value::Null
                 }
                 "hold" => {
@@ -174,5 +199,5 @@ fn every_fight_is_fought_as_the_browser_fought_it() {
             steps += 1;
         }
     }
-    assert!(steps > 1000 && turns > 200 && swings > 300, "{steps} {turns} {swings}");
+    (steps, turns, swings)
 }

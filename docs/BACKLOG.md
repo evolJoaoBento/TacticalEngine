@@ -4,6 +4,15 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## The table is asked in Rust — done
+
+`server/engine/src/game/ask.rs` puts every question a fight asks a player as the page does, when the table
+is asked: how a hit is taken (the plans with what each leaves, the defender's own cards, an ally stepping in
+or making the GM roll again, a card on a miss), a card offered on a roll, the damage, a wound, a hit or a miss
+(queued one character at a time, a swing or a script held until it is answered), and the death move (Avoid
+Death, Blaze of Glory, Risk It All, a card instead). Held to `server/fixtures/ask.json`. The second of part
+5's three halves; the action bar is next.
+
 ## The fight is played in Rust — done
 
 `server/engine/src/game/{turn,features,answer,swing,blow,fight}.rs` play a fight as the page does with

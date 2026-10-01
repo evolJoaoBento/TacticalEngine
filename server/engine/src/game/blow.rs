@@ -1,10 +1,8 @@
 //! The GM's swing at a party member (`attackPartyMember`): the dice, what the room adds to the damage before
 //! it lands (`boostDamage`), a rally's half (`halveIfRallied`), and the blow taken - the defence the engine
 //! decides for the defender, an aura's help, a card's step down, the log's words, and what a landed blow
-//! sets off (`landAttack`, `landedFeatures`). A table that asks the defender how they take it is the next
-//! half's, and refuses until then.
+//! sets off (`landAttack`, `landedFeatures`). Asking the defender how they take it is `ask`'s.
 
-use super::fight::not_yet;
 use super::log::{name_of, note, the_name_of};
 use super::rules::DEMO_BAND_TILES;
 use super::session::Session;
@@ -36,6 +34,8 @@ pub struct IncomingAttack {
     pub severity: Option<DamageSeverity>,
     /// Bands a card of the defender's stepped it down, after the armor.
     pub stepped: Option<f64>,
+    /// Cards already spent against this hit, so one card fires once.
+    pub used: Vec<String>,
 }
 
 /// What a reaction costs, as the log writes it (`costOf`).
@@ -87,10 +87,10 @@ impl Session {
             let who = the_name_of(self, adversary_id, false);
             note(self, &format!("{who}'s {} misses {}.", def.attack_name, character.unwrap_or_else(|| target.id.clone())), "combat");
             self.play_attacked_on(target_id, adversary_id)?;
-            self.offer_miss(adversary_id, target_id)?;
+            self.offer_miss(IncomingAttack { attacker: adversary_id.to_string(), defender: target_id.to_string(), outcome, def, severity: None, stepped: None, used: Vec::new() });
             return Ok(true);
         }
-        let attack = IncomingAttack { attacker: adversary_id.to_string(), defender: target_id.to_string(), outcome, def, severity, stepped: None };
+        let attack = IncomingAttack { attacker: adversary_id.to_string(), defender: target_id.to_string(), outcome, def, severity, stepped: None, used: Vec::new() };
         self.offer_or_land(attack)?;
         Ok(true)
     }
@@ -153,31 +153,8 @@ impl Session {
         Ok((AttackOutcome { damage_roll: Some(crate::rules::damage::DamageRollResult { total, ..damage_roll }), ..outcome }, None))
     }
 
-    /// A blow that went wide, and a card that answers one (`offerMiss`): only a table that asks is offered it.
-    fn offer_miss(&mut self, attacker: &str, defender: &str) -> Result<(), String> {
-        if !self.ask_defender || self.world.state.entity(defender).is_none() {
-            return Ok(());
-        }
-        let bindings = TargetBindings { targets: vec![attacker.to_string()], hit: vec![attacker.to_string()], ..TargetBindings::default() };
-        let cards = self.world.reactions_for(defender, "attackMissed", Some(&bindings));
-        let entity = self.world.state.entity(defender).expect("standing");
-        let playable = cards.iter().any(|a| !a.effects.is_empty() && crate::combat::defense::can_pay_for(entity.good.as_ref(), &entity.stress, a));
-        if playable {
-            return Err(not_yet("A card offered on a miss"));
-        }
-        Ok(())
-    }
-
-    /// Ask, if there is anything to ask; otherwise take the hit the engine's way (`offerOrLand`).
-    fn offer_or_land(&mut self, attack: IncomingAttack) -> Result<(), String> {
-        if self.ask_defender {
-            return Err(not_yet("Asking a defender how they take a hit"));
-        }
-        self.land_attack(attack)
-    }
-
     /// The damage a hit is carrying right now (`incomingOf`).
-    fn incoming_of(&mut self, attack: &IncomingAttack) -> IncomingDamage {
+    pub(super) fn incoming_of(&mut self, attack: &IncomingAttack) -> IncomingDamage {
         let swing = self.world.standard_attack_of(&attack.def.id, Some((&attack.attacker, &attack.defender)));
         IncomingDamage {
             amount: attack.outcome.damage_roll.as_ref().map_or(0.0, |d| d.total),
@@ -187,15 +164,31 @@ impl Session {
         }
     }
 
-    /// Take the hit with the defence the engine decides (`landAttack` with no plan).
-    fn land_attack(&mut self, attack: IncomingAttack) -> Result<(), String> {
+    /// Take the hit (`landAttack`): with the plan the defender chose - Armor Slots and reactions - or with the
+    /// one the engine decides when nobody was asked.
+    pub(super) fn land_attack(&mut self, attack: IncomingAttack, plan: Option<(f64, Vec<crate::content::abilities::AbilityDef>)>) -> Result<(), String> {
         if self.world.state.entity(&attack.defender).is_none() {
             return Ok(());
         }
+        let Some(holder) = self.holder(&attack.defender) else { return Ok(()) };
         let who = name_of(self, &attack.defender);
         let damage = self.incoming_of(&attack);
         let content = self.world.shared_content();
-        let defense = self.world.defend(&content, &attack.defender, &damage, &mut self.rng);
+        let defense = match &plan {
+            None => self.world.defend(&content, &attack.defender, &damage, &mut self.rng),
+            Some((armor_slots, reactions)) => {
+                let chosen = crate::combat::defense::DefensePlan { armor_slots: *armor_slots, reactions: reactions.iter().collect() };
+                let defense = crate::combat::defense::resolve_defense_plan(&mut self.rng, &damage, &holder.defender(), &chosen).map_err(|e| e.0)?;
+                let (good, stress) = (defense.good_spent, defense.stress_marked);
+                if good > 0.0 {
+                    self.world.spend_good(&attack.defender, good);
+                }
+                if stress > 0.0 {
+                    self.world.mark_stress(&attack.defender, stress);
+                }
+                defense
+            }
+        };
         for used in &defense.reactions {
             let cost = cost_of(used.ability);
             let rolled = used.rolled.map(|r| format!(" ({})", js::number_to_string(r))).unwrap_or_default();

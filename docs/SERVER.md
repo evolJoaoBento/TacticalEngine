@@ -662,8 +662,8 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
       a fight settles reads that - a death move the answer's own roll caused waits. The session counts the
       depth (`answering`) and the fight asks `waiting()`. A creature's conversation over picks a GM's turn it
       stopped up again. `AbilityDef` gained text, target and uses, and `AdversaryDef` its features.
-    - **A table that asks is still refused**, loudly: a defence, a card offered, a death move asked each
-      return an error naming them.
+    - **A table that asks was refused** here, loudly - a defence, a card offered, a death move asked each
+      returned an error naming them - until 5b.
     `fight.golden.test.ts` writes `server/fixtures/fight.json` (about 14 MB): the demo, the default project,
     a pit built on it and the pit alone - stat blocks of its own that are Relentless, carry Momentum, are
     Terrifying, are Minions or a Horde, with cards printed on them for every moment a fight raises, cards
@@ -681,7 +681,35 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     pass of wounds that nothing logs between, a party member revived and falling again, a fight a script
     stopped in the middle of the GM's turn, a rally dearer than the allies it calls, a lieutenant's rally on
     the spotlight with nobody to call, and a rallied blow's odd total halved).
-  - **Next**: (5b) the questions a fight puts to the table - `PendingDefense` (`defenseChoices`, `offerMiss`,
-    `applyDefenseChoice`, `answeredWith`), `PendingReaction` (`askReaction`, `offerOnRoll`, a queue of them),
-    `PendingDeath` (`askDeathMove`, Blaze of Glory, Risk It All, a card instead) - and the answers that pick a
-    stopped GM's turn up again.
+  - **The table is asked** (`server/engine/src/game/ask.rs`): with `ask_defender` on, every question a fight
+    puts to a player is put and answered as the page puts it. The question has the session's `asked`, the
+    other half of the TypeScript's one `pending` - never set while a script waits, and `waiting()` counts it.
+    - **How a hit is taken** (`defenseChoices`, `offerOrLand`, `offerMiss`): take it, an Armor Slot, the
+      reactions the defender can pay for alone and with a slot - each with the Hit Points it would leave, and
+      a plan that changes nothing left out - the defender's cards' own scripts, an ally's card to step in front
+      or make the GM roll again; and a card to answer a miss. The answer (`applyDefenseChoice`) lands a plan,
+      plays a script and puts the blow again with what it said (`answeredWith`: softened, avoided, stepped
+      down, seen coming), moves the blow to the ally who stepped in, or rolls the attack or its damage again.
+      A card that stops to ask something of its own holds the blow (`OnDone::Answered`, `OnDone::Dodged`).
+    - **A card offered** (`askReaction`): on a roll before anything comes of it, on the damage, on a wound,
+      a hit, a miss or a roll - one character at a time, the rest queued behind, a swing waiting on the answer
+      at the stage it was stopped, and a script stopped mid-roll carried on with what the cards said
+      (`offerOnRoll`, `answerFrom`).
+    - **The death move** (`askDeathMove`): Avoid Death, Blaze of Glory (the one last swing, critical, at the
+      nearest the weapon reaches, and the veil), Risk It All (the Duality Dice), or a card that answers the
+      fall - and the three put again when the card was not enough.
+    - A defect from 4a fixed on the way: a raised roll's line read the number as text, and said
+      "Another  goes behind the roll."
+    `fight.golden.test.ts` also writes `server/fixtures/ask.json` (about 9 MB), its own file so `fight.json`
+    stays as it was: the demo and the pit with cards in the party's hands worth asking about (wards, plate, a
+    rune, a guard, a jinx, a parry, a sidestep, a riposte and a taunt, a push, a named roll, a reroll, a
+    heavier blow, a cheer, a card against the fall), the boss's swing made direct and the swarm's of no kind,
+    three of the party on their last Hit Point - 17 sessions with the table asked, each question answered
+    with one of its options (now and then one that is not there, or stepping back), the death moves taken in
+    turn. `golden_fight.rs` replays it too (about 15 s at `opt-level = 1`). 43 of 49 deliberate mutations
+    of the questions and their answers fail it; of the rest one is equivalent (a card already spent offered
+    again as a plan, when a plan ends the hit and a redirect is never a plan) and five are not reached (a
+    defender with nothing but "take it", Risk It All with Shadow higher and with the dice matched, a card
+    against the fall that was not enough, and a named roll paid for on a script's roll).
+  - **Next**: (5c) the action bar - a card used on the character's turn (`useAbility`, `canUseAbility`: its
+    targets, a point, a shape, tokens, a card put back) - then part 6, the shop, equipment and saves.

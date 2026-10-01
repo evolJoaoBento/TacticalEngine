@@ -5,10 +5,10 @@
 //! (`playZoneEntries`).
 //!
 //! A card that costs nothing and asks nothing plays itself, and one that stops to ask something of its own
-//! waits as a prompt. A card that is a decision is offered to a table that asks (`ask_defender`) - which is
-//! the next half's, and refuses until then. With nobody asked, it is simply not played.
+//! waits as a prompt. A card that is a decision is offered to a table that asks (`ask_defender`), a question
+//! at a time, the rest queued behind it; with nobody asked, it is simply not played.
 
-use super::fight::not_yet;
+use super::ask::{Asked, Resuming};
 use super::features::Left;
 use super::log::{name_of, note};
 use super::play::{OnDone, PendingScript};
@@ -63,6 +63,30 @@ pub(super) fn counts(pairs: &[(&str, f64)]) -> Map<String, Value> {
     pairs.iter().map(|(k, v)| (k.to_string(), json!(v))).collect()
 }
 
+/// What the cards said about a roll, as the response that settles it (`answerFrom`).
+fn answer_from(said: &[Value]) -> Value {
+    let (mut reroll, mut name, mut raise) = (None, false, 0.0);
+    for entry in said {
+        match entry["kind"].as_str().unwrap_or_default() {
+            "dualityRerolled" => reroll = Some(entry["which"].clone()),
+            "rollNamed" => name = true,
+            "rollRaised" => raise += entry["by"].as_f64().unwrap_or(0.0),
+            _ => {}
+        }
+    }
+    let mut response = json!({ "kind": "answered" });
+    if let Some(reroll) = reroll {
+        response["reroll"] = reroll;
+    }
+    if name {
+        response["name"] = json!(true);
+    }
+    if raise > 0.0 {
+        response["raise"] = json!(raise);
+    }
+    response
+}
+
 /// A card nobody holds, made for one moment: ground that bites, a debt collected.
 fn made_card(id: &str, name: &str, text: &str, auto: bool, effects: Vec<Value>) -> AbilityDef {
     serde_json::from_value(json!({
@@ -79,7 +103,7 @@ fn made_card(id: &str, name: &str, text: &str, auto: bool, effects: Vec<Value>) 
 
 impl Session {
     /// Whether a character can play this card in answer to something right now (`canPlay`).
-    fn can_play(&self, id: &str, ability: &AbilityDef) -> bool {
+    pub(super) fn can_play(&self, id: &str, ability: &AbilityDef) -> bool {
         let Some(entity) = self.world.state.entity(id) else { return false };
         let left = match &ability.uses {
             None => f64::INFINITY,
@@ -89,7 +113,7 @@ impl Session {
     }
 
     /// Pay a reaction's cost (`payFor`): false when it turned out they could not.
-    fn pay_for(&mut self, id: &str, ability: &AbilityDef) -> bool {
+    pub(super) fn pay_for(&mut self, id: &str, ability: &AbilityDef) -> bool {
         if self.world.state.entity(id).is_none() {
             return false;
         }
@@ -138,7 +162,7 @@ impl Session {
                 };
                 if free {
                     let held = left.landing.as_deref().cloned();
-                    let ran = self.play_reaction(offer, false, held.clone())?;
+                    let ran = self.play_reaction(offer, false, held.clone(), Vec::new(), None)?;
                     if let (Some(landing), Some(held)) = (left.landing.as_deref_mut(), held) {
                         if let Some(answered) = self.as_answered(Some(held), &ran) {
                             *landing = answered;
@@ -155,20 +179,34 @@ impl Session {
     /// Put the first group of offers to the player (`offerReactions`). With nobody at the table to ask, an
     /// optional card is simply not played; a table that asks is the next half's.
     pub(super) fn offer_reactions(&mut self, groups: Vec<Vec<ReactionOffer>>) -> Result<(), String> {
-        if groups.iter().all(Vec::is_empty) || !self.ask_defender {
+        let mut waiting: Vec<Vec<ReactionOffer>> = groups.into_iter().filter(|g| !g.is_empty()).collect();
+        if waiting.is_empty() || !self.ask_defender {
             return Ok(());
         }
-        Err(not_yet("A card offered to the table"))
+        // Somebody already being asked about a card of their own: queue behind them. Behind any other
+        // question the offer is dropped.
+        if self.answering > 0 || self.pending.is_some() {
+            return Ok(());
+        }
+        if let Some(asked) = self.asked.as_mut() {
+            if let Asked::Reaction { queued, .. } = asked {
+                queued.extend(waiting);
+            }
+            return Ok(());
+        }
+        let first = waiting.remove(0);
+        self.ask_reaction(first, waiting, None, None);
+        Ok(())
     }
 
     /// Run one of the party's reactions (`playReaction`): pay, then play its script with what the moment
     /// left behind. A card that stops to ask something waits as a prompt, and what finishing it resumes is
     /// done then; one that runs through is done now when `resume`. What it journalled, for a caller still
     /// holding a blow.
-    pub(super) fn play_reaction(&mut self, offer: ReactionOffer, resume: bool, landing: Option<HeldSwing>) -> Result<Vec<Value>, String> {
+    pub(super) fn play_reaction(&mut self, offer: ReactionOffer, resume: bool, landing: Option<HeldSwing>, queued: Vec<Vec<ReactionOffer>>, mut resuming: Option<Resuming>) -> Result<Vec<Value>, String> {
         if !self.pay_for(&offer.by, &offer.ability) {
             if resume {
-                self.after_reaction(landing)?;
+                self.after_reaction(queued, landing, resuming)?;
             }
             return Ok(Vec::new());
         }
@@ -190,9 +228,13 @@ impl Session {
         let journal = runner.entries().to_vec();
         let runner = runner.suspend();
         self.record(&journal)?;
+        // What it said goes to a script held mid-roll behind the question, which settles around it.
+        if let Some(resuming) = resuming.as_mut() {
+            resuming.said.extend(journal.iter().cloned());
+        }
         if let RunStatus::Waiting(prompt) = status {
             // The actor stays theirs until the card is done with.
-            let finish = OnDone::Reaction { by: offer.by.clone(), ability: Box::new(offer.ability.clone()), landing: landing.map(Box::new), was };
+            let finish = OnDone::Reaction { by: offer.by.clone(), ability: Box::new(offer.ability.clone()), landing: landing.map(Box::new), was, queued, resuming: resuming.map(Box::new) };
             self.pending = Some(PendingScript::new(runner, prompt, journal.len(), finish));
             return Ok(journal);
         }
@@ -200,17 +242,21 @@ impl Session {
         self.vault_after(&offer.by, &offer.ability, &runner)?;
         if resume {
             let answered = self.as_answered(landing, &journal);
-            self.after_reaction(answered)?;
+            self.after_reaction(queued, answered, resuming)?;
         }
         Ok(journal)
     }
 
     /// A card that stopped to ask something is done (`playReaction`'s `onDone`).
-    pub(super) fn reaction_done(&mut self, by: &str, ability: &AbilityDef, landing: Option<HeldSwing>, was: Option<String>, runner: &SuspendedRunner) -> Result<(), String> {
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn reaction_done(&mut self, by: &str, ability: &AbilityDef, landing: Option<HeldSwing>, was: Option<String>, queued: Vec<Vec<ReactionOffer>>, mut resuming: Option<Resuming>, runner: &SuspendedRunner) -> Result<(), String> {
         self.world.scenario.actor_id = was;
         self.vault_after(by, ability, runner)?;
+        if let Some(resuming) = resuming.as_mut() {
+            resuming.said.extend(runner.entries().iter().cloned());
+        }
         let answered = self.as_answered(landing, runner.entries());
-        self.after_reaction(answered)
+        self.after_reaction(queued, answered, resuming)
     }
 
     /// "Then place this card in your vault" (`vaultAfter`).
@@ -233,10 +279,21 @@ impl Session {
         Ok(())
     }
 
-    /// Ask the next character what they make of it, or let the fight carry on (`afterReaction`). Nothing is
-    /// queued behind a card while nobody is asked, and no script is held mid-roll.
-    pub(super) fn after_reaction(&mut self, landing: Option<HeldSwing>) -> Result<(), String> {
+    /// Ask the next character what they make of it, or let the fight carry on (`afterReaction`): a script
+    /// held mid-roll picks up where it stopped, told what was said; a swing waiting on the cards lands.
+    pub(super) fn after_reaction(&mut self, queued: Vec<Vec<ReactionOffer>>, landing: Option<HeldSwing>, resuming: Option<Resuming>) -> Result<(), String> {
         if self.waiting() {
+            return Ok(());
+        }
+        let mut waiting: Vec<Vec<ReactionOffer>> = queued.into_iter().filter(|g| !g.is_empty()).collect();
+        if !waiting.is_empty() {
+            let first = waiting.remove(0);
+            self.ask_reaction(first, waiting, landing, resuming);
+            return Ok(());
+        }
+        if let Some(resuming) = resuming {
+            self.pending = Some(*resuming.script);
+            self.answer_pending(&answer_from(&resuming.said))?;
             return Ok(());
         }
         if let Some(landing) = landing {
@@ -273,7 +330,7 @@ impl Session {
             let id = format!("zone-{}", crossing.condition);
             let ability = made_card(&id, &def.name, "The ground they just stepped onto.", true, on_enter.effects.clone());
             let offer = ReactionOffer { by, ability, targets: vec![crossing.id.clone()], hit: None, counts: Map::new(), last_damage: None, roll: None, swing: None };
-            self.play_reaction(offer, false, None)?;
+            self.play_reaction(offer, false, None, Vec::new(), None)?;
         }
         Ok(())
     }
@@ -495,7 +552,7 @@ impl Session {
             let ability = made_card(&id, &name, "What somebody else left you.", auto, effects);
             let offer = ReactionOffer { by: attacker.to_string(), ability, targets: vec![target.to_string()], hit: None, counts: Map::new(), last_damage: None, roll: None, swing: None };
             if auto {
-                self.play_reaction(offer, false, None)?;
+                self.play_reaction(offer, false, None, Vec::new(), None)?;
                 continue;
             }
             asked.push(vec![offer]);

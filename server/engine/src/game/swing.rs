@@ -5,7 +5,6 @@
 //! (`defeatMinions`).
 
 use super::answer::{bound_roll, Moment};
-use super::fight::not_yet;
 use super::log::{describe_roll, float, name_of, note, struck, swung_at, the_name_of, RollShow};
 use super::rules::DEMO_BAND_TILES;
 use super::session::Session;
@@ -207,7 +206,11 @@ impl Session {
             return Ok(Some(SwingResult { hit: held.outcome.hit, refused: None, hit_points_marked: 0.0, waiting: Some(true) }));
         }
         if !groups.is_empty() && self.ask_defender {
-            return Err(not_yet("A card offered on the swing's roll"));
+            let mut groups = groups;
+            let first = groups.remove(0);
+            let hit = held.outcome.hit;
+            self.ask_reaction(first, groups, Some(HeldSwing { stage_rolled: true, ..held }), None);
+            return Ok(Some(SwingResult { hit, refused: None, hit_points_marked: 0.0, waiting: Some(true) }));
         }
         self.after_rolled(held).map(Some)
     }
@@ -248,7 +251,8 @@ impl Session {
             return Ok(SwingResult { hit, refused: None, hit_points_marked: 0.0, waiting: Some(true) });
         }
         if !offers.is_empty() && self.ask_defender {
-            return Err(not_yet("A card offered on the swing's damage"));
+            self.ask_reaction(offers, Vec::new(), Some(held), None);
+            return Ok(SwingResult { hit, refused: None, hit_points_marked: 0.0, waiting: Some(true) });
         }
         self.land_party_attack(held)
     }

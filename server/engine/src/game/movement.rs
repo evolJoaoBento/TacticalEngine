@@ -282,7 +282,7 @@ impl Session {
     /// Walk the selected member towards a tile, or a spot in it (`moveSelectedTo`). Out of a fight the rest
     /// follow; in one they move alone, inside their circle.
     pub fn move_selected_to(&mut self, destination: i32, aimed: Option<Spot>) -> Result<MoveResult, String> {
-        if self.pending.is_some() {
+        if self.waiting() {
             return Ok(MoveResult::default());
         }
         let Some(id) = self.party.selected().map(str::to_string) else { return Ok(MoveResult::default()) };
@@ -430,7 +430,7 @@ impl Session {
     /// follows the walk at once. Its status.
     pub fn approach_then_use(&mut self, id: &str) -> Result<&'static str, String> {
         if let Some(who) = self.party.selected().map(str::to_string) {
-            if self.pending.is_none() && self.party.can_command(&self.world.state, Some(&who)) {
+            if !self.waiting() && self.party.can_command(&self.world.state, Some(&who)) {
                 self.close_to_use(&who, id, DEMO_REACH);
             }
         }
@@ -455,7 +455,7 @@ impl Session {
     /// The line a click would walk (`previewWalk`); `from`, the ground the figure stands on mid-walk. Nothing
     /// when nothing would move.
     pub fn preview_walk(&mut self, destination: i32, aimed: Spot, from: Option<Spot>) -> Option<WalkPreview> {
-        if self.pending.is_some() {
+        if self.waiting() {
             return None;
         }
         let id = self.party.selected()?.to_string();
@@ -495,7 +495,7 @@ impl Session {
     /// The line a click on a creature would walk before the swing (`previewStrike`): nothing when already in
     /// reach or nothing would move.
     pub fn preview_strike(&mut self, target: &str) -> Option<Vec<Spot>> {
-        if self.pending.is_some() {
+        if self.waiting() {
             return None;
         }
         let id = self.party.selected()?.to_string();

@@ -259,7 +259,7 @@ impl Session {
     /// there is nowhere to jump to.
     pub fn jump_aim(&mut self) -> Option<Vec<i32>> {
         let id = self.party.selected()?.to_string();
-        if self.pending.is_some() || !self.jump_offered() {
+        if self.waiting() || !self.jump_offered() {
             return None;
         }
         let tiles = self.leap_targets(&id);
@@ -307,7 +307,7 @@ impl Session {
                 let success = runner.last_action_roll().is_some_and(|r| r.success);
                 self.land(&id, &leap, Some(success), Some(runner.spotlight_to_gm), read)
             }
-            OnDone::Nothing | OnDone::Converse | OnDone::Reaction { .. } => Ok(()),
+            _ => Ok(()),
         }
     }
 
@@ -473,7 +473,7 @@ impl Session {
     /// Jump to where the aim pointed (`jumpTo`). With the dice thrown for the player (`auto_roll`), the roll is
     /// made at once, without the prompt between the click and the dice.
     pub fn jump_to(&mut self, id: &str, destination: i32, aim: Option<Spot>, auto_roll: bool) -> Result<MoveResult, String> {
-        if self.pending.is_some() || self.party.selected() != Some(id) || !self.jump_offered() {
+        if self.waiting() || self.party.selected() != Some(id) || !self.jump_offered() {
             return Ok(MoveResult::default());
         }
         let Some(leap) = self.plan_running_jump(id, destination, aim) else { return Ok(MoveResult::default()) };

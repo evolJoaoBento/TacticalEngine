@@ -150,6 +150,9 @@ pub struct Session {
     /// How deep the answering of a prompt is while its journal is recorded: the TypeScript's `pending` still
     /// holds the question then, and everything a fight settles waits on it.
     pub(crate) answering: u32,
+    /// A question the fight put to the table: the other half of the TypeScript's `pending`, never set while a
+    /// script waits.
+    pub asked: Option<super::ask::Asked>,
 }
 
 /// Stand a room up (`buildRuntime`): its grid from the project's ground, every placement's stat block - the
@@ -265,6 +268,7 @@ impl Session {
             mourned: Vec::new(),
             fallen: Vec::new(),
             answering: 0,
+            asked: None,
         })
         .map(|mut session: Session| {
             session.bind_turn();
@@ -274,7 +278,7 @@ impl Session {
 
     /// Whether a question is open (`demo.pending !== null`): one waiting, or one being answered.
     pub fn waiting(&self) -> bool {
-        self.pending.is_some() || self.answering > 0
+        self.pending.is_some() || self.asked.is_some() || self.answering > 0
     }
 
     /// Tell the world who has already acted this GM turn (`bindTurn`): the one wire between the turn and the

@@ -2,15 +2,16 @@
  * The fight, as the Rust server must play it (`docs/SERVER.md`, phase 2).
  *
  * Sessions of a fight played with nobody at the table asked anything (`askDefender` off, as every test that
- * predates the prompts plays it): a fight begun, the selected member swinging at whoever is there
+ * predates the prompts plays it), and sessions with the table asked - how a hit is taken, a card offered on
+ * a roll, a blow, a wound or a miss, the death move - each answered with one of its options: a fight begun, the selected member swinging at whoever is there
  * (`attackWithSelected`) - closing first, rolling, landing, and everything a blow sets off - the party's
  * turn ended and the GM's played (`endTurn`): adversaries spotlighted while the Shadow lasts, walking up and
  * swinging, a stat block's feature used, reactions to wounds, falls and rolls, countdowns, death moves.
  * Walks, the selection and the things in the room in between, and a prompt answered when a card or a
  * thing asks one. After each step its answer, the GM's turn as it stands, the fight, everybody's pools and
  * conditions, the Shadow, the scars, the log's new lines and what a view is handed.
- * `UPDATE_GOLDEN=1 npx vitest run src/game/fight.golden.test.ts` writes `server/fixtures/fight.json`;
- * `server/hooks/tests/golden_fight.rs` replays it.
+ * `UPDATE_GOLDEN=1 npx vitest run src/game/fight.golden.test.ts` writes `server/fixtures/fight.json`, and the
+ * asked sessions to `server/fixtures/ask.json`; `server/hooks/tests/golden_fight.rs` replays both.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -39,6 +40,7 @@ import { syncTalks } from './talks';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = resolve(here, '../../server/fixtures/fight.json');
+const ASKED = resolve(here, '../../server/fixtures/ask.json');
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value ?? null)) as T;
 
 /** The content as the Rust reads it, as `session.golden.test.ts` writes it. */
@@ -87,7 +89,7 @@ function view(demo: DemoScene, since: number) {
     scene: demo.scene.id,
     fight: fightView(demo),
     turn: turnView(demo),
-    pending: demo.pending === null ? null : demo.pending.kind === 'script' ? { prompt: demo.pending.prompt, dialogue: demo.pending.dialogue?.id ?? null } : { kind: demo.pending.kind },
+    pending: demo.pending === null ? null : demo.pending.kind === 'script' ? { prompt: demo.pending.prompt, dialogue: demo.pending.dialogue?.id ?? null } : { kind: demo.pending.kind, prompt: demo.pending.prompt },
     selected: demo.party.selected,
     bad: demo.state.bad,
     entities: demo.state.allEntities().map((e) => [e.id, e.faction, e.tile, e.at.x, e.at.y, e.alive, e.dead ?? null, e.hitPoints, e.stress, e.armorSlots, e.good ?? null, [...e.conditions], e.truce ?? null, e.interacted ?? null]),
@@ -107,9 +109,28 @@ function view(demo: DemoScene, since: number) {
 
 // --- Answers, as a player might give them ------------------------------------------------------------------
 
+/** How many death moves have been answered, for the next to take the next way out. */
+let deathsAnswered = 0;
+
 function answerFor(demo: DemoScene, g: Rng): Response {
   const p = demo.pending;
-  if (p === null || p.kind !== 'script') return { kind: 'continue' };
+  if (p === null) return { kind: 'continue' };
+  if (p.kind === 'death' && p.prompt.kind === 'choice') {
+    // Every way out in turn, and a card played instead every other time one is offered: there are few
+    // enough falls that chance would skip some.
+    const options = p.prompt.options;
+    const n = deathsAnswered++;
+    if (options.length > 3 && n % 2 === 0) return { kind: 'choose', index: options[options.length - 1]!.index };
+    return { kind: 'choose', index: options[n % 3]!.index };
+  }
+  if (p.kind !== 'script') {
+    // A question of the fight's: one of its options, now and then one that is not there, or stepping back.
+    const roll = g.nextInt(10);
+    if (roll === 0) return { kind: 'continue' };
+    if (roll === 1) return { kind: 'choose', index: 99 };
+    const options = p.prompt.kind === 'choice' ? p.prompt.options : [];
+    return options.length === 0 ? { kind: 'continue' } : { kind: 'choose', index: g.pick(options).index };
+  }
   const d = p.dialogue;
   if (d !== null && d.view !== null && d.prompt === null) {
     const enabled = d.view.options.filter((o) => o.enabled);
@@ -134,8 +155,9 @@ function answerFor(demo: DemoScene, g: Rng): Response {
 /** The encounters in the room with somebody placed in them, for a fight to begin. */
 const fights = (demo: DemoScene): string[] => demo.scene.encounters.filter((e) => e.adversaries.length > 0).map((e) => e.id);
 
-function session(g: Rng, name: string, project: number, input: ProjectDoc, length: number, toured = false) {
+function session(g: Rng, name: string, project: number, input: ProjectDoc, length: number, toured = false, asks = false) {
   const demo = buildProjectScene(projectSchema.parse(clone(input)), `fight:${name}`);
+  demo.askDefender = asks;
   const start = view(demo, 0);
   const steps: unknown[] = [];
   if (demo.scene.encounters.some((e) => e.id === 'the-pit')) {
@@ -153,6 +175,16 @@ function session(g: Rng, name: string, project: number, input: ProjectDoc, lengt
     demo.state.bad = { ...demo.state.bad, value: bad };
     startEncounter(demo, 'the-pit');
     steps.push({ step: 'setup', stand, warded, lucky, bait, bad, after: view(demo, since) });
+  }
+  if (asks && demo.scene.encounters.some((e) => e.id === 'the-pit')) {
+    // Three of them on their last Hit Point, so the death move is asked as well as the rest.
+    const since = demo.log.length;
+    const ids = [g.pick(demo.party.members()), g.pick(demo.party.members()), g.pick(demo.party.members())];
+    for (const id of ids) {
+      const member = demo.state.entity(id)!;
+      member.hitPoints = { ...member.hitPoints, marked: member.hitPoints.max - 1 };
+    }
+    steps.push({ step: 'wound', ids, after: view(demo, since) });
   }
   if (toured) {
     // On purpose, before the dice take over: the flag waved, a creature it stood down struck - which
@@ -235,7 +267,7 @@ function session(g: Rng, name: string, project: number, input: ProjectDoc, lengt
     step['after'] = view(demo, since);
     steps.push(step);
   }
-  return { name, project, start, steps };
+  return { name, project, ...(asks ? { asks } : {}), start, steps };
 }
 
 /**
@@ -251,7 +283,7 @@ function session(g: Rng, name: string, project: number, input: ProjectDoc, lengt
  * that wound themselves when the spotlight finds them, so a fall, a last word and a replacement come in
  * the middle of the GM's own turn.
  */
-function arena(base: ProjectDoc): ProjectDoc {
+function arena(base: ProjectDoc, asked = false): ProjectDoc {
   const project = clone(base);
   // What is pushed below is read by the schema at the end, as a file would be.
   const loose = project as unknown as Record<'adversaries' | 'cards' | 'abilities' | 'conditionDefs', unknown[]>;
@@ -279,6 +311,11 @@ function arena(base: ProjectDoc): ProjectDoc {
     card('pit-swarm-card', { kind: 'adversary', adversaries: ['pit-swarm'] }),
     card('arena-grit', { kind: 'given', characters: party }),
   );
+  if (asked) {
+    loose.cards.push(card('arena-asked', { kind: 'given', characters: party }));
+    const swarm = loose.adversaries.find((a) => (a as { id: string }).id === 'pit-swarm') as { attackDamage: { types: string[] } };
+    swarm.attackDamage = { ...swarm.attackDamage, types: [] };
+  }
   const on = (source: string, id: string, rest: Record<string, unknown>) => ({ id, name: id.replace(/-/g, ' '), source: { card: source }, text: '', ...rest });
   const say = (text: string) => ({ kind: 'log', text, tone: 'system' });
   const target = { kind: 'target' };
@@ -324,6 +361,30 @@ function arena(base: ProjectDoc): ProjectDoc {
     on('arena-grit', 'grit-braced', { kind: 'reaction', trigger: 'attacked', effects: [say('Braced for it.')] }),
     on('arena-grit', 'grit-rolled', { kind: 'reaction', trigger: 'partyRolled', available: { kind: 'rolled', is: 'critical' }, effects: [say('What a roll.')] }),
   );
+  if (asked) {
+    loose.abilities.push(
+      // What is worth asking about: never free, and the defence's own cards never the engine's to play.
+      on('arena-asked', 'ask-ward', { kind: 'reaction', trigger: 'incomingDamage', auto: false, reaction: { kind: 'reduceSeverity', steps: 1 }, cost: { stress: 1 } }),
+      on('arena-asked', 'ask-plate', { kind: 'reaction', trigger: 'incomingDamage', auto: false, reaction: { kind: 'extraArmor', slots: 1 }, cost: { good: 1 } }),
+      on('arena-asked', 'ask-rune', { kind: 'reaction', trigger: 'incomingDamage', auto: false, reaction: { kind: 'reduceDamage', dice: '1d6' }, cost: { stress: 1 } }),
+      on('arena-asked', 'ask-guard', { kind: 'reaction', trigger: 'incomingDamage', auto: false, target: { kind: 'ally', range: 'close' }, reaction: { kind: 'redirect' }, cost: { stress: 1 } }),
+      on('arena-asked', 'ask-jinx', { kind: 'reaction', trigger: 'attackHit', auto: false, target: { kind: 'adversary', range: 'far' }, reaction: { kind: 'reroll', what: 'either' }, cost: { good: 1 } }),
+      on('arena-asked', 'ask-parry', { kind: 'reaction', trigger: 'incomingDamage', auto: false, cost: { stress: 1 }, effects: [{ kind: 'softenBlow', dice: '1d4' }] }),
+      on('arena-asked', 'ask-sidestep', { kind: 'reaction', trigger: 'incomingDamage', auto: false, cost: { stress: 1 }, uses: { count: 1, per: 'scene' }, effects: [{ kind: 'choice', title: 'How?', options: [{ label: 'Duck', effects: [{ kind: 'avoidBlow' }] }, { label: 'Brace', effects: [{ kind: 'stepSeverity', steps: 1 }] }, { label: 'Read it', effects: [{ kind: 'dodgeBy', amount: 3 }] }] }] }),
+      on('arena-asked', 'ask-riposte', { kind: 'reaction', trigger: 'attackMissed', cost: { stress: 1 }, effects: [{ kind: 'damage', dice: '1d4', type: 'physical', target }] }),
+      on('arena-asked', 'ask-taunt', { kind: 'reaction', trigger: 'attackMissed', cost: { stress: 1 }, effects: [{ kind: 'choice', title: 'Taunt them?', options: [{ label: 'Jeer', effects: [say('Is that all?')] }, { label: 'Say nothing', effects: [] }] }] }),
+      on('arena-asked', 'ask-push', { kind: 'reaction', trigger: 'partyRolling', available: { kind: 'rolled', is: 'failure' }, cost: { good: 1 }, effects: [{ kind: 'raiseRoll', amount: 2 }] }),
+      on('arena-asked', 'ask-name', { kind: 'reaction', trigger: 'partyRolling', cost: { good: 2 }, uses: { count: 1, per: 'scene' }, effects: [{ kind: 'nameRoll' }] }),
+      on('arena-asked', 'ask-heavy', { kind: 'reaction', trigger: 'rollingDamage', cost: { stress: 1 }, effects: [{ kind: 'rerollDamage', below: 3 }] }),
+      on('arena-asked', 'ask-steady', { kind: 'reaction', trigger: 'allyTookDamage', cost: { stress: 1 }, effects: [say('Steady!')] }),
+      on('arena-asked', 'ask-press', { kind: 'reaction', trigger: 'dealtHit', cost: { stress: 1 }, effects: [{ kind: 'markStress', amount: 1, target }] }),
+      on('arena-asked', 'ask-cheer', { kind: 'reaction', trigger: 'partyRolled', cost: { stress: 1 }, effects: [say('Well rolled!')] }),
+      on('arena-asked', 'ask-again', { kind: 'reaction', trigger: 'partyRolling', available: { kind: 'rolled', is: 'failure' }, cost: { stress: 1 }, effects: [{ kind: 'rerollDuality', which: 'both' }] }),
+      // And what the GM's side asks of them: a swing armor cannot touch, damage of no kind at all.
+      on('pit-boss-card', 'boss-direct', { kind: 'passive', standardAttack: { direct: true } }),
+      on('arena-asked', 'ask-defiant', { kind: 'reaction', trigger: 'defeated', cost: { good: 1 }, effects: [{ kind: 'heal', amount: 1, target: { kind: 'actor' } }] }),
+    );
+  }
   loose.conditionDefs.push(
     { id: 'cinder-ground', name: 'Cinders', text: '', modifiers: [], blocks: [], onEnter: { effects: [{ kind: 'damage', dice: '1d4', type: 'magic', target }] } },
     { id: 'marked-prey', name: 'Marked Prey', text: '', modifiers: [], blocks: [], payout: { on: 'attacked', auto: true, effects: [{ kind: 'clearStress', amount: 1, target: { kind: 'actor' } }] } },
@@ -363,12 +424,21 @@ function arena(base: ProjectDoc): ProjectDoc {
 }
 
 /** The pit with nothing else in the vault: a fight that can be won, or lost. */
-function pitAlone(base: ProjectDoc): ProjectDoc {
-  const project = arena(base);
+function pitAlone(base: ProjectDoc, asked = false): ProjectDoc {
+  const project = arena(base, asked);
   const vault = project.scenes[0]!;
   vault.encounters = vault.encounters.filter((e) => e.id === 'the-pit');
   return projectSchema.parse(project);
 }
+
+/** What the app ships, as the Rust reads it. */
+const shipped = () => ({
+  characters: contentJson(DEMO_CHARACTERS),
+  adversaries: [...DEMO_ADVERSARIES.values()],
+  abilities: STARTER_ABILITIES,
+  conditions: [...STARTER_CONDITIONS, ...SRD_CONDITIONS],
+  items: EQUIPMENT.items.map(({ id, name }) => ({ id, name })),
+});
 
 function golden() {
   const g = createRng('fight');
@@ -382,19 +452,35 @@ function golden() {
   for (let s = 0; s < 2; s++) sessions.push(session(g, `the pit alone, toured ${s}`, 3, projects[3]![1], 30, true));
   return {
     about: 'the fight, for the Rust port; written by src/game/fight.golden.test.ts',
-    shipped: {
-      characters: contentJson(DEMO_CHARACTERS),
-      adversaries: [...DEMO_ADVERSARIES.values()],
-      abilities: STARTER_ABILITIES,
-      conditions: [...STARTER_CONDITIONS, ...SRD_CONDITIONS],
-      items: EQUIPMENT.items.map(({ id, name }) => ({ id, name })),
-    },
+    shipped: shipped(),
     projects: projects.map(([, project]) => clone(project)),
     sessions,
   };
 }
 
+/** The table asked: the demo, and the pit with cards in the party's hands worth asking about. */
+function askedGolden() {
+  const g = createRng('fight:asked');
+  const demo = buildDemoScene(hollowVaultMap(), 'fight');
+  const fallback = projectSchema.parse(migrateDocument(JSON.parse(readFileSync(resolve(here, '../../projects/default.json'), 'utf8'))));
+  const projects: [string, ProjectDoc][] = [['the demo', clone(demo.project)], ['the pit', arena(fallback, true)], ['the pit alone', pitAlone(fallback, true)]];
+  const sessions: ReturnType<typeof session>[] = [];
+  projects.forEach(([name, project], at) => {
+    for (let s = 0; s < [3, 8, 6][at]!; s++) sessions.push(session(g, `${name}, asked ${s}`, at, project, at === 0 ? 50 : 80, false, true));
+  });
+  return { about: 'the fight with the table asked, for the Rust port; written by src/game/fight.golden.test.ts', shipped: shipped(), projects: projects.map(([, project]) => clone(project)), sessions };
+}
+
 describe('the fight, for the Rust port', () => {
+  it('matches server/fixtures/ask.json', () => {
+    const written = askedGolden();
+    if (process.env['UPDATE_GOLDEN'] === '1' || !existsSync(ASKED)) {
+      mkdirSync(dirname(ASKED), { recursive: true });
+      writeFileSync(ASKED, `${JSON.stringify(written)}\n`);
+    }
+    expect(JSON.parse(readFileSync(ASKED, 'utf8'))).toEqual(clone(written));
+  }, 300_000);
+
   it('matches server/fixtures/fight.json', () => {
     const written = golden();
     if (process.env['UPDATE_GOLDEN'] === '1' || !existsSync(FIXTURE)) {

@@ -327,7 +327,7 @@ fn describe_entry(session: &Session, entry: &Value, names: &[ItemName]) -> Optio
             }
         }
         "marked" => said(format!("{} marks the ground where they stand.", who(&entry["id"])), "good"),
-        "rollRaised" => said(format!("Another {} goes behind the roll.", s(&entry["by"])), "good"),
+        "rollRaised" => said(format!("Another {} goes behind the roll.", n(&entry["by"])), "good"),
         "countdown" => said(format!("{} begins: {}.", s(&entry["name"]), n(&entry["value"])), "bad"),
         "replaced" => {
             let ids = list(entry, "ids");

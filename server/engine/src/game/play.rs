@@ -13,7 +13,6 @@
 //! next half's, and refused with an error naming it - refusing beats quietly doing something else.
 
 use super::content::item_name;
-use super::fight::not_yet;
 use super::log::{name_of, note, speak, write_down, LogLine};
 use super::session::Session;
 use crate::dialogue::runner::{DialogueHost, DialogueRunner, DialogueStatus, DialogueView, ScriptResult};
@@ -43,7 +42,6 @@ fn outcome(status: &'static str, lines: Vec<LogLine>) -> Result<UseOutcome, Stri
 }
 
 /// What to do once a script finishes.
-#[derive(Clone, Debug, PartialEq)]
 pub enum OnDone {
     Nothing,
     /// A creature's conversation: the fight counted again, and a GM's turn it stopped played on.
@@ -54,7 +52,18 @@ pub enum OnDone {
     Leap { id: String, leap: super::leap::Leap, read: bool },
     /// A card of the party's that stopped to ask something: vaulted if it says so, and what it was holding -
     /// a swing - landed, with the actor it put down given back.
-    Reaction { by: String, ability: Box<crate::content::abilities::AbilityDef>, landing: Option<Box<super::swing::HeldSwing>>, was: Option<String> },
+    Reaction {
+        by: String,
+        ability: Box<crate::content::abilities::AbilityDef>,
+        landing: Option<Box<super::swing::HeldSwing>>,
+        was: Option<String>,
+        queued: Vec<Vec<super::answer::ReactionOffer>>,
+        resuming: Option<Box<super::ask::Resuming>>,
+    },
+    /// A card the defender played on a hit stopped to ask something: the blow put again with what it said.
+    Answered { attack: Box<super::blow::IncomingAttack>, was: Option<String> },
+    /// A card played on a miss stopped to ask something: the GM's turn goes on once it is done.
+    Dodged { was: Option<String> },
 }
 
 /// A conversation in progress.
@@ -204,7 +213,7 @@ impl Session {
 
     /// Use a thing with whoever is selected (`useSelectedOn`): one thing at a time, and only within reach.
     pub fn use_selected_on(&mut self, id: &str) -> Result<UseOutcome, String> {
-        if self.pending.is_some() {
+        if self.waiting() {
             return outcome("busy", Vec::new());
         }
         let Some(object) = interactables_of(&self.scene).into_iter().find(|t| text(t, "id") == id) else { return outcome("missing", Vec::new()) };
@@ -247,6 +256,11 @@ impl Session {
     /// Answer whatever a script is waiting for (`answerPending`). A conversation that opened a shop waits
     /// for the shop to be shut; one on top of the script takes the answer first.
     pub fn answer_pending(&mut self, response: &Value) -> Result<UseOutcome, String> {
+        if self.pending.is_none() {
+            if let Some(asked) = self.asked.take() {
+                return self.answer_asked(asked, response);
+            }
+        }
         let Some(mut waiting) = self.pending.take() else { return outcome("refused", Vec::new()) };
         if waiting.dialogue.is_some() && self.shop_open() {
             self.pending = Some(waiting);
@@ -278,7 +292,7 @@ impl Session {
             }
             RunStatus::Done => {
                 self.pending = None;
-                self.done(waiting.on_done.clone(), &waiting.runner)?;
+                self.done(std::mem::replace(&mut waiting.on_done, OnDone::Nothing), &waiting.runner)?;
                 self.settle_travel(lines)
             }
         }
@@ -295,7 +309,10 @@ impl Session {
             _ => Vec::new(),
         };
         if !groups.is_empty() && self.ask_defender {
-            return Err(not_yet("A card offered on a roll"));
+            let mut groups = groups;
+            let first = groups.remove(0);
+            self.ask_reaction(first, groups, None, Some(super::ask::Resuming { script: Box::new(waiting), said: Vec::new() }));
+            return outcome("waiting", Vec::new());
         }
         self.pending = Some(waiting);
         self.answer_pending(&json!({ "kind": "answered" }))
@@ -316,7 +333,19 @@ impl Session {
                 Ok(())
             }
             OnDone::Run { .. } | OnDone::Leap { .. } => self.finish(on_done, runner),
-            OnDone::Reaction { by, ability, landing, was } => self.reaction_done(&by, &ability, landing.map(|l| *l), was, runner),
+            OnDone::Reaction { by, ability, landing, was, queued, resuming } => self.reaction_done(&by, &ability, landing.map(|l| *l), was, queued, resuming.map(|r| *r), runner),
+            OnDone::Answered { attack, was } => {
+                self.world.scenario.actor_id = was;
+                self.answered_with(*attack, runner.entries())?;
+                if !self.waiting() && self.gm_turn.is_some() {
+                    self.run_gm_turn()?;
+                }
+                Ok(())
+            }
+            OnDone::Dodged { was } => {
+                self.world.scenario.actor_id = was;
+                self.run_gm_turn().map(|_| ())
+            }
             _ => Ok(()),
         }
     }
@@ -381,7 +410,7 @@ impl Session {
             }
             RunStatus::Done => {
                 self.pending = None;
-                self.done(waiting.on_done.clone(), &waiting.runner)?;
+                self.done(std::mem::replace(&mut waiting.on_done, OnDone::Nothing), &waiting.runner)?;
                 self.settle_travel(all)
             }
         }
@@ -450,8 +479,8 @@ impl Session {
     /// Act on a `goto` a script asked for, once the script has finished asking the player things
     /// (`settleTravel`).
     pub fn settle_travel(&mut self, lines: Vec<LogLine>) -> Result<UseOutcome, String> {
-        let Some(destination) = self.destination.clone().filter(|_| self.pending.is_none()) else {
-            return outcome(if self.pending.is_none() { "done" } else { "waiting" }, lines);
+        let Some(destination) = self.destination.clone().filter(|_| !self.waiting()) else {
+            return outcome(if self.waiting() { "waiting" } else { "done" }, lines);
         };
         let before = self.log.len();
         self.travel_to(&destination)?;
@@ -729,7 +758,7 @@ impl Session {
             }
         }
         if let Some(who) = who {
-            if self.talks.has(&who) && self.pending.is_none() {
+            if self.talks.has(&who) && !self.waiting() {
                 let waiting = self.take_aside(&who);
                 self.party.release(&who);
                 self.pending = Some(waiting.pending);

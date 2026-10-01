@@ -3,6 +3,7 @@
 //! being played, the party's sheets, the rooms visited, travel between them (`session`).
 
 pub mod answer;
+pub mod ask;
 pub mod blow;
 pub mod content;
 pub mod features;
