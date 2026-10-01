@@ -970,4 +970,46 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     walk into the ambush and try a walk, a use and a save on the way before the tokens arrive; the view
     records the ambush and the approach. `golden_walk.rs` replays them. 11 of 11 deliberate mutations of the
     timing fail it.
-  - **Next**: slice 3b - the board in the engine, and `WasmGame` beside `LocalGame`.
+  - **A game played in step beside the page's** (slice 3b, its first half). In development the page now
+    runs two games: its own, and the engine built to WebAssembly playing every intent beside it
+    (`Shadow.mirror`, `src/game/shadow.ts`), the two held to each other after each one - the intent's answer,
+    and the board.
+    - **The board, once** (`server/engine/src/game/board.rs`, `src/game/board.ts`): the replica snapshot, the
+      fight's view and log, the question open as the panel draws it (its kind and prompt; for a script, the
+      conversation - which dialogue, the node shown and its replies, a reply's roll, who is having it - and
+      whom or what it is with), the walk's held fight and errand, the log, the dice still to be shown, the
+      container open, the conversations set aside, and the dice's state.
+    - **Every intent by its name** (`server/engine/src/game/dispatch.rs`, `Session::dispatch`): what
+      `GameClient` calls, with its arguments read as the page passes them and its answer written in the
+      TypeScript's shape - walks, swings, the turn, the walk's timing, cards, things, answers, the selection
+      and the party's links and order, a walk cut short (`landWalkers`, each walker at the spot the page
+      drew), what a view drains, the container window (`closeContainer`, `sellTo`), the test driver's hands,
+      and how the game stands (`board`, `restoreRng`, `restoreWalk`). The page's engine and, in 3c, the
+      server's games both take intents through it. The kit's and the walk's replays now give theirs through
+      it too, so its reading and its answers are held to those fixtures as well.
+    - **Project code in the page's engine** (`server/wasm`'s `HostHooks`): the module imports `host.hook`,
+      which the page answers by running the hook in the prelude QuickJS runs it in on the server
+      (`server/hooks/src/prelude.js`, loaded `?raw`); the hook's reads come back in through `hook_read`, which
+      answers from the world the hook was lent - a slot it is held in for the hook's run, since `call` has
+      the game borrowed throughout - and through `answer_read`, now the engine's and shared with QuickJS.
+      The page never throws back into the module: a failing hook says so in its answer.
+    - **What the page's reads leave on the game, told too.** Some of the page's questions mark the game they
+      read: the bar's `abilityList` names the actor, a shop window drawn reads the seller's stock and so
+      makes the seller's state, the right-click card reads a thing's. The engine is asked the same
+      (`abilityList`, `readContainer`, `readThing`), for the mark, its answer not compared. And the
+      container window's take, sell and close - and its shutting out of reach - which reached past the seam
+      into the game, are intents now.
+    - **Brought into step** only between questions, which have no form to send: built with the page's
+      table (`animated`, `askDefender`), told the replica, the dice's state, the walk's fight and errand and
+      the open container. Where it parts it is out of step - the parting counted and reported to the
+      console as an error, so a spec that watches the console fails on it - until it can be brought in again.
+    - **Held**: `src/game/mirror.test.ts` plays the default project and the bar's workshop through
+      `LocalGame` with the very `.wasm` the page loads beside it - every member's coded cards (Mark the
+      Page, Rally the Line) and ground-aimed cards on purpose, then walks, swings, the GM's turn, things,
+      the party linked and set aside, the test driver's hands - and holds the partings to none and the
+      hooks' own lines to having been written. 9 of 9 deliberate mutations of the dispatcher, the board, the
+      face and the mirror fail it; 10 of 11 of the dispatcher's fail the kit's and walk's replays (the one
+      left, a card aimed at nobody, the mirror's harness catches). The whole e2e suite runs with the mirror
+      on: the dev server echoes the page's console, so a parting anywhere is in the run's log, and none is.
+  - **Next**: slice 3b's second half - `WasmGame`, the page playing the engine itself with `LocalGame`'s
+    board read from `Session::board` through a facade, behind a switch; then 3c, the server's games.

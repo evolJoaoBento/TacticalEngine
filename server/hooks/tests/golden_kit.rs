@@ -110,12 +110,9 @@ fn strings(value: &Value) -> Vec<String> {
     value.as_array().map_or(Vec::new(), |list| list.iter().filter_map(Value::as_str).map(str::to_string).collect())
 }
 
-/// `{ ok: true, <key>: value }` or `{ ok: false, reason }`, as the TypeScript answers.
-fn ok_or<T: serde::Serialize>(result: Result<T, String>, key: &str) -> Value {
-    match result {
-        Ok(value) => json!({ "ok": true, key: value }),
-        Err(reason) => json!({ "ok": false, "reason": reason }),
-    }
+/// An intent by the page's name for it, given through the dispatcher.
+fn call(session: &mut Session, at: &str, name: &str, args: Value) -> Value {
+    session.dispatch(name, args.as_array().unwrap()).unwrap_or_else(|e| panic!("{at}: {name}: {e}"))
 }
 
 #[test]
@@ -134,11 +131,10 @@ fn the_party_is_kitted_out_as_the_browser_kitted_it() {
             let since = session.log.len();
             let id = step["id"].as_str().unwrap_or_default();
             let item = step["item"].as_str().unwrap_or_default();
+            // Every intent the page names goes through the dispatcher, as the page's engine and the server's give it
+            // (`game/dispatch.rs`): its argument reading and its answers held to the TypeScript's here too.
             let result = match step["step"].as_str().unwrap() {
-                "give" => {
-                    session.world.add_item(item, step["count"].as_f64().unwrap());
-                    Value::Null
-                }
+                "give" => call(&mut session, &at, "giveItem", json!([item, step["count"]])),
                 "shop" => {
                     let shop = session.shop_of(id).expect("a shop");
                     let offers: Vec<Value> = strings(&step["items"]).iter().map(|i| json!(session.offer_for(&shop, i))).collect();
@@ -152,24 +148,21 @@ fn the_party_is_kitted_out_as_the_browser_kitted_it() {
                     })
                 }
                 "buy" => json!(session.buy_from(id, item)),
-                "take" => json!(session.take_from_container(id, item).unwrap_or_else(|e| panic!("{at}: {e}"))),
+                "take" => call(&mut session, &at, "takeFromContainer", json!([id, item])),
                 "sell" => json!(session.sell_to(id, item)),
-                "equip" => ok_or(session.equip_item(id, item), "slot"),
-                "unequip" => ok_or(session.unequip_item(id, step["slot"].as_str().unwrap()), "slot"),
+                "equip" => call(&mut session, &at, "equipItem", json!([id, item])),
+                "unequip" => call(&mut session, &at, "unequipItem", json!([id, step["slot"]])),
                 "gear" => json!({ "view": session.gear_view(id), "of": session.gear_of(id) }),
                 "card" => session.gear_card(item).unwrap_or(Value::Null),
                 "useItem" => {
                     done += 1;
-                    to(&session.use_item(item).unwrap_or_else(|e| panic!("{at}: {e}")))
+                    call(&mut session, &at, "useItem", json!([item]))
                 }
                 "loadout" => session.loadout_view(id),
-                "swap" => {
-                    let out = step["cardOut"].as_str();
-                    ok_or(session.swap_card(id, step["cardIn"].as_str().unwrap(), out, step["resting"] == true), "stress")
-                }
+                "swap" => call(&mut session, &at, "swapCard", json!([id, step["cardIn"], step["cardOut"], { "resting": step["resting"] }])),
                 "rest" => {
                     done += 1;
-                    ok_or(session.rest(step["kind"] == "long", &step["plan"]), "badGained")
+                    call(&mut session, &at, "rest", json!([step["kind"], step["plan"]]))
                 }
                 "statBlock" => json!(session.stat_block_cards(id)),
                 "grant" => {
@@ -177,28 +170,20 @@ fn the_party_is_kitted_out_as_the_browser_kitted_it() {
                     Value::Null
                 }
                 "awaiting" => json!(session.awaiting_level()),
-                "travel" => json!(session.travel_to(id).unwrap_or_else(|e| panic!("{at}: {e}"))),
+                "travel" => call(&mut session, &at, "travelTo", json!([id])),
                 "save" => {
                     saves += 1;
                     json!({ "blocked": session.save_blocked_by(), "save": session.save_game(), "text": session.serialise_save() })
                 }
-                "load" => {
-                    let loaded = match step["text"].as_str() {
-                        Some(text) => session.load_game_text(text),
-                        None => session.load_game(&step["save"]),
-                    };
-                    match loaded {
+                "load" => match step["text"].as_str() {
+                    Some(text) => call(&mut session, &at, "loadGameText", json!([text])),
+                    // A save as it stands is no intent the page gives: loaded as the TypeScript's `loadGame` is.
+                    None => match session.load_game(&step["save"]) {
                         Ok(()) => json!({ "ok": true }),
                         Err(reason) => json!({ "ok": false, "reason": reason }),
-                    }
-                }
-                "levelUp" => {
-                    let plan = serde_json::from_value(step["plan"].clone()).expect("a plan");
-                    match session.apply_level_up(id, &plan) {
-                        Ok(level) => json!({ "ok": true, "level": level }),
-                        Err(issues) => json!({ "ok": false, "issues": issues }),
-                    }
-                }
+                    },
+                },
+                "levelUp" => call(&mut session, &at, "applyLevelUp", json!([id, step["plan"]])),
                 "fell" => {
                     let body = session.world.state.entity_mut(id).expect("a member");
                     body.hit_points.marked = body.hit_points.max;
@@ -215,22 +200,16 @@ fn the_party_is_kitted_out_as_the_browser_kitted_it() {
                 }
                 "use" => {
                     session.ability_list(id);
-                    to(&session.use_ability(id, step["ability"].as_str().unwrap(), &strings(&step["targets"]), None).unwrap_or_else(|e| panic!("{at}: {e}")))
+                    call(&mut session, &at, "useAbility", json!([id, step["ability"], step["targets"]]))
                 }
-                "fight" => {
-                    session.start_encounter(id);
-                    Value::Null
-                }
-                "attack" => to(&session.attack_with_selected(id).unwrap_or_else(|e| panic!("{at}: {e}"))),
-                "endTurn" => json!(session.end_turn().unwrap_or_else(|e| panic!("{at}: {e}"))),
-                "move" => {
-                    let destination = step["destination"].as_i64().map_or(NO_TILE, |t| t as i32);
-                    to(&session.move_selected_to(destination, None).unwrap_or_else(|e| panic!("{at}: {e}")))
-                }
-                "answer" => to(&session.answer_pending(&step["response"]).unwrap_or_else(|e| panic!("{at}: {e}"))),
+                "fight" => call(&mut session, &at, "startEncounter", json!([id])),
+                "attack" => call(&mut session, &at, "attackWithSelected", json!([id])),
+                "endTurn" => call(&mut session, &at, "endTurn", json!([])),
+                "move" => call(&mut session, &at, "moveSelectedTo", json!([step["destination"].as_i64().unwrap_or(NO_TILE as i64)])),
+                "answer" => call(&mut session, &at, "answerPending", json!([step["response"]])),
                 "select" => {
-                    let next = session.party.select_next(&session.world.state);
-                    json!({ "selected": next, "moved": session.sync_talks() })
+                    let next = call(&mut session, &at, "selectNext", json!([]));
+                    json!({ "selected": next, "moved": call(&mut session, &at, "syncTalks", json!([])) })
                 }
                 other => panic!("{at}: a step nobody knows: {other}"),
             };

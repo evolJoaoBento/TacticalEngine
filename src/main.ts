@@ -2215,7 +2215,7 @@ const state = {
   clipOf: (id: string): string | null => view.clipOf(id),
   objectTile: (id: string): number => game.board.state.interactableTile(id),
   objectState: (id: string): { used: boolean; open: boolean; removed: boolean } => {
-    const s = game.board.state.interactable(id);
+    const s = game.thingState(id); // read through the seam: reading a thing's state makes it
     return { used: s.used, open: s.open, removed: s.removed };
   },
   useItem: (id: string): string => {

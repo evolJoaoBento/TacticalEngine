@@ -57,7 +57,8 @@ import { useItem } from './use-item';
 import { inspection } from './inspect';
 import { abilitiesOf, abilityList, abilityTargets, loadoutView, pointTiles, rest, shapeAt, swapCard, useAbility } from './demo-abilities';
 import { loadGameText, saveBlockedBy, serialiseSave } from './save';
-import { takeFromContainer, withinReach } from './prop-use';
+import { closeContainer, openContainer, takeFromContainer, withinReach } from './prop-use';
+import { sellTo } from './shop';
 import { syncTalks } from './talks';
 import { hoverLine } from './hover';
 import { steerStep } from './steer';
@@ -65,6 +66,7 @@ import { landWalkers } from './land';
 import { dropCard, type Drop } from './party-drop';
 import { carriedItems, containerView, hudMembers, journalEntries, talkingTo, talkingView } from './ui/play-views';
 import { shadowFor, type Shadow } from './shadow';
+import { userSettings } from './user-settings';
 
 /** What the board is: the game's state as the page reads it, every frame. */
 export type Board = Readonly<
@@ -133,6 +135,10 @@ export interface GameClient {
   unlink(id: string): boolean;
   /** A portrait dropped on another in the HUD: linked, or moved in the order. */
   dropCard(id: string, drop: Drop): boolean;
+  /** The container's window shut. */
+  closeContainer(): void;
+  /** One of something sold to a seller. */
+  sellTo(id: string, item: string): boolean;
   /** A walk cut short: everyone still walking put down where they are drawn, and who was. */
   landWalkers(view: Parameters<typeof landWalkers>[1]): string[];
   /** How everybody got where they are since the page last looked, taken off the queue. */
@@ -169,6 +175,8 @@ export interface GameClient {
   talkingView(): Answer<typeof talkingView>;
   talkingTo(): Answer<typeof talkingTo>;
   inspection(...args: After<typeof inspection>): Answer<typeof inspection>;
+  /** A thing's state: used, open, removed. Reading it makes it, as the game keeps things. */
+  thingState(id: string): { used: boolean; open: boolean; removed: boolean };
   reachableTiles(...args: After<typeof reachableTiles>): Answer<typeof reachableTiles>;
   underPressureTiles(): number[];
   previewWalk(...args: After<typeof previewWalk>): Answer<typeof previewWalk>;
@@ -217,6 +225,16 @@ export class LocalGame implements GameClient, LocalPowers {
     });
   }
 
+  /** For a test: a shadow given rather than fetched. */
+  shadowWith(shadow: Shadow): void {
+    this.shadow = shadow;
+  }
+
+  /** An intent: done, and - with a shadow - done in step in the engine too, the two held to each other. */
+  private did<T>(call: string, args: readonly unknown[], run: () => T, compare?: { answer: boolean }): T {
+    return this.shadow === null ? run() : this.shadow.mirror(call, args, run, compare);
+  }
+
   /** The game's answer - and, with a replica, the replica's beside it, any parting counted. */
   private asked<T>(question: string, asked: unknown, game: () => T, replica: Parameters<Shadow['check']>[3], seen?: (answer: T) => unknown): T {
     return this.shadow === null ? game() : this.shadow.check(question, asked, game, replica, seen);
@@ -226,39 +244,56 @@ export class LocalGame implements GameClient, LocalPowers {
     return this.demo;
   }
 
-  moveSelectedTo(...args: After<typeof moveSelectedTo>) { return moveSelectedTo(this.demo, ...args); }
-  attackWithSelected(...args: After<typeof attackWithSelected>) { return attackWithSelected(this.demo, ...args); }
-  endTurn() { return endTurn(this.demo); }
-  useAbility(...args: After<typeof useAbility>) { return useAbility(this.demo, ...args); }
-  answerPending(...args: After<typeof answerPending>) { return answerPending(this.demo, ...args); }
-  useSelectedOn(...args: After<typeof useSelectedOn>) { return useSelectedOn(this.demo, ...args); }
-  approachThenUse(...args: After<typeof approachThenUse>) { return approachThenUse(this.demo, ...args); }
-  arrived() { return arrived(this.demo); }
-  cancelApproach() { return cancelApproach(this.demo); }
-  arrive() { return arrive(this.demo); }
-  takeFromContainer(...args: After<typeof takeFromContainer>) { return takeFromContainer(this.demo, ...args); }
-  equipItem(...args: After<typeof equipItem>) { return equipItem(this.demo, ...args); }
-  unequipItem(...args: After<typeof unequipItem>) { return unequipItem(this.demo, ...args); }
-  useItem(...args: After<typeof useItem>) { return useItem(this.demo, ...args); }
-  swapCard(...args: After<typeof swapCard>) { return swapCard(this.demo, ...args); }
-  rest(...args: After<typeof rest>) { return rest(this.demo, ...args); }
-  applyLevelUp(...args: After<typeof applyLevelUp>) { return applyLevelUp(this.demo, ...args); }
-  travelTo(...args: After<typeof travelTo>) { return travelTo(this.demo, ...args); }
-  loadGameText(...args: After<typeof loadGameText>) { return loadGameText(this.demo, ...args); }
-  jumpTo(...args: After<typeof jumpTo>) { return jumpTo(this.demo, ...args); }
-  startEncounter(...args: After<typeof startEncounter>): void { startEncounter(this.demo, ...args); }
-  syncTalks() { return syncTalks(this.demo); }
-  note(text: string, tone: LogTone) { return note(this.demo, text, tone); }
-  select(id: string) { return this.demo.party.select(id); }
-  selectNext() { return this.demo.party.selectNext(); }
-  link(id: string, withId: string) { return this.demo.party.link(id, withId); }
-  unlink(id: string) { return this.demo.party.unlink(id); }
-  dropCard(id: string, drop: Drop) { return dropCard(this.demo.party, id, drop); }
-  landWalkers(view: Parameters<typeof landWalkers>[1]) { return landWalkers(this.demo.party, view); }
-  takeMotions() { return this.demo.motions.splice(0); }
-  takeFloaters() { return this.demo.floaters.splice(0); }
-  rollShown(id: number): void { this.demo.rolls = this.demo.rolls.filter((waiting) => waiting.id !== id); }
-  clearRolls(): void { this.demo.rolls.length = 0; }
+  moveSelectedTo(...args: After<typeof moveSelectedTo>) { return this.did('moveSelectedTo', args, () => moveSelectedTo(this.demo, ...args)); }
+  attackWithSelected(...args: After<typeof attackWithSelected>) { return this.did('attackWithSelected', args, () => attackWithSelected(this.demo, ...args)); }
+  endTurn() { return this.did('endTurn', [], () => endTurn(this.demo)); }
+  useAbility(...args: After<typeof useAbility>) { return this.did('useAbility', args, () => useAbility(this.demo, ...args)); }
+  answerPending(...args: After<typeof answerPending>) { return this.did('answerPending', args, () => answerPending(this.demo, ...args)); }
+  useSelectedOn(...args: After<typeof useSelectedOn>) { return this.did('useSelectedOn', args, () => useSelectedOn(this.demo, ...args)); }
+  approachThenUse(...args: After<typeof approachThenUse>) { return this.did('approachThenUse', args, () => approachThenUse(this.demo, ...args)); }
+  arrived() { return this.did('arrived', [], () => arrived(this.demo)); }
+  cancelApproach() { return this.did('cancelApproach', [], () => cancelApproach(this.demo)); }
+  arrive() { return this.did('arrive', [], () => arrive(this.demo)); }
+  takeFromContainer(...args: After<typeof takeFromContainer>) { return this.did('takeFromContainer', args, () => takeFromContainer(this.demo, ...args)); }
+  equipItem(...args: After<typeof equipItem>) { return this.did('equipItem', args, () => equipItem(this.demo, ...args)); }
+  unequipItem(...args: After<typeof unequipItem>) { return this.did('unequipItem', args, () => unequipItem(this.demo, ...args)); }
+  useItem(...args: After<typeof useItem>) { return this.did('useItem', args, () => useItem(this.demo, ...args)); }
+  swapCard(...args: After<typeof swapCard>) { return this.did('swapCard', args, () => swapCard(this.demo, ...args)); }
+  rest(...args: After<typeof rest>) { return this.did('rest', args, () => rest(this.demo, ...args)); }
+  applyLevelUp(...args: After<typeof applyLevelUp>) { return this.did('applyLevelUp', args, () => applyLevelUp(this.demo, ...args)); }
+  travelTo(...args: After<typeof travelTo>) { return this.did('travelTo', args, () => travelTo(this.demo, ...args)); }
+  loadGameText(...args: After<typeof loadGameText>) { return this.did('loadGameText', args, () => loadGameText(this.demo, ...args)); }
+  jumpTo(...args: After<typeof jumpTo>) {
+    // The player's "roll jumps automatically" is read inside the jump: the engine is told it.
+    const [id, destination, aim] = args;
+    return this.did('jumpTo', [id, destination, aim ?? null, userSettings().autoRollJumps], () => jumpTo(this.demo, ...args));
+  }
+  startEncounter(...args: After<typeof startEncounter>): void { this.did('startEncounter', args, () => { startEncounter(this.demo, ...args); return null; }); }
+  syncTalks() { return this.did('syncTalks', [], () => syncTalks(this.demo)); }
+  note(text: string, tone: LogTone) { return this.did('note', [text, tone], () => note(this.demo, text, tone)); }
+  select(id: string) { return this.did('select', [id], () => this.demo.party.select(id)); }
+  selectNext() { return this.did('selectNext', [], () => this.demo.party.selectNext()); }
+  link(id: string, withId: string) { return this.did('link', [id, withId], () => this.demo.party.link(id, withId)); }
+  unlink(id: string) { return this.did('unlink', [id], () => this.demo.party.unlink(id)); }
+  dropCard(id: string, drop: Drop) { return this.did('dropCard', [id, drop], () => dropCard(this.demo.party, id, drop)); }
+  landWalkers(view: Parameters<typeof landWalkers>[1]) {
+    // Where each walker is drawn is the page's to say: the engine is told every walker and the spot, at once.
+    const drawn = this.demo.party.members().filter((id) => view.isGliding(id)).map((id) => [id, view.spotOf(id)] as const).filter(([, at]) => at !== null);
+    return this.did('landWalkers', [drawn], () => landWalkers(this.demo.party, view));
+  }
+  closeContainer(): void { this.did('closeContainer', [], () => { closeContainer(this.demo); return null; }); }
+  sellTo(id: string, item: string) { return this.did('sellTo', [id, item], () => sellTo(this.demo, id, item)); }
+  takeMotions() { return this.did('takeMotions', [], () => this.demo.motions.splice(0)); }
+  takeFloaters() { return this.did('takeFloaters', [], () => this.demo.floaters.splice(0)); }
+  rollShown(id: number): void {
+    // The engine's dice have no ids: the one shown is told by where it stands in the queue.
+    const at = this.demo.rolls.findIndex((waiting) => waiting.id === id);
+    this.did('rollShownAt', [at], () => {
+      this.demo.rolls = this.demo.rolls.filter((waiting) => waiting.id !== id);
+      return null;
+    });
+  }
+  clearRolls(): void { this.did('clearRolls', [], () => { this.demo.rolls.length = 0; return null; }); }
   setDiceSpeed(millis: number): void { this.demo.diceMillis = Math.max(0, millis); }
 
   serialiseSave() { return serialiseSave(this.demo); }
@@ -267,10 +302,38 @@ export class LocalGame implements GameClient, LocalPowers {
   inCombat() { return inCombat(this.demo); }
   scriptPending() { return scriptPending(this.demo); }
   reachableInteractable() { return reachableInteractable(this.demo); }
-  containerView(...args: After<typeof containerView>) { return containerView(this.demo, ...args); }
+  containerView(...args: After<typeof containerView>) {
+    // What the window does is done through the seam - shut out of reach, a take, a sale, closing it - as a
+    // game played elsewhere is told it; the view itself is the page's own.
+    const [reach, refresh] = args;
+    const open = openContainer(this.demo);
+    if (open !== null && !reach(open)) this.closeContainer();
+    const view = containerView(this.demo, () => true, refresh);
+    if (view === null) return null;
+    // Drawing the window read what is in it, which makes a seller's state: the engine reads it too.
+    this.did('readContainer', [view.id], () => null);
+    return {
+      ...view,
+      onTake: (item: string) => {
+        this.takeFromContainer(view.id, item);
+        refresh();
+      },
+      onClose: () => {
+        this.closeContainer();
+        refresh();
+      },
+      ...(view.onSell === undefined ? {} : { onSell: (item: string) => {
+        this.sellTo(view.id, item);
+        refresh();
+      } }),
+    };
+  }
   withinReach(...args: After<typeof withinReach>) { return withinReach(this.demo, ...args); }
   abilitiesOf(...args: After<typeof abilitiesOf>) { return abilitiesOf(this.demo, ...args); }
-  abilityList(...args: After<typeof abilityList>) { return abilityList(this.demo, ...args); }
+  abilityList(...args: After<typeof abilityList>) {
+    // Read for the bar, it names the actor as it reads: the engine is asked it too, for the same mark.
+    return this.did('abilityList', args, () => abilityList(this.demo, ...args), { answer: false });
+  }
   abilityTargets(...args: After<typeof abilityTargets>) {
     const [id, ability] = args;
     return this.asked('targets', [id, ability.id], () => abilityTargets(this.demo, ...args), (e) => e.targets(id, ability.id));
@@ -292,7 +355,18 @@ export class LocalGame implements GameClient, LocalPowers {
   carriedItems() { return carriedItems(this.demo); }
   talkingView() { return talkingView(this.demo); }
   talkingTo() { return talkingTo(this.demo); }
-  inspection(...args: After<typeof inspection>) { return inspection(this.demo, ...args); }
+  inspection(...args: After<typeof inspection>) {
+    const [occupant, objectId] = args;
+    const facts = inspection(this.demo, ...args);
+    // A thing looked at had its state read, which makes it: the engine reads it too.
+    if (occupant === null && objectId !== null) this.did('readThing', [objectId], () => null);
+    return facts;
+  }
+  thingState(id: string) {
+    const state = this.demo.state.interactable(id);
+    this.did('readThing', [id], () => null);
+    return { used: state.used, open: state.open, removed: state.removed };
+  }
   reachableTiles(...args: After<typeof reachableTiles>) {
     const number = (n: number): number | null => (Number.isFinite(n) ? n : null);
     const drawn = (field: ReturnType<typeof reachableTiles>) => ({ start: field.start, budget: number(field.budget), tiles: field.tiles(), cost: field.tiles().map((t) => number(field.costTo(t))) });
@@ -340,32 +414,47 @@ export class LocalGame implements GameClient, LocalPowers {
     this.shadow?.projectChanged();
     syncAuthoredEncounters(this.demo);
   }
-  gatherParty(tile: number): void { gatherParty(this.demo, tile); }
-  placeAt(id: string, tile: number): void { this.demo.state.moveEntity(id, tile); }
+  gatherParty(tile: number): void {
+    // The editor's: the engine is not told of it, and is brought into step again after.
+    gatherParty(this.demo, tile);
+    this.shadow?.outOfStep();
+  }
+  placeAt(id: string, tile: number): void { this.did('placeAt', [id, tile], () => { this.demo.state.moveEntity(id, tile); return null; }); }
   setCards(id: string, cards: string[]): void {
-    const sheet = this.demo.sheets.get(id);
-    if (sheet === undefined) return;
-    const grown = { ...sheet, domainCards: cards };
-    delete (grown as { loadout?: readonly string[] }).loadout;
-    setSheet(this.demo, grown);
-    refreshWorld(this.demo);
+    this.did('setCards', [id, cards], () => {
+      const sheet = this.demo.sheets.get(id);
+      if (sheet === undefined) return null;
+      const grown = { ...sheet, domainCards: cards };
+      delete (grown as { loadout?: readonly string[] }).loadout;
+      setSheet(this.demo, grown);
+      refreshWorld(this.demo);
+      return null;
+    });
   }
   setGood(id: string, value: number): void {
-    const entity = this.demo.state.entity(id);
-    if (entity?.good === undefined) return;
-    entity.good = { max: entity.good.max, value: Math.max(0, Math.min(entity.good.max, value)) };
+    this.did('setGood', [id, value], () => {
+      const entity = this.demo.state.entity(id);
+      if (entity?.good !== undefined) entity.good = { max: entity.good.max, value: Math.max(0, Math.min(entity.good.max, value)) };
+      return null;
+    });
   }
   wound(id: string, marks: number): void {
-    const entity = this.demo.state.entity(id);
-    if (entity !== undefined) entity.hitPoints.marked = Math.min(entity.hitPoints.max, Math.max(0, marks));
+    this.did('wound', [id, marks], () => {
+      const entity = this.demo.state.entity(id);
+      if (entity !== undefined) entity.hitPoints.marked = Math.min(entity.hitPoints.max, Math.max(0, marks));
+      return null;
+    });
   }
   markStress(id: string, marks: number): void {
-    const entity = this.demo.state.entity(id);
-    if (entity !== undefined) entity.stress = { ...entity.stress, marked: Math.min(entity.stress.max, Math.max(0, marks)) };
+    this.did('markStress', [id, marks], () => {
+      const entity = this.demo.state.entity(id);
+      if (entity !== undefined) entity.stress = { ...entity.stress, marked: Math.min(entity.stress.max, Math.max(0, marks)) };
+      return null;
+    });
   }
   setCondition(id: string, condition: string, on: boolean): boolean {
-    return on ? this.demo.world.applyCondition(id, condition, 'scene') : this.demo.world.clearCondition(id, condition);
+    return this.did('setCondition', [id, condition, on], () => (on ? this.demo.world.applyCondition(id, condition, 'scene') : this.demo.world.clearCondition(id, condition)));
   }
-  giveItem(id: string, quantity: number): void { this.demo.world.addItem(id, quantity); }
-  grantLevel(level?: number): void { this.demo.world.grantLevel(level); }
+  giveItem(id: string, quantity: number): void { this.did('giveItem', [id, quantity], () => { this.demo.world.addItem(id, quantity); return null; }); }
+  grantLevel(level?: number): void { this.did('grantLevel', [level ?? null], () => { this.demo.world.grantLevel(level); return null; }); }
 }

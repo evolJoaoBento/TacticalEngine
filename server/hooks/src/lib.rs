@@ -14,7 +14,7 @@
 
 use engine::rng::Rng;
 use engine::script::conditions::HookReads;
-use engine::script::hooks::{CodeSource, HookIssue, HookReader, Hooks};
+use engine::script::hooks::{answer_read, CodeSource, HookIssue, HookReader, Hooks};
 use engine::script::runner::{HookRun, LastRoll};
 use rquickjs::{Context, Function, Runtime};
 use serde_json::{json, Value};
@@ -131,7 +131,7 @@ impl QuickJsHooks {
         let door: *mut (dyn HookReader + 'static) = unsafe { std::mem::transmute(door) };
         let host = move |name: String, args: String| {
             let world = unsafe { &mut *door };
-            answer(world, &name, &args)
+            answer_read(world, &name, &args)
         };
         let effect = rng.is_some();
         let seed = rng.as_ref().map_or(0, |r| r.save());
@@ -161,50 +161,6 @@ impl QuickJsHooks {
             queued: out["queued"].as_array().cloned().unwrap_or_default(),
         }
     }
-}
-
-/// A read, answered: the arguments as the hook passed them, the world's answer as JSON, or none for the
-/// `undefined` a selector of no kind the world knows comes back as.
-fn answer(world: &mut dyn HookReader, name: &str, args: &str) -> Option<String> {
-    let args: Vec<Value> = serde_json::from_str(args).unwrap_or_default();
-    let arg = |i: usize| args.get(i).cloned().unwrap_or(Value::Null);
-    // An id that is not a string names nobody, as a `Map` keyed by strings finds nothing for it.
-    let id = |i: usize| arg(i).as_str().map(str::to_string);
-    // What the TypeScript builds a key from, or indexes an object with, is read as text.
-    let text = |i: usize| match arg(i) {
-        Value::String(s) => s,
-        Value::Number(n) => engine::js::number_to_string(n.as_f64().unwrap_or(f64::NAN)),
-        Value::Null => "null".into(),
-        other => other.to_string(),
-    };
-    let out = match name {
-        "pool" => match id(0).map(|id| world.pool(&id, &text(1), &text(2))) {
-            None => Value::Null,
-            Some(Ok(value)) => json!(value),
-            Some(Err(message)) => json!({ "__thrown": "TypeError", "message": message }),
-        },
-        "hasCondition" => json!(id(0).is_some_and(|id| world.has_condition(&id, &text(1)))),
-        "bandTo" => match (id(0), id(1)) {
-            (Some(from), Some(to)) => json!(world.band_to(&from, &to)),
-            _ => Value::Null,
-        },
-        "difficultyOf" => json!(id(0).and_then(|id| world.difficulty_of(&id))),
-        "select" => {
-            const KINDS: [&str; 9] = ["actor", "party", "entity", "entities", "target", "hit", "allies", "inPath", "adversaries"];
-            let selector = arg(0);
-            if !selector.get("kind").and_then(Value::as_str).is_some_and(|k| KINDS.contains(&k)) {
-                return None;
-            }
-            json!(world.select(&selector))
-        }
-        "flag" => json!(id(0).is_some_and(|name| world.flag(&name))),
-        "variable" => world.variable(&text(0)),
-        "countAlive" => json!(id(0).map_or(0.0, |side| world.count_alive(&side))),
-        "factionOf" => json!(id(0).and_then(|id| world.faction_of(&id))),
-        "tokens" => json!(world.tokens(&text(0), &text(1))),
-        _ => return None,
-    };
-    Some(out.to_string())
 }
 
 impl Hooks for QuickJsHooks {

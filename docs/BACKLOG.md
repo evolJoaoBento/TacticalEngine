@@ -4,6 +4,14 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## A game played in step beside the page's — done
+
+In development every intent the page's game is given, the engine built to WebAssembly is given too
+(`Session::dispatch`), and the two are held to each other after each one - the answer and the board
+(`Session::board`). The project's own code runs in the page's engine through the same prelude QuickJS runs on
+the server. The whole e2e suite runs with it on and parts nowhere. Phase 3's slice 3b, first half; the second,
+`WasmGame` - the page playing the engine itself - is next.
+
 ## The Rust plays the page's timing — done
 
 `Session::animated` holds a fight a walk wakes until the tokens arrive, and a use or a talk until the walk up

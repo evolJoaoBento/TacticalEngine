@@ -6,15 +6,22 @@
 //! lent (`alloc`), hands it over (`call`), and reads the answer back (`answer_ptr`, the length `call` gave),
 //! all through `WebAssembly.instantiate`, in a browser or in Node alike. The message is one of
 //!
-//! - `{ "op": "build", "project", "shipped", "seed" }` - a game stood up from a project;
+//! - `{ "op": "build", "project", "shipped", "seed", "animated", "askDefender" }` - a game stood up from a
+//!   project, its walks drawn or not, its defender asked or not;
 //! - `{ "op": "restore", "replica" }` - told how the game stands;
+//! - `{ "op": "call", "call", "args" }` - an intent, by the page's name for it (`game/dispatch.rs`);
 //! - `{ "op": "ask", "ask": ..., ... }` - asked: `reach`, `pressure`, `preview` (`destination`, `aim`, `from`),
 //!   `targets`, `tiles` (`id`, `ability`), `shape` (`id`, `ability`, `tile`), `jumpOffered`, `jumpAim`,
 //!   `jumpReaches` (`id`, `destination`, `aim`);
 //!
-//! and the answer `{ "ok": <answer> }` or `{ "error": <why> }`. A project's hooks are not run here: a card
-//! whose aim waits on one (a `hook` condition) is answered as if the hook said no - which the page, asking the
-//! game too, sees.
+//! and the answer `{ "ok": <answer> }` or `{ "error": <why> }`.
+//!
+//! A project's hooks are the page's to run (`HostHooks`): the module imports one function, `host.hook`, which
+//! the page answers by running the hook's JavaScript in the same prelude QuickJS runs it in on the server
+//! (`server/hooks/src/prelude.js`), and a hook's reads of the world come back in through `hook_read`. That is
+//! a call into the module while it is still inside one, so the world the hook reads is not reached through
+//! the game - borrowed for the whole of `call` - but through a slot it is lent to for the hook's run alone.
+//! Built for anything but WebAssembly, nothing is imported and no hook is run.
 
 use engine::game::content::Shipped;
 use engine::game::session::{HooksFor, Session};
@@ -27,6 +34,119 @@ use std::rc::Rc;
 thread_local! {
     static GAME: RefCell<Option<Session>> = const { RefCell::new(None) };
     static ANSWER: RefCell<Vec<u8>> = const { RefCell::new(Vec::new()) };
+}
+
+#[cfg(target_arch = "wasm32")]
+mod host {
+    //! The page's half of a hook: its JavaScript run, and the world read back while it runs.
+
+    use engine::rng::Rng;
+    use engine::script::conditions::HookReads;
+    use engine::script::hooks::{answer_read, CodeSource, HookReader, Hooks};
+    use engine::script::runner::{HookRun, LastRoll};
+    use serde_json::{json, Value};
+    use std::cell::Cell;
+
+    #[link(wasm_import_module = "host")]
+    extern "C" {
+        /// Run a hook: `{ source, effect, reads, seed, last }` as JSON at `at`; the answer is the prelude's
+        /// JSON, length-prefixed (four bytes, little end first) in memory the page took from `alloc`.
+        fn hook(at: *const u8, len: usize) -> *mut u8;
+    }
+
+    thread_local! {
+        /// The world a running hook is lent, for `hook_read`; none between hooks.
+        static READER: Cell<Option<*mut (dyn HookReader + 'static)>> = const { Cell::new(None) };
+    }
+
+    /// A read a running hook makes (`ctx.pool`, `ctx.select`...): `{ name, args }` as JSON, answered into the
+    /// answer buffer - empty for the `undefined` a read can come to.
+    #[no_mangle]
+    pub unsafe extern "C" fn hook_read(at: *const u8, len: usize) -> usize {
+        let message: Value = serde_json::from_slice(std::slice::from_raw_parts(at, len)).unwrap_or(Value::Null);
+        let said = READER.with(|reader| match reader.get() {
+            // SAFETY: lent by `HostHooks::call` for the hook's run, during which the hook is the only one
+            // reading it, on this one thread; taken back before that call returns.
+            Some(world) => answer_read(unsafe { &mut *world }, message["name"].as_str().unwrap_or(""), &message["args"].to_string()),
+            None => None,
+        });
+        super::ANSWER.with(|out| {
+            *out.borrow_mut() = said.unwrap_or_default().into_bytes();
+            out.borrow().len()
+        })
+    }
+
+    /// Project code run by the page: every entry by its id, a later one replacing an earlier.
+    pub struct HostHooks {
+        code: Vec<(String, String)>,
+    }
+
+    impl HostHooks {
+        pub fn new(code: &[CodeSource]) -> HostHooks {
+            let mut kept: Vec<(String, String)> = Vec::new();
+            for entry in code {
+                match kept.iter_mut().find(|(id, _)| *id == entry.id) {
+                    Some(known) => known.1 = entry.source.clone(),
+                    None => kept.push((entry.id.clone(), entry.source.clone())),
+                }
+            }
+            HostHooks { code: kept }
+        }
+
+        fn call(&self, id: &str, reads: &HookReads, last_roll: Option<LastRoll>, rng: Option<&mut Rng>, world: &mut dyn HookReader) -> Value {
+            let Some(source) = self.code.iter().find(|(known, _)| known == id).map(|(_, s)| s.clone()) else {
+                return json!({ "ok": false, "message": format!("no hook \"{id}\"") });
+            };
+            let effect = rng.is_some();
+            let seed = rng.as_ref().map_or(0, |r| r.save());
+            let message = json!({
+                "source": source,
+                "effect": effect,
+                "reads": { "args": reads.args, "actor": reads.actor, "targets": reads.targets, "hit": reads.hit, "inCombat": reads.in_combat },
+                "seed": seed,
+                "last": last_roll,
+            })
+            .to_string();
+            let lent: *mut (dyn HookReader + '_) = world;
+            // SAFETY: the pointer is only read by `hook_read`, during the import's call below, while `world`
+            // is borrowed for the whole of this function; the slot is put back as it was before returning,
+            // so a hook a hook's read reaches lends its own world and gives it back.
+            let lent: *mut (dyn HookReader + 'static) = unsafe { std::mem::transmute(lent) };
+            let before = READER.with(|reader| reader.replace(Some(lent)));
+            let at = unsafe { hook(message.as_ptr(), message.len()) };
+            READER.with(|reader| reader.set(before));
+            let answer = unsafe {
+                let len = u32::from_le_bytes(std::slice::from_raw_parts(at, 4).try_into().expect("four bytes")) as usize;
+                let text: Value = serde_json::from_slice(std::slice::from_raw_parts(at.add(4), len)).unwrap_or_else(|e| json!({ "ok": false, "message": format!("the page's hook said no JSON: {e}") }));
+                super::free(at, len + 4);
+                text
+            };
+            if let (Some(rng), Some(state)) = (rng, answer["state"].as_u64()) {
+                rng.restore(state as u32);
+            }
+            answer
+        }
+    }
+
+    impl Hooks for HostHooks {
+        fn defined(&self, id: &str) -> bool {
+            self.code.iter().any(|(known, _)| known == id)
+        }
+
+        fn run(&self, id: &str, reads: &HookReads, world: &mut dyn HookReader) -> bool {
+            let answer = self.call(id, reads, None, None, world);
+            answer["ok"] == true && answer["value"] == true
+        }
+
+        fn run_effect(&self, id: &str, reads: &HookReads, last_roll: Option<LastRoll>, rng: &mut Rng, world: &mut dyn HookReader) -> HookRun {
+            let answer = self.call(id, reads, last_roll, Some(rng), world);
+            HookRun {
+                ok: answer["ok"] == true,
+                message: answer["message"].as_str().unwrap_or_default().to_string(),
+                queued: if answer["ok"] == true { answer["queued"].as_array().cloned().unwrap_or_default() } else { Vec::new() },
+            }
+        }
+    }
 }
 
 /// Lend the page `len` bytes to write a message into.
@@ -77,8 +197,17 @@ pub fn answer(message: &str) -> String {
     .to_string()
 }
 
-fn no_hooks() -> HooksFor {
-    Rc::new(|_: &[CodeSource]| -> Rc<dyn Hooks> { Rc::new(NoHooks) })
+/// A project's hooks: the page's to run, in WebAssembly; none anywhere else.
+fn hooks_for() -> HooksFor {
+    Rc::new(|code: &[CodeSource]| -> Rc<dyn Hooks> {
+        if code.is_empty() {
+            return Rc::new(NoHooks);
+        }
+        #[cfg(target_arch = "wasm32")]
+        return Rc::new(host::HostHooks::new(code));
+        #[cfg(not(target_arch = "wasm32"))]
+        Rc::new(NoHooks)
+    })
 }
 
 fn text<'a>(message: &'a Value, key: &str) -> Result<&'a str, String> {
@@ -104,7 +233,9 @@ fn respond(message: &Value) -> Result<Value, String> {
     match text(message, "op")? {
         "build" => {
             let shipped: Shipped = serde_json::from_value(message["shipped"].clone()).map_err(|e| format!("shipped: {e}"))?;
-            let session = Session::build(&message["project"], Rc::new(shipped), no_hooks(), text(message, "seed")?)?;
+            let mut session = Session::build(&message["project"], Rc::new(shipped), hooks_for(), text(message, "seed")?)?;
+            session.animated = message["animated"] == true;
+            session.ask_defender = message["askDefender"] == true;
             GAME.with(|game| *game.borrow_mut() = Some(session));
             Ok(Value::Null)
         }
@@ -113,6 +244,7 @@ fn respond(message: &Value) -> Result<Value, String> {
             let session = game.as_mut().ok_or("no game: build one first")?;
             match op {
                 "restore" => session.restore_replica(&message["replica"]).map(|()| Value::Null),
+                "call" => session.dispatch(text(message, "call")?, message["args"].as_array().map_or(&[][..], Vec::as_slice)),
                 "ask" => ask(session, message),
                 other => Err(format!("no op \"{other}\"")),
             }

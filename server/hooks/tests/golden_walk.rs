@@ -105,6 +105,11 @@ fn spot(value: &Value) -> Option<Spot> {
     value.is_object().then(|| from(value))
 }
 
+/// An intent by the page's name for it, given through the dispatcher (`game/dispatch.rs`).
+fn call(session: &mut Session, at: &str, name: &str, args: Value) -> Value {
+    session.dispatch(name, args.as_array().unwrap()).unwrap_or_else(|e| panic!("{at}: {name}: {e}"))
+}
+
 #[test]
 fn every_walk_is_walked_as_the_browser_walked_it() {
     let fixture = fixture("walk.json");
@@ -131,7 +136,7 @@ fn every_walk_is_walked_as_the_browser_walked_it() {
                     if step["probed"] == true {
                         session.aim_of_move(selected.as_deref().unwrap(), destination, aim, fighting);
                     }
-                    to(&session.move_selected_to(destination, aim).unwrap_or_else(|e| panic!("{at}: {e}")))
+                    call(&mut session, &at, "moveSelectedTo", json!([destination, step["aim"]]))
                 }
                 "preview" => to(&session.preview_walk(destination, aim.unwrap(), None)),
                 "reach" => {
@@ -143,7 +148,7 @@ fn every_walk_is_walked_as_the_browser_walked_it() {
                     held!(json!(session.under_pressure_tiles()), &step["pressure"], "{at}: under pressure");
                     reached
                 }
-                "approach" => json!(session.approach_then_use(step["id"].as_str().unwrap()).unwrap_or_else(|e| panic!("{at}: {e}"))),
+                "approach" => call(&mut session, &at, "approachThenUse", json!([step["id"]])),
                 "talk" => match step["actor"].as_str() {
                     None => Value::Null,
                     Some(actor) => to(&session.talk_to(actor, step["id"].as_str().unwrap()).unwrap_or_else(|e| panic!("{at}: {e}"))),
@@ -153,18 +158,18 @@ fn every_walk_is_walked_as_the_browser_walked_it() {
                     _ => Value::Null,
                 },
                 "previewStrike" => to(&session.preview_strike(step["id"].as_str().unwrap())),
-                "use" => to(&session.use_selected_on(step["id"].as_str().unwrap()).unwrap_or_else(|e| panic!("{at}: {e}"))),
-                "answer" => to(&session.answer_pending(&step["response"]).unwrap_or_else(|e| panic!("{at}: {e}"))),
-                "arrive" => json!(session.arrive()),
-                "arrived" => json!(session.arrived().unwrap_or_else(|e| panic!("{at}: {e}"))),
-                "cancel" => json!(session.cancel_approach()),
+                "use" => call(&mut session, &at, "useSelectedOn", json!([step["id"]])),
+                "answer" => call(&mut session, &at, "answerPending", json!([step["response"]])),
+                "arrive" => call(&mut session, &at, "arrive", json!([])),
+                "arrived" => call(&mut session, &at, "arrived", json!([])),
+                "cancel" => call(&mut session, &at, "cancelApproach", json!([])),
                 "saveBlocked" => json!(session.save_blocked_by()),
                 "select" => {
-                    let next = session.party.select_next(&session.world.state);
-                    held!(json!(next), &step["selected"], "{at}: selected");
-                    json!(session.sync_talks())
+                    let next = call(&mut session, &at, "selectNext", json!([]));
+                    held!(next, &step["selected"], "{at}: selected");
+                    call(&mut session, &at, "syncTalks", json!([]))
                 }
-                "travel" => json!(session.travel_to(step["scene"].as_str().unwrap()).expect("a room")),
+                "travel" => call(&mut session, &at, "travelTo", json!([step["scene"]])),
                 "close" => {
                     session.close_container();
                     Value::Null
@@ -179,7 +184,7 @@ fn every_walk_is_walked_as_the_browser_walked_it() {
                     }
                     match selected.as_deref() {
                         None => Value::Null,
-                        Some(id) => to(&session.jump_to(id, destination, aim, step["auto"] == true).unwrap_or_else(|e| panic!("{at}: {e}"))),
+                        Some(id) => call(&mut session, &at, "jumpTo", json!([id, destination, step["aim"], step["auto"] == true])),
                     }
                 }
                 "arc" => match selected.as_deref() {

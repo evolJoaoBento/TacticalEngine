@@ -89,6 +89,53 @@ pub trait Hooks {
     fn run_effect(&self, id: &str, reads: &HookReads, last_roll: Option<LastRoll>, rng: &mut Rng, world: &mut dyn HookReader) -> HookRun;
 }
 
+/// A hook's read, answered (`hookReads` in the prelude both hosts run): the arguments as the hook passed
+/// them, as JSON, and the world's answer as JSON - or none, for the `undefined` a selector of no kind the
+/// world knows comes back as. A read the world cannot make is `{ "__thrown": "TypeError", "message" }`,
+/// which the prelude throws where the hook made it. QuickJS on the server and the page's own JavaScript in
+/// front of the engine built to WebAssembly both answer through this.
+pub fn answer_read(world: &mut dyn HookReader, name: &str, args: &str) -> Option<String> {
+    let args: Vec<Value> = serde_json::from_str(args).unwrap_or_default();
+    let arg = |i: usize| args.get(i).cloned().unwrap_or(Value::Null);
+    // An id that is not a string names nobody, as a `Map` keyed by strings finds nothing for it.
+    let id = |i: usize| arg(i).as_str().map(str::to_string);
+    // What the TypeScript builds a key from, or indexes an object with, is read as text.
+    let text = |i: usize| match arg(i) {
+        Value::String(s) => s,
+        Value::Number(n) => crate::js::number_to_string(n.as_f64().unwrap_or(f64::NAN)),
+        Value::Null => "null".into(),
+        other => other.to_string(),
+    };
+    let out = match name {
+        "pool" => match id(0).map(|id| world.pool(&id, &text(1), &text(2))) {
+            None => Value::Null,
+            Some(Ok(value)) => serde_json::json!(value),
+            Some(Err(message)) => serde_json::json!({ "__thrown": "TypeError", "message": message }),
+        },
+        "hasCondition" => serde_json::json!(id(0).is_some_and(|id| world.has_condition(&id, &text(1)))),
+        "bandTo" => match (id(0), id(1)) {
+            (Some(from), Some(to)) => serde_json::json!(world.band_to(&from, &to)),
+            _ => Value::Null,
+        },
+        "difficultyOf" => serde_json::json!(id(0).and_then(|id| world.difficulty_of(&id))),
+        "select" => {
+            const KINDS: [&str; 9] = ["actor", "party", "entity", "entities", "target", "hit", "allies", "inPath", "adversaries"];
+            let selector = arg(0);
+            if !selector.get("kind").and_then(Value::as_str).is_some_and(|k| KINDS.contains(&k)) {
+                return None;
+            }
+            serde_json::json!(world.select(&selector))
+        }
+        "flag" => serde_json::json!(id(0).is_some_and(|name| world.flag(&name))),
+        "variable" => world.variable(&text(0)),
+        "countAlive" => serde_json::json!(id(0).map_or(0.0, |side| world.count_alive(&side))),
+        "factionOf" => serde_json::json!(id(0).and_then(|id| world.faction_of(&id))),
+        "tokens" => serde_json::json!(world.tokens(&text(0), &text(1))),
+        _ => return None,
+    };
+    Some(out.to_string())
+}
+
 /// A project with no code: nothing is defined.
 pub struct NoHooks;
 
