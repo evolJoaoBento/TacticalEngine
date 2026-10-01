@@ -15,6 +15,7 @@ pub mod log;
 pub mod movement;
 pub mod play;
 pub mod rules;
+pub mod save;
 pub mod session;
 pub mod swing;
 pub mod turn;

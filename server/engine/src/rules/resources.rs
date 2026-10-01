@@ -19,8 +19,9 @@ fn clamp(value: f64, min: f64, max: f64) -> f64 {
 /// A pool marked from empty.
 #[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct MarkPool {
-    pub marked: f64,
+    // In the order the TypeScript writes them, which a save's text keeps.
     pub max: f64,
+    pub marked: f64,
 }
 
 pub fn create_mark_pool(max: f64, marked: f64) -> MarkPool {
@@ -110,8 +111,9 @@ pub fn mark_hit_points(hit_points: &MarkPool, amount: f64) -> HitPointResult {
 /// Light or Shadow: gained and spent against a cap.
 #[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Currency {
-    pub value: f64,
+    // In the order the TypeScript writes them, which a save's text keeps.
     pub max: f64,
+    pub value: f64,
 }
 
 pub fn create_good(value: f64, max: f64) -> Currency {

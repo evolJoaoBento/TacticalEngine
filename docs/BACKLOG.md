@@ -4,12 +4,29 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## Phase 2 is done; phase 3 is designed
+
+Every rule the page runs is in Rust and held to a fixture: an audit of `src/game/` found what had no Rust
+function of its own name ported under another, and the rest the page's - a walk's timing, input, what is
+drawn. Phase 3 is designed in `docs/SERVER.md` ("Phase 3, designed"): a walk cut short is the client's to say,
+saves move to the server, a game outlives its socket for a while; where the right-click panel is worked
+out is still open.
+Its first slice is a TypeScript refactor: one `GameClient` interface between the page and the game.
+
+## Saves in Rust — done
+
+`server/engine/src/game/save.rs` saves and loads a campaign as the page does: the save's schema and the
+snapshots it carries, why a save is refused now, the campaign as it stands and as text, and putting it back -
+refusals first, an old save migrated at the door, a member the project does not list taken into it, the room
+entered as it was left, the dice put back. Held to `server/fixtures/kit.json`, which carries the saves. The
+six-part game layer is done; an audit of a few play functions closes phase 2, and phase 3's design is next.
+
 ## The kit in Rust — done
 
 `server/engine/src/game/kit.rs` runs what the party carries as the page does: the shops - buying, selling,
 what a seller pays, a limited line remembered - putting gear on and taking it off with the hands counted,
 the binder's cards, using an item, the loadout and the vault with a card recalled, rests short and long,
-and the cards a stat block prints. Held to `server/fixtures/kit.json`. Part 6a is done; 6b, saves, is next.
+the cards a stat block prints, and a level taken between fights. Held to `server/fixtures/kit.json`.
 
 ## The action bar in Rust — done
 

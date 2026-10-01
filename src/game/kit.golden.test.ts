@@ -5,7 +5,10 @@
  * `buyFrom`, `sellTo`, and a shop's wares taken through the container window), putting on and taking off
  * what it carries (`equipItem`, `unequipItem`, `gearOf`), the binder's cards (`gearCard`, `gearView`), using
  * an item (`useItem`), the cards a character has chosen (`loadoutView`, `swapCard`), rests (`rest`), and
- * what a stat block prints (`statBlockCards`) - with the fight going on around them. After each step its
+ * what a stat block prints (`statBlockCards`), a level granted and taken (`awaitingLevel`, `applyLevelUp`), and
+ * the campaign put down and picked up again (`saveBlockedBy`, `saveGame`, `serialiseSave`, `loadGame`,
+ * `loadGameText` - its own saves, older ones migrated, and saves refused) between rooms travelled to - with the
+ * fight going on around them. After each step its
  * answer and everything `fight.golden.test.ts` records, and every sheet's gear.
  * `UPDATE_GOLDEN=1 npx vitest run src/game/kit.golden.test.ts` writes `server/fixtures/kit.json`;
  * `server/hooks/tests/golden_kit.rs` replays it.
@@ -34,11 +37,14 @@ import { buyFrom, offerFor, purse, sellables, sellTo, shopContents, shopOf } fro
 import { containerContents, takeFromContainer } from './prop-use';
 import { useItem } from './use-item';
 import { DEMO_ADVERSARIES, DEMO_CHARACTERS } from './demo-rules';
-import { characterContentFor } from './room';
+import { characterContentFor, travelTo } from './room';
 import { startEncounter } from './movement';
 import { inCombat } from './moment';
 import { syncTalks } from './talks';
 import { loadoutOf, vaultOf } from '../engine/content/abilities';
+import type { Advancement, LevelUpPlan } from '../engine/character/progression';
+import { applyLevelUp, awaitingLevel } from './level-up';
+import { loadGame, loadGameText, saveBlockedBy, saveGame, serialiseSave, type SaveGame } from './save';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = resolve(here, '../../server/fixtures/kit.json');
@@ -69,13 +75,16 @@ function view(demo: DemoScene, since: number) {
     selected: demo.party.selected,
     bad: demo.state.bad,
     entities: demo.state.allEntities().map((x) => [x.id, x.faction, x.tile, x.at.x, x.at.y, x.alive, x.dead ?? null, x.hitPoints, x.stress, x.armorSlots, x.good ?? null, [...x.conditions], x.truce ?? null]),
-    sheets: [...demo.sheets.values()].map((s) => [s.id, s.loadout ?? null, s.primaryWeaponId ?? null, s.secondaryWeaponId ?? null, s.armorId ?? null]),
+    sheets: [...demo.sheets.values()].map((s) => [s.id, s.loadout ?? null, s.primaryWeaponId ?? null, s.secondaryWeaponId ?? null, s.armorId ?? null, s.level, s.domainCards, s.levels ?? null]),
     log: demo.log.slice(since),
     floaters: demo.floaters,
     motions: demo.motions,
     rolls: demo.rolls.map(({ who, what, roll }) => ({ who, what, roll })),
     things: demo.state.snapshot().interactables,
     scenario: scenarioSnapshot(demo.scenario),
+    rng: demo.rng.save(),
+    left: [...demo.snapshots.keys()],
+    party: demo.project.party.map((sheet) => sheet.id),
   });
   demo.floaters.length = 0;
   demo.motions.length = 0;
@@ -161,6 +170,24 @@ function perform(demo: DemoScene, step: Step): unknown {
       return rest(demo, s['kind'], s['plan']);
     case 'statBlock':
       return statBlockCards(demo, s['id']);
+    case 'grant':
+      demo.scenario.partyLevel = Math.max(demo.scenario.partyLevel, s['level']);
+      return null;
+    case 'travel':
+      return travelTo(demo, s['id']);
+    case 'save': {
+      const save = saveGame(demo);
+      if (save !== null) saved.set(demo, clone(save));
+      return { blocked: saveBlockedBy(demo), save, text: serialiseSave(demo) };
+    }
+    case 'load':
+      return s['text'] !== undefined ? loadGameText(demo, s['text']) : loadGame(demo, s['save']);
+    case 'awaiting':
+      return awaitingLevel(demo);
+    case 'levelUp': {
+      const result = applyLevelUp(demo, s['id'], s['plan']);
+      return result.ok ? result : { ok: false, issues: result.issues.map(({ field, message }) => ({ field, message })) };
+    }
     case 'fell': {
       const body = demo.state.entity(s['id'])!;
       body.hitPoints = { ...body.hitPoints, marked: body.hitPoints.max };
@@ -203,10 +230,10 @@ function pickStep(demo: DemoScene, g: Rng, pool: readonly string[]): Step {
   const anyItem = (): string => (carried.length > 0 && g.nextInt(3) > 0 ? g.pick(carried) : g.nextInt(8) === 0 ? 'no-such-item' : g.pick(pool));
   const shops = shopsOf(demo);
   const kinds = demo.pending !== null
-    ? (['answer', 'answer', 'answer', 'useItem', 'equip', 'swap', 'rest', 'gear'] as const)
+    ? (['answer', 'answer', 'answer', 'useItem', 'equip', 'swap', 'rest', 'gear', 'levelUp', 'save', 'load'] as const)
     : fighting
-      ? (['use', 'useItem', 'useItem', 'equip', 'equip', 'unequip', 'attack', 'endTurn', 'endTurn', 'select', 'rest', 'swap', 'gear', 'hurt'] as const)
-      : (['give', 'give', 'shop', 'buy', 'buy', 'take', 'sell', 'sell', 'equip', 'equip', 'equip', 'unequip', 'gear', 'card', 'useItem', 'useItem', 'loadout', 'swap', 'swap', 'rest', 'rest', 'statBlock', 'hurt', 'use', 'fight', 'select', 'move'] as const);
+      ? (['use', 'useItem', 'useItem', 'equip', 'equip', 'unequip', 'attack', 'endTurn', 'endTurn', 'select', 'rest', 'swap', 'gear', 'hurt', 'levelUp', 'save', 'load'] as const)
+      : (['save', 'save', 'load', 'load', 'travel', 'grant', 'awaiting', 'levelUp', 'levelUp', 'levelUp', 'give', 'give', 'shop', 'buy', 'buy', 'take', 'sell', 'sell', 'equip', 'equip', 'equip', 'unequip', 'gear', 'card', 'useItem', 'useItem', 'loadout', 'swap', 'swap', 'rest', 'rest', 'statBlock', 'hurt', 'use', 'fight', 'select', 'move'] as const);
   const kind = g.pick(kinds);
   switch (kind) {
     case 'give':
@@ -266,6 +293,25 @@ function pickStep(demo: DemoScene, g: Rng, pool: readonly string[]): Step {
       }
       return { step: kind, kind: g.nextInt(2) === 0 ? 'short' : 'long', plan };
     }
+    case 'travel': {
+      const elsewhere = demo.project.scenes.map((scene) => scene.id).filter((id) => id !== demo.scene.id);
+      return { step: kind, id: elsewhere.length === 0 || g.nextInt(6) === 0 ? 'nowhere' : g.pick(elsewhere) };
+    }
+    case 'save':
+      return { step: kind };
+    case 'load':
+      return loadStep(demo, g);
+    case 'grant':
+      return { step: kind, level: Math.min(10, demo.scenario.partyLevel + (g.nextInt(3) === 0 ? 2 : 1)) };
+    case 'awaiting':
+      return { step: kind };
+    case 'levelUp': {
+      const waiting = awaitingLevel(demo);
+      // With nobody waiting, a level is granted first - else nearly every level taken is refused for it.
+      if (waiting.length === 0 && !fighting && demo.pending === null && demo.scenario.partyLevel < 10 && g.nextInt(4) > 0) return { step: 'grant', level: demo.scenario.partyLevel + 1 };
+      const id = waiting.length > 0 && g.nextInt(5) > 0 ? g.pick(waiting) : g.pick([...members, 'nobody']);
+      return { step: kind, id, plan: planFor(demo, g, id) };
+    }
     case 'statBlock':
       return { step: kind, id: g.pick([...DEMO_ADVERSARIES.keys(), ...demo.project.adversaries.map((a) => a.id), 'nobody']) };
     case 'hurt':
@@ -298,6 +344,93 @@ function pickStep(demo: DemoScene, g: Rng, pool: readonly string[]): Step {
   }
 }
 
+/**
+ * A plan for somebody's next level: two boxes from the common options, a card from their class's domains at a
+ * level they may take it - now and then one too high, a box twice, or a box off the sheet, for the issues.
+ */
+function planFor(demo: DemoScene, g: Rng, id: string): LevelUpPlan {
+  const sheet = demo.sheets.get(id);
+  const content = characterContentFor(demo.project);
+  const next = (sheet?.level ?? 1) + 1;
+  const domains = sheet === undefined ? [] : (content.classes.get(sheet.classId)?.domains ?? []);
+  const held = new Set(sheet?.domainCards ?? []);
+  const cards = [...content.cards.values()].filter((c) => c.grant.kind === 'chosen' && c.domain !== undefined && domains.includes(c.domain) && !held.has(c.id));
+  const fitting = cards.filter((c) => (c.level ?? 1) <= next);
+  const card = (g.nextInt(6) === 0 || fitting.length === 0 ? (cards.length > 0 ? g.pick(cards) : null) : g.pick(fitting))?.id ?? 'no-such-card';
+  const traits = ['agility', 'strength', 'finesse', 'instinct', 'presence', 'knowledge'] as const;
+  const box = (): Advancement => {
+    const pick = g.nextInt(10);
+    if (pick < 3) {
+      const a = g.pick(traits);
+      const b = g.pick(traits.filter((x) => x !== a));
+      return { kind: 'traits', traits: [a, b] };
+    }
+    if (pick < 5) return { kind: 'hitPoint' };
+    if (pick < 7) return { kind: 'stress' };
+    if (pick < 8) return { kind: 'evasion' };
+    if (pick < 9) return next >= 5 || g.nextInt(4) === 0 ? { kind: 'proficiency' } : { kind: 'evasion' };
+    return { kind: 'experiences', names: ['Vault-born', 'Road-worn'] };
+  };
+  const advancements = g.nextInt(8) === 0 ? [box()] : [box(), box()];
+  // An Experience where the level grants one, and now and then where it does not, or none where it does.
+  const named = [2, 5, 8].includes(next) !== (g.nextInt(8) === 0);
+  return { advancements, domainCard: card, ...(named ? { experience: { name: 'Lessons learned', modifier: 2 } } : {}) };
+}
+
+/** The last save each session made, to be loaded again - whole, or spoiled one way or another. */
+const saved = new WeakMap<DemoScene, SaveGame>();
+
+/**
+ * A save to load: the session's own last save as text or as it stands, an older one migrated on the way in,
+ * one with somebody in it the project does not list, or one refused - not a save at all, from a newer build, another project's, a room it does not hold, a room
+ * the project has not got, a sheet naming gear nobody has.
+ */
+const VARIANTS = ['own', 'own', 'own', 'object', 'object', 'old', 'joiner', 'garbage', 'newer', 'other', 'missing', 'unknown', 'sheet'] as const;
+type Variant = (typeof VARIANTS)[number];
+
+function loadStep(demo: DemoScene, g: Rng, chosen?: Variant): Step {
+  const last = saved.get(demo);
+  if (last === undefined) return g.nextInt(2) === 0 ? { step: 'load', text: 'not a save {' } : { step: 'save' };
+  const save = clone(last);
+  const variant = chosen ?? g.pick(VARIANTS);
+  switch (variant) {
+    case 'own':
+      return { step: 'load', text: JSON.stringify(save) };
+    case 'object':
+      return { step: 'load', save };
+    case 'old': {
+      // From before a room said its size: version 5 gives the vault the width it had then.
+      const scenes = Object.fromEntries(Object.entries(save.scenes).map(([id, scene]) => {
+        const { room: _room, ...rest } = scene;
+        return [id, id === 'the-husk-vault' ? rest : scene];
+      }));
+      return { step: 'load', text: JSON.stringify({ ...save, formatVersion: 4, scenes }) };
+    }
+    case 'joiner': {
+      // Somebody who joined after the project was written, and was saved with the party.
+      const first = save.sheets[0];
+      const sheets = first === undefined ? save.sheets : [...save.sheets, { ...first, id: 'kit-joiner', name: 'Joiner' }];
+      return { step: 'load', text: JSON.stringify({ ...save, sheets }) };
+    }
+    case 'garbage':
+      return { step: 'load', text: JSON.stringify({ ...save, rng: 'seven' }) };
+    case 'newer':
+      return { step: 'load', text: JSON.stringify({ ...save, formatVersion: 99 }) };
+    case 'other':
+      return { step: 'load', text: JSON.stringify({ ...save, projectId: 'somebody-elses' }) };
+    case 'missing':
+      return { step: 'load', save: { ...save, sceneId: 'a-room-not-saved' } };
+    case 'unknown': {
+      const scenes = { ...save.scenes, 'a-room-since-deleted': save.scenes[save.sceneId]! };
+      return { step: 'load', save: { ...save, sceneId: 'a-room-since-deleted', scenes } };
+    }
+    case 'sheet': {
+      const sheets = save.sheets.map((sheet, at) => (at === 0 ? { ...sheet, primaryWeaponId: 'no-such-weapon' } : sheet));
+      return { step: 'load', text: JSON.stringify({ ...save, sheets }) };
+    }
+  }
+}
+
 // --- A session ---------------------------------------------------------------------------------------------
 
 /** The items worth carrying about: what the shops stock, gear of each kind, the workshop's own. */
@@ -319,7 +452,9 @@ function session(g: Rng, name: string, project: number, input: ProjectDoc, lengt
   const pool = poolOf(demo.project);
   const start = view(demo, 0);
   const steps: unknown[] = [];
-  const take = (step: Step): void => {
+  const take = (planned: Step): void => {
+    // A tour's load names its variant; the save it spoils is whatever was saved last.
+    const step = planned.step === 'load' && planned['variant'] !== undefined ? loadStep(demo, g, planned['variant'] as Variant) : planned;
     const since = demo.log.length;
     const result = perform(demo, step);
     steps.push({ ...step, result: clone(result), after: view(demo, since) });
@@ -347,6 +482,11 @@ function tourOf(demo: DemoScene): Step[] {
   const firstCards = demo.characters.get(first)!.cards.map((c) => c.id);
   const vaulted = vaultOf(demo.characters.get(first)!);
   const wearing = itemForGear(demo, demo.sheets.get(first)!.armorId)!.id;
+  // A card the first may take at level 2: a chosen card of their class's domains, not held, level 1 or 2.
+  const kara = demo.sheets.get(first)!;
+  const theirs = content.classes.get(kara.classId)!.domains;
+  const card = [...content.cards.values()].find((c) => c.grant.kind === 'chosen' && c.domain !== undefined && theirs.includes(c.domain) && (c.level ?? 1) <= 2 && !(kara.domainCards ?? []).includes(c.id))!.id;
+  const hitAndRun: LevelUpPlan = { advancements: [{ kind: 'hitPoint' }, { kind: 'traits', traits: ['strength', 'agility'] }], domainCard: card, experience: { name: 'Vault-born', modifier: 2 } };
   return [
     { step: 'shop', id: 'kit-stall', items: ['kit-scroll', big, 'gold', 'husk-carapace'] },
     { step: 'give', item: 'gold', count: 3 },
@@ -389,10 +529,20 @@ function tourOf(demo: DemoScene): Step[] {
     { step: 'useItem', item: 'kit-salve' },
     { step: 'useItem', item: 'kit-scroll' },
     { step: 'useItem', item: 'kit-salve' },
+    { step: 'save' },
     { step: 'equip', id: first, item: shield },
     { step: 'swap', id: first, cardIn: vaulted[0] ?? firstCards[0]!, cardOut: null, resting: false },
     { step: 'rest', kind: 'short', plan: { moves: {} } },
+    { step: 'grant', level: 2 },
+    { step: 'levelUp', id: first, plan: hitAndRun },
     { step: 'answer', response: { kind: 'roll' } },
+    { step: 'awaiting' },
+    { step: 'hurt', id: first, hp: 2, stress: 1, armor: 1 },
+    { step: 'levelUp', id: first, plan: hitAndRun },
+    { step: 'levelUp', id: first, plan: hitAndRun },
+    { step: 'levelUp', id: 'nobody', plan: hitAndRun },
+    { step: 'levelUp', id: second, plan: { advancements: [{ kind: 'proficiency' }, { kind: 'hitPoint' }], domainCard: 'no-such-card' } },
+    { step: 'awaiting' },
     { step: 'loadout', id: first },
     { step: 'hurt', id: first, hp: 0, stress: 9, armor: 0 },
     { step: 'swap', id: first, cardIn: vaulted[0] ?? firstCards[0]!, cardOut: firstCards[0]!, resting: false },
@@ -417,14 +567,35 @@ function tourOf(demo: DemoScene): Step[] {
     { step: 'fell', id: second },
     { step: 'rest', kind: 'short', plan: { moves: { [first]: [{ kind: 'tendWounds', target: second }] } } },
     { step: 'statBlock', id: 'hollow-knight' },
+    ...Array.from({ length: 40 }, () => ({ step: 'rest', kind: 'short', plan: { moves: { [first]: [{ kind: 'prepare' }, { kind: 'clearStress' }] } } })),
+    { step: 'save' },
+    { step: 'travel', id: 'the-pit' },
+    { step: 'give', item: 'gold', count: 9 },
+    { step: 'save' },
+    { step: 'travel', id: 'the-husk-vault' },
+    { step: 'travel', id: 'the-husk-vault' },
+    { step: 'travel', id: 'nowhere' },
+    { step: 'load', text: 'not a save {' },
+    ...(['garbage', 'newer', 'other', 'missing', 'unknown', 'sheet', 'old', 'object', 'joiner', 'own'] as const).map((variant) => ({ step: 'load', variant })),
+    { step: 'travel', id: 'the-pit' },
+    { step: 'save' },
+    { step: 'travel', id: 'the-husk-vault' },
+    { step: 'load', variant: 'own' },
     { step: 'fight', id: 'group-1' },
+    { step: 'save' },
     { step: 'equip', id: first, item: 'armor-gambeson-armor' },
     { step: 'give', item: 'armor-gambeson-armor', count: 1 },
     { step: 'equip', id: first, item: 'armor-gambeson-armor' },
     { step: 'unequip', id: first, slot: 'armor' },
     { step: 'rest', kind: 'long', plan: { moves: {} } },
+    { step: 'grant', level: 3 },
+    { step: 'levelUp', id: first, plan: hitAndRun },
+    { step: 'levelUp', id: second, plan: { advancements: [{ kind: 'stress' }, { kind: 'evasion' }], domainCard: card, experience: { name: 'Old roads', modifier: 2 } } },
+    { step: 'give', item: 'kit-salve', count: 2 },
     { step: 'useItem', item: 'kit-salve' },
     { step: 'useItem', item: 'kit-salve' },
+    // A load in the middle of a fight ends it: the room is entered as the save left it.
+    { step: 'load', variant: 'own' },
   ];
 }
 
@@ -464,7 +635,10 @@ function workshop(base: ProjectDoc): ProjectDoc {
     { id: 'kit-roared', name: 'roar', source: { card: 'kit-roar' }, text: 'It roars, and the room shakes.', kind: 'passive', effects: [] },
   );
   // More cards than a loadout takes, and some chosen already.
-  const chosen = ['grapeshot', 'powder-and-shot', 'footnote', 'mark-the-page', 'another-round', 'barrel-through', 'bare-bones', 'a-soldiers-bond'];
+  // The project's own, then a few more its content has - cards a saved sheet can name and still load.
+  const own = ['grapeshot', 'powder-and-shot', 'footnote', 'mark-the-page', 'another-round', 'barrel-through'];
+  const more = [...characterContentFor(project).cards.values()].filter((c) => c.grant.kind === 'chosen' && !own.includes(c.id)).slice(0, 2).map((c) => c.id);
+  const chosen = [...own, ...more];
   project.party.forEach((sheet, at) => {
     const own = sheet as unknown as Record<string, unknown>;
     own['domainCards'] = chosen.slice(at % 2, at % 2 + 6 + (at % 3));

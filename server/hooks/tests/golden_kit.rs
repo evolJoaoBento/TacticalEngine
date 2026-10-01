@@ -1,6 +1,6 @@
 //! `server/fixtures/kit.json` replayed: what the TypeScript's party bought and sold, put on and took off, used
-//! from its pack, recalled from the vault and rested - the shops, the binder's cards, the loadout and what a
-//! stat block prints as they stood - with the fight going on around it, played again by a Rust session with
+//! from its pack, recalled from the vault, rested and levelled, the campaign saved and loaded between rooms -
+//! the shops, the binder's cards, the loadout, what a stat block prints and the saves as they stood - with the fight going on around it, played again by a Rust session with
 //! the project's hooks compiled in QuickJS, step for step.
 
 #[path = "../../engine/tests/support/world.rs"]
@@ -80,7 +80,7 @@ fn view(session: &mut Session, since: usize) -> Value {
         .iter()
         .map(|e| json!([e.id, e.faction, e.tile, e.at.x, e.at.y, e.alive, e.dead, e.hit_points, e.stress, e.armor_slots, e.good, e.conditions, e.truce]))
         .collect();
-    let sheets: Vec<Value> = session.sheets.entries().iter().map(|(id, s)| json!([id, s.loadout, s.primary_weapon_id, s.secondary_weapon_id, s.armor_id])).collect();
+    let sheets: Vec<Value> = session.sheets.entries().iter().map(|(id, s)| json!([id, s.loadout, s.primary_weapon_id, s.secondary_weapon_id, s.armor_id, s.level, s.domain_cards, s.levels])).collect();
     let seen = json!({
         "scene": session.scene["id"],
         "fight": fight,
@@ -89,12 +89,16 @@ fn view(session: &mut Session, since: usize) -> Value {
         "bad": to(&state.bad),
         "entities": entities,
         "sheets": sheets,
-        "log": to(&session.log[since..].to_vec()),
+        // A load puts back a shorter log than the one it replaced.
+        "log": to(&session.log[since.min(session.log.len())..].to_vec()),
         "floaters": to(&session.floaters),
         "motions": session.motions,
         "rolls": to(&session.rolls),
         "things": state.snapshot()["interactables"],
         "scenario": session.world.scenario.snapshot(),
+        "rng": session.rng.save(),
+        "left": session.snapshots.entries().iter().map(|(id, _)| id.clone()).collect::<Vec<_>>(),
+        "party": session.project["party"].as_array().map_or(Vec::new(), |party| party.iter().map(|s| s["id"].clone()).collect()),
     });
     session.floaters.clear();
     session.motions.clear();
@@ -119,7 +123,7 @@ fn the_party_is_kitted_out_as_the_browser_kitted_it() {
     let fixture = fixture("kit.json");
     let shipped: Rc<Shipped> = Rc::new(from(&fixture["shipped"]));
     let projects = fixture["projects"].as_array().unwrap();
-    let (mut steps, mut done) = (0, 0);
+    let (mut steps, mut done, mut saves) = (0, 0, 0);
     for played in fixture["sessions"].as_array().unwrap() {
         let name = played["name"].as_str().unwrap();
         let project = &projects[played["project"].as_u64().unwrap() as usize];
@@ -168,6 +172,33 @@ fn the_party_is_kitted_out_as_the_browser_kitted_it() {
                     ok_or(session.rest(step["kind"] == "long", &step["plan"]), "badGained")
                 }
                 "statBlock" => json!(session.stat_block_cards(id)),
+                "grant" => {
+                    session.world.scenario.party_level = session.world.scenario.party_level.max(step["level"].as_f64().unwrap());
+                    Value::Null
+                }
+                "awaiting" => json!(session.awaiting_level()),
+                "travel" => json!(session.travel_to(id).unwrap_or_else(|e| panic!("{at}: {e}"))),
+                "save" => {
+                    saves += 1;
+                    json!({ "blocked": session.save_blocked_by(), "save": session.save_game(), "text": session.serialise_save() })
+                }
+                "load" => {
+                    let loaded = match step["text"].as_str() {
+                        Some(text) => session.load_game_text(text),
+                        None => session.load_game(&step["save"]),
+                    };
+                    match loaded {
+                        Ok(()) => json!({ "ok": true }),
+                        Err(reason) => json!({ "ok": false, "reason": reason }),
+                    }
+                }
+                "levelUp" => {
+                    let plan = serde_json::from_value(step["plan"].clone()).expect("a plan");
+                    match session.apply_level_up(id, &plan) {
+                        Ok(level) => json!({ "ok": true, "level": level }),
+                        Err(issues) => json!({ "ok": false, "issues": issues }),
+                    }
+                }
                 "fell" => {
                     let body = session.world.state.entity_mut(id).expect("a member");
                     body.hit_points.marked = body.hit_points.max;
@@ -203,10 +234,23 @@ fn the_party_is_kitted_out_as_the_browser_kitted_it() {
                 }
                 other => panic!("{at}: a step nobody knows: {other}"),
             };
-            held!(result, &step["result"], "{at}");
+            // A save's text is held as what it says, not byte for byte: the TypeScript keeps the key order a
+            // loaded save's schema read its rooms in, which a room of structs does not remember. What the
+            // text must not do is write a whole number as JavaScript never would.
+            let mut result = result;
+            if let Some(text) = result["text"].as_str().filter(|_| step["step"] == "save").map(str::to_string) {
+                let whole_as_float = text.as_bytes().windows(3).any(|w| w[0] == b'.' && w[1] == b'0' && matches!(w[2], b',' | b'}' | b']'));
+                assert!(!whole_as_float, "{at}: a whole number written with .0");
+                result["text"] = serde_json::from_str(&text).expect("a save reads");
+            }
+            let mut wanted = step["result"].clone();
+            if let Some(text) = wanted["text"].as_str().filter(|_| step["step"] == "save").map(str::to_string) {
+                wanted["text"] = serde_json::from_str(&text).expect("a save reads");
+            }
+            held!(result, &wanted, "{at}");
             held!(view(&mut session, since), &step["after"], "{at}: after");
             steps += 1;
         }
     }
-    assert!(steps > 700 && done > 100, "{steps} {done}");
+    assert!(steps > 700 && done > 100 && saves > 40, "{steps} {done} {saves}");
 }

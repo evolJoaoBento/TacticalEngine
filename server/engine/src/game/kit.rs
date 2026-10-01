@@ -1,13 +1,14 @@
 //! What the party carries and how it is kitted out: the shops (`game/shop.ts` - a seller's stock, buying,
 //! what it pays, selling), wielding and wearing (`game/equip.ts`), the binder's cards (`game/gear.ts`),
 //! using an item (`game/use-item.ts`), and the cards a character has chosen - the loadout and the vault, a
-//! card recalled, a rest (`game/demo-abilities.ts`) - and the cards a stat block prints.
+//! card recalled, a rest (`game/demo-abilities.ts`) - the cards a stat block prints, and a level taken
+//! between fights (`game/level-up.ts`).
 
 use super::content::{abilities_of, character_content_for, item_of, items_for, ItemName};
 use super::log::{name_of, note};
 use super::play::{OnDone, PendingScript, UseOutcome};
 use super::session::Session;
-use crate::character::progression::tier_of;
+use crate::character::progression::{level_up, tier_of, LevelUpIssue, LevelUpPlan};
 use crate::character::sheet::{granted_cards, lent_cards, CharacterSheet, DerivedCharacter};
 use crate::content::abilities::{grant_rank, loadout_of, LOADOUT_LIMIT};
 use crate::content::pack::{ArmorDef, CardDef, CardGrant, ContentPack, WeaponDef};
@@ -713,6 +714,36 @@ impl Session {
         self.world.state.bad = gained.currency;
         note(self, &format!("The GM gains {} Shadow.", js::number_to_string(gained.applied)), "bad");
         Ok(gained.applied)
+    }
+
+    // ---- a level -----------------------------------------------------------------------------------------
+
+    /// Party members whose sheet is below the level the party has been granted (`awaitingLevel`).
+    pub fn awaiting_level(&self) -> Vec<String> {
+        self.sheets.entries().iter().filter(|(_, s)| s.level < self.world.scenario.party_level).map(|(id, _)| id.clone()).collect()
+    }
+
+    /// Take a level for one character (`applyLevelUp`): the plan checked whole, the sheet replaced, the pools
+    /// grown to match - new slots unmarked, nothing marked cleared. The level reached, or what is wrong.
+    pub fn apply_level_up(&mut self, id: &str, plan: &LevelUpPlan) -> Result<f64, Vec<LevelUpIssue>> {
+        let Some(sheet) = self.sheets.get(id).cloned() else { return Err(vec![LevelUpIssue { field: "character", message: format!("no character \"{id}\"") }]) };
+        if sheet.level >= self.world.scenario.party_level {
+            return Err(vec![LevelUpIssue { field: "level", message: "no level-up waiting".into() }]);
+        }
+        if self.in_combat() || self.waiting() {
+            return Err(vec![LevelUpIssue { field: "level", message: "not in the middle of a fight or a conversation".into() }]);
+        }
+        let next = level_up(&sheet, &character_content_for(self.shipped(), &self.project), plan)?;
+        self.set_sheet(next.clone()).map_err(|message| vec![LevelUpIssue { field: "sheet", message }])?;
+        let derived = self.characters.get(id).expect("derived").clone();
+        if let Some(entity) = self.world.state.entity_mut(id) {
+            entity.hit_points = crate::rules::resources::MarkPool { max: derived.hit_points, marked: js::min(entity.hit_points.marked, derived.hit_points) };
+            entity.stress = crate::rules::resources::MarkPool { max: derived.stress, marked: js::min(entity.stress.marked, derived.stress) };
+            entity.armor_slots = crate::rules::resources::MarkPool { max: derived.armor_score, marked: js::min(entity.armor_slots.marked, derived.armor_score) };
+        }
+        self.refresh_world();
+        note(self, &format!("{} reaches level {}.", next.name, js::number_to_string(next.level)), "good");
+        Ok(next.level)
     }
 
     /// The cards a stat block prints, as somebody looking at the creature reads them (`statBlockCards`).

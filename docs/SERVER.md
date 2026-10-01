@@ -93,6 +93,69 @@ added after, so the rules are not redesigned while they are being transliterated
 | 4 | Co-op: several players in a session, turn ownership, visibility, reconnecting | two browsers play one fight |
 | 5 | The internet: HTTPS, a real admin password, upload and rate limits, backups, a host | reachable from outside this machine |
 
+## Phase 3, designed (three of its four decisions taken, 1 October 2026)
+
+**Where it starts.** `src/main.ts` holds a `DemoScene` and reads it directly - 161 reads of `demo.`, and
+about seventy functions of `src/game/` called - and the play UI (`src/game/ui/`) reads the same object
+through `play-views.ts`. The game runs in the page. Phase 3 moves it behind a socket without the page
+noticing more than it must.
+
+**The shape.**
+
+- **One interface between the page and the game** (`GameClient`, in TypeScript): every call `main.ts` and
+  the UI make today, and every read, as methods - `move`, `attack`, `endTurn`, `useAbility`, `answer`,
+  `useOn`, `take`, `buy`, `sell`, `equip`, `useItem`, `swap`, `rest`, `levelUp`, `travel`, `save`, `load`,
+  `select`; and the state as one view. Two implementations: the one the page has now, over a `DemoScene`;
+  and one over a socket. Written first, against the TypeScript, with nothing on the server - so the e2e
+  suite proves the seam before anything moves across it.
+- **The view is what the fixtures already record.** Every replay since part 4 has compared a `view()`
+  after each step - the scene, the fight, what is asked, who is selected, Shadow, every creature's pools and
+  conditions, the sheets, the new log lines, floaters, motions, rolls, the things in the room, the
+  scenario. That is the state message: the server sends it after every intent, and the fixtures have held
+  Rust and TypeScript to it for some thousands of steps. What the views read besides (`abilityList`,
+  `gearView`, `loadoutView`, `shopContents`, the HUD's members) is asked as a query and answered.
+- **Intents up, views down.** The client sends `{ id, call, args }`; the server answers `{ id, result }`
+  and then the view. A call is a `Session` method, already ported and already held to a fixture; the
+  socket's half on the server is a dispatcher over them, not new rules.
+- **Asked often, answered here.** What the pointer asks on every move - the reachable ground, the walk a
+  click would make (`previewWalk`), the push and jump tiles, a shape under a card, the hover line - cannot
+  cross a network at sixty a second. The engine built to WebAssembly answers them in the page, from the
+  last view's state; it decides nothing, the server does.
+- **Walks are instant; showing them is not.** The server resolves a walk at once, as it does headless now,
+  and the client plays the motions it is sent, holding back the log lines that follow until the walk has
+  arrived - which is what `arrival.ts` does now with a walk that has not happened yet. **A walk cut short
+  is the client's to say** (decided): a click mid-walk lands everyone where they are drawn, as
+  `landWalkers` does, and the client sends those spots; the server accepts a spot on the path it resolved
+  and refuses any other, so a landing can only shorten a walk the server already allowed.
+- **Saves move to the server** (decided), per account, in git-ignored `data/` beside the accounts. The save
+  slots in a browser's storage are moved up the first time that browser signs in, and the browser's
+  copies are then left alone rather than deleted.
+- **A game outlives its socket for a while** (decided): a dropped connection leaves the session on the
+  server, and the player signing in again within the window is put back into it where it stood. How long
+  the window is, and whether a session past it is saved to the auto slot before it goes, are slice 3's to
+  settle; phase 4 builds its reconnecting on this.
+- **The editor's playtest runs on the WebAssembly engine**, in the page, the hooks run by the browser's
+  own JavaScript through the `HooksFor` factory - so the editor needs no server to try a scene, and
+  changing the ground under a game (`takeGround`) stays local.
+- **Done when** the e2e suite passes with play on the server; then the TypeScript game layer is deleted,
+  and the fixtures' writers with it - the Rust is the rules from then on.
+
+**Open, the user's to decide:**
+
+1. **The right-click panel** (`inspection`, `src/game/inspect.ts`): right-click a figure or a thing on the
+   board in play and a card says what it is - a party member's class and level, gear, HP, Stress, Armor,
+   Light, Evasion and conditions; a creature's name, tier and role, its pools, Difficulty, conditions and
+   the cards its stat block prints; a thing's name. Facts only. Computed in the page from the view, or asked
+   of the server: the page has everything it reads except a stat block's cards, and asking costs a round
+   trip for each right-click.
+
+**Slices, in order.** (1) `GameClient` over `DemoScene`, the page and UI moved onto it, e2e green - a
+TypeScript refactor only. (2) The engine to WebAssembly with a `wasm-bindgen` face, and the per-pointer
+queries answered by it, held to the TypeScript's answers. (3) The socket: a session per signed-in player
+on the server, the dispatcher, and `GameClient` over it behind a switch. (4) Walks shown after they are
+decided. (5) Saves on the server. (6) The editor's playtest on WebAssembly. (7) The e2e suite run with play
+on the server, until it passes; then the TypeScript game layer goes.
+
 ## Running it
 
 ```bash
@@ -748,17 +811,53 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     a roll left waiting); the loadout and the vault as the sheet shows them, with the cards granted and lent
     and the numbers an attack would meet (`loadoutView`), a card recalled for its Stress or free at a rest
     (`swapCard`); a rest, short or long (`rest`: the loadouts set first, each character's two moves, Light
-    for those preparing, uses, tokens, marked spots and conditions a rest ends, the GM's Shadow); and the
-    cards a stat block prints (`statBlockCards`). The item stand-in in `game/content.rs` is the whole item
+    for those preparing, uses, tokens, marked spots and conditions a rest ends, the GM's Shadow); the
+    cards a stat block prints (`statBlockCards`); and (6b) a level taken between fights - who has one
+    waiting (`awaitingLevel`), and taking it (`applyLevelUp`: refused in a fight or a question, the plan
+    checked whole by `level_up`, the pools grown with nothing marked cleared, the world told). Level-up was
+    in none of the six parts, as the action bar was in neither 5 nor 6. The item stand-in in `game/content.rs` is the whole item
     now (`ItemName`: its kind, words, gear, worth, tier, picture and use).
-    `kit.golden.test.ts` writes `server/fixtures/kit.json` (about 5 MB): the default project and a workshop
+    `kit.golden.test.ts` writes `server/fixtures/kit.json` (about 7 MB, saves included): the default project and a workshop
     built on it (a stall with a limited line, a fence that buys nothing, a pawnbroker paid in carapace, an
     empty stall; a scroll that asks a roll, a salve that braces until a rest, a relic, a weapon with no gear
     and one pointing at gear nobody has; more cards in each hand than a loadout takes; abilities a rest, a
     long rest and a scene refresh, a token a rest refills; cards a stat block prints) - 11 sessions of
-    buying, selling, equipping, using, recalling and resting with the fight going on around them, and a
-    tour of every refusal. `server/hooks/tests/golden_kit.rs` replays it (about 4 s at `opt-level = 1`).
-    63 of 64 deliberate mutations fail it; the one left is equivalent (an item carried at nought shown in
-    the pack, when taking the last of something takes its line away).
-  - **Next**: (6b) saves - `saveGame`, `loadGame` and `loadGameText` with the save's schema and the scenario
-    and scene snapshots', the seed's state kept, a saved room entered, and old saves migrated.
+    buying, selling, equipping, using, recalling, resting, and levels granted and taken on plans drawn from
+    each character's own domains, with the fight going on around them, and a tour of every refusal.
+    `server/hooks/tests/golden_kit.rs` replays it (about 4 s at `opt-level = 1`). 70 of 71 deliberate
+    mutations fail it; the one left is equivalent (an item carried at nought shown in the pack, when taking
+    the last of something takes its line away).
+  - **Saves** (`server/engine/src/game/save.rs`, part 6c): the save's schema (`saveSchema`) and the two it is
+    built of, `scenarioSnapshotSchema` and `sceneSnapshotSchema`, on the zod-alike - what came later
+    defaulted, the sheets read by the sheet's own schema; why a save is refused now (`saveBlockedBy`: a
+    fight, a question open or a conversation set aside - an approaching ambush cannot be, headless); the
+    campaign as it stands (`saveGame`: the rooms left and the one being played, where the dice had got to,
+    the sheets, the last 200 lines of the log) and as text (`serialiseSave`, written as `JSON.stringify`
+    writes it - `stringify` puts no `.0` on a whole number); and putting it back (`loadGame`: another
+    project's save, a room it does not hold and a room the project has since lost refused before anything
+    is touched; the scenario refilled, a sheet that will not derive refused, a member the project does not
+    list put into it, the room entered as it was left, the rooms left remembered, the dice, the log and the
+    selection put back), and `loadGameText` - not JSON, migrated at the door, read through the schema.
+    A `LogLine` reads back from a save (`LogLine::read`). `MarkPool` and `Currency` now write `max` first,
+    as the TypeScript's `resources.ts` builds them, so a save of rooms never loaded is the TypeScript's to
+    the byte. Not every save can be: after a load the TypeScript's rooms keep the key order the save's schema
+    read them in (`{marked, max}`, a name last), which a room of structs does not remember - so a save's
+    text is held as what it says, and the replay checks only that no whole number is written as a float.
+    The kit's fixture carries the saves: each session saves, travels between the two rooms, and loads its
+    own save back - as text, as it stands, from version 4 (before a room said its size, which version 5
+    gives the vault), with a member the project does not list - and saves spoiled (not JSON, a number that
+    is not one, a newer build, another project's, a room not saved, a room since deleted, a sheet naming
+    gear nobody has), and the tour saves in a fight, in a question and after more than 200 lines of log.
+    20 of 21 deliberate mutations of `save.rs` fail it; the one left is equivalent (a sheet saved without
+    its schema's parse, when a Rust sheet is already in the schema's shape).
+  - **Part 6 is done, and with it the six-part game layer.**
+  - **Phase 2 is done** (1 October 2026). The audit of every exported function in `src/game/` with no Rust
+    function of the same name found no rule missing. What decides something is ported under another name:
+    `fightOverLine` is `closeFight`'s line (`fight.rs`), `pushPrompt` the push's question (`leap.rs`),
+    `pushCircle` and `underPressure` are `movement.rs`'s, `jumpOffered`, `jumpAim`, `jumpReaches`, `jumpTo`
+    and `runForIt` are `leap.rs`'s, `showContainer` is in `sync_talks`, `adversaryDefOf` is
+    `game/content.rs`'s. The rest is the page's: a walk's timing (`arrived`, `cancelApproach`, `standingNow`,
+    `landWalkers`, `spotOfWorld`), input (`steerStep`), what is drawn (`reachRings`, `aimedArc`), the
+    right-click panel (`inspection`), a window shut out of reach (`withinReach`), and the editor changing
+    the ground under a game being played (`takeGround`) - which phase 3 decides where to put, below.
+  - **Next**: phase 3, as designed below - first slice, the page reading the game through one interface.

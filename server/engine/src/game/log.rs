@@ -28,6 +28,16 @@ pub struct LogLine {
     pub mentions: Option<Vec<Mention>>,
 }
 
+impl LogLine {
+    /// A line as a save holds it: its text, its tone, and whom it names when the save kept that.
+    pub fn read(value: &Value) -> LogLine {
+        let mentions = value["mentions"].as_array().map(|list| {
+            list.iter().map(|m| Mention { id: m["id"].as_str().unwrap_or_default().to_string(), name: m["name"].as_str().unwrap_or_default().to_string() }).collect()
+        });
+        LogLine { text: value["text"].as_str().unwrap_or_default().to_string(), tone: value["tone"].as_str().unwrap_or_default().to_string(), mentions }
+    }
+}
+
 /// One number over one head, in the tone the matching line has.
 #[derive(Clone, Debug, PartialEq, serde::Serialize)]
 pub struct Floater {
