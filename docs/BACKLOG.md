@@ -4,13 +4,20 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## The page reaches the game through one seam — done
+
+`src/game/client.ts` is the one way `main.ts` touches the game: `game.board` to read, a method to do or ask
+anything, and the test driver's and the editor's hands as `LocalPowers`. Every method is the function it
+names, handed the game, so the e2e suite proving the page unchanged proves the seam. Phase 3's slice 1;
+slice 2, the engine to WebAssembly for what the pointer asks, is next.
+
 ## Phase 2 is done; phase 3 is designed
 
 Every rule the page runs is in Rust and held to a fixture: an audit of `src/game/` found what had no Rust
 function of its own name ported under another, and the rest the page's - a walk's timing, input, what is
 drawn. Phase 3 is designed in `docs/SERVER.md` ("Phase 3, designed"): a walk cut short is the client's to say,
-saves move to the server, a game outlives its socket for a while; where the right-click panel is worked
-out is still open.
+saves move to the server, a game outlives its socket for a while, and the right-click panel is worked out
+in the page.
 Its first slice is a TypeScript refactor: one `GameClient` interface between the page and the game.
 
 ## Saves in Rust — done

@@ -93,7 +93,7 @@ added after, so the rules are not redesigned while they are being transliterated
 | 4 | Co-op: several players in a session, turn ownership, visibility, reconnecting | two browsers play one fight |
 | 5 | The internet: HTTPS, a real admin password, upload and rate limits, backups, a host | reachable from outside this machine |
 
-## Phase 3, designed (three of its four decisions taken, 1 October 2026)
+## Phase 3, designed (its four decisions taken, 1 October 2026)
 
 **Where it starts.** `src/main.ts` holds a `DemoScene` and reads it directly - 161 reads of `demo.`, and
 about seventy functions of `src/game/` called - and the play UI (`src/game/ui/`) reads the same object
@@ -140,14 +140,12 @@ noticing more than it must.
 - **Done when** the e2e suite passes with play on the server; then the TypeScript game layer is deleted,
   and the fixtures' writers with it - the Rust is the rules from then on.
 
-**Open, the user's to decide:**
-
-1. **The right-click panel** (`inspection`, `src/game/inspect.ts`): right-click a figure or a thing on the
-   board in play and a card says what it is - a party member's class and level, gear, HP, Stress, Armor,
-   Light, Evasion and conditions; a creature's name, tier and role, its pools, Difficulty, conditions and
-   the cards its stat block prints; a thing's name. Facts only. Computed in the page from the view, or asked
-   of the server: the page has everything it reads except a stat block's cards, and asking costs a round
-   trip for each right-click.
+- **The right-click panel is the page's** (decided): `inspection` (`src/game/inspect.ts`) - a party
+  member's class and level, gear, pools, Light, Evasion and conditions; a creature's name, tier, role,
+  pools, Difficulty, conditions and the cards its stat block prints; a thing's name - is worked out in the
+  page from the last view, with no round trip. What the view does not carry yet - a creature's stat-block
+  cards, a character's class name and Evasion - comes down with it, read once per room rather than asked
+  per click.
 
 **Slices, in order.** (1) `GameClient` over `DemoScene`, the page and UI moved onto it, e2e green - a
 TypeScript refactor only. (2) The engine to WebAssembly with a `wasm-bindgen` face, and the per-pointer
@@ -860,4 +858,14 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     `landWalkers`, `spotOfWorld`), input (`steerStep`), what is drawn (`reachRings`, `aimedArc`), the
     right-click panel (`inspection`), a window shut out of reach (`withinReach`), and the editor changing
     the ground under a game being played (`takeGround`) - which phase 3 decides where to put, below.
-  - **Next**: phase 3, as designed below - first slice, the page reading the game through one interface.
+- **Phase 3** - started 1 October 2026.
+  - **The page reaches the game through one seam** (slice 1, `src/game/client.ts`): `main.ts` holds a
+    `GameClient & LocalPowers` where it held a `DemoScene` - 142 reads of the game now `game.board`, 120
+    calls that handed it the game now methods, and the places it wrote to the game (the dice queue, the
+    floaters and motions, the party's selection and links, the test driver's wounds and Light and
+    conditions, the editor's re-derive) intents or local powers. `LocalGame` is every method as the
+    function it names, handed the game, so nothing was decided anew; no file in the page or its play
+    views imports `DemoScene` but the client. The e2e suite is the proof: it drives the page through
+    `window.__engine` as before, and passes. `main.ts` is 43 lines shorter, its pin lowered to match.
+  - **Next**: slice 2 - the engine to WebAssembly, and the queries the pointer asks every move answered
+    by it, held to the TypeScript's answers.
