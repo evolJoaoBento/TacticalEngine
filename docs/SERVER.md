@@ -733,5 +733,32 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     mutations fail it; of the rest one is equivalent (acting twice, when under the spotlight a member who
     has acted is still ready while the party holds it) and one is not reached (a card aimed at the ground
     with nowhere to land, when every band reaches some floor).
-  - **Next**: part 6 - the shop, equipment and gear, the loadout, the vault and rests, and saves with the
-    scenario snapshot's schema.
+  - **The tests build at `opt-level = 1`** (`[profile.test]` in `server/Cargo.toml`): the fight's three
+    replays took most of ten minutes unoptimised, and `cargo test --workspace` now takes about a minute. The
+    times above at `opt-level = 1` are what `cargo test` gives; nothing need be set to get them.
+  - **The kit** (`server/engine/src/game/kit.rs`, part 6a): the shops - what a seller still has, a limited
+    line counted on its saved state (`shopContents`), the party's purse, buying and the word when it cannot
+    pay (`buyFrom`), what a seller pays for one thing - its share, half unless it says, of its own price or
+    the item's worth, never nothing, never its own coin (`offerFor`) - what the party could sell it and
+    selling (`sellables`, `sellTo`), and a shop's wares taken through the container window, which is buying;
+    wielding and wearing (`equipItem`, `unequipItem`: hands counted, a two-handed weapon freeing the
+    secondary, armour not changed in a fight, the old piece back in the pack when an item stands for it,
+    Armor Slots following the armour) and the HUD's line (`gearOf`); the binder's cards (`gearCard`,
+    `gearView`); using an item (`useItem`: a consumable spent before its script runs, the action in a fight,
+    a roll left waiting); the loadout and the vault as the sheet shows them, with the cards granted and lent
+    and the numbers an attack would meet (`loadoutView`), a card recalled for its Stress or free at a rest
+    (`swapCard`); a rest, short or long (`rest`: the loadouts set first, each character's two moves, Light
+    for those preparing, uses, tokens, marked spots and conditions a rest ends, the GM's Shadow); and the
+    cards a stat block prints (`statBlockCards`). The item stand-in in `game/content.rs` is the whole item
+    now (`ItemName`: its kind, words, gear, worth, tier, picture and use).
+    `kit.golden.test.ts` writes `server/fixtures/kit.json` (about 5 MB): the default project and a workshop
+    built on it (a stall with a limited line, a fence that buys nothing, a pawnbroker paid in carapace, an
+    empty stall; a scroll that asks a roll, a salve that braces until a rest, a relic, a weapon with no gear
+    and one pointing at gear nobody has; more cards in each hand than a loadout takes; abilities a rest, a
+    long rest and a scene refresh, a token a rest refills; cards a stat block prints) - 11 sessions of
+    buying, selling, equipping, using, recalling and resting with the fight going on around them, and a
+    tour of every refusal. `server/hooks/tests/golden_kit.rs` replays it (about 4 s at `opt-level = 1`).
+    63 of 64 deliberate mutations fail it; the one left is equivalent (an item carried at nought shown in
+    the pack, when taking the last of something takes its line away).
+  - **Next**: (6b) saves - `saveGame`, `loadGame` and `loadGameText` with the save's schema and the scenario
+    and scene snapshots', the seed's state kept, a saved room entered, and old saves migrated.

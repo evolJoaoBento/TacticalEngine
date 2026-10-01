@@ -4,6 +4,13 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## The kit in Rust — done
+
+`server/engine/src/game/kit.rs` runs what the party carries as the page does: the shops - buying, selling,
+what a seller pays, a limited line remembered - putting gear on and taking it off with the hands counted,
+the binder's cards, using an item, the loadout and the vault with a card recalled, rests short and long,
+and the cards a stat block prints. Held to `server/fixtures/kit.json`. Part 6a is done; 6b, saves, is next.
+
 ## The action bar in Rust — done
 
 `server/engine/src/game/bar.rs` runs the action bar as the page does: a character's abilities in bar order,

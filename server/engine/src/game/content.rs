@@ -35,17 +35,45 @@ pub struct Shipped {
     pub items: Vec<ItemName>,
 }
 
-/// An item, as far as a line of the log reads it.
+/// An item (`itemSchema`): what it is called and what it is - a key, a draught, a weapon or armour standing
+/// for a piece of the pack's gear - what it is worth, and what using it does.
 #[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ItemName {
     pub id: String,
     pub name: String,
+    /// `key`, `consumable`, `weapon`, `armor` or `trinket`.
+    #[serde(default = "trinket")]
+    pub kind: String,
+    #[serde(default)]
+    pub description: String,
+    /// The weapon or armour it stands for.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub content_id: Option<String>,
+    /// What one is worth, in the coin shops are paid in.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub value: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tier: Option<f64>,
+    /// Its card's picture.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub card: Option<String>,
+    /// What using it does; nothing means it cannot be used.
+    #[serde(default, rename = "use", skip_serializing_if = "Vec::is_empty")]
+    pub use_: Vec<Value>,
 }
 
-/// Every item a project can name, and what it is called (`itemsFor`): its own, then the catalogue's it has
-/// not replaced.
+fn trinket() -> String {
+    "trinket".into()
+}
+
+fn read_item(value: &Value) -> ItemName {
+    serde_json::from_value(value.clone()).expect("an item the schema read")
+}
+
+/// Every item a project can name (`itemsFor`): its own, then the catalogue's it has not replaced.
 pub fn items_for(shipped: &Shipped, project: &Value) -> Vec<ItemName> {
-    let own: Vec<ItemName> = list(project, "items").iter().map(|i| ItemName { id: i["id"].as_str().unwrap_or_default().into(), name: i["name"].as_str().unwrap_or_default().into() }).collect();
+    let own: Vec<ItemName> = list(project, "items").iter().map(read_item).collect();
     if own.is_empty() {
         return shipped.items.clone();
     }
@@ -54,13 +82,14 @@ pub fn items_for(shipped: &Shipped, project: &Value) -> Vec<ItemName> {
     all
 }
 
-/// What one item is called (`itemOf`): the project's own, else the catalogue's.
+/// One item (`itemOf`): the project's own, else the catalogue's.
+pub fn item_of(shipped: &Shipped, project: &Value, id: &str) -> Option<ItemName> {
+    list(project, "items").iter().find(|i| i["id"].as_str() == Some(id)).map(read_item).or_else(|| shipped.items.iter().find(|i| i.id == id).cloned())
+}
+
+/// What one item is called (`itemOf`'s name).
 pub fn item_name(shipped: &Shipped, project: &Value, id: &str) -> Option<String> {
-    list(project, "items")
-        .iter()
-        .find(|i| i["id"].as_str() == Some(id))
-        .and_then(|i| i["name"].as_str().map(str::to_string))
-        .or_else(|| shipped.items.iter().find(|i| i.id == id).map(|i| i.name.clone()))
+    item_of(shipped, project, id).map(|i| i.name)
 }
 
 impl Shipped {

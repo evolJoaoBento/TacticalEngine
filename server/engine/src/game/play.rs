@@ -634,9 +634,9 @@ impl Session {
     /// What a seller sells, a prop's or a creature's (`shopOf`).
     pub fn shop_of(&self, id: &str) -> Option<Value> {
         if let Some(prop) = list(&self.scene, "decos").iter().find(|d| d["id"].as_str() == Some(id)) {
-            return find_function(prop.get("function"), "shop").map(|f| f["shop"].clone());
+            return find_function(prop.get("function"), "shop").map(|f| f["shop"].clone()).filter(|s| !s.is_null());
         }
-        self.placement_of(id).and_then(|(placement, _)| placement["interaction"].get("shop").cloned())
+        self.placement_of(id).and_then(|(placement, _)| placement["interaction"].get("shop").cloned()).filter(|s| !s.is_null())
     }
 
     /// The container whose window is open, if it is still here to be open (`openContainer`).
@@ -663,7 +663,7 @@ impl Session {
     /// What is still in a container: what was put in it, less what has been taken (`containerContents`).
     pub fn container_contents(&mut self, id: &str) -> Result<Vec<(String, String, f64)>, String> {
         if self.shop_of(id).is_some() {
-            return Err("a shop's wares come with buying, which the server does not do yet".into());
+            return Ok(self.shop_contents(id).into_iter().map(|l| (text(&l, "item").to_string(), text(&l, "name").to_string(), l["left"].as_f64().unwrap_or(f64::INFINITY))).collect());
         }
         let function = list(&self.scene, "decos").iter().find(|d| d["id"].as_str() == Some(id)).and_then(|d| d.get("function").cloned());
         let taken = self.world.state.interactable(id).data.clone();
@@ -681,6 +681,10 @@ impl Session {
 
     /// Take one of something out of a container and into the party's pack (`takeFromContainer`).
     pub fn take_from_container(&mut self, id: &str, item: &str) -> Result<bool, String> {
+        // From a shop, taking is buying.
+        if self.shop_of(id).is_some() {
+            return Ok(self.buy_from(id, item));
+        }
         let Some((_, name, _)) = self.container_contents(id)?.into_iter().find(|(i, _, _)| i == item) else { return Ok(false) };
         let key = format!("taken:{item}");
         let state = self.world.state.interactable(id);

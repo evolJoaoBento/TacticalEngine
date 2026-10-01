@@ -8,6 +8,7 @@ pub mod bar;
 pub mod blow;
 pub mod content;
 pub mod features;
+pub mod kit;
 pub mod fight;
 pub mod leap;
 pub mod log;

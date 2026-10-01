@@ -14,3 +14,8 @@ publish = false
 # made the accounts' tests take minutes.
 [profile.dev.package."*"]
 opt-level = 3
+
+# The tests themselves built a little optimised: the golden replays play whole fights, and unoptimised the
+# three of them took most of ten minutes; at this level, a minute.
+[profile.test]
+opt-level = 1
