@@ -4,6 +4,14 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## A replica stands as the game it was sent — done
+
+`src/game/replica.ts` and `server/engine/src/game/replica.rs`: how the game stands after every intent, as a
+snapshot - the room, the scenario, the sheets, the party's control, the fight, the GM turn's spotlights, a
+question open - and a fresh Rust session stood up from it answering what the pointer asks exactly as the
+game does, held to `server/fixtures/replica.json`. Phase 3's slice 2a; 2b, the engine to WebAssembly
+behind a JSON face, is next.
+
 ## A condition that ends is named — done
 
 A rest, a hit or a blow that ends a condition said so by the id it is kept under - "Kara is no longer

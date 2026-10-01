@@ -75,6 +75,27 @@ export type EncounterEvent =
   | { kind: 'ended'; encounter: string; outcome: EncounterOutcome };
 
 /**
+ * A fight as a replica holds it (`EncounterRunner.snapshot`; the Rust is `EncounterRunner::from_snapshot`):
+ * everything the runner keeps, so a page that was sent one answers as the fight it came from.
+ */
+export interface EncounterSnapshot {
+  id: string;
+  policy: TurnPolicy;
+  tokensPerCharacter: number;
+  tokens: [string, number][];
+  events: EncounterEvent[];
+  acted: string[];
+  circles: [string, { anchor: Spot; band: RangeBand }][];
+  side: Side;
+  round: number;
+  started: boolean;
+  finished: EncounterOutcome;
+}
+
+/** Entries in id order, which is how a snapshot writes what is kept unordered. */
+const byId = <T>(entries: [string, T][]): [string, T][] => entries.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+
+/**
  * One encounter in progress.
  *
  * The caller drives it: tell it a character acted and whether their roll passed
@@ -103,6 +124,23 @@ export class EncounterRunner {
   private roundCount = 1;
   private started = false;
   private finished: EncounterOutcome = 'ongoing';
+
+  /** The fight as a replica holds it: tokens and circles in id order, as the Rust writes them. */
+  snapshot(): EncounterSnapshot {
+    return {
+      id: this.encounterId,
+      policy: this.policy,
+      tokensPerCharacter: this.tokensPerCharacter,
+      tokens: byId([...this.tokens]),
+      events: this.events.map((event) => ({ ...event })),
+      acted: [...this.actedThisGmTurn],
+      circles: byId([...this.circles].map(([id, circle]) => [id, { anchor: { x: circle.anchor.x, y: circle.anchor.y }, band: circle.band }])),
+      side: this.side,
+      round: this.roundCount,
+      started: this.started,
+      finished: this.finished,
+    };
+  }
 
   constructor(state: SceneState, encounterId: string, options: EncounterOptions = {}) {
     this.state = state;

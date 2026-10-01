@@ -153,6 +153,9 @@ pub struct Session {
     /// A question the fight put to the table: the other half of the TypeScript's `pending`, never set while a
     /// script waits.
     pub asked: Option<super::ask::Asked>,
+    /// A replica's word that a question is open where the game is played (`game/replica.rs`): it cannot hold
+    /// the question - a script paused mid-run has no form to send - only that one waits.
+    pub question_open: bool,
 }
 
 /// Stand a room up (`buildRuntime`): its grid from the project's ground, every placement's stat block - the
@@ -268,6 +271,7 @@ impl Session {
             mourned: Vec::new(),
             fallen: Vec::new(),
             answering: 0,
+            question_open: false,
             asked: None,
         })
         .map(|mut session: Session| {
@@ -278,7 +282,7 @@ impl Session {
 
     /// Whether a question is open (`demo.pending !== null`): one waiting, or one being answered.
     pub fn waiting(&self) -> bool {
-        self.pending.is_some() || self.asked.is_some() || self.answering > 0
+        self.pending.is_some() || self.asked.is_some() || self.answering > 0 || self.question_open
     }
 
     /// Tell the world who has already acted this GM turn (`bindTurn`): the one wire between the turn and the

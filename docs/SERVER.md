@@ -795,7 +795,8 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     has acted is still ready while the party holds it) and one is not reached (a card aimed at the ground
     with nowhere to land, when every band reaches some floor).
   - **The tests build at `opt-level = 1`** (`[profile.test]` in `server/Cargo.toml`): the fight's three
-    replays took most of ten minutes unoptimised, and `cargo test --workspace` now takes about a minute. The
+    replays took most of ten minutes unoptimised, and `cargo test --workspace` now takes about two (the replica's
+    fresh sessions are one of them). The
     times above at `opt-level = 1` are what `cargo test` gives; nothing need be set to get them.
   - **The kit** (`server/engine/src/game/kit.rs`, part 6a): the shops - what a seller still has, a limited
     line counted on its saved state (`shopContents`), the party's purse, buying and the word when it cannot
@@ -867,5 +868,33 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     function it names, handed the game, so nothing was decided anew; no file in the page or its play
     views imports `DemoScene` but the client. The e2e suite is the proof: it drives the page through
     `window.__engine` as before, and passes. `main.ts` is 43 lines shorter, its pin lowered to match.
-  - **Next**: slice 2 - the engine to WebAssembly, and the queries the pointer asks every move answered
-    by it, held to the TypeScript's answers.
+  - **A replica stands as the game it was sent** (slice 2a, `src/game/replica.ts`,
+    `server/engine/src/game/replica.rs`). The pointer's questions are to be answered in the page by the
+    engine built to WebAssembly, fed - not played in lockstep, which the page's walking tokens, the test
+    driver's hands and the editor's edits would part - by a snapshot of how the game stands, sent after
+    every intent: `replicaOf` - the room and its state, the scenario, the sheets, the party's control
+    (`Party.snapshot`: selection, groups, the held, the order, the trails), the fight
+    (`EncounterRunner.snapshot`: tokens, events, who acted this GM turn, the circles, the side, the round,
+    the outcome) and the GM turn's spotlights, and whether a question is open (`question_open`: a script
+    paused mid-run has no form to send, and the replica only has to know one waits). The Rust stands one up
+    (`restore_replica`: the scenario and sheets, the room entered as it was left, the party, the fight, the
+    spotlights, the world rebuilt) and says how it stands (`replica_snapshot`). Saves refuse a fight for
+    want of exactly this snapshot; that refusal can now be lifted, which is not done here.
+    `replica.golden.test.ts` writes `server/fixtures/replica.json` (about 15 MB): 14 sessions of 40 steps
+    on the demo, the default project and the bar's workshop (`tests/fixtures/bar-workshop.ts`, which the
+    bar's golden now reads from there too) - walks, swings, the GM's turn with the defender asked or not,
+    cards, fights begun and routed, members linked, unlinked and reordered, a conversation set aside,
+    loadouts changed at a rest, and two sessions in the yard's fight so a question waits with a creature
+    already spotlighted - and after each step the snapshot and what the pointer asks: the reach and where a
+    push asks a roll, three walk previews, every card of the selected member's (whom it may be aimed at,
+    where it may land, whom it catches there), and a jump's offer, tiles and reaches.
+    `server/hooks/tests/golden_replica.rs` stands every step up in a **fresh** session - a restore that
+    leaned on what the session already held would pass a continued one - and holds its snapshot and every
+    answer to the TypeScript's (about a minute at `opt-level = 1`). 19 of 20 deliberate mutations fail it;
+    the one left is the world's rebuild, which ties it to the GM turn's spotlights - which no question the
+    pointer asks reads. A card whose aim waits on a project's hook (a `hook` condition) cannot be answered
+    by a replica with no hooks; the WebAssembly face (2b) has to call back into the page's for it.
+  - **Next**: 2b - the engine built to WebAssembly behind a JSON face (`alloc`, `call`, no
+    `wasm-bindgen`), an `npm run wasm` build, the page's shipped content as JSON from one module, and a
+    vitest proving the `.wasm` answers `replica.json` as the native build does; then 2c, the page asking
+    both in a shadow mode and counting where they part.

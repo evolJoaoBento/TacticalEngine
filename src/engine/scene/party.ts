@@ -108,6 +108,16 @@ export const DEFAULT_PARTY_OPTIONS: Required<PartyOptions> = {
  * selected so a UI can still show their sheet — but `canCommand` reports that
  * they cannot be told to do anything.
  */
+/** The party's control as a replica holds it (`Party.snapshot`). */
+export interface PartySnapshot {
+  selected: string | null;
+  groups: [string, number][];
+  nextGroup: number;
+  held: string[];
+  order: string[];
+  trails: [string, Spot[]][];
+}
+
 export class Party {
   private readonly state: SceneState;
   private readonly grid: TileGrid;
@@ -138,6 +148,22 @@ export class Party {
    * ones before it. Trimmed to what the party at its longest needs.
    */
   private readonly trails = new Map<string, Spot[]>();
+
+  /**
+   * The party's control as a replica holds it (`Party::restore` in the Rust): who is selected, the groups,
+   * who is held, the order and the trails - groups, the held and trails in id order, being kept unordered.
+   */
+  snapshot(): PartySnapshot {
+    const byId = <T>(entries: [string, T][]): [string, T][] => entries.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+    return {
+      selected: this.selectedId,
+      groups: byId([...this.groups]),
+      nextGroup: this.nextGroup,
+      held: [...this.heldIds].sort(),
+      order: [...this.order],
+      trails: byId([...this.trails].map(([id, trail]) => [id, trail.map((spot) => ({ x: spot.x, y: spot.y }))])),
+    };
+  }
 
   /** Walk by other rules from here on: a project's house rule for a step changed under a party already standing. */
   setRules(rules: MovementRules): void {

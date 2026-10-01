@@ -55,7 +55,7 @@ pub struct EncounterView {
 }
 
 /// Something the caller may want to log or animate.
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "camelCase", rename_all_fields = "camelCase")]
 pub enum EncounterEvent {
     Started { encounter: String },
@@ -73,7 +73,7 @@ pub enum EncounterEvent {
 }
 
 /// Where a party member's movement is drawn from this turn, and how far it reaches.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Circle {
     pub anchor: Spot,
     pub band: RangeBand,
@@ -94,11 +94,70 @@ pub struct EncounterRunner {
     finished: EncounterOutcome,
 }
 
+/// A fight as a replica holds it (`EncounterRunner.snapshot`): everything the runner keeps, in the order
+/// the TypeScript writes it, so a page that was sent one answers as the fight it came from.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct EncounterSnapshot {
+    id: String,
+    policy: TurnPolicy,
+    tokens_per_character: f64,
+    tokens: Vec<(String, f64)>,
+    events: Vec<EncounterEvent>,
+    acted: Vec<String>,
+    circles: Vec<(String, Circle)>,
+    side: Side,
+    round: u32,
+    started: bool,
+    finished: EncounterOutcome,
+}
+
 fn alive_as(state: &SceneState, id: &str, faction: Faction) -> bool {
     state.entity(id).is_some_and(|e| e.alive && e.faction == faction)
 }
 
 impl EncounterRunner {
+    /// The fight as a replica holds it (`snapshot`). Tokens and circles in id order: the runner keeps them
+    /// unordered, and what reads them asks by id.
+    pub fn snapshot(&self) -> serde_json::Value {
+        let mut tokens: Vec<(String, f64)> = self.tokens.iter().map(|(id, n)| (id.clone(), *n)).collect();
+        tokens.sort_by(|a, b| a.0.cmp(&b.0));
+        let mut circles: Vec<(String, Circle)> = self.circles.iter().map(|(id, c)| (id.clone(), *c)).collect();
+        circles.sort_by(|a, b| a.0.cmp(&b.0));
+        serde_json::to_value(EncounterSnapshot {
+            id: self.encounter_id.clone(),
+            policy: self.policy,
+            tokens_per_character: self.tokens_per_character,
+            tokens,
+            events: self.events.clone(),
+            acted: self.acted_this_gm_turn.clone(),
+            circles,
+            side: self.side,
+            round: self.round_count,
+            started: self.started,
+            finished: self.finished,
+        })
+        .expect("a fight writes")
+    }
+
+    /// A fight stood up from its snapshot (`EncounterRunner.restore`).
+    pub fn from_snapshot(value: &serde_json::Value) -> Result<EncounterRunner, String> {
+        let s: EncounterSnapshot = serde_json::from_value(value.clone()).map_err(|e| format!("not a fight: {e}"))?;
+        Ok(EncounterRunner {
+            encounter_id: s.id,
+            policy: s.policy,
+            tokens_per_character: s.tokens_per_character,
+            tokens: s.tokens.into_iter().collect(),
+            events: s.events,
+            acted_this_gm_turn: s.acted,
+            circles: s.circles.into_iter().collect(),
+            side: s.side,
+            round_count: s.round,
+            started: s.started,
+            finished: s.finished,
+        })
+    }
+
     pub fn new(encounter_id: &str, policy: Option<TurnPolicy>, tokens_per_character: Option<f64>) -> Self {
         EncounterRunner {
             encounter_id: encounter_id.into(),

@@ -160,6 +160,31 @@ impl Party {
         party
     }
 
+    /// The party's control as a replica holds it (`Party.snapshot`): who is selected, the groups, who is
+    /// held, the order, and the trails - groups and trails in id order, being kept unordered.
+    pub fn snapshot(&self) -> serde_json::Value {
+        let mut groups: Vec<(&String, &u32)> = self.groups.iter().collect();
+        groups.sort();
+        let mut held: Vec<&String> = self.held.iter().collect();
+        held.sort();
+        let mut trails: Vec<(&String, &Vec<Spot>)> = self.trails.iter().collect();
+        trails.sort_by(|a, b| a.0.cmp(b.0));
+        serde_json::json!({ "selected": self.selected, "groups": groups, "nextGroup": self.next_group, "held": held, "order": self.order, "trails": trails })
+    }
+
+    /// Take the control a snapshot holds (`Party.restore`); the options and the rules stay this party's.
+    pub fn restore(&mut self, value: &serde_json::Value) -> Result<(), String> {
+        let read = |key: &str| value.get(key).cloned().unwrap_or(serde_json::Value::Null);
+        let bad = |key: &str, e: serde_json::Error| format!("party.{key}: {e}");
+        self.selected = serde_json::from_value(read("selected")).map_err(|e| bad("selected", e))?;
+        self.groups = serde_json::from_value::<Vec<(String, u32)>>(read("groups")).map_err(|e| bad("groups", e))?.into_iter().collect();
+        self.next_group = serde_json::from_value(read("nextGroup")).map_err(|e| bad("nextGroup", e))?;
+        self.held = serde_json::from_value::<Vec<String>>(read("held")).map_err(|e| bad("held", e))?.into_iter().collect();
+        self.order = serde_json::from_value(read("order")).map_err(|e| bad("order", e))?;
+        self.trails = serde_json::from_value::<Vec<(String, Vec<Spot>)>>(read("trails")).map_err(|e| bad("trails", e))?.into_iter().collect();
+        Ok(())
+    }
+
     /// Walk by other rules from here on.
     pub fn set_rules(&mut self, rules: MovementRules) {
         self.options.rules = rules;

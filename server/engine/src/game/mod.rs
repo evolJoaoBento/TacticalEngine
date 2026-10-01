@@ -14,6 +14,7 @@ pub mod leap;
 pub mod log;
 pub mod movement;
 pub mod play;
+pub mod replica;
 pub mod rules;
 pub mod save;
 pub mod session;
