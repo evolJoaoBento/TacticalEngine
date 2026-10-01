@@ -139,7 +139,7 @@ pub fn float(session: &mut Session, id: &str, text: String, tone: &str) {
 }
 
 /// Somebody on the board swung at somebody else on it, for a token that lunges (`swungAt`).
-fn swung_at(session: &mut Session, attacker: &str, target: &str) {
+pub(super) fn swung_at(session: &mut Session, attacker: &str, target: &str) {
     let at = session.world.state.entity(target).map_or(NO_TILE, |e| e.tile);
     if on_board(session, attacker) && at != NO_TILE {
         session.motions.push(json!({ "id": attacker, "lunge": { "at": at } }));
@@ -147,7 +147,7 @@ fn swung_at(session: &mut Session, attacker: &str, target: &str) {
 }
 
 /// A blow landed on somebody on the board, for a token that flinches (`struck`).
-fn struck(session: &mut Session, id: &str) {
+pub(super) fn struck(session: &mut Session, id: &str) {
     if on_board(session, id) {
         session.motions.push(json!({ "id": id, "struck": true }));
     }

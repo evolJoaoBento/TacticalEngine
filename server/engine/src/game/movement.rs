@@ -324,7 +324,7 @@ impl Session {
 
     /// Where a creature would measure from in a tile (`standingIn`): where it stands, in its own; the centre
     /// in any other.
-    fn standing_in(&self, id: &str, tile: i32) -> Spot {
+    pub(super) fn standing_in(&self, id: &str, tile: i32) -> Spot {
         match self.world.state.entity(id) {
             Some(e) if e.tile == tile => e.at,
             _ => self.world.state.grid.spot_of(tile),

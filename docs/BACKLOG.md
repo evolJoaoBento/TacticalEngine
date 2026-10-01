@@ -4,6 +4,16 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## The fight is played in Rust — done
+
+`server/engine/src/game/{turn,features,answer,swing,blow,fight}.rs` play a fight as the page does with
+nobody at the table asked: the GM's turn (spotlights while the Shadow lasts, Relentless, a feature worth
+using, a walk and a swing), the party's swing and the GM's, a stat block's features and reactions, the
+party's free cards (one that asks something waits as a prompt), wounds, rolls, riders, debts, ground that
+bites, countdowns, a creature's last word, and the death move (Avoid Death, its scar, a last stand). A
+question the table would be asked - a defence, a card, a death move - returns an error naming it. Held to
+`server/fixtures/fight.json`. The first of part 5's three halves; the questions are next.
+
 ## The party walks, pushes and jumps in Rust — done
 
 `server/engine/src/game/{movement,leap,fight}.rs` walk the party as the page does, in a fight and out of

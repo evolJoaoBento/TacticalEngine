@@ -1,7 +1,7 @@
 //! Abilities (`src/engine/content/abilities.ts`): which card each sits on, the bonuses it grants while
 //! held, which of a character's abilities are in play, in the order the action bar lists them, and what
 //! the world reads off one - a reaction's trigger and gate, a passive's defences and swing, a card's
-//! tokens and the lift they give a roll. Targets and uses are the action bar's, and wait for the game's.
+//! tokens and the lift they give a roll - and, for the fight, its text, its target and its uses.
 
 use crate::content::pack::{CardDef, CardGrant};
 use crate::rules::damage::{DamageDefenses, DamageSeverity};
@@ -142,9 +142,9 @@ fn yes() -> bool {
 }
 
 /// An ability, cut to what the engine's ported parts read: the card it sits on, its bonuses, and - for a
-/// reaction - its kind, trigger, gate, cost and what it does; a passive's defences and swing; its tokens.
-/// Conditions and effects are kept as the JSON the script's schema read. Targets and uses are the action
-/// bar's, and wait for the game's port.
+/// reaction - its kind, trigger, gate, cost and what it does; a passive's defences and swing; its tokens;
+/// its text, target and uses, which a stat block's feature is chosen by. Conditions and effects are kept as
+/// the JSON the script's schema read.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AbilityDef {
@@ -153,6 +153,15 @@ pub struct AbilityDef {
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub name: String,
     pub source: AbilitySource,
+    /// The rules text, as printed.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub text: String,
+    /// How often it can be used before something refreshes it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub uses: Option<AbilityUses>,
+    /// What the user picks: nobody, themselves, a creature, a point - and how far away.
+    #[serde(default, skip_serializing_if = "AbilityTarget::is_default")]
+    pub target: AbilityTarget,
     #[serde(default)]
     pub modifiers: Vec<AbilityModifier>,
     #[serde(default)]
@@ -182,6 +191,50 @@ pub struct AbilityDef {
     /// Tokens spent to carry a roll over its Difficulty.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub lift: Option<Lift>,
+}
+
+/// "Once per scene": how many times, and what gives them back.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct AbilityUses {
+    #[serde(default = "one")]
+    pub count: f64,
+    /// `rest`, `longRest` or `scene`.
+    pub per: String,
+}
+
+/// What an ability is aimed at (`abilityTargetSchema`).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct AbilityTarget {
+    /// `none`, `self`, `adversary`, `ally`, `creature`, `group` or `point`.
+    #[serde(default = "none")]
+    pub kind: String,
+    #[serde(default = "melee")]
+    pub range: crate::rules::range::RangeBand,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fallen: Option<bool>,
+    /// What makes a creature worth aiming at, read with it bound as the target.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub when: Option<Value>,
+}
+
+fn none() -> String {
+    "none".into()
+}
+
+fn melee() -> crate::rules::range::RangeBand {
+    crate::rules::range::RangeBand::Melee
+}
+
+impl Default for AbilityTarget {
+    fn default() -> Self {
+        AbilityTarget { kind: none(), range: melee(), fallen: None, when: None }
+    }
+}
+
+impl AbilityTarget {
+    fn is_default(&self) -> bool {
+        *self == AbilityTarget::default()
+    }
 }
 
 /// "The Ogre's attacks deal direct damage", "1d10+4 instead of their standard damage", "double damage to PCs

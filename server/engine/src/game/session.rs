@@ -38,6 +38,7 @@ use crate::script::hooks::{CodeSource, Hooks};
 use crate::script::world::{Ordered, ScenarioState, SceneScriptWorld, WorldContent};
 use serde_json::Value;
 use std::collections::HashMap;
+use std::cell::RefCell;
 use std::rc::Rc;
 
 /// What compiles a project's code into the hooks its world runs.
@@ -137,6 +138,18 @@ pub struct Session {
     pub room: u64,
     /// Whether the fight that is over has been put away: once, however it ended.
     pub announced: bool,
+    /// The GM's turn, while it is being played.
+    pub gm_turn: Option<super::turn::GmTurn>,
+    /// How many times each adversary has been spotlighted this GM turn: the turn's, and what the world
+    /// reads for a swarm (`bindTurn`).
+    pub spotlit: Rc<RefCell<Vec<(String, f64)>>>,
+    /// The creatures whose fall has been answered, by serial: a summons can take a fallen one's id.
+    pub(crate) mourned: Vec<u64>,
+    /// Party members down who have made their death move, by serial.
+    pub(crate) fallen: Vec<u64>,
+    /// How deep the answering of a prompt is while its journal is recorded: the TypeScript's `pending` still
+    /// holds the question then, and everything a fight settles waits on it.
+    pub(crate) answering: u32,
 }
 
 /// Stand a room up (`buildRuntime`): its grid from the project's ground, every placement's stat block - the
@@ -247,7 +260,28 @@ impl Session {
             ask_defender: false,
             room: 0,
             announced: false,
+            gm_turn: None,
+            spotlit: Rc::new(RefCell::new(Vec::new())),
+            mourned: Vec::new(),
+            fallen: Vec::new(),
+            answering: 0,
         })
+        .map(|mut session: Session| {
+            session.bind_turn();
+            session
+        })
+    }
+
+    /// Whether a question is open (`demo.pending !== null`): one waiting, or one being answered.
+    pub fn waiting(&self) -> bool {
+        self.pending.is_some() || self.answering > 0
+    }
+
+    /// Tell the world who has already acted this GM turn (`bindTurn`): the one wire between the turn and the
+    /// scripts, tied again whenever the world is rebuilt.
+    fn bind_turn(&mut self) {
+        let spotlit = Rc::clone(&self.spotlit);
+        self.world.spotlight_spent = Box::new(move |id| spotlit.borrow().iter().any(|(k, n)| k == id && *n > 0.0));
     }
 
     pub fn shipped(&self) -> &Shipped {
@@ -266,6 +300,7 @@ impl Session {
         let (state, scenario) = self.take_world();
         self.world = SceneScriptWorld::new(state, scenario, content, hooks);
         self.world.refresh_zones();
+        self.bind_turn();
     }
 
     /// The state and scenario out of the world, which is about to be replaced. What the world was holding

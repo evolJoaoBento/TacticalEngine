@@ -1,6 +1,6 @@
 //! A stat block as a fight reads it (`AdversaryDef` in `src/engine/content/types.ts`): its name, the
-//! Difficulty and thresholds it is attacked against, the pools it stands up with, and the swing it prints.
-//! Tier, role, text and features are the bestiary's, and wait for its port.
+//! Difficulty and thresholds it is attacked against, the pools it stands up with, the swing it prints, and
+//! the features the fight obeys by name. Tier, role and text are the bestiary's, and wait for its port.
 
 use crate::rules::damage::DamageThresholds;
 use crate::rules::dice::{DiceExpression, ParsedDamage};
@@ -21,4 +21,7 @@ pub struct AdversaryDef {
     pub attack_modifier: DiceExpression,
     pub attack_range: RangeBand,
     pub attack_damage: ParsedDamage,
+    /// Relentless, Momentum, Terrifying, Horde, Minion and the rest, as printed.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub features: Vec<crate::combat::adversary_features::AdversaryFeature>,
 }

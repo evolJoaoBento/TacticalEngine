@@ -98,6 +98,21 @@ pub struct EntityState {
     pub interacted: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub truce: Option<bool>,
+    /// Which creature this is, apart from its id: a summons can hand out an id the room no longer holds,
+    /// and the one standing there now is somebody else (the TypeScript tells them apart by the object).
+    #[serde(skip)]
+    pub serial: Serial,
+}
+
+/// A creature's place in the order they were stood up in a room. Never part of what a creature *is*:
+/// two states equal in everything else are equal whatever their serials.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct Serial(pub u64);
+
+impl PartialEq for Serial {
+    fn eq(&self, _: &Serial) -> bool {
+        true
+    }
 }
 
 impl EntityState {
@@ -136,6 +151,7 @@ pub fn create_party_entity(id: &str, definition: &str, tile: i32, hit_points: f6
         dead: None,
         interacted: None,
         truce: None,
+        serial: Serial::default(),
     }
 }
 
@@ -236,6 +252,8 @@ pub struct SceneState {
     passable_when_open: HashSet<String>,
     /// The GM's Shadow pool. It carries between scenes; the caller passes it along.
     pub bad: Currency,
+    /// The serial the next creature stood up here is given.
+    next_serial: u64,
 }
 
 impl SceneState {
@@ -253,6 +271,7 @@ impl SceneState {
             interactable_footprints: HashMap::new(),
             passable_when_open: HashSet::new(),
             bad: bad.unwrap_or_else(|| create_bad(0.0, MAX_BAD)),
+            next_serial: 1,
         }
     }
 
@@ -268,6 +287,8 @@ impl SceneState {
         }
         self.occupy(entity.tile, &entity.id);
         self.at.insert(entity.id.clone(), self.entities.len());
+        entity.serial = Serial(self.next_serial);
+        self.next_serial += 1;
         self.entities.push(entity);
         Ok(self.entities.last_mut().expect("just pushed"))
     }

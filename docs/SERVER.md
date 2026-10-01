@@ -567,10 +567,11 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     - **A prompt waits between calls**: a script runner can be put down (`ScriptRunner::suspend`) and
       picked up again with the world and the dice (`SuspendedRunner::attach`), and the dialogue runner holds
       its dialogue by `Rc`, so a conversation in progress waits in the session.
-    - **The fight's parts refuse, loudly**: a card offered on a roll to a table that asks (`ask_defender`),
-      a creature answering the party's roll, a countdown a roll would move: each returns an error naming
-      it, rather than doing something else quietly. (A journal that starts a fight refused here until 4b.) `sync_roster` walks a
-      member the project dropped off the board only out of a fight, as the TypeScript does.
+    - **The fight's parts refuse, loudly**: a card offered on a roll to a table that asks (`ask_defender`)
+      returns an error naming it, rather than doing something else quietly. (A journal that starts a fight
+      refused here until 4b; a creature answering the party's roll and a countdown a roll moves, until 5a.)
+      `sync_roster` walks a member the project dropped off the board only out of a fight, as the TypeScript
+      does.
     - What the app ships gained the catalogue's item names (`Shipped::items`), for loot and keys.
     `play.golden.test.ts` writes `server/fixtures/play.json`: the demo's project, the default project, and a
     proving ground built on it (a portal to another room and one with no partner, a conversation nobody
@@ -583,8 +584,9 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     `server/hooks/tests/golden_play.rs` replays it with the hooks compiled. 55 of 60 deliberate mutations
     fail it; of the rest two are equivalent here (travel settled while a prompt waits, which nothing does
     until a finished script can raise another; a conversation's outer script with no target, when the
-    conversation hands its own to every script inside it) and three need a fight (talking to the dead, a
-    conversation set aside broken off with somebody still standing, a swing's miss).
+    conversation hands its own to every script inside it) and three needed a fight: `fight.json` now fails
+    a swing's miss, and talking to the dead and a conversation set aside broken off with somebody still
+    standing are not reached there either.
   - **The party walks, pushes and jumps** (`server/engine/src/game/{movement,leap,fight}.rs`), in a fight
     and out of one: a click's meaning (`aim_of_move` - the walk, the nearest reachable spot out of a fight,
     as far as the circle allows in one, or a push), the walk (`walk_the_move`: a trigger stops it where it
@@ -600,10 +602,8 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
       journal's `started` begins it; `ended` stands everybody down under a truce; `close_fight` ends the
       scene's conditions and the creatures' countdowns and forgets per-scene uses, once, in the log's words.
       Every action in a fight is spent (`act`), under the table's spotlight rules.
-    - **What a fight answers stays part 5's, and says so**: `settle_fight` is the quiet half of settling -
-      it runs only when nothing waits to be answered, and returns an error naming it when something does (a
-      blow or a zone crossing queued, a creature at its threshold or dead, somebody fallen, a countdown
-      reaped). The GM's turn is not ported: once the spotlight passes to the GM, nobody in the party acts.
+    - **What a fight answers was part 5's**: here `settle_fight` ran only when nothing waited to be
+      answered, and returned an error naming what did; 5a plays all of it.
     - The project's jump rules are read (`jump_rules_for`, each field the engine's where it says nothing).
     `walk.golden.test.ts` writes `server/fixtures/walk.json` (about 5.8 MB): the demo, the default project, a
     drill yard built on it (a trip-wire that lays its user prone, a horn that begins the fight, a white flag
@@ -621,5 +621,67 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     already hands over), one is equivalent here (whether closing on a thing came up short, which only an
     animated view reads), and two are not reached (a fight begun again while it is on, and a spot inside the
     circle whose only way there leaves it).
-  - **Next**: part 5, the fight loop - the blows and crossings answered (`playDamageReactions`), creatures
-    at their threshold and dead, death moves, countdowns, the GM's turn, and attacks.
+  - **Part 5 is three halves.** `askDefender` draws the line: with nobody at the table asked, every
+    question a fight puts to a player can wait, so (5a) is the fight loop played that way; (5b) is the
+    questions - the defence a hit is taken with, a card offered on a roll, a blow, a wound or a miss, and the
+    death move asked (Blaze of Glory, Risk It All, a card instead); (5c) is the action bar - a card used on
+    the character's turn (`useAbility`: its targets, a point, a shape, tokens), which the six-part plan put in
+    neither part 5 nor part 6.
+  - **The fight is played** (`server/engine/src/game/{turn,features,answer,swing,blow,fight}.rs`), with nobody
+    at the table asked anything:
+    - **The GM's turn** (`turn.rs`): the party's turn ended (`end_turn`), what they carried for a moment
+      shaken off, and the adversaries the encounter has waiting spotlighted while the Shadow lasts - Relentless
+      keeping its place, a granted spotlight not billed, one it cannot pay for ending the turn. Each shakes off
+      what holds it (a Shadow spent on what stops it acting), uses a feature worth using, or walks up (within
+      Close for free, Very Far as the whole action) and swings. What a stat block's script does to the queue -
+      a swarm that swung with it, arrivals, allies rallied at half strength, itself again, a creature replaced -
+      is `after_adversary_script`. The spotlight counts are the session's `spotlit`, which the world's
+      `spotlight_spent` reads (`bindTurn`), tied again whenever the world is rebuilt and not after travel, as
+      the TypeScript ties it.
+    - **A stat block's features** (`features.rs`): the one worth using (`adversary_feature` - one aimed at the
+      nearest it can reach, one that works on itself, its own side, a summons, a clock or a rally that has
+      somebody to call, or one that catches two of the party), what it costs the GM, its uses, the reactions
+      it plays on its own, the script it runs (aimed at the nearest of the party), and the countdowns - ticked
+      by the party's rolls and hits, and going off with their owner acting.
+    - **What answers a moment** (`answer.rs`): the party's cards - a free one plays itself, and one whose
+      script asks something waits as a prompt (`OnDone::Reaction`) holding whatever swing it was about; a
+      stat block's reactions; the wounds (`playDamageReactions`, drained until quiet), a creature's own, an
+      ally's and a bystander's; a party roll; a swing at somebody; the riders on a hit and a miss; a debt a
+      condition leaves for whoever swings; ground that bites.
+    - **The party's swing** (`swing.rs`): closed on, rolled, the roll put to the room before anything comes
+      of it, the damage put to it, and the blow landed - counted again when a card grew it, named its band,
+      forced it or doubled it, rebuilt when a card threw the dice again (`as_answered`, `as_rerolled`);
+      minions fall to it. **The GM's** (`blow.rs`): what the room adds (`boostDamage`), a rally's half, the
+      defence the engine decides, an aura's step down, Momentum and Terrifying, the riders.
+    - **The settle** (`fight.rs`): the ground, the wounds, a creature that stops to talk at its threshold, a
+      creature's last word (once per creature - entities carry a serial, since a summons can take a fallen
+      one's id and the TypeScript tells them apart by the object), the death move (Avoid Death with its scar;
+      a last stand that answers the fall instead), who is left standing, the countdowns a death sets off.
+    - **A question being answered is still open**: the TypeScript's `answerPending`, `answerDialogue`,
+      `resumeOuter` and `settle` leave the question in `pending` while its journal is recorded, and everything
+      a fight settles reads that - a death move the answer's own roll caused waits. The session counts the
+      depth (`answering`) and the fight asks `waiting()`. A creature's conversation over picks a GM's turn it
+      stopped up again. `AbilityDef` gained text, target and uses, and `AdversaryDef` its features.
+    - **A table that asks is still refused**, loudly: a defence, a card offered, a death move asked each
+      return an error naming them.
+    `fight.golden.test.ts` writes `server/fixtures/fight.json` (about 14 MB): the demo, the default project,
+    a pit built on it and the pit alone - stat blocks of its own that are Relentless, carry Momentum, are
+    Terrifying, are Minions or a Horde, with cards printed on them for every moment a fight raises, cards
+    given to the party that play themselves at every moment theirs (a choice mid-swing, a reroll, a blow
+    grown, a Stress cleared, a hold, a revival on a critical), a debt, a last stand, an aura, a lucky die, a
+    creature that stops to talk, a white flag, and a lever that drops whoever pulls it wrong and arms a trap
+    - in 28 sessions of up to 80 steps (a fight begun, swings, the turn ended, walks, the selection, things
+    used, prompts answered) and two tours (the flag, a stood-down creature struck, a creature held). After
+    each step its answer, the GM's turn, the fight, everybody's pools and conditions, the Shadow, the scars,
+    the log, and what a view is handed. `server/hooks/tests/golden_fight.rs` replays it (about 40 s at
+    `opt-level = 1`, six minutes unoptimised). 96 of 106 deliberate mutations fail it; of the rest three are equivalent (a fresh
+    creature the GM cannot pay for skipped rather than ending the turn, when everything behind it costs the
+    same; a card seen twice, when one ability answers one trigger; a card's Stress, when only free cards play
+    with nobody asked) and seven are not reached (a creature talked round still waiting in the queue, a second
+    pass of wounds that nothing logs between, a party member revived and falling again, a fight a script
+    stopped in the middle of the GM's turn, a rally dearer than the allies it calls, a lieutenant's rally on
+    the spotlight with nobody to call, and a rallied blow's odd total halved).
+  - **Next**: (5b) the questions a fight puts to the table - `PendingDefense` (`defenseChoices`, `offerMiss`,
+    `applyDefenseChoice`, `answeredWith`), `PendingReaction` (`askReaction`, `offerOnRoll`, a queue of them),
+    `PendingDeath` (`askDeathMove`, Blaze of Glory, Risk It All, a card instead) - and the answers that pick a
+    stopped GM's turn up again.

@@ -2,16 +2,20 @@
 //! creature's say in them): a trigger, a script's Start a fight or a creature turned hostile begins one,
 //! a script's End a fight stands every enemy down, and a fight that is over is put away once.
 //!
-//! What a fight *plays* - the swings, the GM's turn, the answers to a blow, the death moves - is the next
-//! part's. `settle_fight` is ported step for step, and each step either runs or, when it would have
-//! something to answer that is not here yet - a blow, a crossing into ground that bites, somebody down, a
-//! countdown moved - refuses with an error naming it. Nothing is answered quietly.
+//! `settle_fight` is what every blow, script and turn ends on: the ground read again, what the moment
+//! raises answered (ground that bites, the wounds, a creature at its threshold, a creature's last word, a
+//! party member's death move), who is left standing counted, the countdowns a death sets off, and a fight
+//! that is over put away. The death move is Avoid Death while nobody at the table is asked; the question
+//! itself, like every question a fight puts to the table, is the next half's.
 
+use super::features::Left;
 use super::log::note;
 use super::session::Session;
 use crate::combat::encounter::{EncounterOutcome, EncounterRunner};
+use crate::rules::duality::GOOD_DIE_SIDES;
 use crate::scene::state::Faction;
-use serde_json::Value;
+use crate::script::conditions::TargetBindings;
+use serde_json::{json, Value};
 
 fn list<'a>(value: &'a Value, key: &str) -> &'a [Value] {
     value.get(key).and_then(Value::as_array).map_or(&[], Vec::as_slice)
@@ -90,50 +94,149 @@ impl Session {
                 self.world.state.set_attitude(&creature, "friendly");
                 self.world.state.entity_mut(&creature).expect("standing").truce = Some(true);
             }
+            // Stopped mid-turn, the GM's turn goes with it.
+            self.end_the_turn();
             self.encounter.as_mut().expect("a fight").end(&mut self.world.state, EncounterOutcome::Stopped);
             self.close_fight();
         }
     }
 
     /// After anything that may have changed the fight (`settleFight`): the ground read again, every question
-    /// the moment raises asked, and who is left standing counted. Every question is the next part's, so one
-    /// that has anything to ask is refused.
+    /// the moment raises answered, who is left standing counted, and a fight that is over put away.
     pub fn settle_fight(&mut self) -> Result<(), String> {
         self.world.refresh_zones();
-        if !self.world.drain_entered().is_empty() {
-            return Err(not_yet("Ground that bites somebody who walked onto it"));
-        }
-        if !self.world.drain_damage().is_empty() {
-            return Err(not_yet("Answering a blow"));
-        }
-        if self.pending.is_none() {
-            for entity in self.world.state.entities_of(Faction::Adversary) {
-                let Some((placement, _)) = self.placement_of(&entity.id) else { continue };
-                let interaction = &placement["interaction"];
-                if interaction["kind"] != "threshold" || !entity.alive || entity.interacted == Some(true) {
-                    continue;
-                }
-                let left = entity.hit_points.max - entity.hit_points.marked;
-                if left * 100.0 <= interaction["percent"].as_f64().unwrap_or(50.0) * entity.hit_points.max {
-                    return Err(not_yet("A creature stopping to talk at its threshold"));
-                }
-            }
-        }
-        if self.world.state.entities_of(Faction::Adversary).any(|e| !e.alive) {
-            return Err(not_yet("A creature's fall"));
-        }
-        if self.pending.is_none() && self.world.state.entities_of(Faction::Party).any(|e| !e.alive && e.dead != Some(true)) {
-            return Err(not_yet("A death move"));
-        }
-        if self.pending.is_none() {
+        self.play_zone_entries()?;
+        self.play_damage_reactions()?;
+        self.play_turnings()?;
+        self.play_defeat_reactions()?;
+        self.play_death_moves()?;
+        if !self.waiting() {
             if let Some(encounter) = self.encounter.as_mut() {
                 encounter.settle_if_decided(&mut self.world.state);
             }
         }
-        if !self.world.reap_countdowns().is_empty() {
-            return Err(not_yet("A countdown a death sets off"));
+        for moved in self.world.reap_countdowns() {
+            self.play_countdown(moved)?;
         }
         self.close_fight();
+        Ok(())
+    }
+
+    /// A creature a wound left at its threshold stops to talk (`playTurnings`): friendly, and a conversation
+    /// with whoever is selected.
+    fn play_turnings(&mut self) -> Result<(), String> {
+        if self.waiting() {
+            return Ok(());
+        }
+        let creatures: Vec<String> = self.world.state.entities_of(Faction::Adversary).map(|e| e.id.clone()).collect();
+        for id in creatures {
+            let Some((placement, _)) = self.placement_of(&id) else { continue };
+            let interaction = placement["interaction"].clone();
+            let Some(entity) = self.world.state.entity(&id) else { continue };
+            if interaction["kind"] != "threshold" || !entity.alive || entity.interacted == Some(true) {
+                continue;
+            }
+            let left = entity.hit_points.max - entity.hit_points.marked;
+            if left * 100.0 > interaction["percent"].as_f64().unwrap_or(50.0) * entity.hit_points.max {
+                continue;
+            }
+            self.world.state.entity_mut(&id).expect("standing").interacted = Some(true);
+            if self.world.state.set_attitude(&id, "friendly") {
+                self.record(&[json!({ "kind": "attitude", "id": id, "attitude": "friendly" })])?;
+            }
+            let actor = self.party.selected().map(str::to_string).or_else(|| self.world.state.entities_of(Faction::Party).find(|m| m.alive).map(|m| m.id.clone()));
+            if let Some(actor) = actor {
+                let dialogue = interaction["dialogue"].as_str().unwrap_or_default().to_string();
+                self.converse(&actor, &id, &dialogue)?;
+            }
+            return Ok(());
+        }
+        Ok(())
+    }
+
+    /// The last thing a stat block does (`playDefeatReactions`): once for each creature that falls.
+    pub(super) fn play_defeat_reactions(&mut self) -> Result<(), String> {
+        let fallen: Vec<(String, u64)> = self.world.state.entities_of(Faction::Adversary).filter(|e| !e.alive).map(|e| (e.id.clone(), e.serial.0)).collect();
+        for (id, serial) in fallen {
+            if self.mourned.contains(&serial) {
+                continue;
+            }
+            self.mourned.push(serial);
+            for ability in self.world.reactions_for(&id, "defeated", None) {
+                if ability.effects.is_empty() || !self.affordable_reaction(&id, &ability) {
+                    continue;
+                }
+                self.spend_feature_cost(&id, &ability, true);
+                self.run_adversary_script(&id, &ability, &[], &[], Left::default())?;
+            }
+        }
+        Ok(())
+    }
+
+    /// "When a PC marks their last Hit Point, they must make a death move" (`playDeathMoves`): one at a time,
+    /// before anybody counts who is left standing. With nobody asked, it is Avoid Death.
+    pub(super) fn play_death_moves(&mut self) -> Result<(), String> {
+        if self.waiting() {
+            return Ok(());
+        }
+        let members: Vec<String> = self.world.state.entities_of(Faction::Party).map(|e| e.id.clone()).collect();
+        for id in members {
+            let Some(entity) = self.world.state.entity(&id) else { continue };
+            let serial = entity.serial.0;
+            if entity.alive {
+                self.fallen.retain(|&s| s != serial);
+                continue;
+            }
+            if entity.dead == Some(true) || self.fallen.contains(&serial) {
+                continue;
+            }
+            let Some(name) = self.characters.get(&id).map(|c| c.sheet.name.clone()) else { continue };
+            self.fallen.push(serial);
+            note(self, &format!("{name} marks their last Hit Point."), "bad");
+            if let Some(sigil) = self.world.instead_of_death(&id) {
+                self.world.clear_condition(&id, &sigil.condition);
+                self.world.heal(&json!({ "kind": "entity", "id": id }), sigil.clears, &TargetBindings::default());
+                self.fallen.retain(|&s| s != serial);
+                note(self, &format!("{name}: {}", sigil.says), "good");
+                continue;
+            }
+            if !self.ask_defender {
+                self.avoid_death(&id)?;
+                continue;
+            }
+            return Err(not_yet("A death move asked of the table"));
+        }
+        Ok(())
+    }
+
+    /// "They temporarily drop unconscious... roll your Light Die" (`avoidDeath`).
+    fn avoid_death(&mut self, id: &str) -> Result<(), String> {
+        let Some((name, level)) = self.characters.get(id).map(|c| (c.sheet.name.clone(), c.sheet.level)) else { return Ok(()) };
+        note(self, &format!("{name} drops unconscious."), "system");
+        let good = self.rng.die(GOOD_DIE_SIDES).map_err(|e| e.0)?;
+        if f64::from(good) > level {
+            note(self, &format!("The Light Die reads {good}: no scar this time."), "system");
+            return Ok(());
+        }
+        self.scar(id, good)
+    }
+
+    /// "Permanently cross out a Light slot" (`scar`).
+    fn scar(&mut self, id: &str, rolled: u32) -> Result<(), String> {
+        let Some(character) = self.characters.get(id).cloned() else { return Ok(()) };
+        let Some(held) = self.world.state.entity(id).map(|e| e.good.unwrap_or(character.good)) else { return Ok(()) };
+        let sheet = self.sheets.get(id).cloned().unwrap_or_else(|| character.sheet.clone());
+        let scars = sheet.scars.unwrap_or(0.0) + 1.0;
+        self.set_sheet(crate::character::sheet::CharacterSheet { scars: Some(scars), ..sheet })?;
+        let max = crate::js::max(0.0, held.max - 1.0);
+        self.world.state.entity_mut(id).expect("standing").good = Some(crate::rules::resources::Currency { max, value: crate::js::min(held.value, max) });
+        let name = character.sheet.name.clone();
+        note(self, &format!("The Light Die reads {rolled}. {name} takes a scar: a Light slot crossed out for good."), "bad");
+        if max > 0.0 {
+            return Ok(());
+        }
+        self.world.state.entity_mut(id).expect("standing").dead = Some(true);
+        note(self, &format!("That was the last slot. {name}'s journey ends here."), "bad");
         Ok(())
     }
 

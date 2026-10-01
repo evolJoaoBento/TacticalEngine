@@ -307,7 +307,7 @@ impl Session {
                 let success = runner.last_action_roll().is_some_and(|r| r.success);
                 self.land(&id, &leap, Some(success), Some(runner.spotlight_to_gm), read)
             }
-            OnDone::Nothing | OnDone::Converse => Ok(()),
+            OnDone::Nothing | OnDone::Converse | OnDone::Reaction { .. } => Ok(()),
         }
     }
 

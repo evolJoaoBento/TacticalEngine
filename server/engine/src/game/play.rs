@@ -8,9 +8,9 @@
 //! again with the world and the dice when it is answered, and a conversation keeps its runner and the
 //! script inside it the same way.
 //!
-//! A fight a journal starts or stops is `fight`'s. What a fight plays is not here: the reaction cards a roll
-//! would offer a table that asks (`ask_defender`), a creature's answer to the party's roll, and countdowns a
-//! roll would move are refused with an error naming them - refusing beats quietly doing something else.
+//! A fight a journal starts or stops is `fight`'s, and what answers a roll the party made is `answer`'s; the
+//! countdowns a roll moves tick here. A card a roll would offer a table that asks (`ask_defender`) is the
+//! next half's, and refused with an error naming it - refusing beats quietly doing something else.
 
 use super::content::item_name;
 use super::fight::not_yet;
@@ -52,6 +52,9 @@ pub enum OnDone {
     Run { id: String, destination: i32, aimed: Option<crate::grid::tile_grid::Spot> },
     /// A jump: land, as the roll says.
     Leap { id: String, leap: super::leap::Leap, read: bool },
+    /// A card of the party's that stopped to ask something: vaulted if it says so, and what it was holding -
+    /// a swing - landed, with the actor it put down given back.
+    Reaction { by: String, ability: Box<crate::content::abilities::AbilityDef>, landing: Option<Box<super::swing::HeldSwing>>, was: Option<String> },
 }
 
 /// A conversation in progress.
@@ -257,13 +260,14 @@ impl Session {
         let journal = runner.entries().to_vec();
         waiting.runner = runner.suspend();
         // Only the part that has not been shown yet.
-        let lines = self.record(&journal[waiting.recorded.min(journal.len())..])?;
+        let lines = self.record_answering(&journal[waiting.recorded.min(journal.len())..])?;
         match status {
             RunStatus::Waiting(prompt) => {
                 waiting.prompt = prompt;
                 waiting.recorded = journal.len();
                 // The dice are read and nothing has come of them: the room answers this one, not the player.
                 if waiting.prompt["kind"] == "rolled" {
+                    self.pending = None;
                     let asked = self.offer_on_roll(waiting)?;
                     let mut all = lines;
                     all.extend(asked.lines);
@@ -273,16 +277,24 @@ impl Session {
                 self.settle(lines)
             }
             RunStatus::Done => {
+                self.pending = None;
                 self.done(waiting.on_done.clone(), &waiting.runner)?;
                 self.settle_travel(lines)
             }
         }
     }
 
-    /// What the room says about a roll it could answer (`offerOnRoll`): a table that asks is the fight's; one
-    /// that does not lets it stand.
+    /// Put the roll to the room before the check reads it (`offerOnRoll`): a free card plays itself; one to
+    /// offer a table that asks is the next half's; with nobody asked, the roll stands.
     fn offer_on_roll(&mut self, waiting: PendingScript) -> Result<UseOutcome, String> {
-        if self.ask_defender {
+        let roll: Option<crate::rules::duality::DualityRoll> = serde_json::from_value(waiting.prompt["roll"].clone()).ok();
+        let tags: Option<Vec<String>> = serde_json::from_value(waiting.prompt["tags"].clone()).ok();
+        let trait_ = waiting.prompt["trait"].as_str().map(str::to_string);
+        let groups = match (self.world.scenario.actor_id.clone(), roll) {
+            (Some(roller), Some(roll)) => self.rolling_offers(&roller, &roll, None, tags, trait_)?,
+            _ => Vec::new(),
+        };
+        if !groups.is_empty() && self.ask_defender {
             return Err(not_yet("A card offered on a roll"));
         }
         self.pending = Some(waiting);
@@ -293,9 +305,18 @@ impl Session {
     fn done(&mut self, on_done: OnDone, runner: &SuspendedRunner) -> Result<(), String> {
         match on_done {
             // A creature's conversation over: the fight counted again - the one talked round may have been
-            // the last who wanted it.
-            OnDone::Converse if self.encounter.is_some() => self.settle_fight(),
+            // the last who wanted it - and a GM's turn it stopped picked up again.
+            OnDone::Converse => {
+                if self.encounter.is_some() {
+                    self.settle_fight()?;
+                }
+                if !self.waiting() && self.gm_turn.is_some() {
+                    self.run_gm_turn()?;
+                }
+                Ok(())
+            }
             OnDone::Run { .. } | OnDone::Leap { .. } => self.finish(on_done, runner),
+            OnDone::Reaction { by, ability, landing, was } => self.reaction_done(&by, &ability, landing.map(|l| *l), was, runner),
             _ => Ok(()),
         }
     }
@@ -311,7 +332,7 @@ impl Session {
             }
         };
         let journal = talking.runner.entries().to_vec();
-        let lines = self.record(&journal[talking.recorded.min(journal.len())..])?;
+        let lines = self.record_answering(&journal[talking.recorded.min(journal.len())..])?;
         talking.recorded = journal.len();
         match status {
             DialogueStatus::Talking(view) => {
@@ -350,7 +371,7 @@ impl Session {
         let journal = runner.entries().to_vec();
         waiting.runner = runner.suspend();
         let mut all = lines;
-        all.extend(self.record(&journal[waiting.recorded.min(journal.len())..])?);
+        all.extend(self.record_answering(&journal[waiting.recorded.min(journal.len())..])?);
         match status {
             RunStatus::Waiting(prompt) => {
                 waiting.prompt = prompt;
@@ -359,6 +380,7 @@ impl Session {
                 self.settle(all)
             }
             RunStatus::Done => {
+                self.pending = None;
                 self.done(waiting.on_done.clone(), &waiting.runner)?;
                 self.settle_travel(all)
             }
@@ -389,7 +411,7 @@ impl Session {
         let mut inner = None;
         let status = runner.start(&mut Host { world: &mut self.world, rng: &mut self.rng, inner: &mut inner });
         let journal = runner.entries().to_vec();
-        let started = self.record(&journal)?;
+        let started = self.record_answering(&journal)?;
         let mut opened = PendingDialogue {
             view: None,
             prompt: None,
@@ -441,6 +463,14 @@ impl Session {
 
     // ---- a journal, acted on -----------------------------------------------------------------------------
 
+    /// `record`, for the journal of a question being answered, which is still open while it is recorded.
+    fn record_answering(&mut self, journal: &[Value]) -> Result<Vec<LogLine>, String> {
+        self.answering += 1;
+        let recorded = self.record(journal);
+        self.answering -= 1;
+        recorded
+    }
+
     /// Turn what a script did into what the player reads, and act on it (`record`).
     pub fn record(&mut self, journal: &[Value]) -> Result<Vec<LogLine>, String> {
         let lines = write_down(self, journal);
@@ -457,8 +487,8 @@ impl Session {
         for (roller, roll) in self.rolls_from(journal) {
             self.play_party_rolled(&roller, &roll)?;
         }
-        if self.cues_from(journal) && !self.world.countdowns().is_empty() {
-            return Err(not_yet("A countdown moved by a roll"));
+        for cue in self.cues_from(journal) {
+            self.tick_countdowns(&cue)?;
         }
         Ok(())
     }
@@ -480,33 +510,31 @@ impl Session {
         rolls
     }
 
-    /// Whether a journal holds anything a countdown counts (`cuesFrom`): a party action roll, Hit Points marked.
-    fn cues_from(&self, journal: &[Value]) -> bool {
+    /// What a journal holds that a countdown counts (`cuesFrom`): a party action roll, Hit Points marked.
+    fn cues_from(&self, journal: &[Value]) -> Vec<crate::rules::countdown::CountdownCue> {
+        use crate::rules::countdown::CountdownCue;
         let party = |id: Option<&str>| id.is_some_and(|id| self.world.state.entity(id).is_some_and(|e| e.faction == Faction::Party));
-        journal.iter().any(|entry| {
-            (entry["kind"] == "check" && party(self.world.scenario.actor_id.as_deref()))
-                || (entry["kind"] == "attack" && ((entry.get("roll").is_some_and(|r| !r.is_null()) && party(entry["attacker"].as_str())) || entry["hitPointsMarked"].as_f64().unwrap_or(0.0) > 0.0))
-        })
-    }
-
-    /// A party member rolled (`playPartyRolled`): what they carried for their next roll is spent, and what
-    /// answers the roll is asked - the fight's, when anything would.
-    fn play_party_rolled(&mut self, roller: &str, roll: &Value) -> Result<(), String> {
-        if self.world.state.entity(roller).map(|e| e.faction) != Some(Faction::Party) {
-            return Ok(());
-        }
-        self.world.ends_on_roll(roller);
-        if self.ask_defender {
-            return Err(not_yet("A card offered on a party roll"));
-        }
-        let bindings: TargetBindings = serde_json::from_value(json!({ "targets": [roller], "hit": [roller], "roll": { "total": roll["total"], "outcome": roll["outcome"] } })).map_err(|e| e.to_string())?;
-        let foes: Vec<String> = self.world.state.entities_of(Faction::Adversary).filter(|e| e.alive).map(|e| e.id.clone()).collect();
-        for foe in foes {
-            if self.world.reactions_for(&foe, "partyRolled", Some(&bindings)).iter().any(|a| !a.effects.is_empty()) {
-                return Err(not_yet("A creature answering the party's roll"));
+        let outcome = |entry: &Value| serde_json::from_value(entry["roll"]["outcome"].clone()).ok();
+        let mut cues = Vec::new();
+        for entry in journal {
+            if entry["kind"] == "check" && party(self.world.scenario.actor_id.as_deref()) {
+                if let Some(outcome) = outcome(entry) {
+                    cues.push(CountdownCue::ActionRoll { attack: false, outcome });
+                }
+            }
+            if entry["kind"] == "attack" {
+                if entry.get("roll").is_some_and(|r| !r.is_null()) && party(entry["attacker"].as_str()) {
+                    if let Some(outcome) = outcome(entry) {
+                        cues.push(CountdownCue::ActionRoll { attack: true, outcome });
+                    }
+                }
+                let marked = entry["hitPointsMarked"].as_f64().unwrap_or(0.0);
+                if marked > 0.0 {
+                    cues.push(CountdownCue::HpMarked { id: text(entry, "target").to_string(), marked });
+                }
             }
         }
-        Ok(())
+        cues
     }
 
     /// Act on what a script did to the things in a room and where it sent the party (`reactToThings`).
@@ -658,7 +686,7 @@ impl Session {
     }
 
     /// Open a creature's conversation, the creature bound as the `target` of everything in it (`converse`).
-    fn converse(&mut self, actor: &str, id: &str, dialogue: &str) -> Result<UseOutcome, String> {
+    pub(super) fn converse(&mut self, actor: &str, id: &str, dialogue: &str) -> Result<UseOutcome, String> {
         self.world.scenario.actor_id = Some(actor.to_string());
         let options = RunnerOptions { targets: Some(vec![id.to_string()]), ..RunnerOptions::default() };
         let mut runner = ScriptRunner::new(&mut self.world, &mut self.rng, &options);

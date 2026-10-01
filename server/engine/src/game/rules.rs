@@ -7,6 +7,9 @@ use crate::rules::jump::JumpRules;
 use crate::rules::range::BandTiles;
 use serde_json::Value;
 
+/// The stat block a creature with none answers to in a fight (`DEMO_ADVERSARY_ID`).
+pub const DEMO_ADVERSARY_ID: &str = "hollow-knight";
+
 /// Tight bands, so a 22x16 map spans more than one of them.
 pub const DEMO_BAND_TILES: BandTiles = BandTiles { melee: 1.0, very_close: 2.0, close: 4.0, far: 8.0, very_far: 12.0 };
 
