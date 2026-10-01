@@ -4,6 +4,13 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## The page runs the Rust engine — done
+
+In development every question the pointer asks is put to the game and to a replica of it in the Rust
+engine built to WebAssembly (`src/game/shadow.ts`), and where they part is counted; `tests/e2e/replica.spec.ts`
+plays a fight and holds the count to nought. Players see the game's answers, as before. Phase 3's slice 2 is
+done; slice 3, the socket, is next.
+
 ## The engine builds to WebAssembly — done
 
 `server/wasm` is the engine behind a C face that speaks JSON - `build`, `restore`, `ask` - imports nothing,

@@ -907,8 +907,22 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     `replica.json`, one game a session as the page will (about a minute), and is skipped with a word when
     the file is not built. The face's own tests run natively (`cargo test -p tactical-wasm`). 7 of 7
     deliberate mutations of the face and the loader fail the vitest.
-  - **Next**: 2c - the page building the replica beside the game (the shipped content as JSON from one
-    module, the project rebuilt into it when the editor changes it), telling it how the game stands after
-    every intent, and asking it what the pointer asks beside the game, in a shadow mode: the game still
-    answers, and every place the two part is counted (`window.__engine.replicaMismatches()`), which an
-    e2e run holds to nought.
+  - **The page runs the Rust engine, in a shadow** (slice 2c, `src/game/shadow.ts`). Where the page is
+    served for development - the dev server, which the e2e suite uses - each game the page plays
+    (`LocalGame`) is given a replica in the engine built to WebAssembly, compiled once from
+    `/wasm/engine.wasm`, built from the project with the shipped content (`src/game/shipped.ts`, the one
+    module the page and the replica's golden take it from), built again when the editor changes the project
+    under the game (`rederive`, `takeGround`, `syncAuthoredEncounters`), and told how the game stands
+    before each question when that has changed since it was last told. The questions the pointer asks -
+    the reach, where a push asks a roll, a walk's preview, whom a card may be aimed at, where it lands and
+    whom it catches, a jump's offer, tiles and reaches - are put to both; the game's answer is the one the
+    page gets, and where the replica's differs it is counted, kept (the first 20) and warned of in the
+    console (`window.__replica.count()`). A build for players, or a page without `npm run wasm`, has no
+    replica and is the page it was. `src/game/shadow.test.ts` holds the shadow itself;
+    `tests/e2e/replica.spec.ts` plays a fight - every member's reach, pushes, previews, every card aimed
+    and its shapes, cards used, the GM's turns - and holds the count to nought (243 questions on the run
+    that first passed). The questions the page asks inside other questions - `hoverLine`'s preview,
+    `abilityList`'s targets - are not shadowed yet; they are the next to move.
+  - **Next**: phase 3 slice 3 - the socket: a session per signed-in player on the server, the dispatcher
+    over the `Session` methods, and `GameClient` over it behind a switch, the replica fed the view the
+    server sends.

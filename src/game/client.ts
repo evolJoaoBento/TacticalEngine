@@ -21,7 +21,9 @@
  *   offer them as they are; slice 3 settles which become privileged intents and which stay local.
  *
  * Every method here is the function the page called before, handed the game: nothing is decided in this
- * file, which is what lets the e2e suite say the seam changed nothing.
+ * file, which is what lets the e2e suite say the seam changed nothing. Where the page is served for
+ * development, the questions the pointer asks are also put to a replica of the game in the engine built to
+ * WebAssembly, and where the two part is counted (`shadow.ts`); the game's answer is the one given.
  */
 
 import { deriveCharacter } from '../engine/character/sheet';
@@ -62,6 +64,7 @@ import { steerStep } from './steer';
 import { landWalkers } from './land';
 import { dropCard, type Drop } from './party-drop';
 import { carriedItems, containerView, hudMembers, journalEntries, talkingTo, talkingView } from './ui/play-views';
+import { shadowFor, type Shadow } from './shadow';
 
 /** What the board is: the game's state as the page reads it, every frame. */
 export type Board = Readonly<
@@ -203,9 +206,20 @@ export interface LocalPowers {
  * defender asked how a hit lands, and the tokens walking, a fight a walk wakes starting when they arrive.
  */
 export class LocalGame implements GameClient, LocalPowers {
+  /** The replica the pointer's questions are also put to, once the engine is here; none outside development. */
+  private shadow: Shadow | null = null;
+
   constructor(private readonly demo: DemoScene) {
     demo.askDefender = true;
     demo.animated = true;
+    void shadowFor(demo).then((shadow) => {
+      this.shadow = shadow;
+    });
+  }
+
+  /** The game's answer - and, with a replica, the replica's beside it, any parting counted. */
+  private asked<T>(question: string, asked: unknown, game: () => T, replica: Parameters<Shadow['check']>[3], seen?: (answer: T) => unknown): T {
+    return this.shadow === null ? game() : this.shadow.check(question, asked, game, replica, seen);
   }
 
   get board(): Board {
@@ -257,9 +271,18 @@ export class LocalGame implements GameClient, LocalPowers {
   withinReach(...args: After<typeof withinReach>) { return withinReach(this.demo, ...args); }
   abilitiesOf(...args: After<typeof abilitiesOf>) { return abilitiesOf(this.demo, ...args); }
   abilityList(...args: After<typeof abilityList>) { return abilityList(this.demo, ...args); }
-  abilityTargets(...args: After<typeof abilityTargets>) { return abilityTargets(this.demo, ...args); }
-  pointTiles(...args: After<typeof pointTiles>) { return pointTiles(this.demo, ...args); }
-  shapeAt(...args: After<typeof shapeAt>) { return shapeAt(this.demo, ...args); }
+  abilityTargets(...args: After<typeof abilityTargets>) {
+    const [id, ability] = args;
+    return this.asked('targets', [id, ability.id], () => abilityTargets(this.demo, ...args), (e) => e.targets(id, ability.id));
+  }
+  pointTiles(...args: After<typeof pointTiles>) {
+    const [id, ability] = args;
+    return this.asked('tiles', [id, ability.id], () => pointTiles(this.demo, ...args), (e) => e.tiles(id, ability.id));
+  }
+  shapeAt(...args: After<typeof shapeAt>) {
+    const [id, ability, tile] = args;
+    return this.asked('shape', [id, ability.id, tile], () => shapeAt(this.demo, ...args), (e) => e.shape(id, ability.id, tile));
+  }
   loadoutView(...args: After<typeof loadoutView>) { return loadoutView(this.demo, ...args); }
   gearView(...args: After<typeof gearView>) { return gearView(this.demo, ...args); }
   gearOf(...args: After<typeof gearOf>) { return gearOf(this.demo, ...args); }
@@ -270,18 +293,29 @@ export class LocalGame implements GameClient, LocalPowers {
   talkingView() { return talkingView(this.demo); }
   talkingTo() { return talkingTo(this.demo); }
   inspection(...args: After<typeof inspection>) { return inspection(this.demo, ...args); }
-  reachableTiles(...args: After<typeof reachableTiles>) { return reachableTiles(this.demo, ...args); }
-  underPressureTiles() { return underPressureTiles(this.demo); }
-  previewWalk(...args: After<typeof previewWalk>) { return previewWalk(this.demo, ...args); }
+  reachableTiles(...args: After<typeof reachableTiles>) {
+    const number = (n: number): number | null => (Number.isFinite(n) ? n : null);
+    const drawn = (field: ReturnType<typeof reachableTiles>) => ({ start: field.start, budget: number(field.budget), tiles: field.tiles(), cost: field.tiles().map((t) => number(field.costTo(t))) });
+    return this.asked('reach', args, () => reachableTiles(this.demo, ...args), (e) => e.reach(args[0]), drawn);
+  }
+  underPressureTiles() { return this.asked('pressure', [], () => underPressureTiles(this.demo), (e) => e.pressure()); }
+  previewWalk(...args: After<typeof previewWalk>) {
+    const [destination, aim, from] = args;
+    return this.asked('preview', args, () => previewWalk(this.demo, ...args), (e) => e.preview(destination, aim, from));
+  }
   hoverLine(...args: After<typeof hoverLine>) { return hoverLine(this.demo, ...args); }
   steerStep(...args: After<typeof steerStep>) { return steerStep(this.demo, ...args); }
   aimedArc(...args: After<typeof aimedArc>) { return aimedArc(this.demo, ...args); }
   reachRings(...args: After<typeof reachRings>) { return reachRings(this.demo, ...args); }
-  jumpReaches(...args: After<typeof jumpReaches>) { return jumpReaches(this.demo, ...args); }
-  jumpOffered() { return jumpOffered(this.demo); }
-  jumpAim() { return jumpAim(this.demo); }
+  jumpReaches(...args: After<typeof jumpReaches>) {
+    const [id, destination, aim] = args;
+    return this.asked('jumpReaches', args, () => jumpReaches(this.demo, ...args), (e) => e.jumpReaches(id, destination, aim));
+  }
+  jumpOffered() { return this.asked('jumpOffered', [], () => jumpOffered(this.demo), (e) => e.jumpOffered()); }
+  jumpAim() { return this.asked('jumpAim', [], () => jumpAim(this.demo), (e) => e.jumpAim(), (aim) => aim?.tiles ?? null); }
 
   rederive(): void {
+    this.shadow?.projectChanged();
     // Whoever the panel added since the last Play arrives now, and whoever it
     // removed leaves - before the world is rebuilt, so it is built over them.
     syncRoster(this.demo);
@@ -298,8 +332,14 @@ export class LocalGame implements GameClient, LocalPowers {
     refreshWorld(this.demo);
     syncPools(this.demo);
   }
-  takeGround(scene: SceneDoc, old: TileGrid, grid: TileGrid) { return takeGround(this.demo, scene, old, grid); }
-  syncAuthoredEncounters(): void { syncAuthoredEncounters(this.demo); }
+  takeGround(scene: SceneDoc, old: TileGrid, grid: TileGrid) {
+    this.shadow?.projectChanged();
+    return takeGround(this.demo, scene, old, grid);
+  }
+  syncAuthoredEncounters(): void {
+    this.shadow?.projectChanged();
+    syncAuthoredEncounters(this.demo);
+  }
   gatherParty(tile: number): void { gatherParty(this.demo, tile); }
   placeAt(id: string, tile: number): void { this.demo.state.moveEntity(id, tile); }
   setCards(id: string, cards: string[]): void {

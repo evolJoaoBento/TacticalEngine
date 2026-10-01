@@ -48,6 +48,12 @@ export class WasmEngine {
     return new WasmEngine(instance.exports as unknown as Face);
   }
 
+  /** Another engine from a module already compiled: a game of its own, the compiling done once. */
+  static async of(module: WebAssembly.Module): Promise<WasmEngine> {
+    const instance = await WebAssembly.instantiate(module, {});
+    return new WasmEngine(instance.exports as unknown as Face);
+  }
+
   /** One message, and its answer; an `{ error }` is thrown. */
   private send(message: unknown): unknown {
     const text = this.encoder.encode(JSON.stringify(message));

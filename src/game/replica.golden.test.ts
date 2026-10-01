@@ -20,7 +20,6 @@ import { fileURLToPath } from 'node:url';
 import { createRng, type Rng } from '../engine/core/rng';
 import { NO_TILE, type Spot } from '../engine/grid/grid';
 import { EQUIPMENT } from '../engine/content/equipment/catalogue';
-import type { ContentPack } from '../engine/content/pack/import';
 import { STARTER_ABILITIES, STARTER_CONDITIONS } from '../engine/content/pack/starter';
 import { SRD_CONDITIONS } from '../engine/content/conditions';
 import { migrateDocument } from '../engine/scene/migrate';
@@ -36,6 +35,7 @@ import { DEMO_ADVERSARIES, DEMO_CHARACTERS } from './demo-rules';
 import { inCombat } from './moment';
 import { syncTalks } from './talks';
 import { replicaOf } from './replica';
+import { contentJson } from './shipped';
 import { barWorkshop } from '../../tests/fixtures/bar-workshop';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -43,19 +43,6 @@ const FIXTURE = resolve(here, '../../server/fixtures/replica.json');
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value ?? null)) as T;
 const num = (n: number): number | null => (Number.isFinite(n) ? n : null);
 const round = (n: number): number => Math.round(n * 1000) / 1000;
-
-/** The content as the Rust reads it - the cards with their words, which the bar shows. */
-function contentJson(pack: ContentPack) {
-  return {
-    weapons: [...pack.weapons.values()].map(({ id, name, tier, slot, trait, range, damage, burden, features }) => ({ id, name, tier, slot, trait, range, damage, burden, features })),
-    armors: [...pack.armors.values()].map(({ id, name, tier, baseThresholds, baseScore, features }) => ({ id, name, tier, baseThresholds, baseScore, features })),
-    classes: [...pack.classes.values()].map(({ id, name, domains, startingEvasion, startingHitPoints }) => ({ id, name, domains, startingEvasion, startingHitPoints })),
-    ancestries: [...pack.ancestries.values()].map(({ id, name }) => ({ id, name })),
-    communities: [...pack.communities.values()].map(({ id, name }) => ({ id, name })),
-    subclasses: [...pack.subclasses.values()].map(({ id, name, classId, domains, spellcastTrait }) => ({ id, name, classId, domains, ...(spellcastTrait === undefined ? {} : { spellcastTrait }) })),
-    cards: [...pack.cards.values()].map(({ id, name, grant, domain, type, level, recallCost, text, features }) => ({ id, name, grant, text, features, ...(domain === undefined ? {} : { domain }), ...(type === undefined ? {} : { type }), ...(level === undefined ? {} : { level }), ...(recallCost === undefined ? {} : { recallCost }) })),
-  };
-}
 
 function answerFor(demo: DemoScene, g: Rng): Response {
   const p = demo.pending;
