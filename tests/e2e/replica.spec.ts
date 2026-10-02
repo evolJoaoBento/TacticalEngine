@@ -68,7 +68,10 @@ test('the replica answers the pointer as the game does, through a fight', async 
   expect(played.fought).toBe(true);
 
   const count = await page.evaluate(() => window.__replica!.count());
-  console.log('REPLICA:', JSON.stringify({ asked: count.asked, parted: count.parted }));
+  const playing = await page.evaluate(() => window.__replica!.playing());
+  console.log('REPLICA:', JSON.stringify({ playing, asked: count.asked, parted: count.parted }));
+  // A suite run with the engine chosen (`VITE_ENGINE=wasm`) is played by it, not by the page's own game.
+  expect(playing).toBe(process.env['VITE_ENGINE'] === 'wasm' ? 'wasm' : 'ts');
   expect(count.parted, `where the replica parted from the game: ${JSON.stringify(count.first, null, 1)}`).toBe(0);
   expect(count.asked).toBeGreaterThan(100);
 });

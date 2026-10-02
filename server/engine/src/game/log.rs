@@ -47,7 +47,7 @@ pub struct Floater {
 }
 
 /// A Duality roll waiting to be shown: who rolled it, what for, and the dice.
-#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct RollShow {
     pub who: String,
     pub what: String,

@@ -10,14 +10,12 @@ import { describe, expect, it } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createRng, type Rng } from '../engine/core/rng';
-import { NO_TILE } from '../engine/grid/grid';
+import { createRng } from '../engine/core/rng';
 import { migrateDocument } from '../engine/scene/migrate';
-import { interactablesOf } from '../engine/scene/prop-functions';
 import { projectSchema, type ProjectDoc } from '../engine/scene/schema';
-import type { Response } from '../engine/script/runner';
-import { buildProjectScene, type DemoScene } from './demo-scene';
+import { buildProjectScene } from './demo-scene';
 import { LocalGame } from './client';
+import { act, answerFor } from '../../tests/fixtures/random-play';
 import { replicaCount, Shadow } from './shadow';
 import { shippedContent } from './shipped';
 import { WasmEngine } from './wasm-engine';
@@ -26,112 +24,6 @@ import { barWorkshop } from '../../tests/fixtures/bar-workshop';
 const here = dirname(fileURLToPath(import.meta.url));
 const WASM = resolve(here, '../../public/wasm/engine.wasm');
 const built = existsSync(WASM);
-
-function answerFor(demo: DemoScene, g: Rng): Response {
-  const p = demo.pending;
-  if (p === null) return { kind: 'continue' };
-  if (p.kind !== 'script') {
-    const options = p.prompt.kind === 'choice' ? p.prompt.options : [];
-    return options.length === 0 ? { kind: 'continue' } : { kind: 'choose', index: g.pick(options).index };
-  }
-  const d = p.dialogue;
-  if (d !== null && d.view !== null && d.prompt === null) {
-    const enabled = d.view.options.filter((o) => o.enabled);
-    return enabled.length === 0 ? { kind: 'continue' } : { kind: 'choose', index: g.pick(enabled).index };
-  }
-  const prompt = d === null ? p.prompt : d.prompt;
-  if (prompt === null) return { kind: 'continue' };
-  if (prompt.kind === 'check') return { kind: 'roll' };
-  if (prompt.kind === 'choice') return { kind: 'choose', index: g.pick(prompt.options).index };
-  if (prompt.kind === 'rolled') return { kind: 'answered' };
-  return { kind: 'continue' };
-}
-
-/** One intent, as the dice fall, given through the page's seam. */
-function act(game: LocalGame, demo: DemoScene, g: Rng): void {
-  if (demo.pending !== null) {
-    game.answerPending(answerFor(demo, g));
-    return;
-  }
-  const selected = demo.party.selected;
-  const members = demo.party.members();
-  const near = (): number => {
-    const at = selected === null ? NO_TILE : (demo.state.entity(selected)?.tile ?? NO_TILE);
-    if (at === NO_TILE) return g.nextInt(demo.grid.size);
-    return demo.grid.indexOf(Math.min(demo.grid.width - 1, Math.max(0, demo.grid.xOf(at) + g.nextInt(13) - 6)), Math.min(demo.grid.height - 1, Math.max(0, demo.grid.yOf(at) + g.nextInt(13) - 6)));
-  };
-  const kind = g.pick(['move', 'move', 'move', 'attack', 'endTurn', 'select', 'use', 'use', 'use', 'thing', 'arrive', 'arrived', 'party', 'hands', 'fight', 'drain'] as const);
-  switch (kind) {
-    case 'move':
-      game.moveSelectedTo(near());
-      return;
-    case 'attack': {
-      const foes = demo.state.entitiesOf('adversary').filter((e) => e.alive).map((e) => e.id);
-      if (foes.length > 0) game.attackWithSelected(g.pick(foes));
-      return;
-    }
-    case 'endTurn':
-      game.endTurn();
-      return;
-    case 'select':
-      game.selectNext();
-      game.syncTalks();
-      return;
-    case 'use': {
-      if (selected === null) return;
-      const mine = game.abilitiesOf(selected).filter((a) => a.kind === 'action');
-      if (mine.length === 0) return;
-      // The project's own code now and then on purpose: the cards that run it.
-      const coded = mine.filter((a) => a.effects.some((e) => e.kind === 'run'));
-      const ability = coded.length > 0 && g.nextInt(3) === 0 ? g.pick(coded) : g.pick(mine);
-      const tiles = game.pointTiles(selected, ability);
-      if (tiles.length > 0) {
-        game.useAbility(selected, ability.id, [], { point: g.pick(tiles) });
-        return;
-      }
-      const valid = game.abilityTargets(selected, ability);
-      game.useAbility(selected, ability.id, valid.length === 0 ? [] : [g.pick(valid)]);
-      return;
-    }
-    case 'thing': {
-      const things = interactablesOf(demo.scene).map((t) => t.id);
-      if (things.length > 0) game.approachThenUse(g.pick(things));
-      return;
-    }
-    case 'arrive':
-      game.arrive();
-      return;
-    case 'arrived':
-      game.arrived();
-      return;
-    case 'party': {
-      if (members.length < 2) return;
-      const [a, b] = g.shuffle([...members]) as [string, string];
-      if (g.nextInt(2) === 0) game.dropCard(a, { kind: 'onto', id: b });
-      else game.unlink(a);
-      return;
-    }
-    case 'hands': {
-      const who = g.pick(members);
-      const pick = g.nextInt(4);
-      if (pick === 0) game.wound(who, 1 + g.nextInt(3));
-      else if (pick === 1) game.setGood(who, g.nextInt(4));
-      else if (pick === 2) game.setCondition(who, 'vulnerable', g.nextInt(2) === 0);
-      else game.giveItem('gold', 1 + g.nextInt(5));
-      return;
-    }
-    case 'fight': {
-      const fights = demo.scene.encounters.filter((e) => e.adversaries.length > 0 && e.adversaries.every((a) => a.interaction === undefined)).map((e) => e.id);
-      if (fights.length > 0) game.startEncounter(g.pick(fights));
-      return;
-    }
-    case 'drain':
-      game.takeMotions();
-      game.takeFloaters();
-      game.clearRolls();
-      return;
-  }
-}
 
 describe('the game played in step', () => {
   if (!built) console.warn(`${WASM} is not built: \`npm run wasm\` builds it, and these are skipped until it is`);

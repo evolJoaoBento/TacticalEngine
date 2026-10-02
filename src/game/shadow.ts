@@ -20,7 +20,7 @@
  */
 
 import type { DemoScene } from './demo-scene';
-import { boardOf } from './board';
+import { boardOf, rollsOf } from './board';
 import { replicaOf } from './replica';
 import { talkingAside } from './talks';
 import { openContainer } from './prop-use';
@@ -45,7 +45,7 @@ export interface ReplicaCount {
 declare global {
   interface Window {
     /** The shadow's count, for a test. Absent where there is no replica. */
-    __replica?: { count: () => ReplicaCount };
+    __replica?: { count: () => ReplicaCount; playing: () => 'wasm' | 'ts' };
   }
 }
 
@@ -70,7 +70,7 @@ function canonical(value: unknown): unknown {
 const same = (a: unknown, b: unknown): boolean => JSON.stringify(canonical(a)) === JSON.stringify(canonical(b));
 
 /** Where two values first part: the path to it, and each side there. */
-function firstDifference(a: unknown, b: unknown, at = ''): { path: string; game: unknown; replica: unknown } | null {
+export function firstDifference(a: unknown, b: unknown, at = ''): { path: string; game: unknown; replica: unknown } | null {
   if (same(a, b)) return null;
   const x = canonical(a);
   const y = canonical(b);
@@ -100,6 +100,21 @@ const KEPT = 20;
 
 /** One count for the page, whichever game is being played. */
 const count: ReplicaCount = { asked: 0, parted: 0, first: [] };
+
+/** A parting counted, kept (the first few) and said to the console as an error, which a watching spec fails on. */
+export function recordParting(question: string, asked: unknown, game: unknown, replica: unknown): void {
+  count.parted++;
+  const parting = { question, asked: JSON.parse(plain(asked)), game: JSON.parse(plain(game)), replica: JSON.parse(plain(replica)) };
+  if (count.first.length < KEPT) {
+    count.first.push(parting);
+    console.error('the replica parted from the game', JSON.stringify(parting).slice(0, 1500));
+  }
+}
+
+/** A question put to both, counted. */
+export function recordAsked(): void {
+  count.asked++;
+}
 
 /** The count as it stands, a copy. */
 export function replicaCount(): ReplicaCount {
@@ -138,7 +153,7 @@ export class Shadow {
       }
       game.restore(replicaOf(this.demo));
       game.call('restoreRng', [this.demo.rng.save()]);
-      game.call('restoreWalk', [this.demo.ambush, this.demo.approaching, openContainer(this.demo)]);
+      game.call('restoreWalk', [this.demo.ambush, this.demo.approaching, openContainer(this.demo), rollsOf(this.demo)]);
       this.logs = { ours: this.demo.log.length, theirs: (game.board() as { log: unknown[] }).log.length };
       this.inStep = true;
     } catch (failure) {
@@ -147,13 +162,8 @@ export class Shadow {
   }
 
   private part(question: string, asked: unknown, game: unknown, replica: unknown): void {
-    count.parted++;
     this.inStep = false;
-    const parting = { question, asked: JSON.parse(plain(asked)), game: JSON.parse(plain(game)), replica: JSON.parse(plain(replica)) };
-    if (count.first.length < KEPT) {
-      count.first.push(parting);
-      console.error('the replica parted from the game', JSON.stringify(parting).slice(0, 1500));
-    }
+    recordParting(question, asked, game, replica);
   }
 
   /**
@@ -238,7 +248,7 @@ export class Shadow {
 let compiled: Promise<WebAssembly.Module | null> | null = null;
 
 /** The engine, compiled once for the page: `null` outside development, or when it was never built. */
-function engineModule(): Promise<WebAssembly.Module | null> {
+export function engineModule(): Promise<WebAssembly.Module | null> {
   if (compiled === null) {
     compiled = import.meta.env.DEV
       ? fetch('/wasm/engine.wasm')
@@ -250,11 +260,20 @@ function engineModule(): Promise<WebAssembly.Module | null> {
   return compiled;
 }
 
+/** Which game the page plays: its own, or the engine's (`wasm-game.ts`). */
+let playing: 'wasm' | 'ts' = 'ts';
+
+/** The count, where a test can read it, and which game the page plays. */
+export function publishCount(engine?: 'wasm' | 'ts'): void {
+  if (engine !== undefined) playing = engine;
+  if (typeof window !== 'undefined') window.__replica = { count: replicaCount, playing: () => playing };
+}
+
 /** A shadow for a game, once the engine is here - or never. The count is published the first time. */
 export async function shadowFor(demo: DemoScene): Promise<Shadow | null> {
   const module = await engineModule();
   if (module === null) return null;
   const shadow = new Shadow(await WasmEngine.of(module), demo, shippedContent(), await WasmEngine.of(module));
-  if (typeof window !== 'undefined') window.__replica = { count: replicaCount };
+  publishCount();
   return shadow;
 }

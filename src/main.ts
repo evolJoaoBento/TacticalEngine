@@ -67,7 +67,7 @@ import { DEMO_ADVERSARY_ID, DEMO_MODELS, DEMO_CHARACTERS } from './game/demo-rul
 import { characterContentFor, adversaryDefsFor } from './game/room';
 import type { EquipResult, GearSlot } from './game/equip';
 import { CameraFocus } from './game/camera-focus';
-import { LocalGame, type GameClient, type LocalPowers } from './game/client';
+import { gameFor, gameReady, type GameClient, type LocalPowers } from './game/wasm-game';
 import { STARTER_ABILITIES } from './engine/content/pack/starter';
 import { PROP_FUNCTIONS } from './engine/scene/prop-functions';
 import type { PropFunction } from './engine/scene/prop-function-schema';
@@ -330,7 +330,7 @@ const webgl2 = typeof WebGL2RenderingContext !== 'undefined' && gl instanceof We
 const start = startOf(); if (start.menu) await showMainMenu();
 const booted = await bootDemo({ problems: errors });
 // The game, through its one seam (`game/client.ts`): seated at a table, the defender asked, the tokens walking.
-let game: GameClient & LocalPowers = new LocalGame(booted.demo);
+let game: GameClient & LocalPowers = await gameReady(booted.demo); // the page's own, or the engine's (`?engine=wasm`)
 let savesDefault = savesToDefault(booted.source);
 
 /** glTF files the project declares, loaded on first use. */
@@ -724,9 +724,9 @@ function loadProjectText(text: string, label = 'the project'): string {
     renderPanel();
     return reason;
   }
-  let fresh: LocalGame;
+  let fresh: GameClient & LocalPowers;
   try {
-    fresh = new LocalGame(buildProjectScene(withListedPacks(parsed.data, errors), parsed.data.id));
+    fresh = gameFor(buildProjectScene(withListedPacks(parsed.data, errors), parsed.data.id));
   } catch (failure) {
     // A project that parses can still be unplayable: an adversary with no stat
     // block, a start scene that is not there. Say so and keep the game running.

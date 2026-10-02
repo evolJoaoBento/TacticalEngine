@@ -4,6 +4,13 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## The page plays the Rust engine — done
+
+`WasmGame` (`src/game/wasm-game.ts`): with `?engine=wasm`, or `VITE_ENGINE=wasm` for a dev server, every intent is
+played by the engine built to WebAssembly and its answer is the page's, the page's own game played beside it
+as the views' model, held to it and restored from the engine's board where they part. The whole e2e suite
+passes that way and parts nowhere. Phase 3's slice 3b is done; 3c, the server's games, is next.
+
 ## A game played in step beside the page's — done
 
 In development every intent the page's game is given, the engine built to WebAssembly is given too

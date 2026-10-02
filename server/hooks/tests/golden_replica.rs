@@ -127,3 +127,23 @@ fn a_replica_stands_and_answers_as_the_game_it_was_sent() {
     }
     assert!(steps > 300 && asked > 1000 && fighting > 100, "{steps} {asked} {fighting}");
 }
+
+/// A game brought into step is told the dice still waiting to be shown, as the board gives them, and keeps its
+/// own when it is not told any.
+#[test]
+fn a_game_brought_into_step_is_told_the_dice_waiting() {
+    let fixture = fixture("replica.json");
+    let shipped: Rc<Shipped> = Rc::new(from(&fixture["shipped"]));
+    let mut session = Session::build(&fixture["projects"][0], shipped, hooks_for(), "rolls").expect("a game");
+    let roll = json!({ "advantageDie": 0, "bad": 7, "good": 8, "outcome": "successWithGood" });
+    let waiting = json!([{ "who": "Kara", "what": "the chest", "roll": roll }, { "who": "Mira", "what": "the longsword", "roll": roll }]);
+    session.dispatch("restoreWalk", &[Value::Null, Value::Null, Value::Null, waiting.clone()]).unwrap();
+    assert_eq!(session.board()["rolls"], waiting);
+    session.dispatch("restoreWalk", &[Value::Null, Value::Null, Value::Null]).unwrap();
+    assert_eq!(session.board()["rolls"], waiting, "not told, kept");
+    session.dispatch("rollShownAt", &[json!(0)]).unwrap();
+    assert_eq!(session.board()["rolls"], json!([waiting[1]]));
+    session.dispatch("restoreWalk", &[Value::Null, Value::Null, Value::Null, json!([])]).unwrap();
+    assert_eq!(session.board()["rolls"], json!([]));
+    assert!(session.dispatch("restoreWalk", &[Value::Null, Value::Null, Value::Null, json!([{ "who": 1 }])]).is_err(), "a roll with no dice");
+}

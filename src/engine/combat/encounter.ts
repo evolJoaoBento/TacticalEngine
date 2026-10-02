@@ -142,6 +142,23 @@ export class EncounterRunner {
     };
   }
 
+  /**
+   * A fight stood up from its snapshot (`EncounterRunner::from_snapshot` in the Rust): what the page shows when
+   * the engine that plays the game has told it how the fight stands.
+   */
+  static restore(state: SceneState, snapshot: EncounterSnapshot): EncounterRunner {
+    const runner = new EncounterRunner(state, snapshot.id, { policy: snapshot.policy, tokensPerCharacter: snapshot.tokensPerCharacter });
+    for (const [id, tokens] of snapshot.tokens) runner.tokens.set(id, tokens);
+    runner.events.push(...snapshot.events.map((event) => ({ ...event })));
+    for (const id of snapshot.acted) runner.actedThisGmTurn.add(id);
+    for (const [id, circle] of snapshot.circles) runner.circles.set(id, { anchor: { x: circle.anchor.x, y: circle.anchor.y }, band: circle.band });
+    runner.side = snapshot.side;
+    runner.roundCount = snapshot.round;
+    runner.started = snapshot.started;
+    runner.finished = snapshot.finished;
+    return runner;
+  }
+
   constructor(state: SceneState, encounterId: string, options: EncounterOptions = {}) {
     this.state = state;
     this.encounterId = encounterId;

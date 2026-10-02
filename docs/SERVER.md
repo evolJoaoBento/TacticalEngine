@@ -1000,8 +1000,10 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
       container window's take, sell and close - and its shutting out of reach - which reached past the seam
       into the game, are intents now.
     - **Brought into step** only between questions, which have no form to send: built with the page's
-      table (`animated`, `askDefender`), told the replica, the dice's state, the walk's fight and errand and
-      the open container. Where it parts it is out of step - the parting counted and reported to the
+      table (`animated`, `askDefender`), told the replica, the dice's state, the walk's fight and errand, the
+      open container and the dice still to be shown (`restoreWalk`'s fourth argument - a shadow that arrived,
+      or a game brought back, while a roll waited on the tray parted on it at every intent until the tray
+      emptied). Where it parts it is out of step - the parting counted and reported to the
       console as an error, so a spec that watches the console fails on it - until it can be brought in again.
     - **Held**: `src/game/mirror.test.ts` plays the default project and the bar's workshop through
       `LocalGame` with the very `.wasm` the page loads beside it - every member's coded cards (Mark the
@@ -1011,5 +1013,29 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
       face and the mirror fail it; 10 of 11 of the dispatcher's fail the kit's and walk's replays (the one
       left, a card aimed at nobody, the mirror's harness catches). The whole e2e suite runs with the mirror
       on: the dev server echoes the page's console, so a parting anywhere is in the run's log, and none is.
-  - **Next**: slice 3b's second half - `WasmGame`, the page playing the engine itself with `LocalGame`'s
-    board read from `Session::board` through a facade, behind a switch; then 3c, the server's games.
+  - **The page plays the Rust engine** (slice 3b, its second half, `src/game/wasm-game.ts`). `WasmGame` is
+    `LocalGame` with the roles turned round: every intent is played by the engine built to WebAssembly and
+    the engine's answer is the one the page is given; the page's own game is played beside it, intent for
+    intent, and held to it - because it is what the page's views read, the facade the plan called for being
+    the `DemoScene` that was already there, kept in step. Where the two part, the page's game is stood where
+    the engine's board says (`restoreFromBoard`, `src/game/board.ts`, with `Party.restore` and
+    `EncounterRunner.restore` beside the snapshots of 2a) and the parting is counted; a question waiting or a
+    conversation set aside the board cannot give back, and the page's game is out of step until the engine
+    has closed it. The pointer's questions are put to both and held to each other, the page's answer - in
+    its own shapes - given. The editor still changes the page's game, and the engine is built again and told
+    the game after (`edited`). `LocalGame` gives its subclass the three doors (`did`, `asked`, `edited`) and
+    nothing else changed in it.
+    - **The switch**: `?engine=wasm`, or for a whole dev server `VITE_ENGINE=wasm` - which Playwright's
+      server takes from the shell, so `VITE_ENGINE=wasm npx playwright test` runs the suite with the page
+      playing the engine. `gameReady` (at boot) and `gameFor` (a project loaded, which cannot wait) hand out
+      `WasmGame` from an engine instance kept ready - a module this size may not be instantiated at once on
+      the page's thread - and fall back to `LocalGame` anywhere the engine is not built or not chosen.
+      `window.__replica.playing()` says which the page plays, and `replica.spec.ts` holds it to the switch.
+    - **Held**: `src/game/board.test.ts` stands a fresh game where another's board says, step after step of
+      a game played at random - more than 200 steps, a fight in more than 50 - and holds the two boards
+      equal; `src/game/wasm-game.test.ts` plays both projects through `WasmGame` with the built `.wasm`,
+      partings held to none and the hooks' own lines read off the engine's own log; the random play both
+      tests share is `tests/fixtures/random-play.ts`. The whole e2e suite passes with the page playing the
+      engine (`VITE_ENGINE=wasm`), and parts nowhere.
+  - **Next**: 3c - the server's games, a thread each behind the session cookie at `/__play`, taking intents
+    through the same dispatcher; then 3d, the wire.

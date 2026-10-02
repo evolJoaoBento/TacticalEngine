@@ -217,12 +217,21 @@ export class LocalGame implements GameClient, LocalPowers {
   /** The replica the pointer's questions are also put to, once the engine is here; none outside development. */
   private shadow: Shadow | null = null;
 
-  constructor(private readonly demo: DemoScene) {
+  /** `shadowed`: whether the page's dev engine is fetched to shadow it; a game that is the engine's own is not. */
+  constructor(protected readonly demo: DemoScene, shadowed = true) {
     demo.askDefender = true;
     demo.animated = true;
-    void shadowFor(demo).then((shadow) => {
-      this.shadow = shadow;
-    });
+    if (shadowed) {
+      void shadowFor(demo).then((shadow) => {
+        this.shadow = shadow;
+      });
+    }
+  }
+
+  /** The editor changed the game under it - its project, its ground, its party - not by an intent. */
+  protected edited(projectChanged: boolean): void {
+    if (projectChanged) this.shadow?.projectChanged();
+    else this.shadow?.outOfStep();
   }
 
   /** For a test: a shadow given rather than fetched. */
@@ -231,12 +240,12 @@ export class LocalGame implements GameClient, LocalPowers {
   }
 
   /** An intent: done, and - with a shadow - done in step in the engine too, the two held to each other. */
-  private did<T>(call: string, args: readonly unknown[], run: () => T, compare?: { answer: boolean }): T {
+  protected did<T>(call: string, args: readonly unknown[], run: () => T, compare?: { answer: boolean }): T {
     return this.shadow === null ? run() : this.shadow.mirror(call, args, run, compare);
   }
 
   /** The game's answer - and, with a replica, the replica's beside it, any parting counted. */
-  private asked<T>(question: string, asked: unknown, game: () => T, replica: Parameters<Shadow['check']>[3], seen?: (answer: T) => unknown): T {
+  protected asked<T>(question: string, asked: unknown, game: () => T, replica: Parameters<Shadow['check']>[3], seen?: (answer: T) => unknown): T {
     return this.shadow === null ? game() : this.shadow.check(question, asked, game, replica, seen);
   }
 
@@ -389,7 +398,6 @@ export class LocalGame implements GameClient, LocalPowers {
   jumpAim() { return this.asked('jumpAim', [], () => jumpAim(this.demo), (e) => e.jumpAim(), (aim) => aim?.tiles ?? null); }
 
   rederive(): void {
-    this.shadow?.projectChanged();
     // Whoever the panel added since the last Play arrives now, and whoever it
     // removed leaves - before the world is rebuilt, so it is built over them.
     syncRoster(this.demo);
@@ -405,19 +413,21 @@ export class LocalGame implements GameClient, LocalPowers {
     // The world first: `syncPools` reads the modifiers a card grants through it.
     refreshWorld(this.demo);
     syncPools(this.demo);
+    this.edited(true);
   }
   takeGround(scene: SceneDoc, old: TileGrid, grid: TileGrid) {
-    this.shadow?.projectChanged();
-    return takeGround(this.demo, scene, old, grid);
+    const same = takeGround(this.demo, scene, old, grid);
+    this.edited(true);
+    return same;
   }
   syncAuthoredEncounters(): void {
-    this.shadow?.projectChanged();
     syncAuthoredEncounters(this.demo);
+    this.edited(true);
   }
   gatherParty(tile: number): void {
     // The editor's: the engine is not told of it, and is brought into step again after.
     gatherParty(this.demo, tile);
-    this.shadow?.outOfStep();
+    this.edited(false);
   }
   placeAt(id: string, tile: number): void { this.did('placeAt', [id, tile], () => { this.demo.state.moveEntity(id, tile); return null; }); }
   setCards(id: string, cards: string[]): void {

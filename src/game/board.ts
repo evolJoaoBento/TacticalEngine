@@ -7,10 +7,29 @@
  * those are taken.
  */
 
-import type { DemoScene } from './demo-scene';
-import { openContainer } from './prop-use';
-import { replicaOf } from './replica';
+import { EncounterRunner } from '../engine/combat/encounter';
+import type { DualityRoll } from '../engine/rules/duality';
+import { restoreScenario } from '../engine/script/world';
+import { refreshWorld, setSheet, syncPools, type DemoScene } from './demo-scene';
+import { showRoll, type LogLine } from './log';
+import { closeContainer, openContainer, showContainer } from './prop-use';
+import { replicaOf, type Replica } from './replica';
+import { enterSavedScene } from './room';
 import { talkingAside } from './talks';
+
+/** A board as it is sent: what `boardOf` and `Session::board` write. */
+export interface BoardSnapshot {
+  replica: Replica;
+  fight: unknown;
+  pending: unknown;
+  ambush: string | null;
+  approaching: DemoScene['approaching'];
+  log: LogLine[];
+  rolls: { who: string; what: string; roll: DualityRoll }[];
+  opened: string | null;
+  aside: string[];
+  rng: number;
+}
 
 /** The question open, as the panel draws it (`board_pending`). */
 function pendingOf(demo: DemoScene): unknown {
@@ -28,7 +47,12 @@ function pendingOf(demo: DemoScene): unknown {
 }
 
 /** How the game stands, as the page reads it (`board`). */
-export function boardOf(demo: DemoScene): unknown {
+/** The dice still to be shown, as the board gives them - and as an engine brought into step is told them. */
+export function rollsOf(demo: DemoScene): BoardSnapshot['rolls'] {
+  return demo.rolls.map(({ who, what, roll }) => ({ who, what, roll }));
+}
+
+export function boardOf(demo: DemoScene): BoardSnapshot {
   return {
     replica: replicaOf(demo),
     fight: demo.encounter === null ? null : { view: demo.encounter.view(), log: demo.encounter.log },
@@ -36,9 +60,36 @@ export function boardOf(demo: DemoScene): unknown {
     ambush: demo.ambush,
     approaching: demo.approaching,
     log: demo.log,
-    rolls: demo.rolls.map(({ who, what, roll }) => ({ who, what, roll })),
+    rolls: rollsOf(demo),
     opened: openContainer(demo),
     aside: talkingAside(demo),
     rng: demo.rng.save(),
-  };
+  } as BoardSnapshot;
+}
+
+/**
+ * Stand the page's game where a board says the game stands (`WasmGame`): the scenario and the sheets, the room
+ * entered as it was left, the party's control, the fight, the dice, the walk's fight and errand, the open
+ * container, the log and the dice to be shown. What a board cannot give back is a question waiting - a
+ * script paused mid-run - or a conversation set aside: those are the engine's to hold, and the page's game
+ * is out of step while they last.
+ */
+export function restoreFromBoard(demo: DemoScene, board: BoardSnapshot): void {
+  const { replica } = board;
+  restoreScenario(demo.scenario, replica.scenario);
+  for (const sheet of replica.sheets) setSheet(demo, sheet);
+  enterSavedScene(demo, replica.sceneId, replica.state);
+  demo.party.restore(replica.party);
+  demo.encounter = replica.encounter === null ? null : EncounterRunner.restore(demo.state, replica.encounter);
+  demo.rng.restore(board.rng);
+  demo.ambush = board.ambush;
+  demo.approaching = board.approaching;
+  if (board.opened === null) closeContainer(demo);
+  else showContainer(demo, board.opened);
+  demo.log.length = 0;
+  demo.log.push(...board.log.map((line) => ({ ...line })));
+  demo.rolls.length = 0;
+  for (const { who, what, roll } of board.rolls) showRoll(demo, who, what, roll);
+  refreshWorld(demo);
+  syncPools(demo);
 }

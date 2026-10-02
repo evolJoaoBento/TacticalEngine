@@ -165,6 +165,19 @@ export class Party {
     };
   }
 
+  /** Take the control a snapshot holds (`Party::restore` in the Rust); the options and the rules stay this party's. */
+  restore(snapshot: PartySnapshot): void {
+    this.selectedId = snapshot.selected;
+    this.groups.clear();
+    for (const [id, group] of snapshot.groups) this.groups.set(id, group);
+    this.nextGroup = snapshot.nextGroup;
+    this.heldIds.clear();
+    for (const id of snapshot.held) this.heldIds.add(id);
+    this.order = [...snapshot.order];
+    this.trails.clear();
+    for (const [id, trail] of snapshot.trails) this.trails.set(id, trail.map((spot) => ({ x: spot.x, y: spot.y })));
+  }
+
   /** Walk by other rules from here on: a project's house rule for a step changed under a party already standing. */
   setRules(rules: MovementRules): void {
     this.options = { ...this.options, rules };

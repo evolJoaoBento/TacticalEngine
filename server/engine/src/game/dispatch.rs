@@ -205,9 +205,12 @@ impl Session {
             // ---- how the game stands ----
             "board" => self.board(),
             "restoreWalk" => {
-                // What a replica is not told but a game in step must hold: the fight a walk woke, its errand, and
-                // the container whose window is open.
+                // What a replica is not told but a game in step must hold: the fight a walk woke, its errand, the
+                // container whose window is open, and the dice still to be shown (the board's `rolls`) when given.
                 self.opened = a.opt_text(2).map(str::to_string);
+                if let Value::Array(_) = a.get(3) {
+                    self.rolls = serde_json::from_value(a.get(3).clone()).map_err(|e| format!("the rolls: {e}"))?;
+                }
                 self.ambush = a.opt_text(0).map(str::to_string);
                 self.approaching = match a.get(1) {
                     Value::Null => None,
