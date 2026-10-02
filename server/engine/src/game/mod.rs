@@ -9,6 +9,7 @@ pub mod blow;
 pub mod board;
 pub mod content;
 pub mod dispatch;
+pub mod face;
 pub mod features;
 pub mod kit;
 pub mod fight;

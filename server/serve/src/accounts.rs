@@ -176,7 +176,7 @@ pub fn account_of<'a>(cookie: Option<&str>, sessions: &Sessions, accounts: &'a [
 }
 
 /// An origin's host as the URL standard gives it: lower case, the port only when it is not the default.
-fn host_of(origin: &str) -> Option<String> {
+pub fn host_of(origin: &str) -> Option<String> {
     let url = url::Url::parse(origin).ok()?;
     let host = url.host_str()?;
     Some(match url.port() {

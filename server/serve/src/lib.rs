@@ -2,7 +2,8 @@
 //!
 //! It answers every route the dev plugins answered, under their own paths - the accounts, the Store,
 //! your models, the engine's models (adding one, and their ancestries), the art marks and the default
-//! project, and the two lists the page loads when it opens: the engine's models and the art marks (`app`) -
+//! project, the two lists the page loads when it opens: the engine's models and the art marks, and the
+//! games themselves, played at `/__play` (`play.rs`, phase 3) (`app`) -
 //! and, given a built client, serves the game itself (`site`): the page and its
 //! scripts from the build, and the models, card art and pictures live from `public/`, so a model added
 //! to the engine is there without building again. Behind the Vite dev server only `app` is reached: the
@@ -13,6 +14,7 @@ pub mod art_and_project;
 pub mod files;
 pub mod js;
 pub mod manifest;
+pub mod play;
 pub mod store;
 pub mod your_models;
 
@@ -26,6 +28,7 @@ pub fn app(root: PathBuf) -> Router {
     let shop = store::Shop::new(root.clone());
     let shelf = your_models::Shelf::new(root.clone());
     let workshop = manifest::Workshop::new(root.clone());
+    let root_for_play = root.clone();
     let archive = art_and_project::Archive::new(root);
     let accounts = Router::new()
         .route(accounts::ACCOUNTS_URL, any(accounts::handle))
@@ -49,7 +52,8 @@ pub fn app(root: PathBuf) -> Router {
         saves = saves.route(route, any(art_and_project::handle));
     }
     saves = saves.route(art_and_project::MARKS_URL, get(art_and_project::marks));
-    accounts.merge(store).merge(models.with_state(shelf)).merge(engine).merge(saves.with_state(archive))
+    let play = play::router(root_for_play);
+    accounts.merge(store).merge(models.with_state(shelf)).merge(engine).merge(saves.with_state(archive)).merge(play)
 }
 
 /// Where the built client is, from the repository: `npm run build:server` writes it.

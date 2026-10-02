@@ -14,8 +14,12 @@ name = "tactical-serve"
 path = "src/main.rs"
 
 [dependencies]
-axum = "0.8"
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "signal"] }
+# ws: the games are played over a websocket (`/__play`, src/play.rs).
+axum = { version = "0.8", features = ["ws"] }
+# The games themselves: the rules, and a project's code run in QuickJS.
+engine = { package = "tactical-engine", path = "../engine" }
+hooks = { package = "tactical-hooks", path = "../hooks" }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "signal", "sync", "time"] }
 serde = { version = "1", features = ["derive"] }
 # float_roundtrip: parse a float exactly, as JavaScript does, so a timestamp the TypeScript wrote is written back
 # to the digit; without it one in several comes back a digit off.
@@ -30,5 +34,8 @@ url = "2"
 tower-http = { version = "0.6", features = ["fs"] }
 
 [dev-dependencies]
+# A websocket client, for the play route's round trip.
+tokio-tungstenite = "0.26"
+futures-util = "0.3"
 tower = { version = "0.5", features = ["util"] }
 http-body-util = "0.1"

@@ -26,6 +26,9 @@ import { IMPORT_MODEL_URL, USER_MODELS_URL, YOUR_MODELS_URL } from './your-model
  * server run by hand with `npm run server`, or the one the last dev server started still going - it
  * tries again a few times and then leaves the port to whoever has it, since the proxy reaches that one.
  *
+ * And one route no plugin ever answered: the games the server plays (`PLAY_URL`, phase 3 slice 3c), a
+ * websocket, passed through as one - its upgrade too.
+ *
  * When the tests are serving (`TACTICAL_BOOT=builtin`), or for a build, there is no server and no
  * proxy: the plugins answer those routes as they always did (404: no accounts). Nor under Vitest, which
  * loads this config as a dev server of its own (`servesRust`): a unit test run must not start one.
@@ -39,6 +42,9 @@ export const RUST_ROUTES: readonly string[] = [ACCOUNTS_URL, STORE_URL, YOUR_MOD
 
 export { servesRust };
 
+/** The server's games: a websocket behind the session cookie (`server/serve/src/play.rs`). */
+export const PLAY_URL = '/__play';
+
 export const serverPort = (): number => Number(process.env['TACTICAL_SERVER_PORT'] ?? 8430);
 
 /** Where cargo is: `CARGO`, else rustup's own folder (a shell opened before Rust was installed has no PATH to it), else the PATH. */
@@ -48,9 +54,10 @@ export function cargoPath(): string {
   return existsSync(own) ? own : 'cargo';
 }
 
-/** The proxy entries for the moved routes. */
+/** The proxy entries for the moved routes, and the games' websocket. */
 export function rustProxy(port: number = serverPort()): Record<string, ProxyOptions> {
-  return Object.fromEntries(RUST_ROUTES.map((route) => [route, { target: `http://127.0.0.1:${port}`, changeOrigin: false }]));
+  const target = `http://127.0.0.1:${port}`;
+  return { ...Object.fromEntries(RUST_ROUTES.map((route) => [route, { target, changeOrigin: false }])), [PLAY_URL]: { target, changeOrigin: false, ws: true } };
 }
 
 /**

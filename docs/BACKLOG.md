@@ -4,6 +4,14 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## The server plays games — done
+
+`/__play` (`server/serve/src/play.rs`): a websocket behind the session cookie, from the page's own origin, where
+each signed-in player's game is a thread of its own playing intents through the same face and dispatcher as
+the engine in the page (`engine::game::face`), the seed the server's; kept ten minutes after its socket
+closes, to be resumed. The dev server passes it through. Phase 3's slice 3c; 3d - the page talking to it - is
+next.
+
 ## The page plays the Rust engine — done
 
 `WasmGame` (`src/game/wasm-game.ts`): with `?engine=wasm`, or `VITE_ENGINE=wasm` for a dev server, every intent is

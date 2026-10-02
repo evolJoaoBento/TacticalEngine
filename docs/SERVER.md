@@ -1037,5 +1037,31 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
       partings held to none and the hooks' own lines read off the engine's own log; the random play both
       tests share is `tests/fixtures/random-play.ts`. The whole e2e suite passes with the page playing the
       engine (`VITE_ENGINE=wasm`), and parts nowhere.
-  - **Next**: 3c - the server's games, a thread each behind the session cookie at `/__play`, taking intents
-    through the same dispatcher; then 3d, the wire.
+  - **The server's games** (slice 3c, `server/serve/src/play.rs`). A signed-in player plays one game at a
+    time at `/__play`, a websocket opened only with the session cookie the accounts gave them (401 without
+    one the accounts know) and from the page's own origin (403: the Origin's host must be the Host). Each
+    game is a thread of its own - `Session` and QuickJS are not `Send`, and a game plays one intent after
+    another anyway - owning its `Option<Session>` and a QuickJS hooks factory that compiles once per body of
+    code, asked over a channel and answering on a oneshot the socket waits on (`Tables`, one game per
+    account; `open` stands a new one up in place of the last).
+    - **The same face**: the messages the page's engine answers (`build`, `restore`, `call`, `ask`) moved
+      out of `server/wasm` into the engine (`engine::game::face::respond`), so the module in the page and
+      the server's games answer through one function and one dispatcher (`Session::dispatch`). The wire's
+      ops: `open` (the project, the shipped content and the page's table; the seed the server's own, 16 hex
+      characters, and the board), `call` (an intent: its answer and the board after), `ask` (the pointer's
+      questions) and `resume`; each answer carries the message's `id`, and anything refused is `{ id, error }`.
+    - **Kept for a while**: a game outlives its socket for `KEPT_FOR` (ten minutes), and a page that opens
+      the socket again `resume`s it; games left longer go when any socket next closes (`sweep`), their
+      threads ending with the channel. The content is still the page's (`shipped`, sent at `open`).
+    - **In development** `tools/rust-server.ts` passes `/__play` through to the server as a websocket
+      (`PLAY_URL`, `ws: true`), the Host kept as for every route, so the Origin check sees the page's own.
+      Nothing in the page opens it yet: that is 3d.
+    - **Held**: `server/serve/tests/play_routes.rs` plays a game on the server intent for intent beside a
+      `Session` played in the test's own thread from the server's seed - walks, the selection, a card that
+      runs the project's code in QuickJS, a fight with the defender asked how the GM's swing lands - the
+      answers and the boards equal at every step, the pointer's questions too, then kept and resumed; the
+      route itself over a real socket (no cookie, an unknown session, another origin refused; open, call, a
+      garbled message, close, and back to the same game); and a game kept for no time gone when its socket
+      goes. 10 of 10 deliberate mutations of `play.rs` fail it.
+  - **Next**: 3d - the wire: the page opens `/__play`, sends each intent up beside playing it, holds the
+    server's board to its own and is restored from it where they part; the server's seed at open.
