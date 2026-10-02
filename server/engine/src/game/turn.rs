@@ -174,7 +174,8 @@ impl Session {
             let cleared = self.clear_temporary_on(&id);
             if !cleared.is_empty() {
                 let who = name_of(self, &id);
-                note(self, &format!("{who} shakes off {}.", cleared.join(" and ")), "good");
+                let names: Vec<String> = cleared.iter().map(|c| self.world.condition_name(c)).collect();
+                note(self, &format!("{who} shakes off {}.", names.join(" and ")), "good");
             }
         }
         self.sync_pools();
@@ -322,7 +323,8 @@ impl Session {
         let cleared = self.clear_temporary_on(id);
         if !cleared.is_empty() {
             let who = the_name_of(self, id, false);
-            note(self, &format!("{who} shakes off {}.", cleared.join(" and ")), "combat");
+            let names: Vec<String> = cleared.iter().map(|c| self.world.condition_name(c)).collect();
+            note(self, &format!("{who} shakes off {}.", names.join(" and ")), "combat");
         }
     }
 
@@ -342,7 +344,8 @@ impl Session {
             entity.condition_durations.retain(|(c, _)| c != condition);
         }
         let who = the_name_of(self, id, true);
-        note(self, &format!("The GM spends a Shadow: {who} shakes off {}.", held.join(" and ")), "bad");
+        let names: Vec<String> = held.iter().map(|c| self.world.condition_name(c)).collect();
+        note(self, &format!("The GM spends a Shadow: {who} shakes off {}.", names.join(" and ")), "bad");
     }
 
     // ---- what a stat block's script does to the turn ----------------------------------------------------

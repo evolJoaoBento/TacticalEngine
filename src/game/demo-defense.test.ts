@@ -1302,7 +1302,7 @@ describe("an adversary's own features", () => {
     // It comes off when the party's turn ends — and goes straight back on,
     // because the only thing this adversary does is put it there, so the log
     // is what says the hold was shaken rather than the state afterwards.
-    expect(demo.log.map((l) => l.text)).toContain('Quim shakes off restrained.');
+    expect(demo.log.map((l) => l.text)).toContain('Quim shakes off Restrained.');
   });
 
   it("leaves a feature alone when the block's own condition on it is not met", () => {

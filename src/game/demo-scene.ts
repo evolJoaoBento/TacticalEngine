@@ -1344,7 +1344,7 @@ function clearPartyTemporary(demo: Pick<DemoScene, 'state' | 'sheets' | 'charact
       entity.conditionDurations.delete(condition);
       cleared.push(condition);
     }
-    if (cleared.length > 0) note(demo, `${nameOf(demo, entity.id)} shakes off ${cleared.join(' and ')}.`, 'good');
+    if (cleared.length > 0) note(demo, `${nameOf(demo, entity.id)} shakes off ${cleared.map((c) => demo.world.conditionName(c)).join(' and ')}.`, 'good');
   }
   syncPools(demo);
 }
@@ -3228,7 +3228,7 @@ function clearTemporaryConditions(demo: Pick<DemoScene, 'state' | 'sheets' | 'wo
     cleared.push(condition);
   }
   if (cleared.length > 0) {
-    note(demo, `${theNameOf(demo, adversaryId)} shakes off ${cleared.join(' and ')}.`, 'combat');
+    note(demo, `${theNameOf(demo, adversaryId)} shakes off ${cleared.map((c) => demo.world.conditionName(c)).join(' and ')}.`, 'combat');
   }
 }
 
@@ -3246,7 +3246,7 @@ function clearWithBad(demo: Pick<DemoScene, 'state' | 'sheets' | 'world' | 'log'
     adversary.conditions.delete(condition);
     adversary.conditionDurations.delete(condition);
   }
-  note(demo, `The GM spends a Shadow: ${theNameOf(demo, adversaryId, true)} shakes off ${held.join(' and ')}.`, 'bad');
+  note(demo, `The GM spends a Shadow: ${theNameOf(demo, adversaryId, true)} shakes off ${held.map((c) => demo.world.conditionName(c)).join(' and ')}.`, 'bad');
 }
 
 /**
