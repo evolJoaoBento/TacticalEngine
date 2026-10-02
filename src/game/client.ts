@@ -155,6 +155,11 @@ export interface GameClient {
   // ---- queries -----------------------------------------------------------------------------------------
   serialiseSave(): string | null;
   saveBlockedBy(): string | null;
+  /**
+   * Whether the game was changed behind the page's back since it last asked - stood where the server's board
+   * says, not by an intent the page gave - so the page draws it again. Asking clears it.
+   */
+  changedBehind(): boolean;
   nameOf(id: string): string;
   inCombat(): boolean;
   scriptPending(): Answer<typeof scriptPending>;
@@ -219,6 +224,7 @@ export class LocalGame implements GameClient, LocalPowers {
   private shadow: Shadow | null = null;
   /** The game on the server this one is held to (`wire.ts`); none outside development, or for nobody signed in. */
   private wire: Wire | null = null;
+  private behind = false;
 
   /** `shadowed`: whether the page's dev engine is fetched to shadow it; a game that is the engine's own is not. */
   constructor(protected readonly demo: DemoScene, shadowed = true) {
@@ -245,7 +251,16 @@ export class LocalGame implements GameClient, LocalPowers {
   /** Held to the game on the server: told of every intent, and telling this game when the server's restores it. */
   wireWith(wire: Wire): void {
     this.wire = wire;
-    wire.attach(() => this.edited(false));
+    wire.attach(() => {
+      this.edited(false);
+      this.behind = true;
+    });
+  }
+
+  changedBehind(): boolean {
+    const was = this.behind;
+    this.behind = false;
+    return was;
   }
 
   /** The editor's change, told to whatever plays beside the page's game - the engine, the server's. */
@@ -256,6 +271,8 @@ export class LocalGame implements GameClient, LocalPowers {
 
   /** An intent: played (`play`), and - with a wire - sent up to the server's game and held to its answer. */
   protected did<T>(call: string, args: readonly unknown[], run: () => T, compare: { answer: boolean } = { answer: true }): T {
+    // A question the server's game holds: answered there, not here (`wire.ts`).
+    if (this.wire?.asking() === true) return this.wire.whileAsked(call, args, run);
     const sending = this.wire?.before() ?? false;
     const answer = this.play(call, args, run, compare);
     if (sending) this.wire!.after(call, args, answer, compare);

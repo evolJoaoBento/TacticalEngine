@@ -19,8 +19,14 @@
  * connects again after a while, and again, longer each time (`RETRIES`), and asks for the game the server kept
  * (`resume`, for ten minutes after a socket closes): kept, of this project, it is told the page's game, which
  * went on without it; gone, a fresh one is opened and told it. A page reloaded asks first for the game kept
- * (`resume`): kept, of this project, with no question open in it, the page is stood where that game is
- * (`resumed`), and the seed is the one it was played with; else a game is opened as for any page.
+ * (`resume`): kept, of this project, the page is stood where that game is (`resumed`), and the seed is the one
+ * it was played with; else a game is opened as for any page.
+ *
+ * A question the server's game holds - a roll a script waits on, a defender asked how a hit lands, a line of a
+ * conversation - the page's game cannot be given back: it is a script paused part-way, which no board carries.
+ * So the page shows it from the server's board (`shownFrom`: what the views read of a question, and no runner),
+ * and the answer is not played on the page but sent up (`asked`) without predicting it; the server's game plays
+ * it, and the page is stood where its board says after - the next question shown the same way, or none.
  */
 
 import { boardOf, restoreFromBoard, rollsOf, type BoardSnapshot } from './board';
@@ -29,6 +35,7 @@ import { openContainer } from './prop-use';
 import { replicaOf } from './replica';
 import { firstDifference, recordAsked, recordParting, since } from './shadow';
 import { talkingAside } from './talks';
+import type { Pending } from './demo-scene';
 import type { SaveSlot } from './save-slots';
 
 /** What the server said: what was asked for, or why not. */
@@ -45,10 +52,10 @@ export interface Transport {
 
 /**
  * Where the wire stands: `opening` the server's game, `fresh` (opened, not yet told the page's), `in` step,
- * `parted` (waiting for what is on its way up), `out` of step (to be told the page's game), `lost` (the
- * connection dropped, and trying again), `closed`.
+ * `parted` (waiting for what is on its way up), `asked` (the page showing a question the server's game holds),
+ * `out` of step (to be told the page's game), `lost` (the connection dropped, and trying again), `closed`.
  */
-export type WireState = 'opening' | 'fresh' | 'in' | 'parted' | 'out' | 'lost' | 'closed';
+export type WireState = 'opening' | 'fresh' | 'in' | 'parted' | 'asked' | 'out' | 'lost' | 'closed';
 
 /** How long to wait before each try to connect again, in milliseconds; when they are spent the wire closes. */
 export const RETRIES: readonly number[] = [500, 1000, 2000, 4000, 8000, 15000, 30000];
@@ -69,6 +76,37 @@ interface Played {
 
 const copy = (value: unknown): unknown => JSON.parse(JSON.stringify(value ?? null));
 
+/** A question as a board gives it (`pendingOf`, `board.ts`; `board_pending` in the Rust). */
+interface Projected {
+  kind: Pending['kind'];
+  prompt: unknown;
+  interactable?: string | null;
+  with?: string | null;
+  dialogue?: { id: string; view: { node: string; options: unknown[] } | null; prompt: unknown; by: string | null } | null;
+}
+
+/**
+ * A question the server's game holds, as the page's views read one: its kind and prompt, and for a script the
+ * thing it came from, whom it is with, and the conversation on screen - its node and lines found in the
+ * page's own project, its options as the server gave them. No runner: the page does not play the answer.
+ */
+export function shownFrom(demo: DemoScene, projected: Projected): Pending {
+  if (projected.kind !== 'script') return { kind: projected.kind, prompt: projected.prompt } as unknown as Pending;
+  const d = projected.dialogue ?? null;
+  const node = d?.view === null || d === null ? undefined : demo.dialogues.get(d.id)?.nodes.find((n) => n.id === d.view!.node);
+  const dialogue =
+    d === null
+      ? null
+      : { id: d.id, view: node === undefined || d.view === null ? null : { node, lines: node.lines, options: d.view.options }, prompt: d.prompt, ...(d.by === null ? {} : { by: d.by }) };
+  return {
+    kind: 'script',
+    prompt: projected.prompt,
+    interactable: projected.interactable ?? null,
+    ...(projected.with === null || projected.with === undefined ? {} : { with: projected.with }),
+    dialogue,
+  } as unknown as Pending;
+}
+
 export class Wire {
   private state: WireState = 'opening';
   /** Bumped when the server is told the page's game: answers to what was sent before it are held to nothing. */
@@ -82,6 +120,9 @@ export class Wire {
   private tries = 0;
   /** The editor changed the game while the connection was down: a fresh game when it is back. */
   private stale = false;
+  /** The page showing a question the server's game holds (`shownFrom`), and an answer to it on its way up. */
+  private showing = false;
+  private answering = false;
   /** Whether the page came back to the game the server kept (a reload). */
   resumed = false;
   /** The server's game opened, and the page's dice going on from its - or the page come back to the game kept. */
@@ -108,14 +149,8 @@ export class Wire {
     }
     if (this.state !== 'opening') return true;
     const kept = said.ok as { board: BoardSnapshot; project: unknown } | undefined;
-    const demo = this.demo;
-    if (kept === undefined || kept.project !== demo.project.id || kept.board.pending !== null || kept.board.aside.length > 0) return false;
-    restoreFromBoard(demo, kept.board);
-    this.drain();
-    this.logs = { ours: demo.log.length, theirs: kept.board.log.length };
-    this.state = 'in';
+    if (kept === undefined || kept.project !== this.demo.project.id || !this.standAt(kept.board)) return false;
     this.resumed = true;
-    this.retell();
     return true;
   }
 
@@ -129,6 +164,7 @@ export class Wire {
   }
 
   close(): void {
+    this.release();
     this.state = 'closed';
     this.transport.close();
   }
@@ -165,8 +201,74 @@ export class Wire {
       this.stale = true;
       return;
     }
+    this.release();
     this.nextEpoch();
     this.state = 'out';
+  }
+
+  /**
+   * The page let go of a question the server's game held, which it cannot answer itself: the server's game is
+   * gone, closed, or about to be told the page's.
+   */
+  private release(): void {
+    if (!this.showing) return;
+    this.showing = false;
+    this.answering = false;
+    this.demo.pending = null;
+  }
+
+  /** Whether the page is showing a question the server's game holds, which it does not play (`whileAsked`). */
+  asking(): boolean {
+    return this.state === 'asked';
+  }
+
+  /**
+   * An intent while the server's game holds the question: the answer sent up to it and not played here - the
+   * page's game has no script to play it on - and the page stood where the server's board says after; the
+   * conversations kept where they are, which a stand-in for a question must not be set aside as; anything
+   * else played on the page's game alone, which refuses it as it would with any question open, and not sent.
+   */
+  whileAsked<T>(call: string, args: readonly unknown[], run: () => T): T {
+    if (call === 'syncTalks') return false as T;
+    if (call !== 'answerPending') return run();
+    if (this.answering) return { status: 'refused', lines: [] } as T;
+    this.answering = true;
+    const epoch = this.epoch;
+    void this.send({ op: 'call', call, args }).then((said) => {
+      if (epoch !== this.epoch || this.state !== 'asked') return;
+      this.answering = false;
+      const played = said.ok as Played | undefined;
+      if (played === undefined) {
+        recordParting(`server ${call}: refused`, args, null, { failed: said.error });
+        this.release();
+        this.state = 'out';
+        return;
+      }
+      if (!this.standAt(played.board)) {
+        this.release();
+        this.state = 'out';
+      }
+    });
+    return { status: 'waiting', lines: [] } as T;
+  }
+
+  /**
+   * The page stood where a board of the server's says the game is: a question it holds shown, not played
+   * (`asked`); none, and in step. Not when a conversation is set aside, on either side - a runner the board
+   * does not carry. Whether it was.
+   */
+  private standAt(board: BoardSnapshot): boolean {
+    const demo = this.demo;
+    if (board.aside.length > 0 || talkingAside(demo).length > 0) return false;
+    restoreFromBoard(demo, board);
+    demo.pending = board.pending === null ? null : shownFrom(demo, board.pending as Projected);
+    this.showing = board.pending !== null;
+    this.answering = false;
+    this.drain();
+    this.logs = { ours: demo.log.length, theirs: board.log.length };
+    this.state = board.pending === null ? 'in' : 'asked';
+    this.retell();
+    return true;
   }
 
   /** Everything sent before now held to nothing. */
@@ -191,6 +293,7 @@ export class Wire {
   private retry(): void {
     const wait = (this.options.retries ?? RETRIES)[this.tries++];
     if (wait === undefined) {
+      this.release();
       this.state = 'closed';
       return;
     }
@@ -210,9 +313,15 @@ export class Wire {
     }
     if (this.state !== 'lost') return;
     this.tries = 0;
-    const kept = said.ok as { project: unknown } | undefined;
-    this.state = kept !== undefined && kept.project === this.demo.project.id && !this.stale ? 'fresh' : 'out';
+    const kept = said.ok as { board: BoardSnapshot; project: unknown } | undefined;
+    const same = kept !== undefined && kept.project === this.demo.project.id && !this.stale;
     this.stale = false;
+    // A question the server's game held, shown here: still held, shown again where the game now is; gone, let go.
+    if (this.showing) {
+      if (same && this.standAt(kept.board)) return;
+      this.release();
+    }
+    this.state = same ? 'fresh' : 'out';
   }
 
   /** Before an intent: the server brought into step if it can be; whether the intent is to be sent up. */
@@ -303,19 +412,13 @@ export class Wire {
     });
   }
 
-  /** After a parting, the last of what was on its way up answered: the page stood where the server's game is. */
+  /**
+   * After a parting, the last of what was on its way up answered: the page stood where the server's game is -
+   * a question it holds shown from its board. A conversation set aside, on either side, the board cannot give
+   * back: then the page's game is told the server instead.
+   */
   private restoreFrom(board: BoardSnapshot | null): void {
-    const demo = this.demo;
-    const settled = (b: BoardSnapshot): boolean => b.pending === null && b.aside.length === 0;
-    if (board === null || !settled(board) || demo.pending !== null || talkingAside(demo).length > 0) {
-      // A question open, or a conversation set aside, on either side: the page's game is told the server instead.
-      this.state = 'out';
-      return;
-    }
-    restoreFromBoard(demo, board);
-    this.logs = { ours: demo.log.length, theirs: board.log.length };
-    this.state = 'in';
-    this.retell();
+    if (board === null || !this.standAt(board)) this.state = 'out';
   }
 
   /** A message sent by the connection there is now; that connection gone is the wire lost, and trying again. */

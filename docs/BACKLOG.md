@@ -4,6 +4,13 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## A question the server's game holds, shown from its board — done
+
+A roll, a defender's choice or a conversation the server's game holds - after a parting, a reload or a
+connection back - is shown from the server's board (`src/game/wire.ts`, `shownFrom`), and the answer sent up
+and played there, not on the page; the page is stood where the server's board says after. A page reloaded
+mid-conversation comes back to it. Phase 3. Next: the server's game the one the page plays.
+
 ## Saves on the server, and a game that comes back — done
 
 Signed in where the server plays the game beside the page, saves are the account's, in

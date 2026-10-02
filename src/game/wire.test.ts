@@ -20,6 +20,8 @@ import { shippedContent } from './shipped';
 import { WasmEngine } from './wasm-engine';
 import { WasmGame } from './wasm-game';
 import { Wire, type Said, type Transport } from './wire';
+import { talkingTo, talkingView } from './ui/play-views';
+import { interactablesOf } from '../engine/scene/prop-functions';
 import { act } from '../../tests/fixtures/random-play';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -461,5 +463,185 @@ describe('the wire to the server\'s game', () => {
     await nothing.ready;
     expect(nothing.resumed).toBe(false);
     expect(nothing.status()).toBe('fresh');
+  }, 120_000);
+
+  /** A page and the server's game, the server's opening a question of its own - Kara stood beside a thing and using it - as the first intent arrives. */
+  async function asking(name: string, thing: string, options: { connect?: (server: EngineServer) => () => Transport; retries?: number[]; wasm?: boolean } = {}) {
+    const bytes = readFileSync(WASM);
+    const demo = buildProjectScene(project(), `wire:${name}`);
+    const game = options.wasm === true ? new WasmGame(demo, await WasmEngine.load(bytes), shippedContent()) : new LocalGame(demo, false);
+    const server = new EngineServer(await WasmEngine.load(bytes));
+    const wire = new Wire(options.connect?.(server) ?? (() => server), demo, shippedContent(), { retries: options.retries ?? [0], later: (run) => setTimeout(run, 0) });
+    game.wireWith(wire);
+    await wire.ready;
+    const at = interactablesOf(demo.scene).find((i) => i.id === thing)!.position;
+    const beside = at.y * demo.grid.width + at.x - 1;
+    server.meddle = (engine, calls) => {
+      if (calls !== 1) return;
+      engine.call('placeAt', ['kara', beside]);
+      engine.call('select', ['kara']);
+      engine.call('useSelectedOn', [thing]);
+    };
+    const before = replicaCount();
+    game.selectNext();
+    await settle(server);
+    return { demo, game, server, wire, before };
+  }
+
+  it.skipIf(!built)('shows a question the server\'s game holds from its board, and plays the answer there, not here', async () => {
+    const { demo, game, server, wire, before } = await asking('asked', 'door-12-7');
+    const theirs = server.engine.board() as BoardSnapshot;
+    expect(theirs.pending).not.toBeNull();
+    expect(wire.status()).toBe('asked');
+    // What the page's views read of the question is what the server's board says, and the page draws it again.
+    expect(boardOf(demo).pending).toEqual(theirs.pending);
+    expect(boardOf(demo).replica).toEqual(theirs.replica);
+    expect(game.changedBehind()).toBe(true);
+    expect(game.changedBehind()).toBe(false);
+    // Anything else is the page's to refuse, as with any question open, and nothing is sent.
+    const sent = server.sent.length;
+    const away = demo.state.entity('kara')!.tile - 2;
+    expect(game.moveSelectedTo(away).moved).toBe(false);
+    expect(game.syncTalks()).toBe(false);
+    expect(game.saveBlockedBy()).not.toBeNull();
+    await settle(server);
+    expect(server.sent.length).toBe(sent);
+    // The answer: sent up, not played here, and the page waits on it - a second answer meanwhile refused.
+    const logBefore = demo.log.length;
+    expect(game.answerPending({ kind: 'roll' }).status).toBe('waiting');
+    expect(game.answerPending({ kind: 'roll' }).status).toBe('refused');
+    expect(demo.log.length).toBe(logBefore);
+    await settle(server);
+    for (let n = 0; n < 10 && wire.status() === 'asked'; n++) {
+      game.answerPending({ kind: 'choose', index: 0 });
+      await settle(server);
+    }
+    // Stood where the server's game is after it, the roll's lines in the log, and in step.
+    expect(wire.status()).toBe('in');
+    expect(demo.pending).toBeNull();
+    expect(demo.log.length).toBeGreaterThan(logBefore);
+    expect(differ(demo, server)).toBeNull();
+    expect(game.changedBehind()).toBe(true);
+    game.selectNext();
+    game.selectNext();
+    await settle(server);
+    const partings = replicaCount().first.slice(before.first.length).map((p) => p.question);
+    expect(partings).toEqual([expect.stringMatching(/^server selectNext: board\./)]);
+  }, 120_000);
+
+  it.skipIf(!built)('shows the server\'s question with the page playing the engine, the engine told the game after', async () => {
+    const { demo, game, server, wire, before } = await asking('asked-wasm', 'door-12-7', { wasm: true });
+    expect(wire.status()).toBe('asked');
+    expect(boardOf(demo).pending).toEqual((server.engine.board() as BoardSnapshot).pending);
+    expect(game.answerPending({ kind: 'roll' }).status).toBe('waiting');
+    await settle(server);
+    for (let n = 0; n < 10 && wire.status() === 'asked'; n++) {
+      game.answerPending({ kind: 'choose', index: 0 });
+      await settle(server);
+    }
+    expect(wire.status()).toBe('in');
+    expect(differ(demo, server)).toBeNull();
+    // Played on, the page's engine and the server's alike: nothing more parts.
+    game.selectNext();
+    game.selectNext();
+    game.syncTalks();
+    await settle(server);
+    expect(replicaCount().first.slice(before.first.length).length).toBe(1);
+  }, 120_000);
+
+  it.skipIf(!built)('shows a conversation the server\'s game holds - its node, lines and options - and answers it there', async () => {
+    const { demo, game, server, wire, before } = await asking('talk', 'pillar-14-7');
+    expect(wire.status()).toBe('asked');
+    let rounds = 0;
+    while (wire.status() === 'asked' && rounds++ < 12) {
+      const theirs = server.engine.board() as BoardSnapshot;
+      expect(boardOf(demo).pending, `round ${rounds}`).toEqual(theirs.pending);
+      const view = talkingView(demo);
+      const shown = (theirs.pending as { dialogue: { view: { options: { index: number; text: string }[] } | null } | null }).dialogue?.view ?? null;
+      if (shown !== null) {
+        // The conversation panel's own read: the node's lines from the page's project, the options the server's.
+        expect(view?.options.map((o) => o.text)).toEqual(shown.options.map((o) => o.text));
+        expect(view!.lines.length).toBeGreaterThan(0);
+        expect(talkingTo(demo)).not.toBeNull();
+        if (rounds === 1) {
+          // Somebody else selected while the server's game holds the conversation: it is not set aside here -
+          // the page has no conversation of its own to set aside - and it stays on screen.
+          const other = demo.party.members().find((id) => id !== 'kara')!;
+          game.select(other);
+          expect(demo.party.selected).toBe(other);
+          expect(game.syncTalks()).toBe(false);
+          expect(boardOf(demo).pending).toEqual(theirs.pending);
+          game.select('kara');
+        }
+        // As the panel answers: an option by its own index - the first, then the last (walking away) - or on.
+        const options = shown.options;
+        game.answerPending(options.length === 0 ? { kind: 'continue' } : { kind: 'choose', index: options[rounds === 1 ? 0 : options.length - 1]!.index });
+      } else game.answerPending({ kind: 'roll' });
+      await settle(server);
+    }
+    expect(rounds).toBeGreaterThan(1);
+    expect(wire.status()).toBe('in');
+    expect(demo.pending).toBeNull();
+    expect(differ(demo, server)).toBeNull();
+    expect(replicaCount().first.slice(before.first.length).length).toBe(1);
+  }, 120_000);
+
+  it.skipIf(!built)('comes back to a question the server\'s game holds when the page is reloaded, or lets it go with the game', async () => {
+    let current: ReturnType<EngineServer['connection']> | null = null;
+    const { server, before } = await asking('reload-asked', 'door-12-7', {
+      connect: (s) => () => {
+        current = s.connection();
+        return current;
+      },
+    });
+    expect((server.engine.board() as BoardSnapshot).pending).not.toBeNull();
+    // Reloaded: the question shown again, from the board of the game kept.
+    const again = buildProjectScene(project(), 'wire:reloaded-asked');
+    const game = new LocalGame(again, false);
+    const back = new Wire(() => server.connection(), again, shippedContent(), { resume: true });
+    game.wireWith(back);
+    await back.ready;
+    expect(back.resumed).toBe(true);
+    expect(back.status()).toBe('asked');
+    expect(boardOf(again).pending).toEqual((server.engine.board() as BoardSnapshot).pending);
+    expect(game.answerPending({ kind: 'roll' }).status).toBe('waiting');
+    await settle(server);
+    for (let n = 0; n < 10 && back.status() === 'asked'; n++) {
+      game.answerPending({ kind: 'choose', index: 0 });
+      await settle(server);
+    }
+    expect(back.status()).toBe('in');
+    expect(differ(again, server)).toBeNull();
+    expect(replicaCount().first.slice(before.first.length).length).toBe(1);
+  }, 120_000);
+
+  it.skipIf(!built)('keeps showing the server\'s question across a dropped connection, and lets it go when the game is gone', async () => {
+    let current: ReturnType<EngineServer['connection']> | null = null;
+    const { demo, game, server, wire, before } = await asking('dropped-asked', 'door-12-7', {
+      connect: (s) => () => {
+        current = s.connection();
+        return current;
+      },
+      retries: [0, 0, 0],
+    });
+    expect(wire.status()).toBe('asked');
+    // Dropped while the question is open, the game kept: back, and the question shown again.
+    current!.drop();
+    game.answerPending({ kind: 'roll' });
+    await settle(server);
+    expect(wire.status()).toBe('asked');
+    expect(boardOf(demo).pending).toEqual((server.engine.board() as BoardSnapshot).pending);
+    // Dropped again, the game gone: the question let go - the page cannot answer it - and a fresh game opened.
+    server.kept = null;
+    current!.drop();
+    game.answerPending({ kind: 'roll' });
+    await settle(server);
+    expect(demo.pending).toBeNull();
+    expect(wire.status()).toBe('out');
+    game.selectNext();
+    await settle(server);
+    expect(wire.status()).toBe('in');
+    expect(differ(demo, server)).toBeNull();
+    expect(replicaCount().first.slice(before.first.length).length).toBe(1);
   }, 120_000);
 });

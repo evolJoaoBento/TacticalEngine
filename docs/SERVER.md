@@ -1100,12 +1100,10 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
       and the Rust server, signed in as admin, the vault's door picked and a fight to round nine - the wire
       stood in step from boot and nothing parted, with the page's own game and with `?engine=wasm`, the
       fight at sixty frames a second either way.
-    - **Not yet**: a question the server holds the page does not (or the other way
-      round) is not shown from the server's board, as the plan had it, but answered by telling the server
-      the page's game; the e2e suite runs on the tests' server, which has no Rust server and so no wire. The
-      page restored from the server's board has run only under the test's stand-in: in the browser it would
-      come in a socket's message, between frames rather than inside an intent as `WasmGame`'s does, and the
-      browser check had no server that parted to show it. A server that refused `restore` - never seen; the
+    - **Not yet**: the e2e suite runs on the tests' server, which has no Rust server and so no wire. (A
+      question the server holds the page does not is shown from the server's board now - below.) The page
+      restored from the server's board after a parting has run only under the test's stand-in; a reload,
+      which restores it the same way, has run in the browser (below). A server that refused `restore` - never seen; the
       mirror shows the replica goes there and back - would be opened afresh before every intent after.
   - **Saves on the server** (`server/serve/src/saves.rs`, `src/game/account-saves.ts`). Signed in where the
     server plays the game beside the page, the player's saves are the account's, in
@@ -1165,5 +1163,37 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     the server's game into the account's folder and the same as the page's, a quick load back to it, a reload
     back to the very spot, the Rust server killed mid-game and started again by hand and the page back in step
     with it - nothing parted.
-  - **Next**: the question held on one side shown from the server's board, as the plan had it; then the
-    server's game the one the page plays, the page's own the shadow.
+  - **A question the server's game holds, shown from its board** (`wire.ts`, as the plan had it). A
+    question is a script paused part-way - a roll it waits on, a defender asked how a hit lands, a line of a
+    conversation - which no board carries, so the page's game cannot be given one back. Where the page is
+    stood where the server's board says - after a parting, after a reload, after a connection comes back -
+    and that board holds a question, the page shows it (`asked`): `shownFrom` makes what the views read of a
+    question from the board's projection - its kind and prompt, the thing it came from and whom it is with,
+    and for a conversation its node and that node's lines found in the page's own project by the ids the
+    board gives, its options the server's - and no runner. The answer is not played on the page: it is sent
+    up without predicting it (`whileAsked`), the page saying it waits and refusing a second answer meanwhile,
+    and the page is stood where the server's board says after - the next question shown the same way, or
+    none and in step. Anything else is played on the page's game alone, which refuses it as it would with any
+    question open, and is not sent; the conversations are not set aside (`syncTalks`), which a stand-in must
+    not be. A question the page held that the server's game does not is dropped with the rest of the page's
+    game. Only a conversation set aside, on either side - a runner too - still has the server told the
+    page's game instead. A dropped connection keeps the question shown and shows it again where the kept game
+    now is; a game gone lets it go.
+    - **Drawn again when the game changed under it**: a board that stands the page somewhere else comes in a
+      socket's message, between frames, not in answer to a click; `GameClient.changedBehind` says so, and the
+      frame loop draws the page again (`refreshPlay`) - one line of `main.ts`, on another.
+    - **Held**: `wire.test.ts` has the server's game open a question behind the page's back - Kara stood at
+      the vault door and the lock picked, Kara stood at the Warden's pillar and spoken to - and holds the
+      page to showing what the server's board says, the views' own reads of it included (the roll's prompt,
+      the conversation panel's lines and options, where the camera holds); to refusing a walk, keeping the
+      conversation where it is and sending nothing; to sending the answer and not playing it, a second answer
+      refused, the roll's lines arriving with the server's board; and to being in step after - with the page's
+      own game and with the page playing the engine. A page reloaded with the question open comes back to it;
+      a dropped connection shows it again, and lets it go when the game is gone. 12 of 12 deliberate
+      mutations of the asking and the page's routing to it fail these. In a real browser, the dev
+      and Rust servers, signed in: the page reloaded with the door's roll open came back to it, the Roll
+      button on screen, and the click played the roll on the server ("Success, with Shadow" - the door
+      opened); reloaded in the middle of the Warden's conversation, it came back to the panel and its three
+      options, and "Who are you?" brought the Warden's answer and the next - nothing parted.
+  - **Next**: the server's game the one the page plays, the page's own the shadow - and then the e2e suite
+    on it, which is what phase 3 is done by.
