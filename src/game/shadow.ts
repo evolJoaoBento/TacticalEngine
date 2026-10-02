@@ -45,7 +45,7 @@ export interface ReplicaCount {
 declare global {
   interface Window {
     /** The shadow's count, for a test. Absent where there is no replica. */
-    __replica?: { count: () => ReplicaCount; playing: () => 'wasm' | 'ts' };
+    __replica?: { count: () => ReplicaCount; playing: () => 'wasm' | 'ts'; server: () => string };
   }
 }
 
@@ -91,7 +91,7 @@ export function firstDifference(a: unknown, b: unknown, at = ''): { path: string
 }
 
 /** A board, its log cut to the lines since a game was brought into step. */
-const since = (board: unknown, from: number): Record<string, unknown> => {
+export const since = (board: unknown, from: number): Record<string, unknown> => {
   const b = JSON.parse(plain(board)) as Record<string, unknown> & { log: unknown[] };
   return { ...b, log: b.log.slice(from) };
 };
@@ -262,11 +262,14 @@ export function engineModule(): Promise<WebAssembly.Module | null> {
 
 /** Which game the page plays: its own, or the engine's (`wasm-game.ts`). */
 let playing: 'wasm' | 'ts' = 'ts';
+/** Where the wire to the server's game stands (`wire.ts`): `off` where there is none. */
+let server: () => string = () => 'off';
 
-/** The count, where a test can read it, and which game the page plays. */
-export function publishCount(engine?: 'wasm' | 'ts'): void {
+/** The count, where a test can read it, which game the page plays, and how its wire to the server stands. */
+export function publishCount(engine?: 'wasm' | 'ts', wire?: () => string): void {
   if (engine !== undefined) playing = engine;
-  if (typeof window !== 'undefined') window.__replica = { count: replicaCount, playing: () => playing };
+  if (wire !== undefined) server = wire;
+  if (typeof window !== 'undefined') window.__replica = { count: replicaCount, playing: () => playing, server: () => server() };
 }
 
 /** A shadow for a game, once the engine is here - or never. The count is published the first time. */

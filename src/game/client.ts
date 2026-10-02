@@ -66,6 +66,7 @@ import { landWalkers } from './land';
 import { dropCard, type Drop } from './party-drop';
 import { carriedItems, containerView, hudMembers, journalEntries, talkingTo, talkingView } from './ui/play-views';
 import { shadowFor, type Shadow } from './shadow';
+import type { Wire } from './wire';
 import { userSettings } from './user-settings';
 
 /** What the board is: the game's state as the page reads it, every frame. */
@@ -216,6 +217,8 @@ export interface LocalPowers {
 export class LocalGame implements GameClient, LocalPowers {
   /** The replica the pointer's questions are also put to, once the engine is here; none outside development. */
   private shadow: Shadow | null = null;
+  /** The game on the server this one is held to (`wire.ts`); none outside development, or for nobody signed in. */
+  private wire: Wire | null = null;
 
   /** `shadowed`: whether the page's dev engine is fetched to shadow it; a game that is the engine's own is not. */
   constructor(protected readonly demo: DemoScene, shadowed = true) {
@@ -239,8 +242,28 @@ export class LocalGame implements GameClient, LocalPowers {
     this.shadow = shadow;
   }
 
-  /** An intent: done, and - with a shadow - done in step in the engine too, the two held to each other. */
-  protected did<T>(call: string, args: readonly unknown[], run: () => T, compare?: { answer: boolean }): T {
+  /** Held to the game on the server: told of every intent, and telling this game when the server's restores it. */
+  wireWith(wire: Wire): void {
+    this.wire = wire;
+    wire.attach(() => this.edited(false));
+  }
+
+  /** The editor's change, told to whatever plays beside the page's game - the engine, the server's. */
+  private changed(projectChanged: boolean): void {
+    this.edited(projectChanged);
+    this.wire?.outOfStep();
+  }
+
+  /** An intent: played (`play`), and - with a wire - sent up to the server's game and held to its answer. */
+  protected did<T>(call: string, args: readonly unknown[], run: () => T, compare: { answer: boolean } = { answer: true }): T {
+    const sending = this.wire?.before() ?? false;
+    const answer = this.play(call, args, run, compare);
+    if (sending) this.wire!.after(call, args, answer, compare);
+    return answer;
+  }
+
+  /** An intent played: done, and - with a shadow - done in step in the engine too, the two held to each other. */
+  protected play<T>(call: string, args: readonly unknown[], run: () => T, compare: { answer: boolean }): T {
     return this.shadow === null ? run() : this.shadow.mirror(call, args, run, compare);
   }
 
@@ -413,21 +436,21 @@ export class LocalGame implements GameClient, LocalPowers {
     // The world first: `syncPools` reads the modifiers a card grants through it.
     refreshWorld(this.demo);
     syncPools(this.demo);
-    this.edited(true);
+    this.changed(true);
   }
   takeGround(scene: SceneDoc, old: TileGrid, grid: TileGrid) {
     const same = takeGround(this.demo, scene, old, grid);
-    this.edited(true);
+    this.changed(true);
     return same;
   }
   syncAuthoredEncounters(): void {
     syncAuthoredEncounters(this.demo);
-    this.edited(true);
+    this.changed(true);
   }
   gatherParty(tile: number): void {
     // The editor's: the engine is not told of it, and is brought into step again after.
     gatherParty(this.demo, tile);
-    this.edited(false);
+    this.changed(false);
   }
   placeAt(id: string, tile: number): void { this.did('placeAt', [id, tile], () => { this.demo.state.moveEntity(id, tile); return null; }); }
   setCards(id: string, cards: string[]): void {

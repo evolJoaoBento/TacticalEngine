@@ -18,6 +18,7 @@
  * `npm run wasm` has built the engine; anywhere else the page plays its own game, as it did.
  */
 
+import { BOOT } from 'virtual:boot-project';
 import { boardOf, restoreFromBoard, rollsOf, type BoardSnapshot } from './board';
 import { LocalGame, type GameClient, type LocalPowers } from './client';
 import type { DemoScene } from './demo-scene';
@@ -26,6 +27,8 @@ import { replicaOf } from './replica';
 import { engineModule, firstDifference, publishCount, recordAsked, recordParting } from './shadow';
 import { shippedContent } from './shipped';
 import { WasmEngine } from './wasm-engine';
+import { PlaySocket, serverWanted } from './play-socket';
+import { Wire } from './wire';
 
 export type { GameClient, LocalPowers } from './client';
 
@@ -72,7 +75,7 @@ export class WasmGame extends LocalGame {
   }
 
   /** An intent: the engine plays it and answers; the page's game plays it beside, held to it. */
-  protected override did<T>(call: string, args: readonly unknown[], run: () => T, compare: { answer: boolean } = { answer: true }): T {
+  protected override play<T>(call: string, args: readonly unknown[], run: () => T, compare: { answer: boolean }): T {
     let engines: unknown;
     try {
       engines = this.engine.call(call, args);
@@ -133,19 +136,43 @@ export function engineChosen(): 'wasm' | 'ts' {
   return import.meta.env['VITE_ENGINE'] === 'wasm' ? 'wasm' : 'ts';
 }
 
+/** Whether the page's game is held to one on the server (`play-socket.ts`): asked once, as the page boots. */
+let serverOn = false;
+/** The wire of the game the page plays now, closed when another takes its place. */
+let wired: Wire | null = null;
+
+/** The game held to one on the server, when it is to be: a socket of its own, the last game's closed. */
+function wireUp(game: LocalGame, demo: DemoScene): void {
+  wired?.close();
+  wired = null;
+  if (!serverOn) return;
+  const wire = new Wire(new PlaySocket(), demo, shippedContent());
+  game.wireWith(wire);
+  wired = wire;
+  publishCount(undefined, () => wire.status());
+}
+
 /** The game the page plays, now: the engine's when it is chosen and one is ready, else the page's own. */
 export function gameFor(demo: DemoScene): GameClient & LocalPowers {
+  let game: LocalGame;
   if (engineChosen() === 'wasm' && spare !== null) {
     const engine = spare;
     spare = null;
     void refill();
-    return new WasmGame(demo, engine, shippedContent());
-  }
-  return new LocalGame(demo);
+    game = new WasmGame(demo, engine, shippedContent());
+  } else game = new LocalGame(demo);
+  wireUp(game, demo);
+  return game;
 }
 
-/** The game the page boots with, once the engine - when it is chosen - is ready. */
+/** How long the page waits at boot for the server's game, whose seed it plays with, before playing without. */
+const OPENING_MS = 3000;
+
+/** The game the page boots with, once the engine - when it is chosen - is ready, and the server's game open. */
 export async function gameReady(demo: DemoScene): Promise<GameClient & LocalPowers> {
-  if (engineChosen() === 'wasm') await refill();
-  return gameFor(demo);
+  const [on] = await Promise.all([serverWanted(BOOT), engineChosen() === 'wasm' ? refill() : null]);
+  serverOn = on;
+  const game = gameFor(demo);
+  if (wired !== null) await Promise.race([wired.ready, new Promise((wait) => setTimeout(wait, OPENING_MS))]);
+  return game;
 }

@@ -13,6 +13,8 @@
 //!   server's own: `{ id, ok: { seed, board } }`;
 //! - `{ id, op: "call", call, args }` - an intent: `{ id, ok: { answer, board } }`;
 //! - `{ id, op: "ask", ask, ... }` - what the pointer asks: `{ id, ok: <answer> }`;
+//! - `{ id, op: "restore", replica }` - told how the game stands, the page's being the one the server's is
+//!   held to while it is brought into step: `{ id, ok: { board } }`;
 //! - `{ id, op: "resume" }` - the game kept since the socket last closed: `{ id, ok: { board } }`;
 //!
 //! and `{ id, error }` for anything refused. A game outlives its socket for a while (`KEPT_FOR`), so a page
@@ -127,6 +129,10 @@ fn answer(slot: &mut Option<Session>, message: &Value, hooks: &HooksFor) -> Resu
             Ok(json!({ "answer": said, "board": board(slot) }))
         }
         Some("ask") => face::respond(slot, message, Rc::clone(hooks)),
+        Some("restore") => {
+            face::respond(slot, &json!({ "op": "restore", "replica": message["replica"] }), Rc::clone(hooks))?;
+            Ok(json!({ "board": board(slot) }))
+        }
         Some("resume") => match slot {
             Some(session) => Ok(json!({ "board": session.board() })),
             None => Err("no game to resume".into()),

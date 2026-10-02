@@ -1063,5 +1063,50 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
       route itself over a real socket (no cookie, an unknown session, another origin refused; open, call, a
       garbled message, close, and back to the same game); and a game kept for no time gone when its socket
       goes. 10 of 10 deliberate mutations of `play.rs` fail it.
-  - **Next**: 3d - the wire: the page opens `/__play`, sends each intent up beside playing it, holds the
-    server's board to its own and is restored from it where they part; the server's seed at open.
+  - **The wire** (slice 3d, `src/game/wire.ts`, `src/game/play-socket.ts`). In development, on a dev server
+    that keeps accounts, for somebody signed in (`serverWanted`; `?server=off` turns it off), every game the
+    page plays - its own (`LocalGame`) or the engine's (`WasmGame`) - opens a game on the server through
+    `/__play` and is held to it.
+    - **The server's seed from the start**: the page's dice go on from the server's game's as it opens
+      (its board's `rng`), and the page waits for that at boot, three seconds at most (`gameReady`).
+    - **Every intent sent up as it is played**: `LocalGame.did` is a template now - the wire told before
+      (`before`, which brings the server into step if it is out and can be), the intent played (`play`, which
+      `WasmGame` overrides where it overrode `did`), and the intent sent (`after`) with the page's answer
+      and board just after it kept, since the page plays on without waiting and more may have been played
+      by the time the answer is back. The answer and the board (its log since the server was told the
+      page's game) are held to the page's, counted as the mirror's are, and a parting is written to the
+      console with the question `server <intent>: <where>`; `window.__replica.server()` says where the wire
+      stands (`opening`, `fresh`, `in`, `parted`, `out`, `closed`, or `off`).
+    - **Restored from the server where they part**: what is still on its way up is played and held to
+      nothing, and when the last of it is answered the page's game is stood where the server's board says
+      (`restoreFromBoard`) and whatever plays beside it told (`edited`). A question open or a conversation
+      set aside, on either side, the board cannot give back: then the server is told the page's game
+      instead, before the next intent it can be.
+    - **Told the page's game** - a fresh game opened over the project as it is (`open`), then `restore`
+      (a new op on the server, which the face already had), `restoreRng` and `restoreWalk` - before the
+      first intent, after the editor has changed the game (`LocalGame.changed`), and after a parting it
+      could not be restored from. A project loaded closes the last game's socket.
+    - **Held**: `src/game/wire.test.ts` puts the very `.wasm` the page loads behind a stand-in for the
+      socket - the same face and dispatcher as the server's games, answering a tick late and in order,
+      a seed of its own at each open - and plays both `LocalGame` and `WasmGame` through it in bursts of
+      intents sent before the first is answered, partings held to none and the two games equal after; a
+      game wounded behind the page's back is counted as a parting and the page restored to it, and an
+      answer that is not the page's is a parting too; the editor's change opens a fresh game on the server
+      (one opened with lines already in its log, the page's dice rolled first); a closed socket closes the
+      wire. 12 of 12 deliberate mutations of the wire and `LocalGame`'s hooks fail it, and
+      `play_routes.rs`'s `restore` with them (11 of 11 of `play.rs`). `play-socket.test.ts` holds the socket
+      to writing each message as it is given, holding them until it opens, finding answers by id, failing
+      what waits when it closes, and to when the wire is wanted at all. In a real browser - the dev server
+      and the Rust server, signed in as admin, the vault's door picked and a fight to round nine - the wire
+      stood in step from boot and nothing parted, with the page's own game and with `?engine=wasm`, the
+      fight at sixty frames a second either way.
+    - **Not yet**: a socket that closes ends the wire for that game - the page does not open another, nor
+      `resume` the one the server kept; a question the server holds the page does not (or the other way
+      round) is not shown from the server's board, as the plan had it, but answered by telling the server
+      the page's game; the e2e suite runs on the tests' server, which has no Rust server and so no wire. The
+      page restored from the server's board has run only under the test's stand-in: in the browser it would
+      come in a socket's message, between frames rather than inside an intent as `WasmGame`'s does, and the
+      browser check had no server that parted to show it. A server that refused `restore` - never seen; the
+      mirror shows the replica goes there and back - would be opened afresh before every intent after.
+  - **Next**: saves on the server - the page's save written to the account's own folder by the server's
+    game rather than to the browser - and a socket that comes back resuming its game.

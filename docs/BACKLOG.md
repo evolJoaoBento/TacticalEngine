@@ -4,6 +4,14 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## The page plays beside the server — done
+
+In development, signed in, every game the page plays opens one on the server at `/__play` and is held to it
+(`src/game/wire.ts`): the page's dice go on from the server's seed, every intent is sent up as it is played
+and the server's answer and board held to the page's, a parting counted as the mirror's are and the page
+stood where the server's board says. Phase 3's slice 3d. Next: saves on the server, and a socket that comes
+back resuming its game.
+
 ## The server plays games — done
 
 `/__play` (`server/serve/src/play.rs`): a websocket behind the session cookie, from the page's own origin, where

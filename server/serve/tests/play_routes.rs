@@ -125,6 +125,13 @@ async fn a_game_on_the_server_plays_as_the_engine_plays() {
     let resumed = tables.ask("kara", json!({ "id": 100, "op": "resume" })).await;
     assert_eq!(resumed["ok"]["board"], beside.board());
 
+    // Told how the game stands - here, as it was opened - it stands so, as a session told the same does.
+    let told = tables.ask("kara", json!({ "id": 101, "op": "restore", "replica": opened["ok"]["board"]["replica"] })).await;
+    beside.restore_replica(&opened["ok"]["board"]["replica"]).unwrap();
+    assert_eq!(told["ok"]["board"]["replica"], opened["ok"]["board"]["replica"], "{told}");
+    assert_eq!(told["ok"]["board"], beside.board());
+    assert_ne!(told["ok"]["board"], resumed["ok"]["board"], "the game had moved on from where it was opened");
+
     // Refusals: nobody's game, an op nobody knows, an intent nobody knows.
     assert_eq!(tables.ask("finn", json!({ "id": 1, "op": "call", "call": "endTurn", "args": [] })).await, json!({ "id": 1, "error": "no game: open one" }));
     assert_eq!(tables.ask("kara", json!({ "id": 2, "op": "dance" })).await["error"], "no op \"dance\"");
