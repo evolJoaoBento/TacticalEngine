@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures';
 
 /**
  * The curtain over the table while it is laid. A driven browser gets none (`index.html` says why),

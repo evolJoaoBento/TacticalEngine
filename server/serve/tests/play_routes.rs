@@ -211,3 +211,21 @@ async fn a_game_left_longer_than_it_is_kept_goes() {
     assert!(!tables.has_game("kara"), "kept for no time, it goes when its socket does");
     assert_eq!(tables.ask("kara", json!({ "id": 2, "op": "resume" })).await["error"], "no game: open one");
 }
+
+#[tokio::test]
+async fn the_tests_server_takes_the_pages_dice_and_no_other_does() {
+    let fixture = fixture();
+    let open = json!({ "id": 1, "op": "open", "project": fixture["projects"][0], "shipped": fixture["shipped"], "table": {}, "rng": 123456789 });
+    // A server of its own: its own seed, whatever the page says its dice are.
+    let own = Tables::new(root("own-dice")).ask("kara", open.clone()).await;
+    assert_ne!(own["ok"]["board"]["rng"], 123456789, "{}", own["ok"]["board"]["rng"]);
+    // The tests' server: the page's dice, so a suite written against the page's own seeds rolls what it was written for.
+    let tests = Tables::new(root("page-dice")).with_dice_from_page();
+    let opened = tests.ask("kara", open.clone()).await;
+    assert_eq!(opened["ok"]["board"]["rng"], 123456789);
+    assert!(opened["ok"]["seed"].is_string(), "the server still says the seed it built with");
+    // And without dice to take, its own.
+    let mut bare = open;
+    bare["rng"] = Value::Null;
+    assert_ne!(tests.ask("kara", bare).await["ok"]["board"]["rng"], 123456789);
+}

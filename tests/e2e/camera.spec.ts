@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from './fixtures';
 
 /**
  * The two gestures the mouse's third button and the wheel's modifier add: a middle drag

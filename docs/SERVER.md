@@ -895,7 +895,9 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     `landWalkers`, `spotOfWorld`), input (`steerStep`), what is drawn (`reachRings`, `aimedArc`), the
     right-click panel (`inspection`), a window shut out of reach (`withinReach`), and the editor changing
     the ground under a game being played (`takeGround`) - which phase 3 decides where to put, below.
-- **Phase 3** - started 1 October 2026.
+- **Phase 3** - started 1 October 2026; done 2 October 2026, by the plan's own measure: the e2e suite passes
+  with play on the server (below, "The server's game is the one the page plays"). The TypeScript game layer
+  it says goes next is still there - the page's game is the shadow the views read.
   - **The page reaches the game through one seam** (slice 1, `src/game/client.ts`): `main.ts` holds a
     `GameClient & LocalPowers` where it held a `DemoScene` - 142 reads of the game now `game.board`, 120
     calls that handed it the game now methods, and the places it wrote to the game (the dice queue, the
@@ -1195,5 +1197,44 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
       button on screen, and the click played the roll on the server ("Success, with Shadow" - the door
       opened); reloaded in the middle of the Warden's conversation, it came back to the panel and its three
       options, and "Who are you?" brought the Warden's answer and the next - nothing parted.
-  - **Next**: the server's game the one the page plays, the page's own the shadow - and then the e2e suite
-    on it, which is what phase 3 is done by.
+  - **The server's game is the one the page plays** (phase 3 done). As 3a re-planned it, a synchronous seam
+    cannot wait on a socket: the page plays the engine built to WebAssembly (`WasmGame`) for an answer at once,
+    its own game beside it as the shadow the views read, and the server's game is the one that counts - the
+    seed its own from the start, every intent played there and held to the page's, the page stood where its
+    board says wherever they part, a question it holds shown from its board, the saves its game writes.
+    - **The suite on it** (`npm run test:e2e:server`, `tools/e2e-server.mjs`, `TACTICAL_E2E_SERVER=1`): the
+      tests' server, still opening the demo from code and refusing every save, starts a Rust server of its
+      own on 8431 over a scratch folder (`tests/e2e/server-mode.ts`; never the repository's `data/`) and passes
+      it three routes only - signing in, the games, their saves (`PLAYED_ROUTES`) - never the project or what
+      saves it. The page plays the engine (`VITE_ENGINE=wasm`) with the wire on under the tests' boot
+      (`VITE_E2E_SERVER`). A setup project (`sign-in.setup.ts`) waits for the server to build and answer and
+      clears the last run's accounts; each test's browser is signed in to an account of its own before its
+      page loads (`tests/e2e/fixtures.ts`, which every spec now imports in place of `@playwright/test`, and
+      which is Playwright and nothing else in the other modes) - its own game on the server, its own saves.
+      `replica.spec.ts` holds the run to it: the page playing the engine, and the wire in step with the
+      server's game at the end of a fight.
+    - **The page's dice, for the tests only** (`--dice-from-page`, `Tables::with_dice_from_page`): a server
+      picks a seed of its own for every game, and the suite is written against the page's own seeds - a chest
+      roll that pays out, a strongbox that hands over a level. The tests' server sets a game's dice where the
+      page's are when it opens (`rng` in `open`, which any other server ignores); every intent is still played
+      on the server and held to the page's.
+    - **What the run found**, each fixed: the rooms left behind were not on a board - a page stood where the
+      server's board says, after a reload, lost every room but the one it was in, and travelling back parted
+      on the chest the server remembered emptied - so the replica carries them now (`rooms`, in both engines;
+      the replica fixture's play travels, 308 of its 560 steps with rooms left, and so does the play the
+      board, mirror, `WasmGame` and wire tests share); what the page's views had still to draw was not told
+      an engine brought into step - walks played while the connection was down parted the next drain - so
+      it is now (`restoreViews`), and the page's own is dropped when it is stood where the server's board
+      says; closing a wire mid-telling counted the messages cut off as a parting; and a condition's id was
+      written into the log for its name ("shakes off restrained"), in both engines - its own commit. Tests that
+      assumed nobody was signed in learned there is somebody (the menu offers to sign out and has the Store;
+      a camp is kept under its player's key), one whose premise is no accounts at all is skipped, and the save
+      test's reload comes back to the game kept and walks out of it before loading.
+    - **Held**: the whole suite, three ways - 203 with its games played on the server (one skipped there:
+      the no-accounts test), 203 with the page's own game, 203 with the page playing the engine - and
+      nothing parted in any. 4 of 4 Rust tests hold the tests' server to taking the page's dice and no other
+      server to it, the rooms and the views' queues each have one, and `rust-server.test.ts` holds the tests'
+      routes to the three and the server's arguments to the scratch folder and the flag.
+  - **Next**: the TypeScript game layer deleted, as the plan says once the suite passes on the server - the page's
+    own game today is the views' model and the shadow, and taking it away means the views reading the
+    engine's board instead; and a conversation set aside, the last thing a board cannot give back.

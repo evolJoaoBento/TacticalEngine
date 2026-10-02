@@ -33,6 +33,7 @@ import { jumpAim, jumpOffered, jumpReaches, previewWalk, reachableTiles, startEn
 import { hollowVaultMap } from './demo-map';
 import { DEMO_ADVERSARIES, DEMO_CHARACTERS } from './demo-rules';
 import { inCombat } from './moment';
+import { travelTo } from './room';
 import { syncTalks } from './talks';
 import { replicaOf } from './replica';
 import { contentJson } from './shipped';
@@ -96,7 +97,7 @@ function act(demo: DemoScene, g: Rng, yard = false): void {
     ? yard
       ? (['endTurn', 'endTurn', 'endTurn', 'select', 'move'] as const)
       : (['move', 'move', 'attack', 'attack', 'endTurn', 'select', 'use', 'use', 'party', 'rout'] as const)
-    : (['move', 'move', 'move', 'select', 'fight', 'use', 'party', 'talk', 'loadout'] as const));
+    : (['move', 'move', 'move', 'select', 'fight', 'use', 'party', 'talk', 'loadout', 'travel'] as const));
   const members = demo.party.members();
   switch (kind) {
     case 'move': {
@@ -112,6 +113,12 @@ function act(demo: DemoScene, g: Rng, yard = false): void {
     case 'endTurn':
       endTurn(demo);
       return;
+    case 'travel': {
+      // To another room and, later, back: the rooms left behind are the replica's too.
+      const others = demo.project.scenes.map((s) => s.id).filter((id) => id !== demo.scene.id);
+      if (others.length > 0) travelTo(demo, g.pick(others));
+      return;
+    }
     case 'select':
       demo.party.selectNext();
       syncTalks(demo);

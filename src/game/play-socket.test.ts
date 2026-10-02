@@ -108,6 +108,11 @@ describe('the socket to the server\'s game', () => {
     expect(await serverAccount('file')).toBeNull();
     me(404);
     expect(await serverAccount('file')).toBeNull();
+    // The tests' server whose games are played on the server does ask.
+    me(200, admin);
+    asked.length = 0;
+    expect(await serverAccount('builtin', true)).toEqual(admin);
+    expect(asked).toEqual(['/__accounts/me']);
     me(200, admin);
     vi.stubGlobal('location', { search: '?play&server=off' });
     asked.length = 0;

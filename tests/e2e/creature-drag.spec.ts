@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures';
 
 /**
  * A placed creature is picked up and put down with the mouse, in the editor's Combat mode, with the

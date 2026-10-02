@@ -45,7 +45,7 @@ export function act(game: LocalGame, demo: DemoScene, g: Rng): void {
     if (at === NO_TILE) return g.nextInt(demo.grid.size);
     return demo.grid.indexOf(Math.min(demo.grid.width - 1, Math.max(0, demo.grid.xOf(at) + g.nextInt(13) - 6)), Math.min(demo.grid.height - 1, Math.max(0, demo.grid.yOf(at) + g.nextInt(13) - 6)));
   };
-  const kind = g.pick(['move', 'move', 'move', 'attack', 'endTurn', 'select', 'use', 'use', 'use', 'thing', 'arrive', 'arrived', 'party', 'hands', 'fight', 'drain'] as const);
+  const kind = g.pick(['move', 'move', 'move', 'attack', 'endTurn', 'select', 'use', 'use', 'use', 'thing', 'arrive', 'arrived', 'party', 'hands', 'fight', 'drain', 'travel'] as const);
   switch (kind) {
     case 'move':
       game.moveSelectedTo(near());
@@ -103,6 +103,12 @@ export function act(game: LocalGame, demo: DemoScene, g: Rng): void {
       else if (pick === 1) game.setGood(who, g.nextInt(4));
       else if (pick === 2) game.setCondition(who, 'vulnerable', g.nextInt(2) === 0);
       else game.giveItem('gold', 1 + g.nextInt(5));
+      return;
+    }
+    case 'travel': {
+      // To another room and, now and then, back to one already left: the rooms left behind are the game's too.
+      const others = demo.project.scenes.map((s) => s.id).filter((id) => id !== demo.scene.id);
+      if (others.length > 0) game.travelTo(g.pick(others));
       return;
     }
     case 'fight': {

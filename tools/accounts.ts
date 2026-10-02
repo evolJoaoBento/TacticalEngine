@@ -171,6 +171,7 @@ export function readBody(request: IncomingMessage, limit: number): Promise<Buffe
 }
 
 export { keepsAccounts, servesRust } from './serving.ts';
+import { servesRust as passedToRust } from './serving.ts';
 
 /**
  * The accounts' routes are the Rust server's now (`server/serve/src/accounts.rs`, passed through by
@@ -182,7 +183,8 @@ export function accounts(): Plugin {
   return {
     name: 'tactical-accounts',
     configResolved(config) {
-      on = keepsAccounts(config.command);
+      // The tests' server whose games the Rust server plays passes the accounts to it, as a dev server does.
+      on = keepsAccounts(config.command) || passedToRust(config.command);
     },
     configureServer(server) {
       if (on) return;

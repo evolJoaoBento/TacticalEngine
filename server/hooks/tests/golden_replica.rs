@@ -148,6 +148,21 @@ fn a_game_brought_into_step_is_told_the_dice_waiting() {
     assert!(session.dispatch("restoreWalk", &[Value::Null, Value::Null, Value::Null, json!([{ "who": 1 }])]).is_err(), "a roll with no dice");
 }
 
+/// A game brought into step is told what the page's views have still to draw, and drains it as the page does.
+#[test]
+fn a_game_brought_into_step_is_told_what_is_still_to_be_drawn() {
+    let fixture = fixture("replica.json");
+    let shipped: Rc<Shipped> = Rc::new(from(&fixture["shipped"]));
+    let mut session = Session::build(&fixture["projects"][0], shipped, hooks_for(), "views").expect("a game");
+    let motions = json!([{ "id": "kara", "path": [310, 311], "route": [{ "x": 2, "y": 7 }, { "x": 3, "y": 7 }] }]);
+    let floaters = json!([{ "id": "kara", "text": "-2 HP", "tone": "bad" }]);
+    session.dispatch("restoreViews", &[motions.clone(), floaters.clone()]).unwrap();
+    assert_eq!(session.dispatch("takeMotions", &[]).unwrap(), motions);
+    assert_eq!(session.dispatch("takeFloaters", &[]).unwrap(), floaters);
+    assert_eq!(session.dispatch("takeMotions", &[]).unwrap(), json!([]));
+    assert!(session.dispatch("restoreViews", &[json!([]), json!([{ "id": 1 }])]).is_err(), "a floater with no text");
+}
+
 /// A game brought into step is told the log as the page has it, whom each line names and all.
 #[test]
 fn a_game_brought_into_step_is_told_the_log() {

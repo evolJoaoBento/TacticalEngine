@@ -1,4 +1,5 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page } from './fixtures';
+import { ON_SERVER } from './server-mode';
 
 /**
  * The main menu, played. The test server opens straight on the game, as every other suite needs, so
@@ -105,7 +106,8 @@ test('New Game makes a character card by card and begins a camp, played; Load Ga
   await page.setViewportSize({ width: 1400, height: 860 });
   await page.goto('/?menu');
   const menu = page.getByTestId('main-menu');
-  await expect(menu.getByRole('button')).toHaveText([/New Game/, /Load Game/, /Edit Game/]);
+  // Signed in where the games are played on the server, the menu says who, offers to sign out, and has the Store.
+  await expect(menu.getByRole('button')).toHaveText(ON_SERVER ? [/Sign out/, /New Game/, /Load Game/, /Edit Game/, /Store/] : [/New Game/, /Load Game/, /Edit Game/]);
   await page.screenshot({ path: 'test-results/main-menu.png' });
 
   await page.getByTestId('menu-new').click();
@@ -238,13 +240,16 @@ test('New Game makes a character card by card and begins a camp, played; Load Ga
   expect(camp.party).toEqual(['ash-ironvein']);
   expect(camp.mode).toBe('play');
   // The sheet has the traits as they were left on the table.
-  const traits = await page.evaluate(() => JSON.parse(localStorage.getItem(`tactical:game:${new URLSearchParams(location.search).get('project')}`)!).party[0].traits);
-  expect(traits).toEqual({ agility: -1, strength: 0, finesse: 1, instinct: 0, presence: 1, knowledge: 2 });
-  // And the weapon and armour chosen at the table.
-  const gear = await page.evaluate(() => {
-    const hero = JSON.parse(localStorage.getItem(`tactical:game:${new URLSearchParams(location.search).get('project')}`)!).party[0];
-    return { primary: hero.primaryWeaponId, armor: hero.armorId };
+  // Kept in this browser under the player's own key (`userKey`): the bare one for nobody, or admin.
+  const key = await page.evaluate(() => {
+    const user = localStorage.getItem('tactical:current-user');
+    const project = new URLSearchParams(location.search).get('project');
+    return user === null || user === 'admin' ? `tactical:game:${project}` : `tactical:u:${user}:game:${project}`;
   });
+  const hero = await page.evaluate((k) => JSON.parse(localStorage.getItem(k)!).party[0] as { traits: unknown; primaryWeaponId: string; armorId: string }, key);
+  expect(hero.traits).toEqual({ agility: -1, strength: 0, finesse: 1, instinct: 0, presence: 1, knowledge: 2 });
+  // And the weapon and armour chosen at the table.
+  const gear = { primary: hero.primaryWeaponId, armor: hero.armorId };
   expect(gear).toEqual({ primary: 'primary-broadsword', armor: 'armor-gambeson-armor' });
   await page.screenshot({ path: 'test-results/new-game-camp.png' });
   // No way into the editor: neither the key nor the driver opens it.

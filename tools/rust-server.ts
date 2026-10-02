@@ -1,9 +1,10 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { homedir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import type { Plugin, ProxyOptions } from 'vite';
 import { ACCOUNTS_URL, servesRust } from './accounts.ts';
+import { playsOnServer } from './serving.ts';
 import { ANCESTRY_URL, MODEL_ADD_URL, SHIPPED_URL } from './model-manifest.ts';
 import { MARKS_URL, PROVENANCE_URL } from './art-provenance.ts';
 import { PROJECT_URL, SAVE_URL } from './default-project.ts';
@@ -29,6 +30,11 @@ import { IMPORT_MODEL_URL, USER_MODELS_URL, YOUR_MODELS_URL } from './your-model
  * And two routes no plugin ever answered: the games the server plays (`PLAY_URL`, phase 3 slice 3c), a
  * websocket, passed through as one - its upgrade too - and the saves those games write (`SAVES_URL`).
  *
+ * The tests' server whose games the Rust server plays (`TACTICAL_E2E_SERVER=1`) starts one of its own, over a
+ * scratch folder (`TACTICAL_E2E_ROOT`) on the port the tests give it, and passes it the accounts, the games and
+ * their saves (`PLAYED_ROUTES`) and nothing else: the project and what saves it stay the tests' server's, which
+ * opens the demo from code and refuses every save.
+ *
  * When the tests are serving (`TACTICAL_BOOT=builtin`), or for a build, there is no server and no
  * proxy: the plugins answer those routes as they always did (404: no accounts). Nor under Vitest, which
  * loads this config as a dev server of its own (`servesRust`): a unit test run must not start one.
@@ -47,6 +53,12 @@ export const PLAY_URL = '/__play';
 /** Each player's saves, which their games on the server write (`server/serve/src/saves.rs`). */
 export const SAVES_URL = '/__saves';
 
+/** What the tests' server passes to the Rust server when it plays their games: signing in, the games, their saves. */
+export const PLAYED_ROUTES: readonly string[] = [ACCOUNTS_URL, PLAY_URL, SAVES_URL];
+
+/** The scratch folder the tests' Rust server keeps its accounts and saves in. */
+export const e2eRoot = (): string => process.env['TACTICAL_E2E_ROOT'] ?? join(tmpdir(), 'tactical-e2e-server');
+
 export const serverPort = (): number => Number(process.env['TACTICAL_SERVER_PORT'] ?? 8430);
 
 /** Where cargo is: `CARGO`, else rustup's own folder (a shell opened before Rust was installed has no PATH to it), else the PATH. */
@@ -56,14 +68,24 @@ export function cargoPath(): string {
   return existsSync(own) ? own : 'cargo';
 }
 
-/** The proxy entries for the moved routes, the games' websocket and their saves. */
-export function rustProxy(port: number = serverPort()): Record<string, ProxyOptions> {
+/** The proxy entries for the moved routes, the games' websocket and their saves - only the last three for the tests. */
+export function rustProxy(port: number = serverPort(), tests: boolean = playsOnServer()): Record<string, ProxyOptions> {
   const target = `http://127.0.0.1:${port}`;
+  if (tests) return Object.fromEntries(PLAYED_ROUTES.map((route) => [route, { target, changeOrigin: false, ...(route === PLAY_URL ? { ws: true } : {}) }]));
   return {
     ...Object.fromEntries(RUST_ROUTES.map((route) => [route, { target, changeOrigin: false }])),
     [PLAY_URL]: { target, changeOrigin: false, ws: true },
     [SAVES_URL]: { target, changeOrigin: false },
   };
+}
+
+/**
+ * How the server is started: over the repository on its port - or, for the tests whose games it plays, over
+ * their scratch folder, each game taking the page's dice (`--dice-from-page`) so the suite rolls what it was
+ * written for.
+ */
+export function serverArguments(root: string, tests: boolean = playsOnServer()): string[] {
+  return tests ? ['--root', e2eRoot(), '--port', String(serverPort()), '--dice-from-page'] : ['--root', root, '--port', String(serverPort())];
 }
 
 /**
@@ -94,7 +116,7 @@ export function rustServer(): Plugin {
   const run = (binary: string, tries: number): void => {
     if (closed) return;
     const started = Date.now();
-    const child = spawn(binary, ['--root', root, '--port', String(serverPort())], { cwd: root, windowsHide: true });
+    const child = spawn(binary, serverArguments(root), { cwd: root, windowsHide: true });
     held.child = child;
     child.stdout?.on('data', (chunk: Buffer) => say(chunk.toString().trim()));
     child.stderr?.on('data', (chunk: Buffer) => say(chunk.toString().trim()));

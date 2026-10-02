@@ -79,6 +79,9 @@ export function restoreFromBoard(demo: DemoScene, board: BoardSnapshot): void {
   restoreScenario(demo.scenario, replica.scenario);
   for (const sheet of replica.sheets) setSheet(demo, sheet);
   enterSavedScene(demo, replica.sceneId, replica.state);
+  // The rooms already left, as the board's game left them: travel back to one and it is that room.
+  demo.snapshots.clear();
+  for (const [id, room] of replica.rooms) demo.snapshots.set(id, room);
   demo.party.restore(replica.party);
   demo.encounter = replica.encounter === null ? null : EncounterRunner.restore(demo.state, replica.encounter);
   demo.rng.restore(board.rng);

@@ -123,7 +123,7 @@ class EngineServer implements Transport {
           return { ok: { board: engine.board() } };
         case 'call': {
           // The page's intents counted, not what the game is told with or drained of when it is.
-          if (!['restoreRng', 'restoreWalk', 'restoreLog', 'takeMotions', 'takeFloaters'].includes(m['call'] as string)) this.meddle?.(engine, ++this.calls);
+          if (!['restoreRng', 'restoreWalk', 'restoreLog', 'restoreViews', 'takeMotions', 'takeFloaters'].includes(m['call'] as string)) this.meddle?.(engine, ++this.calls);
           const answer = engine.call(m['call'] as string, m['args'] as unknown[]);
           return { ok: { answer: this.reword === null ? answer : this.reword(answer, this.calls), board: engine.board() } };
         }
@@ -169,6 +169,8 @@ describe('the wire to the server\'s game', () => {
       expect(wire.status()).toBe('fresh');
       // The dice go on from the server's game's, not the page's own.
       expect(demo.rng.save()).not.toBe(pagesOwn);
+      // The page's dice offered at open, which only the tests' server takes.
+      expect(server.sent.find((m) => m['op'] === 'open')!['rng']).toBe(pagesOwn);
       expect(demo.rng.save()).toBe((server.engine.board() as BoardSnapshot).rng);
       const g = createRng(`wire:${kind}`);
       // Played in bursts, the page never waiting: several intents up before the first is answered.

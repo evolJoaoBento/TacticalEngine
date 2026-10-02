@@ -20,6 +20,8 @@ import type { DemoScene } from './demo-scene';
 export interface Replica {
   sceneId: string;
   state: SceneStateSnapshot;
+  /** The rooms already left, as they were left - a chest emptied, a door opened - in the order first left. */
+  rooms: [string, SceneStateSnapshot][];
   scenario: ScenarioSnapshot;
   sheets: CharacterSheet[];
   party: PartySnapshot;
@@ -35,6 +37,7 @@ export function replicaOf(demo: DemoScene): Replica {
   return {
     sceneId: demo.scene.id,
     state: demo.state.snapshot(),
+    rooms: [...demo.snapshots.entries()],
     scenario: scenarioSnapshot(demo.scenario),
     sheets: [...demo.sheets.values()],
     party: demo.party.snapshot(),

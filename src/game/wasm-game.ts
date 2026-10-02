@@ -57,6 +57,7 @@ export class WasmGame extends LocalGame {
     this.engine.call('restoreRng', [this.demo.rng.save()]);
     this.engine.call('restoreWalk', [this.demo.ambush, this.demo.approaching, openContainer(this.demo), rollsOf(this.demo)]);
     this.engine.call('restoreLog', [this.demo.log]);
+    this.engine.call('restoreViews', [this.demo.motions, this.demo.floaters]);
     this.logs = { ours: this.demo.log.length, theirs: (this.engine.board() as BoardSnapshot).log.length };
     this.inStep = true;
   }

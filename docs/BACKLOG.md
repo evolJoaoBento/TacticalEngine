@@ -4,6 +4,14 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## Phase 3: the server's game is the one the page plays — done
+
+`npm run test:e2e:server` runs the whole suite with its games played on a Rust server of its own - each test
+signed in to an account of its own, the page playing the engine with its own game the shadow, every intent
+held to the server's game - and it passes, 203 and nothing parted, as the default and engine modes do. The run
+found the rooms left behind missing from a board and the views' queues untold at a resync, both fixed. Next:
+the TypeScript game layer deleted, which means the views reading the engine's board.
+
 ## A question the server's game holds, shown from its board — done
 
 A roll, a defender's choice or a conversation the server's game holds - after a parting, a reload or a

@@ -39,7 +39,7 @@ impl LogLine {
 }
 
 /// One number over one head, in the tone the matching line has.
-#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Floater {
     pub id: String,
     pub text: String,

@@ -10,11 +10,21 @@ export function keepsAccounts(command: 'serve' | 'build'): boolean {
 }
 
 /**
- * Whether this Vite passes routes to the Rust server (`rust-server.ts`): a dev server that keeps accounts,
- * and not Vitest's, which loads the same config as a dev server of its own.
+ * Whether the tests' server has the Rust server play their games (`TACTICAL_E2E_SERVER=1`, `npm run
+ * test:e2e:server`): the demo still opened from code and nothing saved, but the accounts, the games and their
+ * saves answered by a Rust server of the tests' own, over a scratch folder (`rust-server.ts`).
+ */
+export function playsOnServer(): boolean {
+  return process.env['TACTICAL_E2E_SERVER'] === '1';
+}
+
+/**
+ * Whether this Vite passes routes to the Rust server (`rust-server.ts`): a dev server that keeps accounts, or
+ * the tests' when their games are played on the server - and not Vitest's, which loads the same config as a
+ * dev server of its own.
  */
 export function servesRust(command: 'serve' | 'build'): boolean {
-  return keepsAccounts(command) && process.env['VITEST'] === undefined;
+  return (keepsAccounts(command) || (command === 'serve' && playsOnServer())) && process.env['VITEST'] === undefined;
 }
 
 /**

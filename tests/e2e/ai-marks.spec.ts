@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from './fixtures';
 
 /**
  * Art made with AI, marked wherever the editor shows a picture of it: a red AI badge in the corner, a

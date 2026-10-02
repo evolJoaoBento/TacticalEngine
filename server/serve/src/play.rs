@@ -9,8 +9,10 @@
 //!
 //! Messages are JSON, each with an `id` the answer carries back:
 //!
-//! - `{ id, op: "open", project, shipped, table: { animated, askDefender } }` - a game stood up, the seed the
-//!   server's own: `{ id, ok: { seed, board } }`;
+//! - `{ id, op: "open", project, shipped, table: { animated, askDefender }, rng? }` - a game stood up, the seed
+//!   the server's own: `{ id, ok: { seed, board } }`. A server started for the tests (`--dice-from-page`) sets
+//!   its game's dice where the page's are (`rng`), so a suite written against the page's own seeds rolls what
+//!   it was written for; any other ignores it;
 //! - `{ id, op: "call", call, args }` - an intent: `{ id, ok: { answer, board } }`;
 //! - `{ id, op: "ask", ask, ... }` - what the pointer asks: `{ id, ok: <answer> }`;
 //! - `{ id, op: "save", slot?, name, where, project? }` - the game saved by itself into the account's own
@@ -73,6 +75,8 @@ pub struct Tables {
     games: Arc<Mutex<HashMap<String, Table>>>,
     /// How long a game is kept after its socket closes.
     kept_for: Duration,
+    /// The tests' server: a game opened with its dice where the page's are (`--dice-from-page`).
+    dice_from_page: bool,
 }
 
 /// A project's code run in QuickJS, compiled once for each body of code a game is built with.
@@ -128,6 +132,9 @@ fn answer(slot: &mut Option<Session>, message: &Value, hooks: &HooksFor) -> Resu
             let table = &message["table"];
             let build = json!({ "op": "build", "project": message["project"], "shipped": message["shipped"], "seed": seed, "animated": table["animated"], "askDefender": table["askDefender"] });
             face::respond(slot, &build, Rc::clone(hooks))?;
+            if message["rng"].is_number() {
+                face::respond(slot, &json!({ "op": "call", "call": "restoreRng", "args": [message["rng"]] }), Rc::clone(hooks))?;
+            }
             Ok(json!({ "seed": seed, "board": board(slot) }))
         }
         Some("call") => {
@@ -162,7 +169,12 @@ impl Tables {
 
     /// Tables whose games are kept for `kept_for` after their socket closes.
     pub fn keeping(root: PathBuf, kept_for: Duration) -> Tables {
-        Tables { root, games: Arc::new(Mutex::new(HashMap::new())), kept_for }
+        Tables { root, games: Arc::new(Mutex::new(HashMap::new())), kept_for, dice_from_page: false }
+    }
+
+    /// The tests' tables: each game opened with its dice where the page's are, not at the server's own seed.
+    pub fn with_dice_from_page(self) -> Tables {
+        Tables { dice_from_page: true, ..self }
     }
 
     /// Games left longer than they are kept, gone: their threads end when the way in is dropped.
@@ -172,8 +184,12 @@ impl Tables {
     }
 
     /// A message from an account, answered by its game - a new one for `open`.
-    pub async fn ask(&self, account: &str, message: Value) -> Value {
+    pub async fn ask(&self, account: &str, mut message: Value) -> Value {
         let id = message["id"].clone();
+        // The page's dice are taken only by the tests' server.
+        if !self.dice_from_page && message["op"] == "open" {
+            message["rng"] = Value::Null;
+        }
         let message_op = message["op"].as_str().unwrap_or("").to_string();
         let asked = if message_op == "save" { message.clone() } else { Value::Null };
         let mut project = Value::Null;
@@ -284,5 +300,10 @@ async fn play(mut socket: WebSocket, tables: Tables, account: String) {
 
 /// The play route, keeping its games under `root`'s accounts.
 pub fn router(root: PathBuf) -> Router {
-    Router::new().route(PLAY_URL, get(handle)).with_state(Tables::new(root))
+    router_for(Tables::new(root))
+}
+
+/// The play route over tables made as they are wanted - the tests' (`Tables::with_dice_from_page`).
+pub fn router_for(tables: Tables) -> Router {
+    Router::new().route(PLAY_URL, get(handle)).with_state(tables)
 }

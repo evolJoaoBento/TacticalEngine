@@ -1,4 +1,5 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from './fixtures';
+import { ON_SERVER } from './server-mode';
 
 /**
  * Accounts and the store, played. The tests' own server keeps neither (`TACTICAL_BOOT=builtin`: every
@@ -220,6 +221,7 @@ test('a listing with no work shown is marked AI and not judged, until its creato
 });
 
 test('with no accounts on the server, the menu is played as nobody, with no store', async ({ page }) => {
+  test.skip(ON_SERVER, 'the games are played on a server that keeps accounts, and this test is signed in to one');
   await page.goto('/?menu');
   await expect(page.getByTestId('main-menu')).toBeVisible();
   await expect(page.getByTestId('sign-in')).toHaveCount(0);

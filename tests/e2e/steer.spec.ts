@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures';
 
 /**
  * Holding the button walks whoever is selected towards the pointer, a step at a time, and keeps

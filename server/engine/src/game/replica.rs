@@ -21,6 +21,7 @@ impl Session {
         json!({
             "sceneId": self.scene["id"],
             "state": self.world.state.snapshot(),
+            "rooms": self.snapshots.entries().iter().map(|(id, room)| json!([id, room])).collect::<Vec<_>>(),
             "scenario": self.world.scenario.snapshot(),
             "sheets": self.sheets.entries().iter().map(|(_, sheet)| serde_json::to_value(sheet).expect("a sheet writes")).collect::<Vec<_>>(),
             "party": self.party.snapshot(),
@@ -31,7 +32,7 @@ impl Session {
     }
 
     /// Stand as a snapshot says the game stands (`restoreReplica`): the scenario and the sheets first - the room
-    /// is entered with them - then the room as it was left, the party's control, the fight and its spotlights,
+    /// is entered with them - then the room as it was left and the rooms left before it, the party's control, the fight and its spotlights,
     /// and whether a question is open. The world is rebuilt last, so it reads them all.
     pub fn restore_replica(&mut self, replica: &Value) -> Result<(), String> {
         self.world.scenario.restore(&replica["scenario"])?;
@@ -42,6 +43,12 @@ impl Session {
         let scene_id = replica["sceneId"].as_str().ok_or("a replica names its room")?.to_string();
         if !self.enter_saved_scene(&scene_id, &replica["state"])? {
             return Err(format!("this project has no scene \"{scene_id}\""));
+        }
+        // The rooms already left, as the replica's game left them.
+        self.snapshots = Default::default();
+        for pair in replica["rooms"].as_array().map_or(&[][..], Vec::as_slice) {
+            let id = pair[0].as_str().ok_or("a room left names itself")?;
+            self.snapshots.set(id, pair[1].clone());
         }
         self.party.restore(&replica["party"])?;
         self.encounter = match &replica["encounter"] {

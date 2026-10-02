@@ -1,4 +1,5 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures';
+import { ON_SERVER } from './server-mode';
 
 /**
  * The engine in the page, asked beside the game (`docs/SERVER.md`, phase 3, slice 2c).
@@ -67,11 +68,17 @@ test('the replica answers the pointer as the game does, through a fight', async 
   });
   expect(played.fought).toBe(true);
 
+  // Played on the server, every intent's answer back before the count is read.
+  if (ON_SERVER) await page.waitForFunction(() => window.__replica!.server() === 'in', null, { timeout: 15_000 });
   const count = await page.evaluate(() => window.__replica!.count());
   const playing = await page.evaluate(() => window.__replica!.playing());
-  console.log('REPLICA:', JSON.stringify({ playing, asked: count.asked, parted: count.parted }));
-  // A suite run with the engine chosen (`VITE_ENGINE=wasm`) is played by it, not by the page's own game.
-  expect(playing).toBe(process.env['VITE_ENGINE'] === 'wasm' ? 'wasm' : 'ts');
+  const server = await page.evaluate(() => window.__replica!.server());
+  console.log('REPLICA:', JSON.stringify({ playing, server, asked: count.asked, parted: count.parted }));
+  // A suite run with the engine chosen (`VITE_ENGINE=wasm`) is played by it, not by the page's own game - and so
+  // is one whose games are played on the server, the page's own game the shadow.
+  expect(playing).toBe(process.env['VITE_ENGINE'] === 'wasm' || ON_SERVER ? 'wasm' : 'ts');
+  // On the server: the wire in step with the server's game, which played every intent of the fight.
+  expect(server).toBe(ON_SERVER ? 'in' : 'off');
   expect(count.parted, `where the replica parted from the game: ${JSON.stringify(count.first, null, 1)}`).toBe(0);
   expect(count.asked).toBeGreaterThan(100);
 });

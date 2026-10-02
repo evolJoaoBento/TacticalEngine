@@ -221,6 +221,13 @@ impl Session {
                 };
                 Value::Null
             }
+            "restoreViews" => {
+                // What the page's views have still to draw - the walks, the numbers over heads - which the board
+                // does not carry: an engine brought into step holds the same, so the next drain is the same.
+                self.motions = a.get(0).as_array().cloned().unwrap_or_default();
+                self.floaters = serde_json::from_value(a.get(1).clone()).map_err(|e| format!("the floaters: {e}"))?;
+                Value::Null
+            }
             "restoreLog" => {
                 // The log as the page has it: an engine brought into step holds the same, so a load - which
                 // replaces it - leaves the two the same as well.

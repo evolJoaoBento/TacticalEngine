@@ -163,14 +163,17 @@ export class Wire {
     return this.state;
   }
 
+  /** Closed, whatever was on its way held to nothing: a project loaded closes the last game's wire mid-telling. */
   close(): void {
     this.release();
+    this.nextEpoch();
     this.state = 'closed';
     this.transport.close();
   }
 
+  /** A game opened over the page's project and table - and its dice, which only the tests' server takes. */
   private opening(): Record<string, unknown> {
-    return { op: 'open', project: this.demo.project, shipped: this.shipped, table: { animated: this.demo.animated, askDefender: this.demo.askDefender } };
+    return { op: 'open', project: this.demo.project, shipped: this.shipped, table: { animated: this.demo.animated, askDefender: this.demo.askDefender }, rng: this.demo.rng.save() };
   }
 
   private async open(): Promise<void> {
@@ -264,6 +267,9 @@ export class Wire {
     demo.pending = board.pending === null ? null : shownFrom(demo, board.pending as Projected);
     this.showing = board.pending !== null;
     this.answering = false;
+    // What either side had still to draw is the other's no longer: the page's dropped, the server's drained.
+    demo.motions.length = 0;
+    demo.floaters.length = 0;
     this.drain();
     this.logs = { ours: demo.log.length, theirs: board.log.length };
     this.state = board.pending === null ? 'in' : 'asked';
@@ -341,7 +347,9 @@ export class Wire {
     told.push(this.send({ op: 'call', call: 'restoreRng', args: [demo.rng.save()] }));
     told.push(this.send({ op: 'call', call: 'restoreWalk', args: [demo.ambush, demo.approaching, openContainer(demo), rollsOf(demo)] }));
     told.push(this.send({ op: 'call', call: 'restoreLog', args: [demo.log] }));
-    told.push(...this.drain());
+    // What the page's views have still to draw - walks it played while the connection was down, say - the
+    // server's game holds the same, so the next drain is the same on both.
+    told.push(this.send({ op: 'call', call: 'restoreViews', args: [demo.motions, demo.floaters] }));
     this.logs = { ours: demo.log.length, theirs: 0 };
     this.state = 'in';
     void Promise.all(told).then((said) => {
@@ -358,7 +366,8 @@ export class Wire {
 
   /**
    * What the server's game holds for a view to draw - the walks to show, the numbers to float - drained: the
-   * board does not carry it, and the page's views, told the game rather than having played it, never will.
+   * board does not carry it, and the page's views, stood where its board says rather than having played it,
+   * never will.
    */
   private drain(): Promise<Said>[] {
     return [this.send({ op: 'call', call: 'takeMotions', args: [] }), this.send({ op: 'call', call: 'takeFloaters', args: [] })];

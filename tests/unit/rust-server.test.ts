@@ -5,7 +5,8 @@ import { IMPORT_MODEL_URL, USER_MODELS_URL, YOUR_MODELS_URL } from '../../tools/
 import { ANCESTRY_URL, MODEL_ADD_URL, SHIPPED_URL } from '../../tools/model-manifest';
 import { MARKS_URL, PROVENANCE_URL } from '../../tools/art-provenance';
 import { PROJECT_URL, SAVE_URL } from '../../tools/default-project';
-import { PLAY_URL, RUST_ROUTES, SAVES_URL, cargoPath, rustProxy, serverPort, servesRust } from '../../tools/rust-server';
+import { PLAYED_ROUTES, PLAY_URL, RUST_ROUTES, SAVES_URL, cargoPath, e2eRoot, rustProxy, serverArguments, serverPort, servesRust } from '../../tools/rust-server';
+import { playsOnServer } from '../../tools/serving';
 import { SAVES_URL as PAGE_SAVES_URL } from '../../src/game/account-saves';
 import { forRustServer, savesChanges } from '../../tools/serving';
 
@@ -54,9 +55,43 @@ describe('the routes the Rust server answers', () => {
     process.env['TACTICAL_SERVER_PORT'] = '9555';
     expect(rustProxy()['/__accounts']!.target).toBe('http://127.0.0.1:9555');
   });
+
+  it('are only signing in, the games and their saves for the tests whose games it plays', () => {
+    const to = { target: 'http://127.0.0.1:8431', changeOrigin: false };
+    // Never the project nor what saves it: the tests' server opens the demo from code and refuses every save.
+    expect(rustProxy(8431, true)).toEqual({ '/__accounts': to, '/__play': { ...to, ws: true }, '/__saves': to });
+    expect(PLAYED_ROUTES).toEqual(['/__accounts', '/__play', '/__saves']);
+  });
 });
 
 describe('the dev server starting it', () => {
+  it('starts one for the tests when their games are played on it, over a scratch folder, and never for Vitest', () => {
+    const was = { ...process.env };
+    try {
+      process.env['TACTICAL_BOOT'] = 'builtin';
+      delete process.env['TACTICAL_E2E_SERVER'];
+      delete process.env['VITEST'];
+      expect(servesRust('serve')).toBe(false);
+      process.env['TACTICAL_E2E_SERVER'] = '1';
+      expect(playsOnServer()).toBe(true);
+      expect(servesRust('serve')).toBe(true);
+      expect(servesRust('build')).toBe(false);
+      process.env['TACTICAL_E2E_ROOT'] = '/scratch/e2e';
+      expect(e2eRoot()).toBe('/scratch/e2e');
+      // Over the scratch folder, the page's dice taken; a dev server's over the repository, its own seed.
+      process.env['TACTICAL_SERVER_PORT'] = '8431';
+      expect(serverArguments('/repo')).toEqual(['--root', '/scratch/e2e', '--port', '8431', '--dice-from-page']);
+      expect(serverArguments('/repo', false)).toEqual(['--root', '/repo', '--port', '8431']);
+      process.env['VITEST'] = 'true';
+      expect(servesRust('serve')).toBe(false);
+    } finally {
+      for (const key of ['TACTICAL_BOOT', 'TACTICAL_E2E_SERVER', 'TACTICAL_E2E_ROOT', 'TACTICAL_SERVER_PORT', 'VITEST']) {
+        if (was[key] === undefined) delete process.env[key];
+        else process.env[key] = was[key];
+      }
+    }
+  });
+
   it('is never Vitest’s, which loads the same config: a unit test run starts no server', () => {
     expect(process.env['VITEST']).toBeDefined();
     expect(servesRust('serve')).toBe(false);

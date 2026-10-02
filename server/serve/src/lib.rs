@@ -23,8 +23,20 @@ use axum::routing::{any, get};
 use axum::Router;
 use std::path::PathBuf;
 
+/// How a server was asked to run beyond where it keeps its files.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct Settings {
+    /// The tests' server: a game opened with its dice where the page's are (`--dice-from-page`, `play.rs`).
+    pub dice_from_page: bool,
+}
+
 /// The server, keeping its files under `root` - the repository, where `data/` is.
 pub fn app(root: PathBuf) -> Router {
+    app_with(root, Settings::default())
+}
+
+/// The server, as `app`, run as `settings` say.
+pub fn app_with(root: PathBuf, settings: Settings) -> Router {
     let keeper = accounts::Keeper::new(root.clone());
     let shop = store::Shop::new(root.clone());
     let shelf = your_models::Shelf::new(root.clone());
@@ -57,7 +69,8 @@ pub fn app(root: PathBuf) -> Router {
         .route(saves::SAVES_URL, any(saves::handle))
         .route(&format!("{}/{{*rest}}", saves::SAVES_URL), any(saves::handle))
         .with_state(root_for_play.clone());
-    let play = play::router(root_for_play);
+    let tables = play::Tables::new(root_for_play);
+    let play = play::router_for(if settings.dice_from_page { tables.with_dice_from_page() } else { tables });
     accounts.merge(store).merge(models.with_state(shelf)).merge(engine).merge(saves.with_state(archive)).merge(saved).merge(play)
 }
 

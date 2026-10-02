@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures';
 
 test('the right-side height ladder controls placement Z and follows the active tab', async ({ page }) => {
   await page.goto('/');

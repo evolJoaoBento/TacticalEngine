@@ -65,11 +65,11 @@ export function serverAllowed(): boolean {
 
 /**
  * Who the page's game is held to a game on the server for, and whose saves the server keeps: in development,
- * on a dev server that keeps accounts (not the tests', which has no server to ask), somebody signed in, and
- * not turned off (`?server=off`). Nobody, else.
+ * on a dev server that keeps accounts - not the tests', which has no server to ask, unless their games are
+ * played on one (`VITE_E2E_SERVER`) - somebody signed in, and not turned off (`?server=off`). Nobody, else.
  */
-export async function serverAccount(boot: 'file' | 'builtin'): Promise<SignedIn | null> {
-  if (!serverAllowed() || boot === 'builtin') return null;
+export async function serverAccount(boot: 'file' | 'builtin', tests: boolean = import.meta.env['VITE_E2E_SERVER'] === '1'): Promise<SignedIn | null> {
+  if (!serverAllowed() || (boot === 'builtin' && !tests)) return null;
   const who = await whoAmI();
   return who === null || who === 'none' ? null : who;
 }
