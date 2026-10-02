@@ -5,7 +5,8 @@ import { IMPORT_MODEL_URL, USER_MODELS_URL, YOUR_MODELS_URL } from '../../tools/
 import { ANCESTRY_URL, MODEL_ADD_URL, SHIPPED_URL } from '../../tools/model-manifest';
 import { MARKS_URL, PROVENANCE_URL } from '../../tools/art-provenance';
 import { PROJECT_URL, SAVE_URL } from '../../tools/default-project';
-import { PLAY_URL, RUST_ROUTES, cargoPath, rustProxy, serverPort, servesRust } from '../../tools/rust-server';
+import { PLAY_URL, RUST_ROUTES, SAVES_URL, cargoPath, rustProxy, serverPort, servesRust } from '../../tools/rust-server';
+import { SAVES_URL as PAGE_SAVES_URL } from '../../src/game/account-saves';
 import { forRustServer, savesChanges } from '../../tools/serving';
 
 /**
@@ -44,10 +45,12 @@ describe('the routes the Rust server answers', () => {
     expect(rustProxy()).toEqual({
       '/__accounts': to8430, '/__store': to8430, '/__models/mine': to8430, '/__models/import': to8430, '/__models/u/': to8430, '/__models/add': to8430, '/__models/ancestry': to8430,
       '/__models/shipped': to8430, '/__art/provenance': to8430, '/__art/marks': to8430, '/projects/default.json': to8430, '/__project/save': to8430,
-      // The games: a websocket, its upgrade passed through too.
+      // The games: a websocket, its upgrade passed through too; and the saves they write.
       '/__play': { ...to8430, ws: true },
+      '/__saves': to8430,
     });
     expect(PLAY_URL).toBe('/__play');
+    expect(SAVES_URL).toBe(PAGE_SAVES_URL);
     process.env['TACTICAL_SERVER_PORT'] = '9555';
     expect(rustProxy()['/__accounts']!.target).toBe('http://127.0.0.1:9555');
   });

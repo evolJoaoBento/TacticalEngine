@@ -8,7 +8,7 @@
  * wire with it.
  */
 
-import { whoAmI } from './accounts';
+import { whoAmI, type SignedIn } from './accounts';
 import type { Said, Transport } from './wire';
 
 export const PLAY_URL = '/__play';
@@ -58,13 +58,18 @@ export class PlaySocket implements Transport {
   }
 }
 
+/** Whether the page plays beside the server at all: in development, unless turned off (`?server=off`). */
+export function serverAllowed(): boolean {
+  return import.meta.env.DEV && new URLSearchParams(location.search).get('server') !== 'off';
+}
+
 /**
- * Whether the page's game is held to one on the server: in development, on a dev server that keeps accounts
- * (not the tests', which has no server to ask), for somebody signed in, and not turned off (`?server=off`).
+ * Who the page's game is held to a game on the server for, and whose saves the server keeps: in development,
+ * on a dev server that keeps accounts (not the tests', which has no server to ask), somebody signed in, and
+ * not turned off (`?server=off`). Nobody, else.
  */
-export async function serverWanted(boot: 'file' | 'builtin'): Promise<boolean> {
-  if (!import.meta.env.DEV || boot === 'builtin') return false;
-  if (new URLSearchParams(location.search).get('server') === 'off') return false;
+export async function serverAccount(boot: 'file' | 'builtin'): Promise<SignedIn | null> {
+  if (!serverAllowed() || boot === 'builtin') return null;
   const who = await whoAmI();
-  return who !== null && who !== 'none';
+  return who === null || who === 'none' ? null : who;
 }

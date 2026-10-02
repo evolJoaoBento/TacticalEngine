@@ -1100,13 +1100,70 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
       and the Rust server, signed in as admin, the vault's door picked and a fight to round nine - the wire
       stood in step from boot and nothing parted, with the page's own game and with `?engine=wasm`, the
       fight at sixty frames a second either way.
-    - **Not yet**: a socket that closes ends the wire for that game - the page does not open another, nor
-      `resume` the one the server kept; a question the server holds the page does not (or the other way
+    - **Not yet**: a question the server holds the page does not (or the other way
       round) is not shown from the server's board, as the plan had it, but answered by telling the server
       the page's game; the e2e suite runs on the tests' server, which has no Rust server and so no wire. The
       page restored from the server's board has run only under the test's stand-in: in the browser it would
       come in a socket's message, between frames rather than inside an intent as `WasmGame`'s does, and the
       browser check had no server that parted to show it. A server that refused `restore` - never seen; the
       mirror shows the replica goes there and back - would be opened afresh before every intent after.
-  - **Next**: saves on the server - the page's save written to the account's own folder by the server's
-    game rather than to the browser - and a socket that comes back resuming its game.
+  - **Saves on the server** (`server/serve/src/saves.rs`, `src/game/account-saves.ts`). Signed in where the
+    server plays the game beside the page, the player's saves are the account's, in
+    `data/users/<account>/saves/` - `index.json`, the slots as the page lists them, and each save's text
+    beside it as `<id>.json`.
+    - **Written by the server's game**: a save is the socket's `save` - the game saves itself, its own text
+      (`Session::serialise_save`), into the slot the page names or a fresh one, refused for the reason the
+      game gives (`save_blocked_by`: in a fight, a question open). `Wire.save` holds that text to the page's
+      own by value - key order is not the game's - and counts a parting where they are not the same; the page
+      never sends a save's text to be written.
+    - **The page asks as it always did**: `SaveShelf` is what `SaveSlots` (the browser's) and `AccountSaves`
+      (the account's) both are, so `main.ts` changed two lines. The account's slots and their texts are read
+      from `/__saves` as the page boots (`gameReady`), and kept: a save is listed at once, the server's text
+      and slot put in its place when its game has written it, and the slot as it was put back when it would
+      not. When the server is not in step to save, the player is told so (`SaveShelf.refused`). The main
+      menu's Load Game lists the account's saves.
+    - **The browser's move up**: the first time a browser signs in, the slots it kept for that player are
+      sent to `/__saves/import`, which takes those the account has not got and keeps the rest as they are;
+      the browser's copies are left alone, and a mark in the player's own storage says they have moved.
+    - **The routes** (`/__saves`, signed in): the slots, a save's text, `remove` and `import` - the two
+      POSTs from the page only. A slot's id is a file's name, never one that climbs out of the folder or
+      names the index; a file in the folder the index does not list is not a save to read. The dev server
+      passes `/__saves` through (`SAVES_URL`).
+  - **A connection that comes back** (`wire.ts`). A dropped connection loses what was on its way; the page
+    plays on, sending nothing (`lost`), and connects again after half a second, then a second, two, four
+    and on to thirty (`RETRIES`), closing when they are spent. Back, it asks for the game the server kept
+    (`resume`, which now says the project the game is of): kept, of this project, the server is told the
+    page's game, which went on without it; gone - the server restarted, ten minutes passed - a fresh game
+    is opened and told it. Told the page's game, the server's is now also told its log (`restoreLog`, a new
+    intent, as the mirror and `WasmGame` are told it too) - a load puts its own log in place of both, and two
+    logs cut at different lines part on it - and drained of the walks and numbers it held for a view, which
+    the board does not carry and the page's views will never show.
+    - **A page reloaded comes back to its game**: when the browser says the page was reloaded (its
+      navigation's `type`), the page asks first for the game the server kept; kept, of the same project,
+      with no question open in it, the page is stood where it is - the room, the party, the log, the dice
+      - and a save the address names is not loaded over it (`resumed`). Opened any other way - from the
+      menu's Load Game, say - the page opens a fresh game as before, so a choice made in the menu is never
+      undone by a game left on the server.
+  - **Held**: `saves_routes.rs` - the folder (slots overwritten in place, another player's apart, ids that
+    climb out refused, the index no slot), the routes (signed in, the writes from the page only, an import
+    taking only what the account has not got) and a game on the server saving itself into its player's
+    folder: the text a session played beside it saves, a slot named and a fresh one, refused in a fight. 10
+    of 10 deliberate mutations fail it. `account-saves.test.ts`: the move up (once, only what the server has
+    not got, tried again if refused, the browser's left), the slots and texts read at boot (one whose text
+    will not come not listed), a save listed at once and its server text kept, put back when refused, the
+    refusal said. `wire.test.ts`: a save through the very engine standing in for the server, the engine's
+    text the page's by value, a save not the page's and one refused each a parting; a dropped connection -
+    intents on their way lost, the page playing on, back to the game kept and told the page's, then dropped
+    again with the game gone and the server down for a while, tried again until it is up and a fresh game
+    opened - and a save loaded after, in step; a page reloaded coming back to the game kept (the room, the
+    log and the dice the old page's) with the mirror beside it and a save loaded after, and another
+    project's page, and a page whose game is gone, opening their own. 6 of 6 deliberate mutations of
+    `account-saves.ts` fail its test, and 9 of 9 of the wire's coming back, its log and its save fail
+    `wire.test.ts` - the log told the server among them once the test loaded a save with lines in its log
+    into a game whose own log and the page's were cut at different lines. In a real browser, the dev server and
+    the Rust server, signed in: a slot left in the browser moved up and kept there, a quick save written by
+    the server's game into the account's folder and the same as the page's, a quick load back to it, a reload
+    back to the very spot, the Rust server killed mid-game and started again by hand and the page back in step
+    with it - nothing parted.
+  - **Next**: the question held on one side shown from the server's board, as the plan had it; then the
+    server's game the one the page plays, the page's own the shadow.

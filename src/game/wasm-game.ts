@@ -27,8 +27,10 @@ import { replicaOf } from './replica';
 import { engineModule, firstDifference, publishCount, recordAsked, recordParting } from './shadow';
 import { shippedContent } from './shipped';
 import { WasmEngine } from './wasm-engine';
-import { PlaySocket, serverWanted } from './play-socket';
+import { PlaySocket, serverAccount } from './play-socket';
 import { Wire } from './wire';
+import { loadAccountSaves } from './account-saves';
+import { SaveSlots, browserStore, type SaveShelf } from './save-slots';
 
 export type { GameClient, LocalPowers } from './client';
 
@@ -54,6 +56,7 @@ export class WasmGame extends LocalGame {
     this.engine.restore(replicaOf(this.demo));
     this.engine.call('restoreRng', [this.demo.rng.save()]);
     this.engine.call('restoreWalk', [this.demo.ambush, this.demo.approaching, openContainer(this.demo), rollsOf(this.demo)]);
+    this.engine.call('restoreLog', [this.demo.log]);
     this.logs = { ours: this.demo.log.length, theirs: (this.engine.board() as BoardSnapshot).log.length };
     this.inStep = true;
   }
@@ -140,13 +143,27 @@ export function engineChosen(): 'wasm' | 'ts' {
 let serverOn = false;
 /** The wire of the game the page plays now, closed when another takes its place. */
 let wired: Wire | null = null;
+/** The game the page boots with being made: the one a reload comes back to the server's game with. */
+let booting = false;
+
+/** The account's saves, read from the server as the page boots (`gameReady`); none where it does not keep them. */
+let shelf: SaveShelf | null = null;
+
+/**
+ * Where the game's saves go: the account's, on the server, when the server plays beside the page - read as the
+ * page booted - else the browser's.
+ */
+export function savesFor(): SaveShelf {
+  shelf ??= new SaveSlots(browserStore());
+  return shelf;
+}
 
 /** The game held to one on the server, when it is to be: a socket of its own, the last game's closed. */
-function wireUp(game: LocalGame, demo: DemoScene): void {
+function wireUp(game: LocalGame, demo: DemoScene, resume: boolean): void {
   wired?.close();
   wired = null;
   if (!serverOn) return;
-  const wire = new Wire(new PlaySocket(), demo, shippedContent());
+  const wire = new Wire(() => new PlaySocket(), demo, shippedContent(), { resume });
   game.wireWith(wire);
   wired = wire;
   publishCount(undefined, () => wire.status());
@@ -161,8 +178,19 @@ export function gameFor(demo: DemoScene): GameClient & LocalPowers {
     void refill();
     game = new WasmGame(demo, engine, shippedContent());
   } else game = new LocalGame(demo);
-  wireUp(game, demo);
+  wireUp(game, demo, booting && reloaded());
   return game;
+}
+
+/** Whether the page was reloaded rather than opened: a reload comes back to the game the server kept. */
+function reloaded(): boolean {
+  const entry = typeof performance === 'undefined' ? undefined : (performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined);
+  return entry?.type === 'reload';
+}
+
+/** Whether the game the page booted with came back to the one the server kept, rather than starting afresh. */
+export function resumed(): boolean {
+  return wired?.resumed ?? false;
 }
 
 /** How long the page waits at boot for the server's game, whose seed it plays with, before playing without. */
@@ -170,9 +198,13 @@ const OPENING_MS = 3000;
 
 /** The game the page boots with, once the engine - when it is chosen - is ready, and the server's game open. */
 export async function gameReady(demo: DemoScene): Promise<GameClient & LocalPowers> {
-  const [on] = await Promise.all([serverWanted(BOOT), engineChosen() === 'wasm' ? refill() : null]);
-  serverOn = on;
+  const [account] = await Promise.all([serverAccount(BOOT), engineChosen() === 'wasm' ? refill() : null]);
+  serverOn = account !== null;
+  booting = true;
   const game = gameFor(demo);
-  if (wired !== null) await Promise.race([wired.ready, new Promise((wait) => setTimeout(wait, OPENING_MS))]);
+  booting = false;
+  const opening = wired === null ? null : Promise.race([wired.ready, new Promise((wait) => setTimeout(wait, OPENING_MS))]);
+  const [saves] = await Promise.all([account === null ? null : loadAccountSaves(account.id, () => wired), opening]);
+  if (saves !== null) shelf = saves;
   return game;
 }

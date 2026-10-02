@@ -15,7 +15,7 @@ import { projectSchema, type ProjectDoc } from '../engine/scene/schema';
 import { boardOf, type BoardSnapshot } from './board';
 import { LocalGame } from './client';
 import { buildProjectScene, type DemoScene } from './demo-scene';
-import { firstDifference, replicaCount } from './shadow';
+import { firstDifference, replicaCount, Shadow } from './shadow';
 import { shippedContent } from './shipped';
 import { WasmEngine } from './wasm-engine';
 import { WasmGame } from './wasm-game';
@@ -34,16 +34,26 @@ const built = existsSync(WASM);
 class EngineServer implements Transport {
   readonly sent: Record<string, unknown>[] = [];
   closed = false;
+  /** Messages refused because the server was closed. */
+  refused = 0;
+  /** The project the game kept is of, as the server's tables keep it; `null` once it has gone. */
+  kept: unknown = null;
   noisy = false;
   meddle: ((engine: WasmEngine, calls: number) => void) | null = null;
   reword: ((answer: unknown, calls: number) => unknown) | null = null;
+  /** A save's text changed on its way back, or a save refused outright. */
+  rewordSave: ((text: string) => string) | null = null;
+  refuseSave: string | null = null;
   private calls = 0;
   private opens = 0;
 
   constructor(readonly engine: WasmEngine, private readonly seed = 'the-server') {}
 
   send(message: Record<string, unknown>): Promise<Said> {
-    if (this.closed) return Promise.reject(new Error('closed'));
+    if (this.closed) {
+      this.refused++;
+      return Promise.reject(new Error('closed'));
+    }
     // Written out now, as the socket does: what is told is how the game stood when it was given.
     const text = JSON.stringify(message);
     return new Promise((answered) => setTimeout(() => answered(this.answer(JSON.parse(text) as Record<string, unknown>)), 0));
@@ -51,6 +61,36 @@ class EngineServer implements Transport {
 
   close(): void {
     this.closed = true;
+  }
+
+  /** A connection of its own to this server's game, which can drop - what is on its way lost with it. */
+  connection(): Transport & { drop: () => void } {
+    let dropped = false;
+    const waiting = new Set<(why: Error) => void>();
+    return {
+      send: (message) => {
+        if (dropped) return Promise.reject(new Error('dropped'));
+        return new Promise<Said>((answer, fail) => {
+          waiting.add(fail);
+          void this.send(message).then(
+            (said) => {
+              waiting.delete(fail);
+              if (!dropped) answer(said);
+            },
+            (why: Error) => {
+              waiting.delete(fail);
+              fail(why);
+            },
+          );
+        });
+      },
+      close: () => undefined,
+      drop: () => {
+        dropped = true;
+        for (const fail of waiting) fail(new Error('dropped'));
+        waiting.clear();
+      },
+    };
   }
 
   private answer(m: Record<string, unknown>): Said {
@@ -63,14 +103,25 @@ class EngineServer implements Transport {
           engine.build(m['project'] as ProjectDoc, m['shipped'], seed, m['table'] as { animated: boolean; askDefender: boolean });
           // A rest writes its lines; what else it does, the page's game told after puts back.
           if (this.noisy) engine.call('rest', ['short']);
+          this.kept = (m['project'] as ProjectDoc).id;
           return { ok: { seed, board: engine.board() } };
         }
+        case 'save': {
+          // The game saves itself, as a game on the server does (`play.rs`), unless it may not now.
+          const blocked = this.refuseSave ?? (engine.call('saveBlockedBy', []) as string | null);
+          if (blocked !== null) return { error: blocked };
+          const text = engine.call('serialiseSave', []) as string;
+          const slot = { id: m['slot'], name: m['name'], savedAt: 1, where: m['where'] };
+          return { ok: { slot, text: this.rewordSave === null ? text : this.rewordSave(text) } };
+        }
+        case 'resume':
+          return this.kept === null ? { error: 'no game: open one' } : { ok: { board: engine.board(), project: this.kept } };
         case 'restore':
           engine.restore(m['replica'] as never);
           return { ok: { board: engine.board() } };
         case 'call': {
-          // The page's intents counted, not what it is told the game with.
-          if (m['call'] !== 'restoreRng' && m['call'] !== 'restoreWalk') this.meddle?.(engine, ++this.calls);
+          // The page's intents counted, not what the game is told with or drained of when it is.
+          if (!['restoreRng', 'restoreWalk', 'restoreLog', 'takeMotions', 'takeFloaters'].includes(m['call'] as string)) this.meddle?.(engine, ++this.calls);
           const answer = engine.call(m['call'] as string, m['args'] as unknown[]);
           return { ok: { answer: this.reword === null ? answer : this.reword(answer, this.calls), board: engine.board() } };
         }
@@ -109,7 +160,7 @@ describe('the wire to the server\'s game', () => {
       const game = kind === 'ts' ? new LocalGame(demo, false) : new WasmGame(demo, await WasmEngine.load(bytes), shippedContent());
       const server = new EngineServer(await WasmEngine.load(bytes));
       const before = replicaCount();
-      const wire = new Wire(server, demo, shippedContent());
+      const wire = new Wire(() => server, demo, shippedContent());
       game.wireWith(wire);
       const pagesOwn = demo.rng.save();
       await wire.ready;
@@ -140,7 +191,7 @@ describe('the wire to the server\'s game', () => {
     const demo = buildProjectScene(project(), 'wire:parting');
     const game = new LocalGame(demo, false);
     const server = new EngineServer(await WasmEngine.load(bytes));
-    const wire = new Wire(server, demo, shippedContent());
+    const wire = new Wire(() => server, demo, shippedContent());
     game.wireWith(wire);
     await wire.ready;
     const kara = demo.party.members()[0]!;
@@ -174,14 +225,52 @@ describe('the wire to the server\'s game', () => {
     expect(wire.status()).toBe('in');
   }, 60_000);
 
-  it.skipIf(!built)('opens a fresh game on the server after the editor changes the page\'s, and closes with its socket', async () => {
+  it.skipIf(!built)('saves through the server\'s game: its own text, held to the page\'s by value', async () => {
+    const bytes = readFileSync(WASM);
+    const demo = buildProjectScene(project(), 'wire:save');
+    const game = new LocalGame(demo, false);
+    const server = new EngineServer(await WasmEngine.load(bytes));
+    const wire = new Wire(() => server, demo, shippedContent());
+    game.wireWith(wire);
+    await wire.ready;
+    const before = replicaCount();
+    game.selectNext();
+    game.selectNext();
+    expect(game.saveBlockedBy()).toBeNull();
+    const text = game.serialiseSave()!;
+    const saved = await wire.save({ id: 'quick', name: 'Quick save', where: 'The Husk Vault' }, text);
+    expect(saved?.slot).toEqual({ id: 'quick', name: 'Quick save', savedAt: 1, where: 'The Husk Vault' });
+    // The engine's save of the game, as the page's: the same by value.
+    expect(JSON.parse(saved!.text)).toEqual(JSON.parse(text));
+    let after = replicaCount();
+    expect(after.first.slice(before.first.length)).toEqual([]);
+    expect(after.asked - before.asked).toBe(3);
+    // Not the page's: a parting.
+    server.rewordSave = (written) => JSON.stringify({ ...(JSON.parse(written) as object), version: -1 });
+    await wire.save({ id: 'quick', name: 'Quick save', where: '' }, text);
+    after = replicaCount();
+    expect(after.first.slice(before.first.length).map((p) => p.question)).toEqual(['server save: save.version']);
+    // Refused by the server's game: a parting, and nothing given back.
+    server.rewordSave = null;
+    server.refuseSave = 'Not while a question is open.';
+    expect(await wire.save({ id: 'auto', name: 'Autosave', where: '' }, text)).toBeNull();
+    expect(replicaCount().first.slice(before.first.length).map((p) => p.question)).toEqual(['server save: save.version', 'server save: refused']);
+    // Not in step to save at all: no save sent.
+    wire.close();
+    const sent = server.sent.length;
+    expect(wire.save({ id: 'quick', name: 'Quick save', where: '' }, text)).toBeNull();
+    await settle(server);
+    expect(server.sent.length).toBe(sent);
+  }, 60_000);
+
+  it.skipIf(!built)('opens a fresh game on the server after the editor changes the page\'s, and closes when it cannot connect again', async () => {
     const bytes = readFileSync(WASM);
     const demo = buildProjectScene(project(), 'wire:edited');
     const game = new LocalGame(demo, false);
     const server = new EngineServer(await WasmEngine.load(bytes));
     // A game opened with lines in its log already: only what is written after it is told the page's is held.
     server.noisy = true;
-    const wire = new Wire(server, demo, shippedContent());
+    const wire = new Wire(() => server, demo, shippedContent(), { retries: [0, 0] });
     game.wireWith(wire);
     await wire.ready;
     expect((server.engine.board() as BoardSnapshot).log.length).toBeGreaterThan(0);
@@ -207,12 +296,170 @@ describe('the wire to the server\'s game', () => {
     expect(replicaCount().first.slice(before.first.length)).toEqual([]);
     expect(server.sent.filter((m) => m['op'] === 'open').length).toBe(2);
     expect(differ(demo, server)).toBeNull();
-    // The socket goes: the wire closes, and the page plays on without it.
+    // The socket goes, and will not come back: tried again twice, the wire closes, and the page plays on.
     server.close();
     game.selectNext();
     await settle(server);
     expect(wire.status()).toBe('closed');
+    expect(server.refused, 'the intent, then a resume at each try').toBe(3);
     expect(() => game.selectNext()).not.toThrow();
     expect(replicaCount().first.slice(before.first.length)).toEqual([]);
   }, 60_000);
+
+  it.skipIf(!built)('connects again when the connection drops, and goes on with the game the server kept, or a fresh one', async () => {
+    const bytes = readFileSync(WASM);
+    const demo = buildProjectScene(project(), 'wire:dropped');
+    const game = new LocalGame(demo, false);
+    const server = new EngineServer(await WasmEngine.load(bytes));
+    let current = server.connection();
+    let connections = 0;
+    const tries: number[] = [];
+    const connect = () => {
+      connections++;
+      current = server.connection();
+      return current;
+    };
+    // A server that is down comes up again as the second try after a drop is made.
+    const wire = new Wire(connect, demo, shippedContent(), {
+      retries: [5, 10, 20],
+      later: (run, ms) => {
+        tries.push(ms);
+        if (tries.length === 3) server.closed = false;
+        setTimeout(run, 0);
+      },
+    });
+    game.wireWith(wire);
+    await wire.ready;
+    const early = game.serialiseSave()!;
+    const before = replicaCount();
+    const g = createRng('wire:dropped');
+    for (let n = 0; n < 12; n++) act(game, demo, g);
+    // Dropped with intents on their way: lost, and the page plays on without sending.
+    current.drop();
+    await settle(server);
+    for (let n = 0; n < 12; n++) act(game, demo, g);
+    await settle(server);
+    while (demo.pending !== null) {
+      game.answerPending({ kind: 'continue' });
+      await settle(server);
+    }
+    // Back: the game kept, told the page's - no game opened for it - and played on, in step.
+    expect(['fresh', 'in']).toContain(wire.status());
+    expect(tries).toEqual([5]);
+    expect(connections).toBe(2);
+    game.selectNext();
+    for (let n = 0; n < 12; n++) act(game, demo, g);
+    await settle(server);
+    // A save loaded, which puts its own log in place of both games': told the page's log when it came back,
+    // the server's is the same after it, not cut at another line.
+    while (demo.pending !== null) {
+      game.answerPending({ kind: 'continue' });
+      await settle(server);
+    }
+    expect(game.loadGameText(early).ok).toBe(true);
+    game.selectNext();
+    await settle(server);
+    expect(replicaCount().first.slice(before.first.length)).toEqual([]);
+    expect(server.sent.filter((m) => m['op'] === 'resume').length).toBe(1);
+    expect(server.sent.filter((m) => m['op'] === 'open').length).toBe(1);
+    // Dropped again, the game gone from the server meanwhile, and the server down a while: tried again until it
+    // is up - longer each time - and a fresh game opened and told the page's.
+    // Ten lines in the log first, on both, so the page's is not empty when the server is told it again.
+    const ten = Array.from({ length: 10 }, (_, n) => ({ text: `Line ${n}.`, tone: 'system' }));
+    expect(game.loadGameText(JSON.stringify({ ...(JSON.parse(early) as object), log: ten })).ok).toBe(true);
+    await settle(server);
+    server.kept = null;
+    server.closed = true;
+    current.drop();
+    game.selectNext();
+    await settle(server);
+    while (demo.pending !== null) {
+      game.answerPending({ kind: 'continue' });
+      await settle(server);
+    }
+    expect(wire.status()).toBe('out');
+    expect(tries, 'the count of tries begun again once connected').toEqual([5, 5, 10]);
+    game.selectNext();
+    for (let n = 0; n < 12; n++) act(game, demo, g);
+    await settle(server);
+    expect(wire.status()).toBe('in');
+    expect(replicaCount().first.slice(before.first.length)).toEqual([]);
+    expect(server.sent.filter((m) => m['op'] === 'open').length).toBe(2);
+    // A save with lines in its log loaded into that fresh game - whose own log was empty when it was told the
+    // page's: told the page's log too, both are cut at the same line after the load puts its log in place.
+    while (demo.pending !== null) {
+      game.answerPending({ kind: 'continue' });
+      await settle(server);
+    }
+    const lines = [{ text: 'One.', tone: 'system' }, { text: 'Two.', tone: 'system' }, { text: 'Three.', tone: 'system' }];
+    expect(game.loadGameText(JSON.stringify({ ...(JSON.parse(early) as object), log: lines })).ok).toBe(true);
+    game.selectNext();
+    await settle(server);
+    expect(replicaCount().first.slice(before.first.length)).toEqual([]);
+    expect(differ(demo, server)).toBeNull();
+  }, 120_000);
+
+  it.skipIf(!built)('comes back to the game the server kept when the page is reloaded, of the same project, and no other', async () => {
+    const bytes = readFileSync(WASM);
+    const server = new EngineServer(await WasmEngine.load(bytes));
+    const first = buildProjectScene(project(), 'wire:before-reload');
+    const played = new LocalGame(first, false);
+    const wire = new Wire(() => server.connection(), first, shippedContent());
+    played.wireWith(wire);
+    await wire.ready;
+    const early = played.serialiseSave()!;
+    expect(early).not.toBeNull();
+    const g = createRng('wire:reload');
+    for (let n = 0; n < 30; n++) act(played, first, g);
+    await settle(server);
+    while (first.pending !== null) {
+      played.answerPending({ kind: 'continue' });
+      await settle(server);
+    }
+    played.selectNext();
+    await settle(server);
+    const before = replicaCount();
+    // The page reloaded: a fresh game of its own, from another seed, comes back to the one the server kept -
+    // with the mirror beside it, as in development, built before the page came back.
+    const again = buildProjectScene(project(), 'wire:after-reload');
+    const game = new LocalGame(again, false);
+    game.shadowWith(new Shadow(await WasmEngine.load(bytes), again, shippedContent(), await WasmEngine.load(bytes)));
+    game.selectNext();
+    const back = new Wire(() => server.connection(), again, shippedContent(), { resume: true });
+    game.wireWith(back);
+    await back.ready;
+    expect(back.resumed).toBe(true);
+    expect(back.status()).toBe('in');
+    expect(differ(again, server)).toBeNull();
+    expect(boardOf(again).replica).toEqual(boardOf(first).replica);
+    expect(again.log.map((line) => line.text)).toEqual(first.log.map((line) => line.text));
+    expect(again.rng.save()).toBe(first.rng.save());
+    expect(server.sent.filter((m) => m['op'] === 'open').length, 'no game opened').toBe(1);
+    for (let n = 0; n < 20; n++) act(game, again, g);
+    await settle(server);
+    // A save loaded: the mirror, told the page's log when the page came back, holds the same log after it.
+    while (again.pending !== null) {
+      game.answerPending({ kind: 'continue' });
+      await settle(server);
+    }
+    const loaded = game.loadGameText(early);
+    expect(loaded, JSON.stringify(loaded)).toEqual({ ok: true });
+    game.selectNext();
+    await settle(server);
+    expect(replicaCount().first.slice(before.first.length)).toEqual([]);
+    // Another project's page does not come back to it: it opens its own.
+    const other = buildProjectScene({ ...project(), id: 'another' }, 'wire:other');
+    const elsewhere = new Wire(() => server.connection(), other, shippedContent(), { resume: true });
+    new LocalGame(other, false).wireWith(elsewhere);
+    await elsewhere.ready;
+    expect(elsewhere.resumed).toBe(false);
+    expect(elsewhere.status()).toBe('fresh');
+    expect(server.sent.filter((m) => m['op'] === 'open').length).toBe(2);
+    // Nor does one whose kept game has nothing kept.
+    server.kept = null;
+    const nothing = new Wire(() => server.connection(), buildProjectScene(project(), 'wire:nothing'), shippedContent(), { resume: true });
+    await nothing.ready;
+    expect(nothing.resumed).toBe(false);
+    expect(nothing.status()).toBe('fresh');
+  }, 120_000);
 });

@@ -147,3 +147,21 @@ fn a_game_brought_into_step_is_told_the_dice_waiting() {
     assert_eq!(session.board()["rolls"], json!([]));
     assert!(session.dispatch("restoreWalk", &[Value::Null, Value::Null, Value::Null, json!([{ "who": 1 }])]).is_err(), "a roll with no dice");
 }
+
+/// A game brought into step is told the log as the page has it, whom each line names and all.
+#[test]
+fn a_game_brought_into_step_is_told_the_log() {
+    let fixture = fixture("replica.json");
+    let shipped: Rc<Shipped> = Rc::new(from(&fixture["shipped"]));
+    let mut session = Session::build(&fixture["projects"][0], shipped, hooks_for(), "log").expect("a game");
+    session.dispatch("rest", &[json!("short")]).unwrap();
+    assert!(!session.board()["log"].as_array().unwrap().is_empty());
+    let lines = json!([
+        { "text": "Kara opens the door.", "tone": "action", "mentions": [{ "id": "kara", "name": "Kara" }] },
+        { "text": "Saved: Quick save.", "tone": "system" },
+    ]);
+    session.dispatch("restoreLog", &[lines.clone()]).unwrap();
+    assert_eq!(session.board()["log"], lines);
+    session.dispatch("restoreLog", &[json!([])]).unwrap();
+    assert_eq!(session.board()["log"], json!([]));
+}

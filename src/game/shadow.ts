@@ -154,6 +154,7 @@ export class Shadow {
       game.restore(replicaOf(this.demo));
       game.call('restoreRng', [this.demo.rng.save()]);
       game.call('restoreWalk', [this.demo.ambush, this.demo.approaching, openContainer(this.demo), rollsOf(this.demo)]);
+      game.call('restoreLog', [this.demo.log]);
       this.logs = { ours: this.demo.log.length, theirs: (game.board() as { log: unknown[] }).log.length };
       this.inStep = true;
     } catch (failure) {

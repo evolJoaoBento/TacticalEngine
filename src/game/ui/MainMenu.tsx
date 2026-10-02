@@ -13,12 +13,14 @@
  * player's own (`browserStore`, `accounts.ts`); who that is, and Sign out, head the card.
  */
 
-import { useState } from 'preact/hooks';
+import { useEffect, useState } from 'preact/hooks';
 import { GameProjects } from '../game-projects';
 import { DEFAULT_SAVE_PROJECT, SaveSlots, browserStore, projectOfSlot, type SaveSlot } from '../save-slots';
 import { NewGame } from './NewGame';
 import type { SignedIn } from '../accounts';
 import { Store } from './Store';
+import { listAccountSaves } from '../account-saves';
+import { serverAllowed } from '../play-socket';
 import './menu.css';
 
 /** Open the page again, on what was chosen. */
@@ -48,7 +50,13 @@ export function MainMenu(props: { account?: SignedIn | null; onSignOut?: () => v
   const [view, setView] = useState<'main' | 'load' | 'new' | 'store'>('main');
   const account = props.account ?? null;
   const games = new GameProjects(browserStore());
-  const saves = new SaveSlots(browserStore()).list();
+  // The browser's saves - or, signed in where the server plays the game, the account's, kept there.
+  const onServer = account !== null && serverAllowed();
+  const [saves, setSaves] = useState<SaveSlot[]>(() => (onServer ? [] : new SaveSlots(browserStore()).list()));
+  useEffect(() => {
+    if (!onServer) return;
+    void listAccountSaves(account.id).then((listed) => setSaves(listed ?? new SaveSlots(browserStore()).list()));
+  }, [account?.id, onServer]);
   const savesOf = (project: string): SaveSlot[] => saves.filter((slot) => projectOfSlot(slot) === project);
 
   return (

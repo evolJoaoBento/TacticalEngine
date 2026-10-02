@@ -26,8 +26,8 @@ import { IMPORT_MODEL_URL, USER_MODELS_URL, YOUR_MODELS_URL } from './your-model
  * server run by hand with `npm run server`, or the one the last dev server started still going - it
  * tries again a few times and then leaves the port to whoever has it, since the proxy reaches that one.
  *
- * And one route no plugin ever answered: the games the server plays (`PLAY_URL`, phase 3 slice 3c), a
- * websocket, passed through as one - its upgrade too.
+ * And two routes no plugin ever answered: the games the server plays (`PLAY_URL`, phase 3 slice 3c), a
+ * websocket, passed through as one - its upgrade too - and the saves those games write (`SAVES_URL`).
  *
  * When the tests are serving (`TACTICAL_BOOT=builtin`), or for a build, there is no server and no
  * proxy: the plugins answer those routes as they always did (404: no accounts). Nor under Vitest, which
@@ -44,6 +44,8 @@ export { servesRust };
 
 /** The server's games: a websocket behind the session cookie (`server/serve/src/play.rs`). */
 export const PLAY_URL = '/__play';
+/** Each player's saves, which their games on the server write (`server/serve/src/saves.rs`). */
+export const SAVES_URL = '/__saves';
 
 export const serverPort = (): number => Number(process.env['TACTICAL_SERVER_PORT'] ?? 8430);
 
@@ -54,10 +56,14 @@ export function cargoPath(): string {
   return existsSync(own) ? own : 'cargo';
 }
 
-/** The proxy entries for the moved routes, and the games' websocket. */
+/** The proxy entries for the moved routes, the games' websocket and their saves. */
 export function rustProxy(port: number = serverPort()): Record<string, ProxyOptions> {
   const target = `http://127.0.0.1:${port}`;
-  return { ...Object.fromEntries(RUST_ROUTES.map((route) => [route, { target, changeOrigin: false }])), [PLAY_URL]: { target, changeOrigin: false, ws: true } };
+  return {
+    ...Object.fromEntries(RUST_ROUTES.map((route) => [route, { target, changeOrigin: false }])),
+    [PLAY_URL]: { target, changeOrigin: false, ws: true },
+    [SAVES_URL]: { target, changeOrigin: false },
+  };
 }
 
 /**

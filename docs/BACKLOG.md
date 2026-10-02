@@ -4,6 +4,14 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## Saves on the server, and a game that comes back — done
+
+Signed in where the server plays the game beside the page, saves are the account's, in
+`data/users/<account>/saves/`, written by the server's game itself (`server/serve/src/saves.rs`,
+`src/game/account-saves.ts`); a browser's own slots move up the first time it signs in and stay where they
+were. A dropped connection is tried again, back to the game the server kept or a fresh one; a page reloaded
+comes back to where its game stood. Phase 3. Next: a question held on one side shown from the server's board.
+
 ## The page plays beside the server — done
 
 In development, signed in, every game the page plays opens one on the server at `/__play` and is held to it

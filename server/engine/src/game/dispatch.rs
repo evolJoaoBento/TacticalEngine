@@ -204,6 +204,9 @@ impl Session {
             }
             // ---- how the game stands ----
             "board" => self.board(),
+            // The save as the game would write it now, and why it may not be (`save.rs`).
+            "serialiseSave" => json!(self.serialise_save()),
+            "saveBlockedBy" => json!(self.save_blocked_by()),
             "restoreWalk" => {
                 // What a replica is not told but a game in step must hold: the fight a walk woke, its errand, the
                 // container whose window is open, and the dice still to be shown (the board's `rolls`) when given.
@@ -216,6 +219,12 @@ impl Session {
                     Value::Null => None,
                     held => Some(serde_json::from_value(held.clone()).map_err(|e| format!("an errand: {e}"))?),
                 };
+                Value::Null
+            }
+            "restoreLog" => {
+                // The log as the page has it: an engine brought into step holds the same, so a load - which
+                // replaces it - leaves the two the same as well.
+                self.log = a.get(0).as_array().map(|lines| lines.iter().map(super::log::LogLine::read).collect()).unwrap_or_default();
                 Value::Null
             }
             "restoreRng" => {

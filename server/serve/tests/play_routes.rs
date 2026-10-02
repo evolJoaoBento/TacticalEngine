@@ -124,6 +124,9 @@ async fn a_game_on_the_server_plays_as_the_engine_plays() {
     assert!(tables.has_game("kara"));
     let resumed = tables.ask("kara", json!({ "id": 100, "op": "resume" })).await;
     assert_eq!(resumed["ok"]["board"], beside.board());
+    // And which project it is a game of, for a page to come back to it only over the same.
+    assert_eq!(resumed["ok"]["project"], project["id"], "{}", resumed["ok"]["project"]);
+    assert!(resumed["ok"]["project"].is_string());
 
     // Told how the game stands - here, as it was opened - it stands so, as a session told the same does.
     let told = tables.ask("kara", json!({ "id": 101, "op": "restore", "replica": opened["ok"]["board"]["replica"] })).await;

@@ -59,7 +59,7 @@ import { migrateDocument } from './engine/scene/migrate';
 import { forgetFile, saveProjectFile } from './editor/project-file';
 import { describePack, packOf, readPack } from './engine/content/pack/document';
 import type { AdversaryDef } from './engine/content/types';
-import { AUTO_SLOT, QUICK_SLOT, SaveSlots, browserStore, projectOfSlot, projectSlot, sharedBrowserStore } from './game/save-slots';
+import { AUTO_SLOT, QUICK_SLOT, projectOfSlot, projectSlot, sharedBrowserStore } from './game/save-slots';
 import { CardArtImports, loadCardArtIndex, useCardArtImports, useCardArtIndex } from './game/ui/card-art';
 import { DEMO_REACH, buildProjectScene } from './game/demo-scene';
 import { JUMP_ID } from './game/movement';
@@ -67,7 +67,7 @@ import { DEMO_ADVERSARY_ID, DEMO_MODELS, DEMO_CHARACTERS } from './game/demo-rul
 import { characterContentFor, adversaryDefsFor } from './game/room';
 import type { EquipResult, GearSlot } from './game/equip';
 import { CameraFocus } from './game/camera-focus';
-import { gameFor, gameReady, type GameClient, type LocalPowers } from './game/wasm-game';
+import { gameFor, gameReady, resumed, savesFor, type GameClient, type LocalPowers } from './game/wasm-game';
 import { STARTER_ABILITIES } from './engine/content/pack/starter';
 import { PROP_FUNCTIONS } from './engine/scene/prop-functions';
 import type { PropFunction } from './engine/scene/prop-function-schema';
@@ -1241,12 +1241,11 @@ function aimingHighlights(armed: NonNullable<typeof targeting>): number[] {
 }
 
 /**
- * Where saves live: named slots over `localStorage`, guarded so a browser
- * that blocks site data reads as "no saves" rather than taking the page down.
- * The quick slot and the autosave slot are fixed and overwritten; "Save as…"
+ * Where saves live (`savesFor`): the account's, on the server, when it plays the game beside the page; else
+ * named slots over `localStorage`. The quick slot and the autosave slot are fixed and overwritten; "Save as…"
  * mints a new one every time.
  */
-const slots = new SaveSlots(browserStore());
+const slots = savesFor();
 
 /** "The Husk Vault, level 2" — a line for the saves list. */
 function whereWeAre(): string {
@@ -1259,7 +1258,7 @@ function saveTo(id: string | undefined, name: string, quiet = false): boolean {
   const text = game.serialiseSave();
   if (text === null) return false;
   const slot = slots.write(text, name, whereWeAre(), id, game.board.project.id);
-  if (!quiet) game.note(slot === null ? 'This browser will not let the game save.' : `Saved: ${name}.`, 'system');
+  if (!quiet) game.note(slot === null ? slots.refused() : `Saved: ${name}.`, 'system');
   return slot !== null;
 }
 
@@ -1545,7 +1544,7 @@ function renderPlayPanel(): void {
   );
 }
 refreshPlay();
-if (start.edit) setMode('edit'); else if (start.load !== null) loadSlot(start.load);
+if (start.edit) setMode('edit'); else if (start.load !== null && !resumed()) loadSlot(start.load); // a reload came back to the game kept
 
 /** Press on the board in the editor. Whatever the press took hold of lifts off the ground, to be carried. */
 function pressAt(event: PointerEvent, at: Spot): void {

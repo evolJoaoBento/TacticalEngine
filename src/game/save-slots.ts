@@ -50,6 +50,23 @@ export const projectOfSlot = (slot: SaveSlot): string => slot.project ?? DEFAULT
 export const QUICK_SLOT = 'quick';
 export const AUTO_SLOT = 'auto';
 
+/** A fresh slot's id: `s`, the time in base 36, a little at random. */
+export const mintSlotId = (now: number): string => `s${now.toString(36)}${Math.floor(Math.random() * 1296).toString(36)}`;
+
+/**
+ * Where the game's saves are kept, as the page asks: the browser's own (`SaveSlots`), or - signed in to a
+ * server that plays the game - the account's, on the server (`AccountSaves`, `account-saves.ts`).
+ */
+export interface SaveShelf {
+  list(): SaveSlot[];
+  has(id: string): boolean;
+  read(id: string): string | null;
+  write(text: string, name: string, where: string, id?: string, project?: string): SaveSlot | null;
+  remove(id: string): boolean;
+  /** What to tell the player when a write came back `null`. */
+  refused(): string;
+}
+
 const INDEX_KEY = 'tactical:saves';
 const SLOT_PREFIX = 'tactical:save:';
 
@@ -66,7 +83,7 @@ const SLOT_PREFIX = 'tactical:save:';
 const LEGACY_INDEX_KEY = 'polyheart:saves';
 const LEGACY_SLOT_PREFIX = 'polyheart:save:';
 
-export class SaveSlots {
+export class SaveSlots implements SaveShelf {
   private readonly store: SlotStore;
   private readonly now: () => number;
 
@@ -98,7 +115,7 @@ export class SaveSlots {
    * Returns the slot as listed, or null when the store refused.
    */
   write(text: string, name: string, where: string, id?: string, project?: string): SaveSlot | null {
-    const slotId = id ?? `s${this.now().toString(36)}${Math.floor(Math.random() * 1296).toString(36)}`;
+    const slotId = id ?? mintSlotId(this.now());
     const slot: SaveSlot = { id: slotId, name, savedAt: this.now(), where, ...(project === undefined ? {} : { project }) };
     try {
       this.store.set(SLOT_PREFIX + slotId, text);
@@ -109,6 +126,10 @@ export class SaveSlots {
     } catch {
       return null;
     }
+  }
+
+  refused(): string {
+    return 'This browser will not let the game save.';
   }
 
   remove(id: string): boolean {

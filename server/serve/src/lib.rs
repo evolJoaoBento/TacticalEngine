@@ -15,6 +15,7 @@ pub mod files;
 pub mod js;
 pub mod manifest;
 pub mod play;
+pub mod saves;
 pub mod store;
 pub mod your_models;
 
@@ -52,8 +53,12 @@ pub fn app(root: PathBuf) -> Router {
         saves = saves.route(route, any(art_and_project::handle));
     }
     saves = saves.route(art_and_project::MARKS_URL, get(art_and_project::marks));
+    let saved = Router::new()
+        .route(saves::SAVES_URL, any(saves::handle))
+        .route(&format!("{}/{{*rest}}", saves::SAVES_URL), any(saves::handle))
+        .with_state(root_for_play.clone());
     let play = play::router(root_for_play);
-    accounts.merge(store).merge(models.with_state(shelf)).merge(engine).merge(saves.with_state(archive)).merge(play)
+    accounts.merge(store).merge(models.with_state(shelf)).merge(engine).merge(saves.with_state(archive)).merge(saved).merge(play)
 }
 
 /// Where the built client is, from the repository: `npm run build:server` writes it.

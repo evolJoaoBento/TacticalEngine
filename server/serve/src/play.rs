@@ -13,9 +13,13 @@
 //!   server's own: `{ id, ok: { seed, board } }`;
 //! - `{ id, op: "call", call, args }` - an intent: `{ id, ok: { answer, board } }`;
 //! - `{ id, op: "ask", ask, ... }` - what the pointer asks: `{ id, ok: <answer> }`;
+//! - `{ id, op: "save", slot?, name, where, project? }` - the game saved by itself into the account's own
+//!   folder (`saves.rs`): its own text, in the slot named or a fresh one, `{ id, ok: { slot, text } }`, or why
+//!   it may not be saved now;
 //! - `{ id, op: "restore", replica }` - told how the game stands, the page's being the one the server's is
 //!   held to while it is brought into step: `{ id, ok: { board } }`;
-//! - `{ id, op: "resume" }` - the game kept since the socket last closed: `{ id, ok: { board } }`;
+//! - `{ id, op: "resume" }` - the game kept since the socket last closed, and the id of the project it was
+//!   opened over: `{ id, ok: { board, project } }`;
 //!
 //! and `{ id, error }` for anything refused. A game outlives its socket for a while (`KEPT_FOR`), so a page
 //! that lost its connection comes back to it; past that it goes. The content a game is played over still
@@ -23,6 +27,7 @@
 //! for later.
 
 use crate::accounts::{account_of, host_of, now_ms, read_accounts, read_sessions};
+use crate::saves::{is_slot_id, mint_id, write_save, Slot};
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
 use axum::extract::State;
 use axum::http::{HeaderMap, StatusCode};
@@ -54,10 +59,11 @@ struct Job {
     answer: oneshot::Sender<Value>,
 }
 
-/// A game being played: the way into its thread, and since when nobody has been at it.
+/// A game being played: the way into its thread, since when nobody has been at it, and its project's id.
 struct Table {
     door: mpsc::Sender<Job>,
     left: Option<Instant>,
+    project: Value,
 }
 
 /// Every game on the server, one per account.
@@ -129,6 +135,13 @@ fn answer(slot: &mut Option<Session>, message: &Value, hooks: &HooksFor) -> Resu
             Ok(json!({ "answer": said, "board": board(slot) }))
         }
         Some("ask") => face::respond(slot, message, Rc::clone(hooks)),
+        Some("save") => {
+            let session = slot.as_ref().ok_or("no game: open one")?;
+            if let Some(why) = session.save_blocked_by() {
+                return Err(why.into());
+            }
+            Ok(json!({ "text": session.serialise_save().ok_or("nothing to save")? }))
+        }
         Some("restore") => {
             face::respond(slot, &json!({ "op": "restore", "replica": message["replica"] }), Rc::clone(hooks))?;
             Ok(json!({ "board": board(slot) }))
@@ -161,15 +174,19 @@ impl Tables {
     /// A message from an account, answered by its game - a new one for `open`.
     pub async fn ask(&self, account: &str, message: Value) -> Value {
         let id = message["id"].clone();
+        let message_op = message["op"].as_str().unwrap_or("").to_string();
+        let asked = if message_op == "save" { message.clone() } else { Value::Null };
+        let mut project = Value::Null;
         let door = {
             let mut games = self.games.lock().expect("the tables");
             if message["op"] == "open" {
                 let door = play_thread();
-                games.insert(account.to_string(), Table { door: door.clone(), left: None });
+                games.insert(account.to_string(), Table { door: door.clone(), left: None, project: message["project"]["id"].clone() });
                 Some(door)
             } else {
                 games.get_mut(account).map(|table| {
                     table.left = None;
+                    project = table.project.clone();
                     table.door.clone()
                 })
             }
@@ -180,8 +197,35 @@ impl Tables {
             return json!({ "id": id, "error": "the game has ended" });
         }
         let mut said = answered.await.unwrap_or_else(|_| json!({ "error": "the game has ended" }));
+        if message_op == "save" {
+            said = self.saved(account, &asked, said);
+        }
+        if message_op == "resume" && said["ok"].is_object() {
+            said["ok"]["project"] = project;
+        }
         said["id"] = id;
         said
+    }
+
+    /// The text a game saved, written into the account's slot: the slot named, or a fresh one.
+    fn saved(&self, account: &str, asked: &Value, said: Value) -> Value {
+        let Some(text) = said["ok"]["text"].as_str() else { return said };
+        let id = match asked["slot"].as_str() {
+            Some(id) if is_slot_id(id) => id.to_string(),
+            Some(_) => return json!({ "error": "not a slot" }),
+            None => mint_id(now_ms()),
+        };
+        let slot = Slot {
+            id,
+            name: asked["name"].as_str().unwrap_or("Save").to_string(),
+            saved_at: now_ms(),
+            place: asked["where"].as_str().unwrap_or("").to_string(),
+            project: asked["project"].as_str().map(str::to_string),
+        };
+        match write_save(&self.root, account, slot.clone(), text) {
+            Ok(()) => json!({ "ok": { "slot": slot, "text": text } }),
+            Err(why) => json!({ "error": format!("the save could not be written: {why}") }),
+        }
     }
 
     /// The account's socket closed: its game is kept for a while, and goes after.

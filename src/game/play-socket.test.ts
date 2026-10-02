@@ -5,7 +5,7 @@
  */
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { PlaySocket, serverWanted } from './play-socket';
+import { PlaySocket, serverAccount } from './play-socket';
 
 class FakeSocket {
   static readonly CONNECTING = 0;
@@ -88,7 +88,7 @@ describe('the socket to the server\'s game', () => {
     await expect(unopened).rejects.toThrow('the connection closed');
   });
 
-  it('is wanted in development, from a dev server that keeps accounts, by somebody signed in, unless turned off', async () => {
+  it('is for somebody signed in, in development, on a dev server that keeps accounts, unless turned off', async () => {
     const asked: string[] = [];
     const me = (status: number, body: unknown = {}) => {
       vi.stubGlobal('fetch', async (url: string) => {
@@ -97,20 +97,21 @@ describe('the socket to the server\'s game', () => {
       });
     };
     vi.stubGlobal('location', { search: '' });
-    me(200, { id: 'admin', name: 'admin', admin: true });
+    const admin = { id: 'admin', name: 'admin', admin: true };
+    me(200, admin);
     // The tests' server keeps no accounts: not even asked.
-    expect(await serverWanted('builtin')).toBe(false);
+    expect(await serverAccount('builtin')).toBeNull();
     expect(asked).toEqual([]);
-    expect(await serverWanted('file')).toBe(true);
+    expect(await serverAccount('file')).toEqual(admin);
     expect(asked).toEqual(['/__accounts/me']);
     me(401);
-    expect(await serverWanted('file')).toBe(false);
+    expect(await serverAccount('file')).toBeNull();
     me(404);
-    expect(await serverWanted('file')).toBe(false);
-    me(200, { id: 'admin', name: 'admin', admin: true });
+    expect(await serverAccount('file')).toBeNull();
+    me(200, admin);
     vi.stubGlobal('location', { search: '?play&server=off' });
     asked.length = 0;
-    expect(await serverWanted('file')).toBe(false);
+    expect(await serverAccount('file')).toBeNull();
     expect(asked).toEqual([]);
   });
 });

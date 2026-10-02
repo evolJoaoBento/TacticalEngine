@@ -14,6 +14,13 @@
  * questions, which have no form to send: before the first intent, after the editor has changed the game
  * (a fresh game opened over the project as it is now), and after a parting the board could not give back -
  * a question open, a conversation set aside. In development only, and only for somebody signed in.
+ *
+ * A connection that drops loses what was on its way; the page plays on, sending nothing, and the wire
+ * connects again after a while, and again, longer each time (`RETRIES`), and asks for the game the server kept
+ * (`resume`, for ten minutes after a socket closes): kept, of this project, it is told the page's game, which
+ * went on without it; gone, a fresh one is opened and told it. A page reloaded asks first for the game kept
+ * (`resume`): kept, of this project, with no question open in it, the page is stood where that game is
+ * (`resumed`), and the seed is the one it was played with; else a game is opened as for any page.
  */
 
 import { boardOf, restoreFromBoard, rollsOf, type BoardSnapshot } from './board';
@@ -22,6 +29,7 @@ import { openContainer } from './prop-use';
 import { replicaOf } from './replica';
 import { firstDifference, recordAsked, recordParting, since } from './shadow';
 import { talkingAside } from './talks';
+import type { SaveSlot } from './save-slots';
 
 /** What the server said: what was asked for, or why not. */
 export interface Said {
@@ -37,9 +45,21 @@ export interface Transport {
 
 /**
  * Where the wire stands: `opening` the server's game, `fresh` (opened, not yet told the page's), `in` step,
- * `parted` (waiting for what is on its way up), `out` of step (to be told the page's game), `closed`.
+ * `parted` (waiting for what is on its way up), `out` of step (to be told the page's game), `lost` (the
+ * connection dropped, and trying again), `closed`.
  */
-export type WireState = 'opening' | 'fresh' | 'in' | 'parted' | 'out' | 'closed';
+export type WireState = 'opening' | 'fresh' | 'in' | 'parted' | 'out' | 'lost' | 'closed';
+
+/** How long to wait before each try to connect again, in milliseconds; when they are spent the wire closes. */
+export const RETRIES: readonly number[] = [500, 1000, 2000, 4000, 8000, 15000, 30000];
+
+export interface WireOptions {
+  /** Come back to the game the server kept rather than open one: the page was reloaded. */
+  resume?: boolean;
+  /** The waits between tries to connect again (`RETRIES`), and how a wait is waited - for a test. */
+  retries?: readonly number[];
+  later?: (run: () => void, ms: number) => void;
+}
 
 /** An intent's answer from the server, and its board after. */
 interface Played {
@@ -56,11 +76,47 @@ export class Wire {
   private inFlight = 0;
   private logs = { ours: 0, theirs: 0 };
   private retell: () => void = () => undefined;
-  /** The server's game opened, and the page's dice going on from its. */
+  private transport: Transport;
+  /** Which connection a message went by: a drop is the drop of the one it is. */
+  private connection = 0;
+  private tries = 0;
+  /** The editor changed the game while the connection was down: a fresh game when it is back. */
+  private stale = false;
+  /** Whether the page came back to the game the server kept (a reload). */
+  resumed = false;
+  /** The server's game opened, and the page's dice going on from its - or the page come back to the game kept. */
   readonly ready: Promise<void>;
 
-  constructor(private readonly transport: Transport, private readonly demo: DemoScene, private readonly shipped: unknown) {
-    this.ready = this.open();
+  constructor(private readonly connect: () => Transport, private readonly demo: DemoScene, private readonly shipped: unknown, private readonly options: WireOptions = {}) {
+    this.transport = connect();
+    this.ready = this.start();
+  }
+
+  private async start(): Promise<void> {
+    if (this.options.resume === true && (await this.comeBack())) return;
+    await this.open();
+  }
+
+  /** A page reloaded: stood where the game the server kept is, if it can be. Whether there is nothing more to do. */
+  private async comeBack(): Promise<boolean> {
+    let said: Said;
+    try {
+      said = await this.transport.send({ op: 'resume' });
+    } catch {
+      this.state = 'closed';
+      return true;
+    }
+    if (this.state !== 'opening') return true;
+    const kept = said.ok as { board: BoardSnapshot; project: unknown } | undefined;
+    const demo = this.demo;
+    if (kept === undefined || kept.project !== demo.project.id || kept.board.pending !== null || kept.board.aside.length > 0) return false;
+    restoreFromBoard(demo, kept.board);
+    this.drain();
+    this.logs = { ours: demo.log.length, theirs: kept.board.log.length };
+    this.state = 'in';
+    this.resumed = true;
+    this.retell();
+    return true;
   }
 
   /** The game it is the wire of: told when the page's game was changed under it (`LocalGame.edited`). */
@@ -105,8 +161,58 @@ export class Wire {
   /** The editor changed the page's game, or its project: the server is told it again before the next intent. */
   outOfStep(): void {
     if (this.state === 'opening' || this.state === 'closed') return;
-    this.epoch++;
+    if (this.state === 'lost') {
+      this.stale = true;
+      return;
+    }
+    this.nextEpoch();
     this.state = 'out';
+  }
+
+  /** Everything sent before now held to nothing. */
+  private nextEpoch(): number {
+    this.inFlight = 0;
+    return ++this.epoch;
+  }
+
+  /** The connection dropped: what was on its way is lost with it, and the wire tries to come back. */
+  private lose(): void {
+    if (this.state === 'closed' || this.state === 'lost') return;
+    if (this.state === 'opening') {
+      this.state = 'closed';
+      return;
+    }
+    this.nextEpoch();
+    this.connection++;
+    this.state = 'lost';
+    this.retry();
+  }
+
+  private retry(): void {
+    const wait = (this.options.retries ?? RETRIES)[this.tries++];
+    if (wait === undefined) {
+      this.state = 'closed';
+      return;
+    }
+    (this.options.later ?? ((run, ms) => void setTimeout(run, ms)))(() => void this.reconnect(), wait);
+  }
+
+  /** Connected again: the game the server kept told the page's, or a fresh one opened when it is gone. */
+  private async reconnect(): Promise<void> {
+    if (this.state !== 'lost') return;
+    this.transport = this.connect();
+    let said: Said;
+    try {
+      said = await this.transport.send({ op: 'resume' });
+    } catch {
+      if (this.state === 'lost') this.retry();
+      return;
+    }
+    if (this.state !== 'lost') return;
+    this.tries = 0;
+    const kept = said.ok as { project: unknown } | undefined;
+    this.state = kept !== undefined && kept.project === this.demo.project.id && !this.stale ? 'fresh' : 'out';
+    this.stale = false;
   }
 
   /** Before an intent: the server brought into step if it can be; whether the intent is to be sent up. */
@@ -119,12 +225,14 @@ export class Wire {
   private bringIntoStep(): void {
     const demo = this.demo;
     if (demo.pending !== null || talkingAside(demo).length > 0) return;
-    const epoch = ++this.epoch;
+    const epoch = this.nextEpoch();
     const told: Promise<Said>[] = [];
     if (this.state === 'out') told.push(this.send(this.opening()));
     told.push(this.send({ op: 'restore', replica: replicaOf(demo) }));
     told.push(this.send({ op: 'call', call: 'restoreRng', args: [demo.rng.save()] }));
     told.push(this.send({ op: 'call', call: 'restoreWalk', args: [demo.ambush, demo.approaching, openContainer(demo), rollsOf(demo)] }));
+    told.push(this.send({ op: 'call', call: 'restoreLog', args: [demo.log] }));
+    told.push(...this.drain());
     this.logs = { ours: demo.log.length, theirs: 0 };
     this.state = 'in';
     void Promise.all(told).then((said) => {
@@ -139,14 +247,22 @@ export class Wire {
     }, () => undefined);
   }
 
+  /**
+   * What the server's game holds for a view to draw - the walks to show, the numbers to float - drained: the
+   * board does not carry it, and the page's views, told the game rather than having played it, never will.
+   */
+  private drain(): Promise<Said>[] {
+    return [this.send({ op: 'call', call: 'takeMotions', args: [] }), this.send({ op: 'call', call: 'takeFloaters', args: [] })];
+  }
+
   /** An intent the page has played, sent up, and its answer held to the page's, and the board just after. */
   after(call: string, args: readonly unknown[], answer: unknown, compare: { answer: boolean }): void {
     const epoch = this.epoch;
     const ours = this.state === 'in' ? { answer: compare.answer ? copy(answer) : undefined, board: since(boardOf(this.demo), this.logs.ours) } : null;
     this.inFlight++;
     void this.send({ op: 'call', call, args }).then((said) => {
-      this.inFlight--;
       if (epoch !== this.epoch || this.state === 'closed') return;
+      this.inFlight--;
       const played = said.ok as Played | undefined;
       if (this.state === 'in' && ours !== null) {
         recordAsked();
@@ -160,6 +276,30 @@ export class Wire {
         }
       }
       if (this.state === 'parted' && this.inFlight === 0) this.restoreFrom(played?.board ?? null);
+    });
+  }
+
+  /**
+   * The game saved by the server's game, into the account's slot (`account-saves.ts`): its own text, held to
+   * the page's by value - key order is not the game's - and what it wrote given back, or `null` if it would
+   * not. `null` at once when the server is not in step to save the game the page has.
+   */
+  save(slot: { id: string; name: string; where: string; project?: string }, text: string): Promise<{ slot: SaveSlot; text: string } | null> | null {
+    if (!this.before() || this.state !== 'in') return null;
+    const epoch = this.epoch;
+    const ours = JSON.parse(text) as unknown;
+    return this.send({ op: 'save', slot: slot.id, name: slot.name, where: slot.where, ...(slot.project === undefined ? {} : { project: slot.project }) }).then((said) => {
+      const saved = said.ok as { slot: SaveSlot; text: string } | undefined;
+      if (saved === undefined) {
+        if (epoch === this.epoch) recordParting('server save: refused', [slot.id], null, { failed: said.error });
+        return null;
+      }
+      if (epoch === this.epoch) {
+        recordAsked();
+        const parted = firstDifference(ours, JSON.parse(saved.text) as unknown, 'save');
+        if (parted !== null) recordParting(`server save: ${parted.path}`, [slot.id], parted.game, parted.replica);
+      }
+      return saved;
     });
   }
 
@@ -178,10 +318,11 @@ export class Wire {
     this.retell();
   }
 
-  /** A message sent; a socket gone is the wire closed. */
+  /** A message sent by the connection there is now; that connection gone is the wire lost, and trying again. */
   private send(message: Record<string, unknown>): Promise<Said> {
+    const connection = this.connection;
     return this.transport.send(message).catch(() => {
-      this.state = 'closed';
+      if (connection === this.connection) this.lose();
       return { error: 'the connection closed' };
     });
   }
