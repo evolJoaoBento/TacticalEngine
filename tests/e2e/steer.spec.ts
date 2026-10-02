@@ -13,10 +13,21 @@ test('a held button walks the selected character towards the pointer, with the c
   const start = await page.evaluate(() => {
     const api = window.__engine!;
     api.setDiceSpeed(0);
+    // Somebody else, then her: a change of who is played slides the camera over them, so she starts in the
+    // middle of the screen, and a camera left behind would leave her walking off it.
+    api.select(api.party().find((id) => id !== 'kara')!);
     api.select('kara');
-    return { from: api.standingAt('kara')!, camera: api.camera(), selected: api.selected(), view: { w: window.innerWidth, h: window.innerHeight } };
+    return { from: api.standingAt('kara')!, selected: api.selected(), view: { w: window.innerWidth, h: window.innerHeight } };
   });
   expect(start.selected).toBe('kara');
+  await expect
+    .poll(async () => {
+      const first = await page.evaluate(() => window.__engine!.camera().target);
+      await page.waitForTimeout(150);
+      const then = await page.evaluate(() => window.__engine!.camera().target);
+      return Math.hypot(then.x - first.x, then.z - first.z);
+    }, { timeout: 15_000 })
+    .toBeLessThan(0.001);
 
   // Holding puts the camera on her, so the pointer is aimed from the middle of the screen: down and
   // to the right of it is south-east on the board, into the open woods.
@@ -43,16 +54,19 @@ test('a held button walks the selected character towards the pointer, with the c
 
   const after = await page.evaluate(() => {
     const api = window.__engine!;
-    return { at: api.standingAt('kara')!, camera: api.camera(), selected: api.selected(), pending: api.pendingKind(), inCombat: api.inCombat() };
+    return { at: api.standingAt('kara')!, selected: api.selected(), pending: api.pendingKind(), inCombat: api.inCombat() };
   });
   // South-east, the way the pointer pointed, and nothing was asked of the player on the way.
   expect(after.at.x).toBeGreaterThan(start.from.x);
   expect(after.at.y).toBeGreaterThan(start.from.y);
   expect(after.pending).toBeNull();
   expect(after.inCombat).toBe(false);
-  // The camera came with them rather than staying where the room began.
-  const moved = Math.hypot(after.camera.target.x - start.camera.target.x, after.camera.target.z - start.camera.target.z);
-  expect(moved).toBeGreaterThan(1);
+  // The camera came with them rather than staying where the room began: some tiles on, they are still in
+  // the middle of the screen - 57 pixels off it with the camera left on its leash, a few with it following.
+  // (Measured once as how far the camera's target had moved, from a camera the room opened off her: she
+  // walked into the middle of it, it hardly had to move, and a late run in a slow suite read under one.)
+  const onScreen = await page.evaluate((at) => window.__engine!.screenAt(at.x, at.y), after.at);
+  expect(Math.hypot(onScreen.x - start.view.w / 2, onScreen.y - start.view.h / 2)).toBeLessThan(40);
   // Letting go after a walk is not a click: nobody else was selected by it.
   expect(after.selected).toBe('kara');
   await page.screenshot({ path: 'test-results/steer-walked.png', timeout: 120_000 });
