@@ -1410,5 +1410,13 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     - **Still sent by the page**: the project and the content a game is played over, at `open`; and the page's
       own lines in the log (`note`: a save made, a card with nowhere to aim), which are for slice 4 to make the
       page's alone.
+    - **The hands on the dev server**: a person signed in on `npm run dev` plays with a server that is not the
+      tests', so the driver's hands (`__engine.setCards`, `standNear`, `startFight`...) are refused there - the
+      page plays them, the server refuses, and the page is stood back where the server is. Signed out, the page
+      plays alone and they work as before.
+    - **The page's engine forgets the walked lines on a retell**: standing the page where the server is builds
+      the page's engine afresh (`toldFromThePage`), so a walk cut short just after a stand is refused there
+      and taken by the server - a parting on `landWalkers`, healed by the next stand. The shared game (slice
+      3), which stands the page at every push, is to carry the lines across.
   - **Next**: the rules themselves and the tests that play them deleted (slice 0b), which the bundle's guard,
     once nothing names them, lists; then the page playing with the server in a build (slice 2).
