@@ -49,6 +49,15 @@ describe('area of effect', () => {
     for (const tile of tiles) expect(grid.isTile(tile)).toBe(true);
   });
 
+  it('scans whole tiles when a band ends part-way across one', () => {
+    // A Melee of one and a half: the tile one step away is in, the diagonal (1.41) too, two steps out not.
+    const grid = makeGrid(['.....', '.....', '.....']);
+    const origin = grid.indexOf(2, 1);
+    const tiles = tilesInArea(grid, origin, { bandTiles: { ...bandTiles, melee: 1.5 }, radius: 'melee' });
+    expect(tiles.every((tile) => Number.isInteger(tile) && grid.isTile(tile))).toBe(true);
+    expect(tiles).toEqual([1, 2, 3, 6, 7, 8, 11, 12, 13]);
+  });
+
   it('ignores line of sight unless an effect asks for it', () => {
     const grid = makeGrid(['...', '.#.', '...']);
     const origin = grid.indexOf(0, 1);

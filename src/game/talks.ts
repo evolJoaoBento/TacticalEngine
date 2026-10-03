@@ -80,6 +80,17 @@ export function syncTalks(demo: DemoScene): boolean {
 }
 
 /**
+ * The conversations set aside as a board gives them - who is having each - stood in a page's game filled from
+ * an engine's board (`restoreFromBoard`): the engine holds the conversations themselves and plays them on; the
+ * page knows who is talking, which is all its views read. No prompt is kept: the page does not bring one back.
+ */
+export function asideFrom(demo: DemoScene, talkers: readonly string[]): void {
+  const talks = talksOf(demo);
+  talks.clear();
+  for (const who of talkers) talks.set(who, { pending: null as unknown as PendingScript, shop: null, party: demo.party });
+}
+
+/**
  * A fight, the one talking fallen, or a room entered afresh - travel, or a save loaded: what was
  * set aside is over. Only a fight says so; a room entered afresh never had it.
  */

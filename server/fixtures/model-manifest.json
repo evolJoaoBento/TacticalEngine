@@ -1,0 +1,2234 @@
+{
+ "about": "tools/model-manifest.ts run for the Rust port; written by tests/unit/model-manifest.golden.test.ts",
+ "modelIdOf": [
+  [
+   "Stone Golem.glb",
+   "stone-golem"
+  ],
+  [
+   "stone_golem.GLTF",
+   "stone-golem"
+  ],
+  [
+   "Quim.glb",
+   "quim"
+  ],
+  [
+   "quim.GLB",
+   "quim"
+  ],
+  [
+   "--.glb",
+   ""
+  ],
+  [
+   "Female Tortle.glb",
+   "female-tortle"
+  ],
+  [
+   "İstanbul.glb",
+   "i-stanbul"
+  ],
+  [
+   "Æther Wing.glb",
+   "ther-wing"
+  ],
+  [
+   "a..b.glb",
+   "a-b"
+  ],
+  [
+   ".glb",
+   ""
+  ],
+  [
+   "",
+   ""
+  ],
+  [
+   "no-extension",
+   "no-extension"
+  ],
+  [
+   "model.glb.glb",
+   "model-glb"
+  ],
+  [
+   "x.gltf.glb",
+   "x-gltf"
+  ],
+  [
+   "日本.glb",
+   ""
+  ]
+ ],
+ "files": [
+  {
+   "text": "{\"quim\":\"dwarf\",\"arty\":\"halfling\",\"female-tortle\":\"galapa\"}",
+   "read": {
+    "quim": "dwarf",
+    "arty": "halfling",
+    "female-tortle": "galapa"
+   }
+  },
+  {
+   "text": "{\"quim\":\"dwarf\",\"Bad Id\":\"elf\",\"arty\":5,\"ganja\":\"Giant\",\"violet\":\"elf\",\"-x\":\"elf\",\"scarlet\":null}",
+   "read": {
+    "quim": "dwarf",
+    "violet": "elf"
+   }
+  },
+  {
+   "text": "[\"quim\",\"dwarf\"]",
+   "read": {}
+  },
+  {
+   "text": "null",
+   "read": {}
+  },
+  {
+   "text": "\"text\"",
+   "read": {}
+  },
+  {
+   "text": "not json",
+   "read": {}
+  },
+  {
+   "text": "",
+   "read": {}
+  }
+ ],
+ "changes": [
+  {
+   "model": "quim",
+   "ancestry": "dwarf",
+   "file": "{\n  \"quim\": \"dwarf\"\n}\n"
+  },
+  {
+   "model": "arty",
+   "ancestry": "halfling",
+   "file": "{\n  \"arty\": \"halfling\",\n  \"quim\": \"dwarf\"\n}\n"
+  },
+  {
+   "model": "ab",
+   "ancestry": "elf",
+   "file": "{\n  \"ab\": \"elf\",\n  \"arty\": \"halfling\",\n  \"quim\": \"dwarf\"\n}\n"
+  },
+  {
+   "model": "a-b",
+   "ancestry": "elf",
+   "file": "{\n  \"a-b\": \"elf\",\n  \"ab\": \"elf\",\n  \"arty\": \"halfling\",\n  \"quim\": \"dwarf\"\n}\n"
+  },
+  {
+   "model": "a",
+   "ancestry": "orc",
+   "file": "{\n  \"a\": \"orc\",\n  \"a-b\": \"elf\",\n  \"ab\": \"elf\",\n  \"arty\": \"halfling\",\n  \"quim\": \"dwarf\"\n}\n"
+  },
+  {
+   "model": "a1",
+   "ancestry": "orc",
+   "file": "{\n  \"a\": \"orc\",\n  \"a-b\": \"elf\",\n  \"a1\": \"orc\",\n  \"ab\": \"elf\",\n  \"arty\": \"halfling\",\n  \"quim\": \"dwarf\"\n}\n"
+  },
+  {
+   "model": "a-1",
+   "ancestry": "orc",
+   "file": "{\n  \"a\": \"orc\",\n  \"a-1\": \"orc\",\n  \"a-b\": \"elf\",\n  \"a1\": \"orc\",\n  \"ab\": \"elf\",\n  \"arty\": \"halfling\",\n  \"quim\": \"dwarf\"\n}\n"
+  },
+  {
+   "model": "zz",
+   "ancestry": "ribbet",
+   "file": "{\n  \"a\": \"orc\",\n  \"a-1\": \"orc\",\n  \"a-b\": \"elf\",\n  \"a1\": \"orc\",\n  \"ab\": \"elf\",\n  \"arty\": \"halfling\",\n  \"quim\": \"dwarf\",\n  \"zz\": \"ribbet\"\n}\n"
+  },
+  {
+   "model": "quim",
+   "ancestry": "human",
+   "file": "{\n  \"a\": \"orc\",\n  \"a-1\": \"orc\",\n  \"a-b\": \"elf\",\n  \"a1\": \"orc\",\n  \"ab\": \"elf\",\n  \"arty\": \"halfling\",\n  \"quim\": \"human\",\n  \"zz\": \"ribbet\"\n}\n"
+  },
+  {
+   "model": "arty",
+   "ancestry": null,
+   "file": "{\n  \"a\": \"orc\",\n  \"a-1\": \"orc\",\n  \"a-b\": \"elf\",\n  \"a1\": \"orc\",\n  \"ab\": \"elf\",\n  \"quim\": \"human\",\n  \"zz\": \"ribbet\"\n}\n"
+  },
+  {
+   "model": "nobody",
+   "ancestry": null,
+   "file": "{\n  \"a\": \"orc\",\n  \"a-1\": \"orc\",\n  \"a-b\": \"elf\",\n  \"a1\": \"orc\",\n  \"ab\": \"elf\",\n  \"quim\": \"human\",\n  \"zz\": \"ribbet\"\n}\n"
+  }
+ ],
+ "ancestry": [
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"model\":\"quim\",\"ancestry\":\"dwarf\"}",
+   "verdict": {
+    "ok": true,
+    "model": "quim",
+    "ancestry": "dwarf"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"model\":\"quim\",\"ancestry\":null}",
+   "verdict": {
+    "ok": true,
+    "model": "quim",
+    "ancestry": null
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"model\":\"quim\"}",
+   "verdict": {
+    "ok": false,
+    "status": 422,
+    "reason": "the ancestry is not an id, or nothing"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"model\":\"Quim\",\"ancestry\":\"dwarf\"}",
+   "verdict": {
+    "ok": false,
+    "status": 422,
+    "reason": "no model id"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"model\":\"quim\",\"ancestry\":\"Dwarf\"}",
+   "verdict": {
+    "ok": false,
+    "status": 422,
+    "reason": "the ancestry is not an id, or nothing"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"model\":\"quim\",\"ancestry\":5}",
+   "verdict": {
+    "ok": false,
+    "status": 422,
+    "reason": "the ancestry is not an id, or nothing"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"model\":5,\"ancestry\":\"dwarf\"}",
+   "verdict": {
+    "ok": false,
+    "status": 422,
+    "reason": "no model id"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"ancestry\":\"dwarf\"}",
+   "verdict": {
+    "ok": false,
+    "status": 422,
+    "reason": "no model id"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"model\":\"-quim\",\"ancestry\":\"dwarf\"}",
+   "verdict": {
+    "ok": false,
+    "status": 422,
+    "reason": "no model id"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"model\":\"a--b\",\"ancestry\":\"dwarf\"}",
+   "verdict": {
+    "ok": false,
+    "status": 422,
+    "reason": "no model id"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "[]",
+   "verdict": {
+    "ok": false,
+    "status": 422,
+    "reason": "no model id"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "5",
+   "verdict": {
+    "ok": false,
+    "status": 422,
+    "reason": "no model id"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "null",
+   "verdict": {
+    "ok": false,
+    "status": 422,
+    "reason": "no model id"
+   }
+  },
+  {
+   "method": "GET",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"model\":\"quim\",\"ancestry\":\"dwarf\"}",
+   "verdict": {
+    "ok": false,
+    "status": 405,
+    "reason": "a change is a POST"
+   }
+  },
+  {
+   "method": "GET",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"model\":\"quim\",\"ancestry\":null}",
+   "verdict": {
+    "ok": false,
+    "status": 405,
+    "reason": "a change is a POST"
+   }
+  },
+  {
+   "method": "GET",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"model\":\"quim\"}",
+   "verdict": {
+    "ok": false,
+    "status": 405,
+    "reason": "a change is a POST"
+   }
+  },
+  {
+   "method": "GET",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"model\":\"Quim\",\"ancestry\":\"dwarf\"}",
+   "verdict": {
+    "ok": false,
+    "status": 405,
+    "reason": "a change is a POST"
+   }
+  },
+  {
+   "method": "GET",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"model\":\"quim\",\"ancestry\":\"Dwarf\"}",
+   "verdict": {
+    "ok": false,
+    "status": 405,
+    "reason": "a change is a POST"
+   }
+  },
+  {
+   "method": "GET",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"model\":\"quim\",\"ancestry\":5}",
+   "verdict": {
+    "ok": false,
+    "status": 405,
+    "reason": "a change is a POST"
+   }
+  },
+  {
+   "method": "GET",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"model\":5,\"ancestry\":\"dwarf\"}",
+   "verdict": {
+    "ok": false,
+    "status": 405,
+    "reason": "a change is a POST"
+   }
+  },
+  {
+   "method": "GET",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"ancestry\":\"dwarf\"}",
+   "verdict": {
+    "ok": false,
+    "status": 405,
+    "reason": "a change is a POST"
+   }
+  },
+  {
+   "method": "GET",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"model\":\"-quim\",\"ancestry\":\"dwarf\"}",
+   "verdict": {
+    "ok": false,
+    "status": 405,
+    "reason": "a change is a POST"
+   }
+  },
+  {
+   "method": "GET",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"model\":\"a--b\",\"ancestry\":\"dwarf\"}",
+   "verdict": {
+    "ok": false,
+    "status": 405,
+    "reason": "a change is a POST"
+   }
+  },
+  {
+   "method": "GET",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "[]",
+   "verdict": {
+    "ok": false,
+    "status": 405,
+    "reason": "a change is a POST"
+   }
+  },
+  {
+   "method": "GET",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "5",
+   "verdict": {
+    "ok": false,
+    "status": 405,
+    "reason": "a change is a POST"
+   }
+  },
+  {
+   "method": "GET",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "null",
+   "verdict": {
+    "ok": false,
+    "status": 405,
+    "reason": "a change is a POST"
+   }
+  },
+  {
+   "method": "PUT",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"model\":\"quim\",\"ancestry\":\"dwarf\"}",
+   "verdict": {
+    "ok": false,
+    "status": 405,
+    "reason": "a change is a POST"
+   }
+  },
+  {
+   "method": "PUT",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"model\":\"quim\",\"ancestry\":null}",
+   "verdict": {
+    "ok": false,
+    "status": 405,
+    "reason": "a change is a POST"
+   }
+  },
+  {
+   "method": "PUT",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"model\":\"quim\"}",
+   "verdict": {
+    "ok": false,
+    "status": 405,
+    "reason": "a change is a POST"
+   }
+  },
+  {
+   "method": "PUT",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"model\":\"Quim\",\"ancestry\":\"dwarf\"}",
+   "verdict": {
+    "ok": false,
+    "status": 405,
+    "reason": "a change is a POST"
+   }
+  },
+  {
+   "method": "PUT",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"model\":\"quim\",\"ancestry\":\"Dwarf\"}",
+   "verdict": {
+    "ok": false,
+    "status": 405,
+    "reason": "a change is a POST"
+   }
+  },
+  {
+   "method": "PUT",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"model\":\"quim\",\"ancestry\":5}",
+   "verdict": {
+    "ok": false,
+    "status": 405,
+    "reason": "a change is a POST"
+   }
+  },
+  {
+   "method": "PUT",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"model\":5,\"ancestry\":\"dwarf\"}",
+   "verdict": {
+    "ok": false,
+    "status": 405,
+    "reason": "a change is a POST"
+   }
+  },
+  {
+   "method": "PUT",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"ancestry\":\"dwarf\"}",
+   "verdict": {
+    "ok": false,
+    "status": 405,
+    "reason": "a change is a POST"
+   }
+  },
+  {
+   "method": "PUT",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"model\":\"-quim\",\"ancestry\":\"dwarf\"}",
+   "verdict": {
+    "ok": false,
+    "status": 405,
+    "reason": "a change is a POST"
+   }
+  },
+  {
+   "method": "PUT",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"model\":\"a--b\",\"ancestry\":\"dwarf\"}",
+   "verdict": {
+    "ok": false,
+    "status": 405,
+    "reason": "a change is a POST"
+   }
+  },
+  {
+   "method": "PUT",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "[]",
+   "verdict": {
+    "ok": false,
+    "status": 405,
+    "reason": "a change is a POST"
+   }
+  },
+  {
+   "method": "PUT",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "5",
+   "verdict": {
+    "ok": false,
+    "status": 405,
+    "reason": "a change is a POST"
+   }
+  },
+  {
+   "method": "PUT",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "null",
+   "verdict": {
+    "ok": false,
+    "status": 405,
+    "reason": "a change is a POST"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"model\":\"quim\",\"ancestry\":\"dwarf\"}",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "not sent by the page"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"model\":\"quim\",\"ancestry\":null}",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "not sent by the page"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"model\":\"quim\"}",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "not sent by the page"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"model\":\"Quim\",\"ancestry\":\"dwarf\"}",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "not sent by the page"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"model\":\"quim\",\"ancestry\":\"Dwarf\"}",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "not sent by the page"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"model\":\"quim\",\"ancestry\":5}",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "not sent by the page"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"model\":5,\"ancestry\":\"dwarf\"}",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "not sent by the page"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"ancestry\":\"dwarf\"}",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "not sent by the page"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"model\":\"-quim\",\"ancestry\":\"dwarf\"}",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "not sent by the page"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"model\":\"a--b\",\"ancestry\":\"dwarf\"}",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "not sent by the page"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "[]",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "not sent by the page"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "5",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "not sent by the page"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "null",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "not sent by the page"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "https://elsewhere.example",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"model\":\"quim\",\"ancestry\":\"dwarf\"}",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "sent from another origin"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "https://elsewhere.example",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"model\":\"quim\",\"ancestry\":null}",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "sent from another origin"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "https://elsewhere.example",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"model\":\"quim\"}",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "sent from another origin"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "https://elsewhere.example",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"model\":\"Quim\",\"ancestry\":\"dwarf\"}",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "sent from another origin"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "https://elsewhere.example",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"model\":\"quim\",\"ancestry\":\"Dwarf\"}",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "sent from another origin"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "https://elsewhere.example",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"model\":\"quim\",\"ancestry\":5}",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "sent from another origin"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "https://elsewhere.example",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"model\":5,\"ancestry\":\"dwarf\"}",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "sent from another origin"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "https://elsewhere.example",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"ancestry\":\"dwarf\"}",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "sent from another origin"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "https://elsewhere.example",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"model\":\"-quim\",\"ancestry\":\"dwarf\"}",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "sent from another origin"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "https://elsewhere.example",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"model\":\"a--b\",\"ancestry\":\"dwarf\"}",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "sent from another origin"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "https://elsewhere.example",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "[]",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "sent from another origin"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "https://elsewhere.example",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "5",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "sent from another origin"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "https://elsewhere.example",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "null",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "sent from another origin"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1"
+   },
+   "body": "{\"model\":\"quim\",\"ancestry\":\"dwarf\"}",
+   "verdict": {
+    "ok": true,
+    "model": "quim",
+    "ancestry": "dwarf"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1"
+   },
+   "body": "{\"model\":\"quim\",\"ancestry\":null}",
+   "verdict": {
+    "ok": true,
+    "model": "quim",
+    "ancestry": null
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1"
+   },
+   "body": "{\"model\":\"quim\"}",
+   "verdict": {
+    "ok": false,
+    "status": 422,
+    "reason": "the ancestry is not an id, or nothing"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1"
+   },
+   "body": "{\"model\":\"Quim\",\"ancestry\":\"dwarf\"}",
+   "verdict": {
+    "ok": false,
+    "status": 422,
+    "reason": "no model id"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1"
+   },
+   "body": "{\"model\":\"quim\",\"ancestry\":\"Dwarf\"}",
+   "verdict": {
+    "ok": false,
+    "status": 422,
+    "reason": "the ancestry is not an id, or nothing"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1"
+   },
+   "body": "{\"model\":\"quim\",\"ancestry\":5}",
+   "verdict": {
+    "ok": false,
+    "status": 422,
+    "reason": "the ancestry is not an id, or nothing"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1"
+   },
+   "body": "{\"model\":5,\"ancestry\":\"dwarf\"}",
+   "verdict": {
+    "ok": false,
+    "status": 422,
+    "reason": "no model id"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1"
+   },
+   "body": "{\"ancestry\":\"dwarf\"}",
+   "verdict": {
+    "ok": false,
+    "status": 422,
+    "reason": "no model id"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1"
+   },
+   "body": "{\"model\":\"-quim\",\"ancestry\":\"dwarf\"}",
+   "verdict": {
+    "ok": false,
+    "status": 422,
+    "reason": "no model id"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1"
+   },
+   "body": "{\"model\":\"a--b\",\"ancestry\":\"dwarf\"}",
+   "verdict": {
+    "ok": false,
+    "status": 422,
+    "reason": "no model id"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1"
+   },
+   "body": "[]",
+   "verdict": {
+    "ok": false,
+    "status": 422,
+    "reason": "no model id"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1"
+   },
+   "body": "5",
+   "verdict": {
+    "ok": false,
+    "status": 422,
+    "reason": "no model id"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1"
+   },
+   "body": "null",
+   "verdict": {
+    "ok": false,
+    "status": 422,
+    "reason": "no model id"
+   }
+  }
+ ],
+ "taken": [
+  "quim",
+  "arty"
+ ],
+ "add": [
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "name": "Stone Golem.glb",
+   "hex": "676c544602000000",
+   "verdict": {
+    "ok": true,
+    "id": "stone-golem",
+    "file": "stone-golem.glb"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "name": "fox.GLB",
+   "hex": "676c544602000000",
+   "verdict": {
+    "ok": true,
+    "id": "fox",
+    "file": "fox.glb"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "name": "Quim.glb",
+   "hex": "676c544602000000",
+   "verdict": {
+    "ok": false,
+    "status": 409,
+    "reason": "the engine already has a model called quim"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "name": "quim.glb",
+   "hex": "676c544602000000",
+   "verdict": {
+    "ok": false,
+    "status": 409,
+    "reason": "the engine already has a model called quim"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "name": "fox.gltf",
+   "hex": "676c544602000000",
+   "verdict": {
+    "ok": false,
+    "status": 422,
+    "reason": "only a .glb can be added to the engine"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "name": "fox",
+   "hex": "676c544602000000",
+   "verdict": {
+    "ok": false,
+    "status": 422,
+    "reason": "only a .glb can be added to the engine"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "name": null,
+   "hex": "676c544602000000",
+   "verdict": {
+    "ok": false,
+    "status": 422,
+    "reason": "only a .glb can be added to the engine"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "name": "--.glb",
+   "hex": "676c544602000000",
+   "verdict": {
+    "ok": false,
+    "status": 422,
+    "reason": "only a .glb can be added to the engine"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "name": "fox.glb",
+   "hex": "89504e47",
+   "verdict": {
+    "ok": false,
+    "status": 422,
+    "reason": "not a binary glTF file"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "name": "fox.glb",
+   "hex": "676c54",
+   "verdict": {
+    "ok": false,
+    "status": 422,
+    "reason": "not a binary glTF file"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "name": "fox.glb",
+   "hex": "",
+   "verdict": {
+    "ok": false,
+    "status": 422,
+    "reason": "not a binary glTF file"
+   }
+  },
+  {
+   "method": "GET",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "name": "Stone Golem.glb",
+   "hex": "676c544602000000",
+   "verdict": {
+    "ok": false,
+    "status": 405,
+    "reason": "an upload is a POST"
+   }
+  },
+  {
+   "method": "GET",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "name": "fox.GLB",
+   "hex": "676c544602000000",
+   "verdict": {
+    "ok": false,
+    "status": 405,
+    "reason": "an upload is a POST"
+   }
+  },
+  {
+   "method": "GET",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "name": "Quim.glb",
+   "hex": "676c544602000000",
+   "verdict": {
+    "ok": false,
+    "status": 405,
+    "reason": "an upload is a POST"
+   }
+  },
+  {
+   "method": "GET",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "name": "quim.glb",
+   "hex": "676c544602000000",
+   "verdict": {
+    "ok": false,
+    "status": 405,
+    "reason": "an upload is a POST"
+   }
+  },
+  {
+   "method": "GET",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "name": "fox.gltf",
+   "hex": "676c544602000000",
+   "verdict": {
+    "ok": false,
+    "status": 405,
+    "reason": "an upload is a POST"
+   }
+  },
+  {
+   "method": "GET",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "name": "fox",
+   "hex": "676c544602000000",
+   "verdict": {
+    "ok": false,
+    "status": 405,
+    "reason": "an upload is a POST"
+   }
+  },
+  {
+   "method": "GET",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "name": null,
+   "hex": "676c544602000000",
+   "verdict": {
+    "ok": false,
+    "status": 405,
+    "reason": "an upload is a POST"
+   }
+  },
+  {
+   "method": "GET",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "name": "--.glb",
+   "hex": "676c544602000000",
+   "verdict": {
+    "ok": false,
+    "status": 405,
+    "reason": "an upload is a POST"
+   }
+  },
+  {
+   "method": "GET",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "name": "fox.glb",
+   "hex": "89504e47",
+   "verdict": {
+    "ok": false,
+    "status": 405,
+    "reason": "an upload is a POST"
+   }
+  },
+  {
+   "method": "GET",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "name": "fox.glb",
+   "hex": "676c54",
+   "verdict": {
+    "ok": false,
+    "status": 405,
+    "reason": "an upload is a POST"
+   }
+  },
+  {
+   "method": "GET",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "name": "fox.glb",
+   "hex": "",
+   "verdict": {
+    "ok": false,
+    "status": 405,
+    "reason": "an upload is a POST"
+   }
+  },
+  {
+   "method": "PUT",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "name": "Stone Golem.glb",
+   "hex": "676c544602000000",
+   "verdict": {
+    "ok": false,
+    "status": 405,
+    "reason": "an upload is a POST"
+   }
+  },
+  {
+   "method": "PUT",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "name": "fox.GLB",
+   "hex": "676c544602000000",
+   "verdict": {
+    "ok": false,
+    "status": 405,
+    "reason": "an upload is a POST"
+   }
+  },
+  {
+   "method": "PUT",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "name": "Quim.glb",
+   "hex": "676c544602000000",
+   "verdict": {
+    "ok": false,
+    "status": 405,
+    "reason": "an upload is a POST"
+   }
+  },
+  {
+   "method": "PUT",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "name": "quim.glb",
+   "hex": "676c544602000000",
+   "verdict": {
+    "ok": false,
+    "status": 405,
+    "reason": "an upload is a POST"
+   }
+  },
+  {
+   "method": "PUT",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "name": "fox.gltf",
+   "hex": "676c544602000000",
+   "verdict": {
+    "ok": false,
+    "status": 405,
+    "reason": "an upload is a POST"
+   }
+  },
+  {
+   "method": "PUT",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "name": "fox",
+   "hex": "676c544602000000",
+   "verdict": {
+    "ok": false,
+    "status": 405,
+    "reason": "an upload is a POST"
+   }
+  },
+  {
+   "method": "PUT",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "name": null,
+   "hex": "676c544602000000",
+   "verdict": {
+    "ok": false,
+    "status": 405,
+    "reason": "an upload is a POST"
+   }
+  },
+  {
+   "method": "PUT",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "name": "--.glb",
+   "hex": "676c544602000000",
+   "verdict": {
+    "ok": false,
+    "status": 405,
+    "reason": "an upload is a POST"
+   }
+  },
+  {
+   "method": "PUT",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "name": "fox.glb",
+   "hex": "89504e47",
+   "verdict": {
+    "ok": false,
+    "status": 405,
+    "reason": "an upload is a POST"
+   }
+  },
+  {
+   "method": "PUT",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "name": "fox.glb",
+   "hex": "676c54",
+   "verdict": {
+    "ok": false,
+    "status": 405,
+    "reason": "an upload is a POST"
+   }
+  },
+  {
+   "method": "PUT",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "name": "fox.glb",
+   "hex": "",
+   "verdict": {
+    "ok": false,
+    "status": 405,
+    "reason": "an upload is a POST"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "name": "Stone Golem.glb",
+   "hex": "676c544602000000",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "not sent by the page"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "name": "fox.GLB",
+   "hex": "676c544602000000",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "not sent by the page"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "name": "Quim.glb",
+   "hex": "676c544602000000",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "not sent by the page"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "name": "quim.glb",
+   "hex": "676c544602000000",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "not sent by the page"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "name": "fox.gltf",
+   "hex": "676c544602000000",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "not sent by the page"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "name": "fox",
+   "hex": "676c544602000000",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "not sent by the page"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "name": null,
+   "hex": "676c544602000000",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "not sent by the page"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "name": "--.glb",
+   "hex": "676c544602000000",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "not sent by the page"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "name": "fox.glb",
+   "hex": "89504e47",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "not sent by the page"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "name": "fox.glb",
+   "hex": "676c54",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "not sent by the page"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "name": "fox.glb",
+   "hex": "",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "not sent by the page"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "https://elsewhere.example",
+    "host": "127.0.0.1:8420"
+   },
+   "name": "Stone Golem.glb",
+   "hex": "676c544602000000",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "sent from another origin"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "https://elsewhere.example",
+    "host": "127.0.0.1:8420"
+   },
+   "name": "fox.GLB",
+   "hex": "676c544602000000",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "sent from another origin"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "https://elsewhere.example",
+    "host": "127.0.0.1:8420"
+   },
+   "name": "Quim.glb",
+   "hex": "676c544602000000",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "sent from another origin"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "https://elsewhere.example",
+    "host": "127.0.0.1:8420"
+   },
+   "name": "quim.glb",
+   "hex": "676c544602000000",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "sent from another origin"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "https://elsewhere.example",
+    "host": "127.0.0.1:8420"
+   },
+   "name": "fox.gltf",
+   "hex": "676c544602000000",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "sent from another origin"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "https://elsewhere.example",
+    "host": "127.0.0.1:8420"
+   },
+   "name": "fox",
+   "hex": "676c544602000000",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "sent from another origin"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "https://elsewhere.example",
+    "host": "127.0.0.1:8420"
+   },
+   "name": null,
+   "hex": "676c544602000000",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "sent from another origin"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "https://elsewhere.example",
+    "host": "127.0.0.1:8420"
+   },
+   "name": "--.glb",
+   "hex": "676c544602000000",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "sent from another origin"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "https://elsewhere.example",
+    "host": "127.0.0.1:8420"
+   },
+   "name": "fox.glb",
+   "hex": "89504e47",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "sent from another origin"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "https://elsewhere.example",
+    "host": "127.0.0.1:8420"
+   },
+   "name": "fox.glb",
+   "hex": "676c54",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "sent from another origin"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "https://elsewhere.example",
+    "host": "127.0.0.1:8420"
+   },
+   "name": "fox.glb",
+   "hex": "",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "sent from another origin"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1"
+   },
+   "name": "Stone Golem.glb",
+   "hex": "676c544602000000",
+   "verdict": {
+    "ok": true,
+    "id": "stone-golem",
+    "file": "stone-golem.glb"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1"
+   },
+   "name": "fox.GLB",
+   "hex": "676c544602000000",
+   "verdict": {
+    "ok": true,
+    "id": "fox",
+    "file": "fox.glb"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1"
+   },
+   "name": "Quim.glb",
+   "hex": "676c544602000000",
+   "verdict": {
+    "ok": false,
+    "status": 409,
+    "reason": "the engine already has a model called quim"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1"
+   },
+   "name": "quim.glb",
+   "hex": "676c544602000000",
+   "verdict": {
+    "ok": false,
+    "status": 409,
+    "reason": "the engine already has a model called quim"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1"
+   },
+   "name": "fox.gltf",
+   "hex": "676c544602000000",
+   "verdict": {
+    "ok": false,
+    "status": 422,
+    "reason": "only a .glb can be added to the engine"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1"
+   },
+   "name": "fox",
+   "hex": "676c544602000000",
+   "verdict": {
+    "ok": false,
+    "status": 422,
+    "reason": "only a .glb can be added to the engine"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1"
+   },
+   "name": null,
+   "hex": "676c544602000000",
+   "verdict": {
+    "ok": false,
+    "status": 422,
+    "reason": "only a .glb can be added to the engine"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1"
+   },
+   "name": "--.glb",
+   "hex": "676c544602000000",
+   "verdict": {
+    "ok": false,
+    "status": 422,
+    "reason": "only a .glb can be added to the engine"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1"
+   },
+   "name": "fox.glb",
+   "hex": "89504e47",
+   "verdict": {
+    "ok": false,
+    "status": 422,
+    "reason": "not a binary glTF file"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1"
+   },
+   "name": "fox.glb",
+   "hex": "676c54",
+   "verdict": {
+    "ok": false,
+    "status": 422,
+    "reason": "not a binary glTF file"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1"
+   },
+   "name": "fox.glb",
+   "hex": "",
+   "verdict": {
+    "ok": false,
+    "status": 422,
+    "reason": "not a binary glTF file"
+   }
+  }
+ ],
+ "folder": [
+  "Quim.glb",
+  "arty.glb",
+  "Arty2.GLB",
+  "banner-prop.glb",
+  "Female Tortle.glb",
+  "notes.txt",
+  "Zed.gltf",
+  "éclair.glb",
+  "b.glb",
+  "B.glb"
+ ],
+ "shipped": [
+  {
+   "id": "arty2",
+   "url": "/models/Arty2.GLB",
+   "scale": 1
+  },
+  {
+   "id": "female-tortle",
+   "url": "/models/Female Tortle.glb",
+   "scale": 1,
+   "ancestry": "galapa"
+  },
+  {
+   "id": "quim",
+   "url": "/models/Quim.glb",
+   "scale": 1,
+   "ancestry": "dwarf"
+  },
+  {
+   "id": "zed",
+   "url": "/models/Zed.gltf",
+   "scale": 1
+  },
+  {
+   "id": "arty",
+   "url": "/models/arty.glb",
+   "scale": 1
+  },
+  {
+   "id": "b",
+   "url": "/models/b.glb",
+   "scale": 1
+  },
+  {
+   "id": "banner-prop",
+   "url": "/models/banner-prop.glb",
+   "scale": 1
+  },
+  {
+   "id": "clair",
+   "url": "/models/éclair.glb",
+   "scale": 1
+  }
+ ],
+ "noFolder": []
+}

@@ -33,11 +33,12 @@ two thirds.
 | Characters | SRD classes/ancestries/communities/armor/weapons; sheets deriving the real numbers |
 | Scripting | One schema for conditions and effects; a stepper that pauses for input |
 | Interaction | Use a thing: keys, locked text, an action roll, effects and prose per outcome |
-| Editor | Terrain/height/props/objects/enemies/triggers/spawns, undo, validation, JSON save+load |
+| Editor | Terrain/height/props/objects/enemies/triggers/spawns, creatures of the project's own (copied from one, stat block edited; features not yet), undo, validation, JSON save+load |
 | UI | Narrative log with tone, the conversation panel, and the roll prompt a script raises |
 | Campaign | Two scenes, travel between them, and state that outlives a room |
 | Saving | A campaign put down and picked up: rooms, pack, flags, and the dice position |
 | Quests | Start, tick, finish; a journal; a demo quest across two rooms |
+| Accounts & store | Sign in on the dev server, each player's games and saves their own; a store of published art where creators show their work - How I Made It and Process Proof - and are marked AI until they do, with a Human-Crafted Authenticity vote on work shown; for sale only with the work shown and never AI generated (no payments yet; dev server only); every engine model listed, and Get puts a model into the player's own models, which every project they open has and which a project they open adds to on the fly |
 | Presentation | Orbit/pan/zoom camera, hover cursor, party HUD with pips, dice read out |
 | Progression | Tiered level-ups with recorded advancements, subclasses, domain cards, multiclass |
 | Equipping | Weapons and armor from the pack onto a character, reversible, pools reconciled |
@@ -152,6 +153,13 @@ Multiclass, the last two costing both picks), or from what the previous tier's s
 unmarked; one new domain card per level from the character's domains at or below their level; at
 levels 2, 5 and 8 a new Experience and +1 Proficiency; trait marks cleared at 5 and 8; multiclass
 opens one domain of the second class. A plan is legal or nothing happens.
+
+**The Proficiency box counts** (fixed 29 September 2026, found porting it to Rust). It used to cost
+both picks and add nothing: `levelUp` added `takenNow.get('proficiency')`, a key its `tier:kind` map
+never held. Now a tier achievement's +1 goes onto the sheet and the box, like a Hit Point box, is
+counted where the sheet is derived (`progressionBonuses`), so a save that took it before the fix reads
+right without being touched. Scripts read the derived number too (`proficiencyOf`), which also brings
+a card's Proficiency bonus into "d8 using your Proficiency".
 
 There are no experience points — the GM says when — so levelling is a `levelUp` **effect** a
 designer places as a milestone; the demo grants one when the strongbox opens. The HUD offers a
@@ -426,6 +434,12 @@ inspect. Save and load a project as JSON. The placer stamps kinds of tile that a
 chosen level, and a walk over the cell reads whichever kind ends up on top. Ground is the substrate a
 cell already holds — still drawn, still saved, edited in the Tiles workspace — and is no longer
 painted. Elevation stays its own tool because low walls and tall walls play differently.
+
+**A project's own structures load** (fixed 30 September 2026, found porting the documents to Rust).
+Whether a piece's structure exists was asked of a registry that only building a grid for a project
+sets, so on a fresh page a project that declared a structure and built with it was refused ("No
+structure called ..."), and the demo opened in its place. The project's schema asks it now, of the
+engine's four structures and the project's own.
 
 A **scene list** sits in the panel: switch, add, rename, delete, and choose which scene the
 project opens on. Editing a scene is decoupled from playing one — browsing rooms in the editor

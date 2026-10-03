@@ -1,0 +1,8 @@
+/* The note that says the art under the pointer was made with AI (AiNote.tsx): red words - yellow for AI
+   assisted - faded, in a serif hand, in the bottom-right corner, no box round them, over everything and
+   in the way of nothing. The same in the game and the editor. A dark shadow keeps them legible over a
+   bright board. */
+.ai-note{position:fixed;right:16px;bottom:12px;z-index:9999;pointer-events:none;
+  font:italic 600 14px/1.25 'Libre Baskerville',Georgia,'Times New Roman',serif;letter-spacing:.02em;color:#e0352b;
+  opacity:.82;text-shadow:0 1px 2px rgba(0,0,0,.55)}
+.ai-note.is-ai-assisted{color:#e8b62a}

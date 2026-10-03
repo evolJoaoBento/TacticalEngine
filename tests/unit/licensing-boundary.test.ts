@@ -278,7 +278,7 @@ describe('the marks stay out of the repository', () => {
 
   it('stores the paired pools as good and bad, never the old terms', () => {
     /**
-     * Five files name the old terms on purpose, and each would be broken by "fixing" it:
+     * Six files name the old terms on purpose, and each would be broken by "fixing" it:
      *
      *   migrate.ts / migrate.test.ts   the version-1 -> 2 migration reads the old field names and
      *                                  its test tables them beside the new ones. Renaming these
@@ -286,6 +286,8 @@ describe('the marks stay out of the repository', () => {
      *   legacy-import.ts / .test.ts    OUTCOME_KEYS maps the prototype's own document keys, which
      *                                  `legacy/` never changes. Only their values moved.
      *   pack/schema.test.ts            asserts `costsFear` is ABSENT from a parsed block.
+     *   scene.golden.test.ts           the Rust port's migration fixture: documents written in the
+     *                                  old terms, for the Rust migration to rename as this one does.
      */
     const DELIBERATE = [
       'src/engine/scene/migrate.ts',
@@ -293,6 +295,7 @@ describe('the marks stay out of the repository', () => {
       'src/engine/scene/legacy-import.ts',
       'src/engine/scene/legacy-import.test.ts',
       'src/engine/content/pack/schema.test.ts',
+      'src/engine/scene/scene.golden.test.ts',
       // This file: the list below has to spell every token it forbids.
       'tests/unit/licensing-boundary.test.ts',
     ];

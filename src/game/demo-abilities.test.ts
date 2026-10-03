@@ -455,7 +455,7 @@ describe("the GM's turn", () => {
     const hpBefore = demo.state.entity('kara')!.hitPoints.marked;
     endTurn(demo);
     expect(husk.conditions.has('restrained')).toBe(false);
-    expect(demo.log.map((l) => l.text)).toContain(`${theNameOf(demo, foe.id)} shakes off restrained.`);
+    expect(demo.log.map((l) => l.text)).toContain(`${theNameOf(demo, foe.id)} shakes off Restrained.`);
     // It did not also attack.
     expect(demo.log.some((l) => l.text.includes(`${foeName(demo, foe.id)}'s`) && l.text.includes('Quim'))).toBe(false);
     expect(demo.state.entity('kara')!.hitPoints.marked).toBe(hpBefore);
@@ -511,7 +511,7 @@ describe('what holds an adversary', () => {
     endTurn(demo);
     expect(husk.conditions.has('asleep')).toBe(false);
     expect(demo.state.bad.value).toBe(0);
-    expect(demo.log.map((l) => l.text)).toContain(`The GM spends a Shadow: ${theNameOf(demo, foe.id, true)} shakes off asleep.`);
+    expect(demo.log.map((l) => l.text)).toContain(`The GM spends a Shadow: ${theNameOf(demo, foe.id, true)} shakes off Asleep.`);
   });
 
   it('a hit that marks a Hit Point wakes a sleeper', () => {
@@ -554,6 +554,16 @@ describe('stepping back from a roll', () => {
     expect(demo.log.map((l) => l.text)).toContain('Violet steps back from Bladefall; its cost is returned.');
     expect(demo.encounter!.log.some((e) => e.kind === 'acted' && e.id === 'finn')).toBe(false);
     expect(demo.encounter!.canAct('finn')).toBe(true);
+  });
+
+  it('names a condition a rest ends as the table reads it, not by the id it is kept under', () => {
+    const demo = scene();
+    expect(demo.world.applyCondition('kara', 'vulnerable', 'rest')).toBe(true);
+    expect(rest(demo, 'short', { moves: {} }).ok).toBe(true);
+    expect(demo.state.entity('kara')!.conditions.has('vulnerable')).toBe(false);
+    const said = demo.log.map((l) => l.text).filter((t) => t.includes('is no longer'));
+    expect(said).toEqual([`${nameOf(demo, 'kara')} is no longer ${demo.world.conditionName('vulnerable')}.`]);
+    expect(said[0]).not.toContain('vulnerable.');
   });
 
   it('gives a once-per-rest use back when the choice it opens with is cancelled', () => {
@@ -781,5 +791,20 @@ describe('the call and the step', () => {
     expect(useAbility(demo, 'finn', 'smoke-step', [], { point: spot }).status).toBe('done');
     expect(finn.tile).toBe(spot);
     expect(demo.log.some((line) => line.text.includes('somewhere else'))).toBe(true);
+  });
+});
+
+describe('Proficiency, as a script reads it', () => {
+  it('is the derived number: a Proficiency box recorded on the sheet counts', () => {
+    const demo = scene();
+    const sheet = demo.sheets.get('kara')!;
+    expect(demo.world.traitValue('kara', 'proficiency')).toBe(sheet.proficiency);
+    // A level-5 record with the box ticked; the sheet's own number is left as it was saved.
+    const trained = { ...sheet, level: 5, levels: [{ level: 5, advancements: [{ kind: 'proficiency' as const }], domainCard: 'none' }] };
+    demo.sheets.set('kara', trained);
+    demo.characters.set('kara', deriveCharacter(trained, characterContentFor(demo.project), demo.project.abilities).character);
+    refreshWorld(demo);
+    expect(demo.world.traitValue('kara', 'proficiency')).toBe(sheet.proficiency + 1);
+    expect(demo.world.proficiencyOf('kara')).toBe(demo.characters.get('kara')!.proficiency);
   });
 });

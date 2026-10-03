@@ -20,6 +20,7 @@ import type { EditorSession } from '../session';
 import { defaultPalette, tileIdTaken, tilesStandingOn, type TileType } from '../terrain-edits';
 import { JumpRulesEditor } from './JumpRulesEditor';
 import { Icon } from './icons';
+import { AiBadge, artMarkHandlers } from './AiMark';
 
 /** The back arrow every workspace returns to the board with, before its title, styled like the others'. */
 const CLOSE_BUTTON: Record<string, string | number> = {
@@ -118,7 +119,10 @@ export function TilesWorkspace(props: {
                   background: type.color ?? NEW_COLOR,
                 }}
               />
-              {type.name !== '' ? type.name : type.id}{' '}
+              <span {...artMarkHandlers(type.model === undefined ? null : `model:${type.model}`)}>
+                {type.name !== '' ? type.name : type.id}{' '}
+                <AiBadge art={type.model === undefined ? null : `model:${type.model}`} inline />
+              </span>{' '}
               <small>{type.passable ? `costs ${type.cost}` : 'impassable'}</small>
             </button>
             <button

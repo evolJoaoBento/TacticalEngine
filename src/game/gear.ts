@@ -150,6 +150,20 @@ export function gearCard(demo: Pick<DemoScene, 'project'>, itemId: string): Gear
   };
 }
 
+/**
+ * A weapon or armour of the catalogue, as its card, before there is a project to carry it: New Game's
+ * Equipment deck (`ui/NewGame.tsx`). The same card the binder and the shops draw. Null for an id the
+ * catalogue does not have.
+ */
+export function catalogueCard(contentId: string): GearCard | null {
+  const content = characterContentFor();
+  const nothing = { project: { items: [] } } as unknown as Pick<DemoScene, 'project'>;
+  const weapon = content.weapons.get(contentId);
+  if (weapon !== undefined) return weaponCard(weapon, itemForGear(nothing, contentId));
+  const armor = content.armors.get(contentId);
+  return armor === undefined ? null : armorCard(armor, itemForGear(nothing, contentId));
+}
+
 /** A character's three places and the party's pack, as cards. */
 export function gearView(demo: Pick<DemoScene, 'project' | 'sheets' | 'scenario'>, characterId: string): GearView {
   const sheet = demo.sheets.get(characterId);

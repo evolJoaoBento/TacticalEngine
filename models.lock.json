@@ -1,7 +1,7 @@
 {
   "repo": "JunjiBento/tactical-engine-models",
   "repoType": "model",
-  "revision": "dc3d5fa94b27526865715674ec7e2a37285c7a87",
+  "revision": "433701e359fa7d9d5382b9cd6b971d5faac325c1",
   "files": [
     {
       "path": "Arty.glb",
@@ -69,9 +69,39 @@
       "sha256": "7c15dffa986f69e4db5db309dfbe93f1b272d6a3957192c23d4a3c7685abb966"
     },
     {
+      "path": "faerie-female.glb",
+      "bytes": 2594076,
+      "sha256": "f3034379cdd35134fd52887430865ef9318af40d81be4574c15d9f540aab1282"
+    },
+    {
+      "path": "faerie-male.glb",
+      "bytes": 1955828,
+      "sha256": "e72c4d0e013b5fd55f0f7106493c45061e787aac020d68d72cd6bd2f1a81d856"
+    },
+    {
+      "path": "faun-female.glb",
+      "bytes": 3177820,
+      "sha256": "1a3c99959f3831d51b901a046ff682dec021ea2e0e88cf6f391b68107f647d64"
+    },
+    {
+      "path": "faun-male.glb",
+      "bytes": 2615952,
+      "sha256": "35d4b4f2d347f3b10beb6520ec00b1f0df0a4564d0e9492dd535ac912f34d5c5"
+    },
+    {
       "path": "fen-lurker.glb",
       "bytes": 3160004,
       "sha256": "907d6bbc744bc069a7035e8cb6bc824da2a70263ba2d4b8447fdeb7786453962"
+    },
+    {
+      "path": "fungril-female.glb",
+      "bytes": 3025788,
+      "sha256": "9844ed058b78747ec018eecc2506765e625924925fb2a41320fc1c08e1b170aa"
+    },
+    {
+      "path": "fungril-male.glb",
+      "bytes": 3133564,
+      "sha256": "993a508faeed94667e50cb7e5607e9fe8c4728181a5e8406ff46fedd311c429a"
     },
     {
       "path": "Ganja.glb",
@@ -122,6 +152,16 @@
       "path": "Quim.glb",
       "bytes": 4124176,
       "sha256": "a80fecc9b0f62cd9e3f50cb6728874f480d5f7d894bc429670e316c224c33ddb"
+    },
+    {
+      "path": "ribbet-female.glb",
+      "bytes": 2819872,
+      "sha256": "435be9d92815d3a429f1a13a25a2d12b43169c7b819c96d0b8cad0278e64e60f"
+    },
+    {
+      "path": "ribbet-male.glb",
+      "bytes": 2474972,
+      "sha256": "276c0d0c977baf4c5cfd5e3c42c239ed9c21afdbb2fa130a15b832067cec77de"
     },
     {
       "path": "rock-prop.glb",

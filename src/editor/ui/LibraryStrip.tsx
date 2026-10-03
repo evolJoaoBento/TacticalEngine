@@ -11,6 +11,8 @@
 import { useState } from 'preact/hooks';
 import { filterLibrary, type LibraryItem, type LibraryTab } from '../library';
 import { Icon } from './icons';
+import { AiBadge, artMarkHandlers } from './AiMark';
+import type { ArtKey } from '../../game/art-provenance';
 
 /** What the strip needs to draw a mode's tabs and report a pick. */
 export interface LibraryStripProps {
@@ -27,6 +29,8 @@ export interface LibraryStripProps {
    * is of the body the board draws in place of a model the item does not have yet.
    */
   thumbnail?: (item: LibraryItem) => { url: string; standIn: boolean } | null;
+  /** The art an item's picture shows, for its AI badge (`AiMark.tsx`); none for a flat colour. */
+  artKey?: (item: LibraryItem) => ArtKey | null;
 }
 
 export function LibraryStrip(props: LibraryStripProps): preact.JSX.Element {
@@ -95,8 +99,9 @@ export function LibraryStrip(props: LibraryStripProps): preact.JSX.Element {
             title={item.detail === undefined ? item.label : `${item.label} · ${item.detail}`}
             onClick={() => { setTabId(item.tab); setQuery(''); props.onPick(item); }}
           >
-            <span class="ph-thumb" style={item.swatch === undefined ? undefined : { background: item.swatch }}>
+            <span class="ph-thumb" style={item.swatch === undefined ? undefined : { background: item.swatch }} {...artMarkHandlers(props.artKey?.(item) ?? null)}>
               {face(item)}
+              <AiBadge art={props.artKey?.(item) ?? null} />
             </span>
             <span class="ph-card-label">{item.label}</span>
             {item.detail === undefined ? null : <span class="ph-card-detail">{item.detail}</span>}

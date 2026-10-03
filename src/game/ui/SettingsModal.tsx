@@ -134,6 +134,10 @@ export function SettingsModal(props: SettingsModalProps = {}): preact.JSX.Elemen
           </section>
         ))}
         <p className="settings-foot">Kept in this browser, for every campaign played in it.</p>
+        {/* Back to New Game, Load Game and Edit Game: the page opens again on the menu. */}
+        <button type="button" className="play-btn settings-menu" data-testid="to-main-menu" onClick={() => window.location.assign(`${window.location.pathname}?menu`)}>
+          Main menu
+        </button>
       </div>
     </div>
   );

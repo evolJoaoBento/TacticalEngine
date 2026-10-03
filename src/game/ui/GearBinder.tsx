@@ -18,6 +18,7 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import type { CarriedCard, GearCard, GearView } from '../gear';
 import type { GearSlot } from '../equip';
 import { equipmentArt } from './equipment-art';
+import { artNoteHandlers } from './AiNote';
 import './gear.css';
 
 /** How far a press travels before it is a drag and not a click. */
@@ -40,7 +41,7 @@ export function GearFace({ card, className }: { card: GearCard; className?: stri
   const src = equipmentArt(card.card);
   const [failed, setFailed] = useState(false);
   if (src !== null && !failed) {
-    return <img className={`gear-face gear-picture ${className ?? ''}`} src={src} alt={card.name} draggable={false} onError={() => setFailed(true)} />;
+    return <img className={`gear-face gear-picture ${className ?? ''}`} src={src} alt={card.name} draggable={false} onError={() => setFailed(true)} {...artNoteHandlers(card.card === undefined ? null : `equipment:${card.card}`)} />;
   }
   return (
     <div className={`gear-face gear-drawn is-${card.kind} ${className ?? ''}`} aria-label={card.name}>

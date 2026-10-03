@@ -70,6 +70,7 @@ export function hudMembers(demo: DemoScene): HudMember[] {
       conditions: [...entity.conditions].map((c) => demo.world.conditionName(c)),
       canLevel: waiting.has(entity.id) && !inCombat(demo) && demo.pending === null && !aside.has(entity.id),
       gear: `${gearOf(demo, entity.id).weapon} · ${gearOf(demo, entity.id).armor}`,
+      model: sheet?.model ?? entity.id,
       group: demo.party.groupOf(entity.id).length > 1 ? groups.indexOf(demo.party.groupOf(entity.id)[0]!) : null,
       talking: aside.has(entity.id),
     };

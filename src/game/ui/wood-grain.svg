@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000" preserveAspectRatio="none">
+  <!-- New Game's table grain: noise stretched along the planks, lit from one side, and bent by the
+       same noise. The light is white so this is only light and shade: table.css lays it over the
+       table's own browns. It is drawn past every edge, so the bending never pulls in blank from
+       outside and fringes the edge of the table. -->
+  <filter id="grain" filterUnits="userSpaceOnUse" x="-100" y="-100" width="1800" height="1200">
+    <feTurbulence baseFrequency=".002 .02" numOctaves="9" result="n" />
+    <feDiffuseLighting surfaceScale="9" lighting-color="#fff">
+      <feDistantLight elevation="60" azimuth="-90" />
+    </feDiffuseLighting>
+    <feDisplacementMap in2="n" scale="50" />
+    <!-- Flat wood lit from 60 degrees is about 0.87 bright: moved a little under middle grey and the
+         spread about it cut to under half, so the grain only just lightens and darkens the table's own colour. -->
+    <feColorMatrix type="matrix" values="0.4 0 0 0 0.13  0 0.4 0 0 0.13  0 0 0.4 0 0.13  0 0 0 1 0" />
+  </filter>
+  <rect x="-100" y="-100" width="1800" height="1200" filter="url(#grain)" />
+</svg>

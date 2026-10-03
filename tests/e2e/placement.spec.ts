@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures';
 
 test('the right-side height ladder controls placement Z and follows the active tab', async ({ page }) => {
   await page.goto('/');
@@ -335,6 +335,9 @@ test('a prop previews before it is placed, is edited after, and its settings can
     window.__engine!.setMode('edit');
     window.__engine!.setTool('prop');
   });
+  // The page opens played, where the camera is leashed to whoever is selected; the editor starts from
+  // that view, so the whole room is framed before tiles across it are pointed at.
+  await page.keyboard.press('Home');
   const sizes = page.getByTestId('prop-spans');
   await sizes.locator('[data-span="4"]').click();
 

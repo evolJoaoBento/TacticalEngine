@@ -4,6 +4,186 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## Phase 4, slice 3: the page's own game's rules quarantined — done
+
+The page's bundle carries none of its own TypeScript game's rules: `GameTable` (`src/game/client.ts`) names a rule
+only as a type, `WasmGame` is given none, and `LocalGame` with the rules (`src/game/oracle/`) loads only in
+development and for the tests, the oracle the Rust is held to. A walk of the page's imports and a check of every
+build's bundle hold it. Next: the oracle deleted, when decided; the views reading the engine's board.
+
+## Phase 4, slice 2: the page's game filled from the engine's board — done
+
+`WasmGame` no longer plays anything in the page's own TypeScript game: the engine plays, and the page's game is
+stood where the engine's board says whenever it changed - the question shown from the board, the conversations
+set aside known by who is having them, the editor's ground kept, the board's pools taken. Next: the TypeScript
+play code quarantined out of the page's bundle.
+
+## Phase 4, slice 1: the engine always plays — done
+
+The engine built to WebAssembly is the page's game in a build as in development, and the builds compile it;
+the page's own TypeScript game plays only when development asks (`?engine=ts`, `VITE_ENGINE=ts`) while it is
+the oracle. Next: the page's game filled from the engine's board, then the TypeScript play code quarantined.
+
+## Phase 3: the server's game is the one the page plays — done
+
+`npm run test:e2e:server` runs the whole suite with its games played on a Rust server of its own - each test
+signed in to an account of its own, the page playing the engine with its own game the shadow, every intent
+held to the server's game - and it passes, 203 and nothing parted, as the default and engine modes do. The run
+found the rooms left behind missing from a board and the views' queues untold at a resync, both fixed. Next:
+the TypeScript game layer deleted, which means the views reading the engine's board.
+
+## A question the server's game holds, shown from its board — done
+
+A roll, a defender's choice or a conversation the server's game holds - after a parting, a reload or a
+connection back - is shown from the server's board (`src/game/wire.ts`, `shownFrom`), and the answer sent up
+and played there, not on the page; the page is stood where the server's board says after. A page reloaded
+mid-conversation comes back to it. Phase 3. Next: the server's game the one the page plays.
+
+## Saves on the server, and a game that comes back — done
+
+Signed in where the server plays the game beside the page, saves are the account's, in
+`data/users/<account>/saves/`, written by the server's game itself (`server/serve/src/saves.rs`,
+`src/game/account-saves.ts`); a browser's own slots move up the first time it signs in and stay where they
+were. A dropped connection is tried again, back to the game the server kept or a fresh one; a page reloaded
+comes back to where its game stood. Phase 3. Next: a question held on one side shown from the server's board.
+
+## The page plays beside the server — done
+
+In development, signed in, every game the page plays opens one on the server at `/__play` and is held to it
+(`src/game/wire.ts`): the page's dice go on from the server's seed, every intent is sent up as it is played
+and the server's answer and board held to the page's, a parting counted as the mirror's are and the page
+stood where the server's board says. Phase 3's slice 3d. Next: saves on the server, and a socket that comes
+back resuming its game.
+
+## The server plays games — done
+
+`/__play` (`server/serve/src/play.rs`): a websocket behind the session cookie, from the page's own origin, where
+each signed-in player's game is a thread of its own playing intents through the same face and dispatcher as
+the engine in the page (`engine::game::face`), the seed the server's; kept ten minutes after its socket
+closes, to be resumed. The dev server passes it through. Phase 3's slice 3c; 3d - the page talking to it - is
+next.
+
+## The page plays the Rust engine — done
+
+`WasmGame` (`src/game/wasm-game.ts`): with `?engine=wasm`, or `VITE_ENGINE=wasm` for a dev server, every intent is
+played by the engine built to WebAssembly and its answer is the page's, the page's own game played beside it
+as the views' model, held to it and restored from the engine's board where they part. The whole e2e suite
+passes that way and parts nowhere. Phase 3's slice 3b is done; 3c, the server's games, is next.
+
+## A game played in step beside the page's — done
+
+In development every intent the page's game is given, the engine built to WebAssembly is given too
+(`Session::dispatch`), and the two are held to each other after each one - the answer and the board
+(`Session::board`). The project's own code runs in the page's engine through the same prelude QuickJS runs on
+the server. The whole e2e suite runs with it on and parts nowhere. Phase 3's slice 3b, first half; the second,
+`WasmGame` - the page playing the engine itself - is next.
+
+## The Rust plays the page's timing — done
+
+`Session::animated` holds a fight a walk wakes until the tokens arrive, and a use or a talk until the walk up
+ends, as the page does; headless both happen at once, as before. Held to `server/fixtures/walk.json`'s
+animated sessions. Phase 3's slice 3a; 3b - the board in the engine, and `WasmGame` beside `LocalGame` - is
+next.
+
+## The page runs the Rust engine — done
+
+In development every question the pointer asks is put to the game and to a replica of it in the Rust
+engine built to WebAssembly (`src/game/shadow.ts`), and where they part is counted; `tests/e2e/replica.spec.ts`
+plays a fight and holds the count to nought. Players see the game's answers, as before. Phase 3's slice 2 is
+done; slice 3, the socket, is next.
+
+## The engine builds to WebAssembly — done
+
+`server/wasm` is the engine behind a C face that speaks JSON - `build`, `restore`, `ask` - imports nothing,
+and loads with a bare `WebAssembly.instantiate`. `npm run wasm` builds `public/wasm/engine.wasm`;
+`src/game/wasm-engine.ts` is the page's side, and its vitest asks the built file every step of
+`server/fixtures/replica.json`. Phase 3's slice 2b; 2c, the page asking it beside the game, is next.
+**Run `npm run wasm` after a Rust change**, or the vitest asks a stale engine.
+
+## A replica stands as the game it was sent — done
+
+`src/game/replica.ts` and `server/engine/src/game/replica.rs`: how the game stands after every intent, as a
+snapshot - the room, the scenario, the sheets, the party's control, the fight, the GM turn's spotlights, a
+question open - and a fresh Rust session stood up from it answering what the pointer asks exactly as the
+game does, held to `server/fixtures/replica.json`. Phase 3's slice 2a; 2b, the engine to WebAssembly
+behind a JSON face, is next.
+
+## A condition that ends is named — done
+
+A rest, a hit or a blow that ends a condition said so by the id it is kept under - "Kara is no longer
+kit-braced" - in the TypeScript and, faithfully, in the Rust. Both now name it as the table reads it
+(`conditionName`), as the line for a condition put on or taken off already did; `fight.json`, `ask.json`
+and `kit.json` were written again for the one line each. And `Party.alongTheLine`, private and called by
+nothing, is gone.
+
+## The page reaches the game through one seam — done
+
+`src/game/client.ts` is the one way `main.ts` touches the game: `game.board` to read, a method to do or ask
+anything, and the test driver's and the editor's hands as `LocalPowers`. Every method is the function it
+names, handed the game, so the e2e suite proving the page unchanged proves the seam. Phase 3's slice 1;
+slice 2, the engine to WebAssembly for what the pointer asks, is next.
+
+## Phase 2 is done; phase 3 is designed
+
+Every rule the page runs is in Rust and held to a fixture: an audit of `src/game/` found what had no Rust
+function of its own name ported under another, and the rest the page's - a walk's timing, input, what is
+drawn. Phase 3 is designed in `docs/SERVER.md` ("Phase 3, designed"): a walk cut short is the client's to say,
+saves move to the server, a game outlives its socket for a while, and the right-click panel is worked out
+in the page.
+Its first slice is a TypeScript refactor: one `GameClient` interface between the page and the game.
+
+## Saves in Rust — done
+
+`server/engine/src/game/save.rs` saves and loads a campaign as the page does: the save's schema and the
+snapshots it carries, why a save is refused now, the campaign as it stands and as text, and putting it back -
+refusals first, an old save migrated at the door, a member the project does not list taken into it, the room
+entered as it was left, the dice put back. Held to `server/fixtures/kit.json`, which carries the saves. The
+six-part game layer is done; an audit of a few play functions closes phase 2, and phase 3's design is next.
+
+## The kit in Rust — done
+
+`server/engine/src/game/kit.rs` runs what the party carries as the page does: the shops - buying, selling,
+what a seller pays, a limited line remembered - putting gear on and taking it off with the hands counted,
+the binder's cards, using an item, the loadout and the vault with a card recalled, rests short and long,
+the cards a stat block prints, and a level taken between fights. Held to `server/fixtures/kit.json`.
+
+## The action bar in Rust — done
+
+`server/engine/src/game/bar.rs` runs the action bar as the page does: a character's abilities in bar order,
+whom each may be aimed at, where a card aimed at the ground may land and whom it would catch, whether it can
+be used now and why not, and using it - the price paid, the script run, the action spent, the card put back
+when its roll is stepped away from - and tokens placed again when a rest or a fight's end refills them. Held
+to `server/fixtures/bar.json`. Part 5 is done; part 6, the shop, equipment and saves, is next.
+
+## The table is asked in Rust — done
+
+`server/engine/src/game/ask.rs` puts every question a fight asks a player as the page does, when the table
+is asked: how a hit is taken (the plans with what each leaves, the defender's own cards, an ally stepping in
+or making the GM roll again, a card on a miss), a card offered on a roll, the damage, a wound, a hit or a miss
+(queued one character at a time, a swing or a script held until it is answered), and the death move (Avoid
+Death, Blaze of Glory, Risk It All, a card instead). Held to `server/fixtures/ask.json`. The second of part
+5's three halves; the action bar is next.
+
+## The fight is played in Rust — done
+
+`server/engine/src/game/{turn,features,answer,swing,blow,fight}.rs` play a fight as the page does with
+nobody at the table asked: the GM's turn (spotlights while the Shadow lasts, Relentless, a feature worth
+using, a walk and a swing), the party's swing and the GM's, a stat block's features and reactions, the
+party's free cards (one that asks something waits as a prompt), wounds, rolls, riders, debts, ground that
+bites, countdowns, a creature's last word, and the death move (Avoid Death, its scar, a last stand). A
+question the table would be asked - a defence, a card, a death move - returns an error naming it. Held to
+`server/fixtures/fight.json`. The first of part 5's three halves; the questions are next.
+
+## The party walks, pushes and jumps in Rust — done
+
+`server/engine/src/game/{movement,leap,fight}.rs` walk the party as the page does, in a fight and out of
+one: a click's meaning, the walk and the trigger it crosses, the movement and push circles, closing on a
+thing or a target, the previews, and the rolled moves - a push past the circle and a jump, run-up, arc and
+landing - each waiting on its roll as a prompt. A fight begins (a trigger, a hostile turn, a journal),
+stops under a truce and is closed; every action in one is spent. What a fight answers - blows, deaths,
+countdowns, the GM's turn - returns an error naming it. Held to `server/fixtures/walk.json`. The game
+layer's fourth part done; the fight loop is next.
+
 ## The Combat workspace is Encounters, with a figure for its icon — done
 
 The editor's third mode reads **Encounters** on its tab and in its tooltip (`MODE_LABELS` in
@@ -11,6 +191,443 @@ The editor's third mode reads **Encounters** on its tab and in its tooltip (`MOD
 head and shoulders is already the creature tool's, on the same rail. Only what is shown changed:
 the mode's id is still `combat`, so `mode-combat`, the tool lists and every test that picks it are
 as they were. Older entries below still say Combat. Unit `editor/modes.test.ts`.
+
+## The things in a room are used in Rust, and its creatures talked to — done
+
+`server/engine/src/game/play.rs` uses a room's things and talks to its creatures as the page does, out of a
+fight: a thing used or refused, its prompt waiting until it is answered, conversations had and set aside,
+containers, portals and travel, and the journal written down and acted on. The fight's parts refuse with
+an error until the fight is ported. Held to `server/fixtures/play.json`. The first half of the game layer's
+fourth part; walking is next.
+
+## A game is played in Rust from a project — done
+
+`server/engine/src/game/` stands a game up from a project as `buildProjectScene` does and plays what
+happens between actions: travel and rooms remembered, the roster and pools, sheets written back, the party
+gathered, a save entered, a room made to agree with its edited document, and the log. The shipped content
+and the hooks are handed in. The world now shares its content rather than borrowing it. Held to
+`server/fixtures/session.json`. The third part of the game layer's six; movement, interaction and props are
+next.
+
+## The party moves in Rust — done
+
+`server/engine/src/scene/party.rs` is `Party` ported: selection, order, groups and held members, the ground
+a member reaches and covers, a walk planned, made and cut short, the followers down the leader's trail, and
+a walk stopped part-way. Held to `server/fixtures/party.json`. The second part of the game layer's six; the
+session built from a project is next.
+
+## A room stood up in Rust from its document — done
+
+`server/engine/src/scene/` builds a room from a scene document as the page does: the grid with its building
+layer and solid props, the play state with every creature and the party, the things that can be used,
+the trigger cells, a room grown and a game restored across it, and a use refused or run. Held to
+`server/fixtures/room.json` and to the demo's uses in `world.json`. The rest of the game layer's first part;
+the party is next.
+
+## Project files read in Rust, old ones brought up to date — done
+
+`server/engine/src/scene/document.rs` and `migrate.rs` are the scene and project documents and their
+migration ported, so the server reads a project file - an old one too - as the page does, issue for issue;
+a pack is migrated before it is read, where it was refused. Held to `server/fixtures/scene.json`. Found on
+the way: a project building with a structure of its own was refused on a fresh page; fixed on both sides.
+The first part of the game layer, whose six parts `docs/SERVER.md` lays out; a room stood up from its
+document is next.
+
+## Hooks run in QuickJS, and nothing is taped — done
+
+`server/hooks` (the `tactical-hooks` crate) runs a project's hooks in QuickJS behind the engine's `Hooks`
+trait, the engine lending each hook a reader over the world while it runs; the engine itself stays free of
+any JavaScript engine and builds to wasm32. A hook meets the `ctx` the browser builds, from the same code,
+in a runtime of its own with limits on memory, stack and work. Held to `server/fixtures/hooks.json` (72
+cases, read for read) and, with nothing taped, to every run the runner's fixture holds. Script is ported;
+the game layer is next.
+
+## The world scripts change is Rust's own — done
+
+`server/engine/src/script/world/` is `SceneScriptWorld` ported: what the runner and the conditions ask,
+and what a fight asks beyond them - modifiers, defences, reactions, attacks, damage, zones, countdowns,
+summons, walks - over the rest of the scene state, now ported too. Held to `server/fixtures/world.json`:
+the runner's 868 runs replayed against the real Rust world, every call and every step's changes held to
+the TypeScript's, and 30,285 probes on top; 93 of 93 deliberate mutations fail it. Hooks are the one
+part still taped - the fifth and last of script's parts, and next.
+
+## Scripts run in Rust, step for step — done
+
+`server/engine/src/script/runner.rs` runs a script as the TypeScript does - effect by effect, stopping
+at a prompt and resuming on its answer, with the same journal, counts, flags and dice - asking a
+`ScriptWorld` trait for everything it reads or changes. Held to a tape of a real world
+(`server/fixtures/runner.json`: 217 scripts, 868 runs, every kind of journal line) until the world is
+ported; hooks are taped, not run. The third of script's five parts; the world is next.
+
+## Conditions evaluate in Rust, question for question — done
+
+`server/engine/src/script/conditions.rs` evaluates a condition as the TypeScript does, asking a
+`ConditionContext` the same questions in the same order - held to a tape of a real world's answers
+(`server/fixtures/conditions.json`: 3,315 evaluations) until the world is ported. Marks, zones and
+countdown boards come with it. The second of script's five parts; the runner is next.
+
+## The effect vocabulary reads in Rust, in zod's own words — done
+
+`server/engine/src/script/schema.rs` is the script's schema ported - target selectors, conditions,
+effects, checks, choice options, and the walks through them - on the zod-alike (which gained lazy
+references, records and `null`). Held to `server/fixtures/script.json`: every selector, condition and
+effect the content carries, one of every kind written out, and 8,532 breaks, word for word. With it the
+content schemas and the dialogue schema read conditions and effects in full. The first of script's five
+parts; `docs/SERVER.md` has the plan, and the conditions' evaluation is next.
+
+## Combat runs in Rust, roll for roll — done
+
+`server/engine/src/combat` is `src/engine/combat` ported - targeting, areas and moves under pressure,
+stat blocks' features, attacks rolled from the same seeds to the same outcomes and landed on the same
+pools, defences by policy and by plan, and encounters' turns - on the part of the scene state a fight
+touches (`server/engine/src/scene/state.rs`). Held to `server/fixtures/combat.json`. Found on the way:
+`tilesInArea` scanned between tiles when a band table's reach was fractional; fixed on both sides.
+`docs/SERVER.md` has the detail; the script module is next.
+
+## The content schemas read in Rust, in zod's own words — done
+
+`server/engine/src/content/schema.rs` and `document.rs` are the content schemas and `readPack` ported,
+on a zod-alike (`server/engine/src/zod.rs`) that reads as zod 4.5.4 reads - the same output, and the same
+issues, path for path and word for word, since `readPack` shows zod's messages to the player. Held to
+`server/fixtures/content.json`: every shipped entry, thousands of generated breaks, corners and whole
+documents. Conditions and effects are read with the script's schemas. `read_pack` refuses an older
+document, since migration is the scene's and not ported. `docs/SERVER.md` has the detail; combat is next.
+
+## Dialogue runs in Rust, question for question — done
+
+`server/engine/src/dialogue` is `src/engine/dialogue` ported: the authored shape and its checks, the
+editor's layout and graph readers, and the walk. The walk asks `script/` (not ported yet) its four
+questions through a `DialogueHost`; `dialogue.golden.test.ts` records the ones the TypeScript dialogue
+asks, with their answers, and the Rust must ask exactly those, in that order, to the same end
+(`server/fixtures/dialogue.json`). When `script` is ported, its world replaces the tape. Found on the
+way: a reply chosen while another's script waits drops the new script's first journal entries; kept on
+both sides for now. `docs/SERVER.md` has the detail; the content schemas are next.
+
+## The Proficiency box counts — done
+
+Taking the Proficiency advancement at tier 3 or 4 cost both picks and added nothing: `levelUp` added
+`takenNow.get('proficiency')`, a key its `tier:kind` map never held. Found porting the character to
+Rust. The box is now counted where the sheet is derived (`progressionBonuses`, beside Hit Points and
+Stress), so saves that took it before read right untouched; the tier achievement's +1 stays on the
+sheet. The world's `proficiencyOf` reads the derived number, so a script's "using your Proficiency"
+sees the box and any card's bonus. The Rust port does the same, held to the rewritten
+`server/fixtures/character.json`. Unit `progression.test.ts`, `demo-abilities.test.ts`.
+
+## Characters derive and level in Rust, word for word — done
+
+`server/engine/src/character` is `src/engine/character` ported - the sheet derived into a character,
+levelling up with every refusal in the TypeScript's words and order, and `parseSheet`'s checks - with the
+content it reads (`server/engine/src/content`: the pack in a `Map`'s order, the abilities' bonuses and
+ranking, what gear features plainly say). Held to `server/fixtures/character.json`, from the game's own
+content. Found on the way: the Proficiency advancement added nothing - fixed above. `docs/SERVER.md` has
+the detail; the dialogue module is next.
+
+## The rules run in Rust, die for die — done
+
+`server/engine/src/rules` is `src/engine/rules` ported - dice, the Duality Dice, the GM's Die, ranges,
+countdowns, cover, damage, the pools, jumps - held to `server/fixtures/rules.json`, where every roll carries
+the dice stream's position after it. `parseDice`'s regexes are matched by hand with JavaScript's whitespace.
+`docs/SERVER.md` has the detail; the character module is next.
+
+## The grid runs in Rust, to the last bit — done (phase 2 begun)
+
+`server/engine/src/grid` is `src/engine/grid` ported - tiles, sight and cover, reachability and A*, the
+walk - held to `server/fixtures/grid.json`, which `grid.golden.test.ts` writes from four grids and tens of
+thousands of answers. JavaScript's `Math.round`, `Math.hypot` and the TypeScript's heap are reproduced
+exactly (`server/engine/src/js.rs`); each of the three, done Rust's way instead, fails the fixture.
+`docs/SERVER.md` has the detail; the rules module is next.
+
+## The page asks the server for its models and marks as it opens — done
+
+`src/game/engine-lists.ts` asks `GET /__models/shipped` and `GET /__art/marks` with a top-level `await`,
+before anything is built; the Rust server reads both on every request, so a model added while it runs is
+in the next page's list with no build. No server - a static site, the tests' - and the page opens on
+the lists the build carries. Two dev-server watchers retired. Learned doing it: with `strictPort`, a
+bulk edit of `tools/` starts overlapping restarts that fail and leave the dev server on its old config
+- restart it cleanly after one.
+
+## The game runs from the Rust server alone — done (phase 1 done)
+
+`npm run build:server` builds the client for the Rust server into `dist-server` (no copy of `public/`,
+saves on), and `npm run server` serves the game from it: the built page, the assets live from
+`public/`, every route - no Vite. The private card art is served only to this machine. `docs/SERVER.md`
+has the detail; phase 2 - the rules, ported against fixtures - is next.
+
+## The art marks and the default project are the Rust server's — done
+
+`/__art/provenance`, `/projects/default.json` and `/__project/save` are answered by
+`server/serve/src/art_and_project.rs`, held to a fixture the TypeScript writes (the marks file to the
+byte, in `localeCompare`'s order); with them every dev-plugin route is the Rust server's. The dev server
+cannot slide onto the tests' port any more (`strictPort`), and Playwright never reuses a server it did
+not start (`reuseExistingServer: false`) - the two together once let an e2e run save over
+`projects/default.json`. `docs/SERVER.md` has the detail and what is left of phase 1.
+
+## The engine's models are the Rust server's — done
+
+`/__models/add` and `/__models/ancestry` are answered by `server/serve/src/manifest.rs`, held to a fixture
+`tools/model-manifest.ts` writes (the ancestries file to the byte); the dev server keeps the model list
+(the virtual module) and now watches the ancestries file for the server's writes. The Rust server is
+stopped when the dev server closes, not when its HTTP server finally reports closed, which let an old
+server keep the port through a restart. `docs/SERVER.md` has the detail and what moves next.
+
+## Your models are the Rust server's — done
+
+`/__models/mine`, `/__models/u/...` and `/__models/import` are answered by `server/serve/src/your_models.rs`
+over the same `data/users/` folders, held to a fixture `tools/your-models.ts` writes, the index to the
+byte; the TypeScript routes are gone. `docs/SERVER.md` has the detail and what moves next.
+
+Found on the way, by doing it in a real browser against the dev server: the models watcher
+(`tools/model-manifest.ts`) reloaded every open page for any `.glb` with `/models/` in its path, and a
+player's folder is `data/users/<account>/models/imported/` - so since your models arrived, a **Get** or an
+import reloaded the very page that asked for it. The e2e suite stands those routes in and writes no file,
+so it never saw it. Now only a file directly in `public/models` reloads (`isEngineModelFile`, unit-tested).
+
+## The Store is the Rust server's — done
+
+`/__store/*` is answered by `server/serve/src/store.rs` over the same `data/store/` files, held to a
+fixture `tools/store.ts` writes, including the listings file to the byte; the TypeScript route is gone.
+The Get writes the player's models index the your-models plugin still serves. `docs/SERVER.md` has the
+detail and what moves next.
+
+## The accounts are the Rust server's — done (phase 1 begun)
+
+`server/serve` (`tactical-serve`, axum) answers `/__accounts/*` in place of `tools/accounts.ts`, over the
+same `data/` files, held to a fixture the TypeScript writes; `tools/rust-server.ts` builds it, starts it
+with the dev server and proxies the route to it. Everything else stays where it was, and the tests'
+server has no accounts, as before. The detail and what moves next are `docs/SERVER.md`. Before claiming
+done on anything under `server/`: `cd server && cargo test` beside tsc, vitest and Playwright.
+
+## Every model in the Store, and your own models — done
+
+Every `.glb` in `public/models` is a free Store listing by *The engine* (`engineListings` in
+`tools/store.ts`: claimed as its art mark says, marked AI until admin shows its work, never taken down,
+gone with its file). **Get** on a model puts it into the player's own folder,
+`data/users/<account>/models/imported/` (`tools/your-models.ts`: one copy per file, known by its hash),
+and the listing reads *In your models*; a picture is still downloaded. The editor lays the player's
+models under every project they open (`EditorShell`, without making it unsaved) and lists them on the
+Models page; a save keeps only the used ones. Opening any project - to play or to edit - imports the
+models it carries on the fly (`importCarriedModels` from `openProject`): embedded `.glb` files the folder
+lacks, and models in another player's folder. Tried end to end on the dev server with two throwaway
+accounts, deleted after; unit `tests/unit/your-models.test.ts`, `game/your-models.test.ts`, the store and
+save-trim tests; e2e `your-models.spec.ts`, `accounts-store.spec.ts`. Open: a model in a player's folder is
+served to anybody signed in, so a project that uses a model bought later would hand it on - that wants
+deciding when payments open; and IndexedDB `model-memory.ts` still keeps browser imports beside this.
+
+**Next, at the user's choice: the server becomes Rust, and the rules move into it.** The browser keeps
+rendering and input; a Rust server holds the assets, the accounts, the Store, your models, projects and
+saves, and runs the game - the engine's rules ported from TypeScript - for play from anywhere, co-op, and
+light clients. The dev plugins' routes (`tools/*.ts`) are the contract the Rust server answers first.
+The plan, its phases and its progress are `docs/SERVER.md`; phase 0 (the toolchain, the `server/`
+workspace, the dice ported bit for bit against a fixture TypeScript writes) is done.
+
+## The Store is show your work — done
+
+The user's rule, on top of the Store below: a listing need not be for sale, nor come with evidence -
+but without **How I Made It** and a **Process Proof** it is **marked AI** (`markOf`), whatever it claims,
+and there is nothing to vote on (`castVote` refuses). The creator shows the work later (**Show your
+work**, the `update` route: How I Made It, more pictures up to six, the claim, free or for sale), and
+then the claim - Human made, AI Assisted, AI Generated - is the mark, in the editor's tag colours.
+**For sale** needs the work shown and never AI generated (`judgeSale`, checked on publish and on every
+update, so emptying How I Made It on a listing for sale is refused); AI Assisted sells on showing how
+the AI was used. There are no payments: a listing for sale reads *payments open later* and its download
+answers 402 to anybody but its creator (`mayGet`). Listings from before carry over (`readListings`: one
+`proof` becomes `proofs`, claimed AI generated, free). Tried end to end on the dev server with two
+throwaway accounts, deleted after; unit `tests/unit/store.test.ts`, `game/store.test.ts`; e2e
+`accounts-store.spec.ts`. Open: a picture's cover is the picture itself, so one for sale can be seen,
+if not downloaded - a watermarked preview belongs with payments; and votes stand when a claim changes.
+
+## Accounts, per-player saves, and the Store — done
+
+The dev server keeps accounts now (`tools/accounts.ts`): sign in or make an account before the menu,
+admin/admin made on the first start, passwords as salted scrypt hashes and sessions in an HttpOnly
+cookie, all in a git-ignored `data/`. Each player's games and saves are their own: `browserStore` keys
+them by account (`userKey`), admin keeping the old keys so nothing saved before is lost; Load Game lists
+only the player's. The **Store** (`tools/store.ts`, `ui/Store.tsx`) is the user's design: a creator
+publishes a model or picture with **How I Made It** and a **Process Proof**; the listing reads
+**Human-Crafted Authenticity: 94% (45 Likes / 3 Dislikes)** above the process text and proof; players
+Like or Dislike it, one vote each and never their own; Get downloads it, there is no money; the creator
+or admin takes it down. All of it tried end to end against the dev server (a throwaway account made
+and deleted); the tests' server keeps no accounts, so the e2e test stands the routes in and the rest of
+the suite plays as nobody, as before. Next: a published model installable into the engine in a click
+(the "+ Model to the engine" route), and a price if the store is ever to sell.
+
+## Three tags, three colours — done
+
+Every piece of art in the editor carries a tag now, not only AI art: red AI for AI generated, yellow AI
+for AI assisted, green Human for human made (`AiBadge`). The note says AI Assisted in yellow; art made by
+hand puts up none. The e2e test reads the yellow and the green.
+
+## AI transparency in the game — done
+
+The game says how its art was made as the editor does: hovering a creature, prop, object or tile model
+on the board (`SceneView.artUnder`, the model id kept on every drawn group), a party portrait, a card's
+picture or emblem, an equipment card, or New Game's pictures and minis puts up the note in the
+bottom-right corner - one shared note now (`src/game/ui/AiNote.tsx`), faded red in a serif hand, the
+editor's too. The provenance module moved to `src/game/`. The e2e test hovers a party member's figure
+on the board and a portrait, and reads the note's style.
+
+## Art made with AI marked in the editor — done
+
+Every picture the editor shows of a piece of art carries how it was made: a red AI badge (solid for AI
+Generated, outlined for AI Assisted, none for Human made) on the strip thumbnails, the Models page's
+previews, the Cards page's preview and the Tiles page's tiles with a model, and a red note in the
+bottom-right corner while one is hovered (`src/editor/ui/AiMark.tsx`). The starting rule is the user's:
+only the card illustrations from the printed material are made by hand, the rest AI generated
+(`src/editor/art-provenance.ts`). The badge, or a right-click on any picture, changes it, and the change
+is kept for that art in every project (`projects/art-provenance.json`, written by the guarded route in
+`tools/art-provenance.ts`, tried end to end against the dev server). The e2e test marks a prop assisted,
+human made and back, and reads the refusal of the tests' own server.
+
+## Starting equipment chosen at New Game — done
+
+Gear was the class's, handed out. Now there is an Equipment step between the Traits and the name: a
+deck of the catalogue's tier-1 primary weapons (magic ones only for a subclass that casts), then one of
+its tier-1 armour, each the catalogue's own card with its picture, the class's suggestion on top. The
+two are sleeved into the row as Weapon and Armor; Choose again brings back the deck of the one taken
+back; a subclass that stops casting drops a magic weapon. The sheet takes them (`sheetFor`) and shows
+them on the naming sheet's gear line; the class's second weapon comes along only when the weapon chosen
+leaves a hand free. The e2e test takes a broadsword and gambeson over the Guardian's suggestion and
+finds both on the saved character.
+
+## + Model to the engine — done
+
+A model added in the editor lived in the project that added it, so New Game could never offer it and
+it could be given no ancestry. **+ Model to the engine** sends the `.glb` to the dev server, which
+writes it into `public/models` (`MODEL_ADD_URL` in `tools/model-manifest.ts`: the project save's guard,
+binary glTF only, never over a model already there by id) without reloading the page that sent it; it
+is in the project at once and has its Ancestry to give. Tried end to end against the dev server: the
+file written, a second refused, a request without the page's header refused, and the served list
+carrying it with the ancestry given. `public/models` stays out of git; the lock is still how a model
+reaches another machine.
+
+## Models given ancestries for good, + Model at the top, and creatures of the project's own — done
+
+A model's ancestry was its file's name and nothing else. Now the editor's Models page gives each
+shipped model an **Ancestry**, kept for every project in `projects/model-ancestries.json` (tracked) by a
+guarded dev-server route in `tools/model-manifest.ts` - the project save's guard, one file, refused
+under the tests' server - and served with the model list; New Game offers an ancestry the models given
+it, then the ones named for it, then the company (`character-models.ts`). The file starts with the
+eight named ones; a unit test holds every entry to a shipped model and a pack ancestry. **+ Model** is
+at the top of the Models page. And the editor makes creatures: **Copy as new** in the Encounters side
+copies the picked one into the project (`adversary-edits.ts`, drawn with its original's model, one
+undo), and a creature of the project's own has its stat block there to change, a change kept only
+when it still parses as one (`CreatureEditor.tsx`); the strip and Project → Check read the project's
+own at once. Features come with a copy and are not yet edited there.
+
+## The camera on a leash to whoever is played — done
+
+In play the camera could be panned anywhere, the character left far off screen. Its target is on a
+leash to whoever is selected now (`CameraFocus.tick`, `OrbitCamera.leash`): eight tiles, and no
+further; a pan runs into it and eases to a stop, and a walk off draws the camera along at that
+distance. A conversation's hold keeps its own place, and the editor pans freely - from wherever play
+left the camera, which is why the prop-placing e2e test now frames the room (Home) before it points
+across it. The e2e test pans
+with the keys until the camera stops, and finds the editor's same pan carrying it much further.
+
+## New Game's traits are stickers on their card, the name is written on the game's own sheet, and the grain is wood — done
+
+The Traits step is the Traits card itself now, zoomed up on the table, its modifiers die-cut stickers
+stuck on crooked and traded by drag or click; the trait that matters most - the subclass's spellcast
+trait, or where a class that casts none leans (`keyTrait`) - is underlined; the card in the row keeps
+the stickers and the line. The last step is the loadout's own sheet (`SheetPaper.tsx`, shared with
+`LoadoutPanel.tsx`), its numbers worked out as the game will (`sheet-preview.ts` - a test holds them to
+the camp's own once it is open), the name written on its name line and Begin at its foot. And the
+table's plain stripes became a grain (`wood-grain.svg`, after the user's filter), faint and in the
+table's own brown.
+
+## Traits shared out at New Game, and the row's names on slips of paper — done
+
+New Game laid each class's traits for it; now there is a Traits step after the domain cards, as the
+SRD has it: the starting spread, +2 +1 +1 +0 +0 −1, as six tokens on a sheet of the six traits and
+what each is rolled for, laid where the class leans. A token dragged onto another trait, or a click on
+one and then the other, trades the two - the spread cannot be broken (`swapTraits`); Suggested puts
+them back; Choose sleeves the sheet into the row as a Traits card, and Choose again brings it back as
+it was left. The sheet the camp is made with takes them (`sheetFor`), and the e2e test finds them in
+the saved game. The names under the row's cards sat half under the sleeves: they are lower now, each
+on a torn slip of paper, and the step titles below them moved down to match.
+
+## New Game's cards are inspected to be read, and their words always fit — done
+
+A card clicked on New Game's table no longer lifts with a Choose beside it: it is taken up and zoomed
+to the middle of the table from wherever it lay, the rest dimmed, with Put back and Choose (a click off
+it, or Esc, puts it back the way it came). Chosen, the sleeve slides up over it there. A card in the
+row opens the same way, with Choose again. The deck draws its next card under the top one, and every
+card's picture is loaded as the table opens, so a card taken up, dragged off or zoomed never leaves a
+blank behind or shows one while its picture loads. And every card's words fit it: `fit-text.ts` sets them at
+the largest size at which all of them show, down to 4 px - the zoom is for reading the small ones. The
+e2e test zooms a card, puts it back both ways, and finds no card on the table whose words run over.
+
+## New Game's cards wear their art — done
+
+The domain cards showed their pictures in the game and not in New Game: the art index is read at the
+game's boot, which the menu comes before. `showMainMenu` reads it now. And the ancestries, communities,
+classes and subclasses wear art too, when the machine has it: `choiceArtFor` looks up `<kind>-<id>`
+in the same index (`ancestry-clank`, `class-guardian`), an illustration across the top of the card, a
+class's banner hung from its edge; with none, the card is its words. The pictures are the same
+reference's as the domain cards', in the git-ignored `public/cards/` - never committed, never built.
+The e2e test serves an index and pictures of its own, so it runs the same on a machine without them.
+
+## Minis seen from above and turned in the hand; everything on from the left; sleeves from below — done
+
+The table looks straight down on the minis now, and they come on from off its left edge into their
+line - as does everything that comes onto the table: a deck, the title, a card set in the row, the
+name card. A click on a mini no longer rings it: it is taken up close, facing the player, and dragging
+left or right turns it about its own upright - only that, so it never tips - and Choose or Put back
+(or a click on the table, or Esc) follow. A mini is not sleeved: chosen, it stands in the row as it is
+seen from above, on the bare table - nothing drawn round it - (`ui/mini-portraits.ts`, which replaced the turning card). The cards' sleeves are
+hard-edged rectangles now, and come up from the bottom of the screen.
+
+## The models in New Game, as minis on the table — done
+
+The Model step is not a deck of portraits any more: the figures stand on the wooden table as
+miniatures (`ui/mini-table.ts`) - dropped into a line, shadows on the wood, a name plate at each one's
+feet. One is picked up by a press and a drag (it lifts and leans as it is carried) and put down where
+it is let go; a double-click on the bare table walks them back into line; a click rings it in gold and
+puts Choose on its plate. The camera keeps one scale however few stand there, and the line spreads for
+wide figures. The chosen model's card in the row holds the figure turning (`ui/model-turntable.ts`,
+one off-screen context for every such card). The e2e test clicks the figure itself on the canvas,
+carries one across the table, lines them up again, and finds the chosen card's figure drawn and turning.
+
+## New Game at a card table, the camp on its ground, and models for four ancestries — done
+
+New Game is a wooden table now (`ui/NewGame.tsx`, `ui/table.css`): a face-up deck per choice, only
+its top card seen; cards dragged off and put down anywhere; a double-click on the table gathers them
+back, which the tip at the bottom says; a click lifts a card and puts Choose beside it; chosen, it is
+sleeved and set in the row along the top, the table swept and the next deck dealt; Choose again from
+the row takes the sleeve off and brings its deck back. Text-only domain cards (47 of 189 have no
+script) are marked. The camp's ground floated: it was painted as terrain with structure tile kinds;
+it is laid as level-0 floor pieces on plain ground now, as the demo's is. The user's eight new models
+- Fungril, Faerie, Faun and Ribbet, male and female - are named for their ancestries
+(`faun-female.glb`...), shrunk from 11-26 MB to 2-3 MB each (originals in `public/models/heavy/`), on
+Hugging Face and in `models.lock.json`. And the shipped character pack had lost the printed text of
+seven cards (the tool kept the abilities file's blank copy); it keeps the content file's words now,
+and a test pins that only Rogue's Dodge, blank in both files, is left without them.
+
+## A main menu, New Game, and packs a project lists — done
+
+The page opens on a **main menu** (`game/start.ts`, `ui/MainMenu.tsx`): **New Game**, **Load Game**
+(played only - no editor, `Ctrl+E` refused), **Edit Game** (the app as it was). Each choice opens
+the page again by address; the tests' server skips the menu, `?menu` reaches it, and Settings has
+**Main menu**. **New Game** (`ui/NewGame.tsx`) is ancestry, model, community, class, subclass, two
+domain cards and a name, each a row of cards; Begin builds a camp (`camp.ts`) with the character as
+the party and the company as figures round the fire, keeps it in the browser (`game-projects.ts`)
+and opens it (`?play&project=`). Saves record their project (`SaveSlot.project`), each game has its
+own quick save and autosave, and Load Game lists them under their game.
+
+Projects now **list packs** (`project.packs`, `game/listed-packs.ts`): shipped packs laid over the
+project as it opens and left out when it is saved. The first is `srd-characters` - the SRD's
+classes, subclasses, ancestries, communities and cards with their scripts, shipped by the user's
+choice (26 September 2026), written by `tools/ship-srd-characters.mjs`. Project ▾ lists and unlists
+it, one undo step.
+
+Decisions the user can overturn: a model is an ancestry's by its **file name** (`elf-…glb`), not a
+field in the Models workspace, since new models arrive as files; the company's models stand in for
+an ancestry with none of its own. Traits and gear per class are the engine's (`new-character.ts`).
+
+**Still open:** the camp's company is scenery - talking to them and taking them along is the next
+step; the creation wizard does not ask for experiences, traits or gear (defaults, editable in Edit
+Game); no starting items; the six company models belong to no ancestry; Load Game cannot delete a
+game yet. Unit `listed-packs.test.ts`, `camp.test.ts`, `start.test.ts`; e2e `main-menu.spec.ts`.
 
 ## The passives' emblems are gone from the top of the screen — done
 

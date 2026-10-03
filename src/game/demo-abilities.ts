@@ -689,7 +689,7 @@ export function rest(demo: DemoScene, kind: 'short' | 'long', plan: RestPlan): R
   // A marked spot lasts "before your next rest", and a rest is where it goes.
   demo.world.forgetSpots();
   const ended = demo.state.clearConditions('rest');
-  for (const { id, condition } of ended) note(demo, `${nameOf(demo, id)} is no longer ${condition}.`, 'system');
+  for (const { id, condition } of ended) note(demo, `${nameOf(demo, id)} is no longer ${demo.world.conditionName(condition)}.`, 'system');
   syncPools(demo);
 
   // "On a short rest, they gain 1d4 Shadow. On a long rest, 1d4 + the number of PCs."

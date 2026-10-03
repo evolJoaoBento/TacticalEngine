@@ -1,0 +1,18 @@
+[package]
+name = "tactical-engine"
+version = "0.1.0"
+description = "Tactical Engine's rules, ported from src/engine and held to the TypeScript engine's golden fixtures"
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "engine"
+
+[dependencies]
+# Content and sheets arrive as JSON, as the TypeScript engine keeps them. Both build to wasm32.
+serde = { version = "1", features = ["derive"] }
+# float_roundtrip: floats read exactly, as JavaScript wrote them.
+serde_json = { version = "1", features = ["float_roundtrip", "preserve_order"] }
+# NFKD, as `String.prototype.normalize` does it: what an id is made from a name by. Pure Rust.
+unicode-normalization = "0.1"

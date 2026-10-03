@@ -16,7 +16,17 @@ writing any engine code.
 ```bash
 npm install
 npm run models     # the 3D models, from Hugging Face (about 80 MB)
-npm run dev        # http://127.0.0.1:8420
+npm run dev        # http://127.0.0.1:8420 - builds and starts the Rust server beside it (docs/SERVER.md)
+```
+
+The accounts, and in time the rest of the game, are served by a Rust server in `server/`: install Rust
+with [rustup](https://rustup.rs) for them. Without it the game still plays, with nobody signed in.
+
+Or play it from the Rust server alone, as a player would reach it - no Vite:
+
+```bash
+npm run build:server   # the client, into dist-server (seconds: the assets stay in public/)
+npm run server         # http://127.0.0.1:8430
 ```
 
 The models are not in this repository: they live at

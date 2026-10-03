@@ -20,24 +20,23 @@ import { EDITOR_MODES, type EditorMode } from './editor/modes';
 import { EditorSession, addAsset, removeAsset, addScene, removeScene, renameScene, setStartScene, updateInteractable, importPack, packChanges, withoutUnusedEmbedded } from './editor/session';
 import { EditorShell } from './editor/ui/EditorShell';
 import { PlayPanel, TONE, type Inspection } from './game/ui/PlayPanel';
-import { carriedItems, containerView, hudMembers, journalEntries, talkingTo, talkingView } from './game/ui/play-views';
-import { interactablesOf, takeFromContainer, withinReach } from './game/prop-use';
-import { syncTalks } from './game/talks';
+import { interactablesOf } from './game/prop-use';
 import { driveFloaters, type LiveFloater } from './game/ui/floaters';
 import { PartyHud } from './game/ui/PartyHud';
 import { bootDemo, saveDefault, savesToDefault } from './game/project-store';
-import { STEER_EVERY, STEER_HOLD, steerStep } from './game/steer';
-import { landWalkers, standingNow } from './game/land';
-import { hoverLine } from './game/hover';
-import { dropCard, type Drop } from './game/party-drop';
+import { withListedPacks, withoutPackEntries } from './game/listed-packs';
+import { showMainMenu, startOf } from './game/start';
+import { STEER_EVERY, STEER_HOLD } from './game/steer';
+import { standingNow } from './game/land';
+import { noteArtOnBoard } from './game/hover';
+import type { Drop } from './game/party-drop';
 import { LevelUpPanel } from './game/ui/LevelUpPanel';
-import { deriveCharacter } from './engine/character/sheet';
 import { ActionBar } from './game/ui/ActionBar';
 import { LoadoutPanel } from './game/ui/LoadoutPanel';
 import { liftCurtainWhenReady } from './game/ui/curtain';
 import { CardPreview } from './game/ui/CardPreview';
 import { RestPanel } from './game/ui/RestPanel';
-import { abilityList, abilityTargets, abilitiesOf, loadoutView, pointTiles, rest, shapeAt, swapCard, useAbility, type RestPlan } from './game/demo-abilities';
+import type { RestPlan } from './game/demo-abilities';
 import type { LevelUpIssue, LevelUpPlan } from './engine/character/progression';
 import { OrbitCamera } from './engine/render/camera';
 import { BuildingView, type BuildingStats } from './engine/render/building-view';
@@ -56,27 +55,19 @@ import { importLegacyScene } from './engine/scene/legacy-import';
 import { unfamiliarCode } from './engine/script/hooks';
 import { projectSchema, type Interactable, type ProjectDoc, type SceneDoc } from './engine/scene/schema';
 import type { Response } from './engine/script/runner';
-import { loadGameText, saveBlockedBy, serialiseSave } from './game/save';
 import { migrateDocument } from './engine/scene/migrate';
 import { forgetFile, saveProjectFile } from './editor/project-file';
 import { describePack, packOf, readPack } from './engine/content/pack/document';
 import type { AdversaryDef } from './engine/content/types';
-import { AUTO_SLOT, QUICK_SLOT, SaveSlots, browserStore } from './game/save-slots';
+import { AUTO_SLOT, QUICK_SLOT, projectOfSlot, projectSlot, sharedBrowserStore } from './game/save-slots';
 import { CardArtImports, loadCardArtIndex, useCardArtImports, useCardArtIndex } from './game/ui/card-art';
-import { DEMO_REACH, answerPending, attackWithSelected, moveSelectedTo, endTurn, refreshWorld, syncPools, syncRoster, gatherParty, reachableInteractable, useSelectedOn, buildProjectScene, setSheet, type DemoScene } from './game/demo-scene';
-import { inCombat, scriptPending } from './game/moment';
-import { underPressureTiles, arrive, previewWalk, startEncounter, reachableTiles, JUMP_ID, aimedArc, jumpAim, jumpOffered, jumpReaches, jumpTo } from './game/movement';
-import { approachThenUse, arrived, cancelApproach } from './game/arrival';
+import { DEMO_REACH, buildProjectScene } from './game/demo-scene';
+import { JUMP_ID } from './game/movement';
 import { DEMO_ADVERSARY_ID, DEMO_MODELS, DEMO_CHARACTERS } from './game/demo-rules';
-import { travelTo, characterContentFor, adversaryDefsFor, syncAuthoredEncounters, takeGround } from './game/room';
-import { reachRings } from './game/circle';
-import { nameOf, note } from './game/log';
-import { applyLevelUp, awaitingLevel } from './game/level-up';
-import { equipItem, gearOf, unequipItem, type EquipResult, type GearSlot } from './game/equip';
-import { gearView } from './game/gear';
-import { useItem } from './game/use-item';
-import { inspection } from './game/inspect';
+import { characterContentFor, adversaryDefsFor } from './game/room';
+import type { EquipResult, GearSlot } from './game/equip';
 import { CameraFocus } from './game/camera-focus';
+import { gameFor, gameReady, resumed, savesFor, type GameClient, type LocalPowers } from './game/wasm-game';
 import { STARTER_ABILITIES } from './engine/content/pack/starter';
 import { PROP_FUNCTIONS } from './engine/scene/prop-functions';
 import type { PropFunction } from './engine/scene/prop-function-schema';
@@ -286,27 +277,27 @@ document.body.insertBefore(floaterLayer, app);
 
 const liveFloaters: LiveFloater[] = [];
 /** Put every rising number back over the head it belongs to, wherever that head has got to. */
-const runFloaters = (now: number): void => driveFloaters(now, liveFloaters, (id) => { const over = demo.state.entity(id); return over === undefined || over.tile === NO_TILE ? null : over.at; }, screenAt);
+const runFloaters = (now: number): void => driveFloaters(now, liveFloaters, (id) => { const over = game.board.state.entity(id); return over === undefined || over.tile === NO_TILE ? null : over.at; }, screenAt);
 
 /** Tell the view how everybody got where they are, before it looks. */
 function drainMotions(): void {
-  for (const motion of demo.motions) {
+  for (const motion of game.takeMotions()) {
     if (motion.route !== undefined) view.walkAlong(motion.id, motion.route, motion.leap, motion.wait === true);
     else if (motion.path !== undefined) view.walk(motion.id, motion.path);
     else if (motion.thrown === true) view.throwBack(motion.id);
     else if (motion.struck === true) view.flinch(motion.id);
     else if (motion.lunge !== undefined) view.lunge(motion.id, motion.lunge.at);
-    else if (motion.teleport === true) { view.teleport(motion.id); if (motion.id === demo.party.selected) focus.through(motion.id); } // blinked there, and looked at
+    else if (motion.teleport === true) { view.teleport(motion.id); if (motion.id === game.board.party.selected) focus.through(motion.id); } // blinked there, and looked at
   }
-  demo.motions.length = 0;
 }
 
 /** Take what the game wrote since the last draw and start it rising. */
 function drainFloaters(): void {
-  if (demo.floaters.length === 0) return;
+  const floaters = game.takeFloaters();
+  if (floaters.length === 0) return;
   const now = performance.now();
-  for (const floater of demo.floaters) {
-    const tile = demo.state.entity(floater.id)?.tile ?? NO_TILE;
+  for (const floater of floaters) {
+    const tile = game.board.state.entity(floater.id)?.tile ?? NO_TILE;
     if (tile === NO_TILE) continue;
     const stack = liveFloaters.filter((f) => f.id === floater.id).length;
     const el = document.createElement('div');
@@ -318,7 +309,6 @@ function drainFloaters(): void {
     floaterLayer.appendChild(el);
     liveFloaters.push({ el, id: floater.id, stack, born: now });
   }
-  demo.floaters.length = 0;
   runFloaters(now);
 }
 
@@ -336,15 +326,12 @@ const webgl2 = typeof WebGL2RenderingContext !== 'undefined' && gl instanceof We
 
 // `let`, because loading a project restarts the game on it. It opens on the default project, a file
 // that Ctrl+S writes back, so an edit that is saved is what opens next time (`game/project-store.ts`).
+// The main menu, unless the address has already chosen a game (`game/start.ts`): it opens the page again on what it chose.
+const start = startOf(); if (start.menu) await showMainMenu();
 const booted = await bootDemo({ problems: errors });
-let demo = booted.demo;
+// The game, through its one seam (`game/client.ts`): seated at a table, the defender asked, the tokens walking.
+let game: GameClient & LocalPowers = await gameReady(booted.demo); // the page's own, or the engine's (`?engine=wasm`)
 let savesDefault = savesToDefault(booted.source);
-// At the table the defender decides how a hit lands: an Armor Slot, a card,
-// or an ally stepping in. The engine decides for itself in tests and headless
-// runs, where there is nobody to ask.
-demo.askDefender = true;
-// The tokens walk; a fight the walk wakes starts when they get there.
-demo.animated = true;
 
 /** glTF files the project declares, loaded on first use. */
 const gltfLoader = new GLTFLoader();
@@ -355,7 +342,7 @@ const assets = new AssetLibrary(
       gltf.scene.animations = gltf.animations;
       return gltf.scene;
     }),
-  demo.project.assets,
+  game.board.project.assets,
 );
 
 /**
@@ -365,15 +352,15 @@ const assets = new AssetLibrary(
  * record in place, so it stays current on its own; only a load, which swaps the
  * whole document, has to point it at the new one.
  */
-let adversaryModels: Readonly<Record<string, string>> = demo.project.adversaryModels;
+let adversaryModels: Readonly<Record<string, string>> = game.board.project.adversaryModels;
 
-const view = new SceneView(demo.grid, {
-  tints: demo.scene.tints,
+const view = new SceneView(game.board.grid, {
+  tints: game.board.scene.tints,
   // A character's own choice first, then the creature's, then the project's map for its
-  // type, then the game's, and failing all of it the id. Off `demo.project` and never
+  // type, then the game's, and failing all of it the id. Off `game.board.project` and never
   // `session`: this first runs before the session exists.
   modelForEntity: (entity) =>
-    (entity.faction === 'party' ? demo.project.party.find((s) => s.id === entity.id)?.model : undefined)
+    (entity.faction === 'party' ? game.board.project.party.find((s) => s.id === entity.id)?.model : undefined)
     ?? entity.model
     ?? adversaryModels[entity.definition]
     ?? DEMO_MODELS[entity.definition]
@@ -385,29 +372,29 @@ const view = new SceneView(demo.grid, {
   fallbackFor: (entity) => (entity.faction === 'party' ? null : 'husk'),
   assets,
 });
-view.setScenery(demo.scene);
-view.syncTokens(demo.state);
+view.setScenery(game.board.scene);
+view.syncTokens(game.board.state);
 const buildings = new BuildingView();
 view.scene.add(buildings.root);
-// `demo.grid`, not `activeGrid`: that binding is declared further down, initialised to this
-buildings.sync(demo.scene, demo.grid.palette);
+// `game.board.grid`, not `activeGrid`: that binding is declared further down, initialised to this
+buildings.sync(game.board.scene, game.board.grid.palette);
 
 /**
  * One project, edited and played.
  *
- * Re-parsing `demo.project` here would hand the editor a copy: terrain edits
+ * Re-parsing `game.board.project` here would hand the editor a copy: terrain edits
  * would still reach the screen (the grid is written in place) while a new scene,
  * a renamed one, or a deleted one would be invisible to the game. The demo's
  * project is already schema-parsed, so it is the document.
  */
-let project: ProjectDoc = demo.project;
+let project: ProjectDoc = game.board.project;
 let session = new EditorSession(project);
 /** What an edit redraws - and a room does not change shape under a fight or a question, so it does not grow then. */
 const editorHooks = {
   onChange: (change: string): void => { if (change === 'terrain') rebuildTerrain(); if (change === 'content') syncEditorContent(); },
-  growable: (): boolean => activeScene().id !== demo.scene.id || saveBlockedBy(demo) === null,
+  growable: (): boolean => activeScene().id !== game.board.scene.id || game.saveBlockedBy() === null,
 };
-let editor = new EditorController({ session, sceneId: demo.scene.id, ...editorHooks });
+let editor = new EditorController({ session, sceneId: game.board.scene.id, ...editorHooks });
 
 // The editor opens on the Inspector, the first of the top bar's modes.
 editor.setMode('inspect');
@@ -474,18 +461,18 @@ function newSceneId(name: string): string {
  * move the party, abandon their fight, or throw away a prompt they were holding.
  */
 function activeScene(): SceneDoc {
-  return mode === 'edit' ? editor.scene : demo.scene;
+  return mode === 'edit' ? editor.scene : game.board.scene;
 }
 
 /** The grid under `activeScene()`. Shared with the party's when they coincide. */
-let activeGrid: TileGrid = demo.grid;
+let activeGrid: TileGrid = game.board.grid;
 
 /** Rebuild the grid from the edited document, then the meshes over it. */
 function rebuildTerrain(): void {
   const scene = activeScene();
   const { grid } = gridFromScene(scene, paletteForProject(session.project));
   // A room that grew is another grid: the view is pointed at it, as it is at another room.
-  if (!takeGround(demo, scene, activeGrid, grid)) return rebindScene(activeGrid);
+  if (!game.takeGround(scene, activeGrid, grid)) return rebindScene(activeGrid);
   view.rebuildTerrain(scene.tints);
   buildings.sync(scene, activeGrid.palette);
   // The scenery hangs off the ground that was just replaced, in either mode:
@@ -516,7 +503,7 @@ function redoEdit(): boolean {
  * question.
  */
 function stepEdit(step: () => boolean): boolean {
-  if (mode === 'play' && saveBlockedBy(demo) !== null) return false;
+  if (mode === 'play' && game.saveBlockedBy() !== null) return false;
   const ok = step();
   // `rebuildTerrain` ends in `syncEditorContent`, which is what redraws the
   // scenery; setting the decos again here drew every prop twice over.
@@ -541,24 +528,7 @@ let mode: 'play' | 'edit' = 'play';
  * the old Evasion until something else happened to rederive it.
  */
 function rederiveParty(): void {
-  // Whoever the panel added since the last Play arrives now, and whoever it
-  // removed leaves - before the world is rebuilt, so it is built over them.
-  syncRoster(demo);
-  // The document is the truth: an edit in the Party panel replaces the sheet
-  // in `project.party`, so the game's copy is re-read rather than rederived
-  // from what it happened to boot with.
-  for (const sheet of demo.project.party) {
-    if (demo.sheets.has(sheet.id)) demo.sheets.set(sheet.id, sheet);
-  }
-  for (const [id, sheet] of demo.sheets) {
-    demo.characters.set(
-      id,
-      deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character,
-    );
-  }
-  // The world first: `syncPools` reads the modifiers a card grants through it.
-  refreshWorld(demo);
-  syncPools(demo);
+  game.rederive();
 }
 
 /**
@@ -570,8 +540,8 @@ function rederiveParty(): void {
  * before the mode switches. With no tile they arrive on the room's spawns.
  */
 function playAt(sceneId: string, tile: number | null): boolean {
-  if (sceneId !== demo.scene.id && !travelTo(demo, sceneId)) return false;
-  if (tile !== null) gatherParty(demo, tile);
+  if (sceneId !== game.board.scene.id && !game.travelTo(sceneId)) return false;
+  if (tile !== null) game.gatherParty(tile);
   boundScene = '';
   setMode('play');
   frameParty();
@@ -579,20 +549,21 @@ function playAt(sceneId: string, tile: number | null): boolean {
 }
 
 function setMode(next: 'play' | 'edit'): void {
+  if (start.locked && next === 'edit') return; // Load Game and New Game play the game; the editor is Edit Game's
   // Going back to play is a scene entry like any other: whatever the editor did
   // to the room the party is standing in has to reach the room they walk back
-  // into. `DemoScene` remembers what it last stood the scene up from, so no
+  // into. The game remembers what it last stood the scene up from, so no
   // bookkeeping is needed on this side.
-  if (next === 'play' && mode === 'edit') syncAuthoredEncounters(demo);
+  if (next === 'play' && mode === 'edit') game.syncAuthoredEncounters();
   mode = next;
   editor.end();
   // The tray only lives in the play tree, so dice still tumbling when the
   // editor opens have nowhere to land. Drop them rather than showing a roll
   // from before the edit when play comes back.
-  if (mode === 'edit') demo.rolls.length = 0;
+  if (mode === 'edit') game.clearRolls();
   // The editor may be pointed at a scene a load has since removed.
   if (!session.project.scenes.some((scene) => scene.id === editor.sceneId)) {
-    editor.switchScene(demo.scene.id);
+    editor.switchScene(game.board.scene.id);
   }
   if (mode === 'play') {
     view.setAuthoring(null);
@@ -626,11 +597,11 @@ function renderPanel(): void {
       knownModels: knownModels(),
       knownAdversaries: new Set(adversaryDefsFor(session.project).keys()),
       libraryAbilities: STARTER_ABILITIES,
-      characterContent: characterContentFor(demo.project),
+      characterContent: characterContentFor(game.board.project),
       characterPack: characterContentFor(),
-      preview: (card) => h(CardPreview, { card, content: characterContentFor(demo.project) }),
+      preview: (card) => h(CardPreview, { card, content: characterContentFor(game.board.project) }),
       thumbnail: (item) => item.tab.startsWith('tier-') ? thumbnailOf(view.registry, assets, adversaryModels[item.id] ?? DEMO_MODELS[item.id] ?? item.id, 'husk') : thumbnailOf(view.registry, assets, item.model ?? item.id),
-      playingScene: demo.scene.id,
+      playingScene: game.board.scene.id,
       onPlay: () => setMode('play'),
       onPlayHere: () => playAt(editor.sceneId, null),
       onUndo: () => void undoEdit(),
@@ -689,7 +660,7 @@ function renderPanel(): void {
 }
 
 async function saveProject(): Promise<void> {
-  const text = JSON.stringify(withoutUnusedEmbedded(session.project, Object.values(DEMO_MODELS)), null, 2); // an embedded model nothing names stays in the browser, not the file
+  const text = JSON.stringify(withoutPackEntries(withoutUnusedEmbedded(session.project, Object.values(DEMO_MODELS))), null, 2); // an embedded model nothing names stays in the browser, not the file; what a listed pack lays, the pack lays again
   const outcome = savesDefault && (await saveDefault(text)) === 'written' ? 'written' : await saveProjectFile(text, `${session.project.id}.json`);
   // A closed dialog is not a save: the project stays dirty and the tab still warns.
   if (outcome !== 'cancelled') session.markSaved();
@@ -701,7 +672,7 @@ async function saveProject(): Promise<void> {
  * another. Not a save: no scenes, no party, nothing marked saved.
  */
 function exportPack(): void {
-  const blob = new Blob([JSON.stringify(packOf(session.project), null, 2)], { type: 'application/json' });
+  const blob = new Blob([JSON.stringify(packOf(withoutPackEntries(session.project)), null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
@@ -736,7 +707,7 @@ function loadProjectText(text: string, label = 'the project'): string {
   // moment it will not do that is mid-fight or mid-conversation: there is a
   // prompt or a turn order waiting on the game that is running, and throwing
   // that away under the player is not loading, it is losing.
-  const blocked = saveBlockedBy(demo);
+  const blocked = game.saveBlockedBy();
   if (blocked !== null) {
     const reason = `Could not load ${label}: ${blocked}`;
     errors.push(reason);
@@ -753,9 +724,9 @@ function loadProjectText(text: string, label = 'the project'): string {
     renderPanel();
     return reason;
   }
-  let fresh: DemoScene;
+  let fresh: GameClient & LocalPowers;
   try {
-    fresh = buildProjectScene(parsed.data, parsed.data.id);
+    fresh = gameFor(buildProjectScene(withListedPacks(parsed.data, errors), parsed.data.id));
   } catch (failure) {
     // A project that parses can still be unplayable: an adversary with no stat
     // block, a start scene that is not there. Say so and keep the game running.
@@ -764,11 +735,9 @@ function loadProjectText(text: string, label = 'the project'): string {
     renderPanel();
     return reason;
   }
-  demo = fresh;
+  game = fresh;
   savesDefault = false; // somebody else's file now: it saves where they choose, not over the default
-  demo.askDefender = true;
-  demo.animated = true;
-  project = demo.project;
+  project = game.board.project;
   session = new EditorSession(project);
   editor = new EditorController({ session, sceneId: project.startScene, ...editorHooks });
   editor.setMode('inspect');
@@ -833,7 +802,7 @@ function importPackText(text: string, label = 'the pack'): { imported: boolean; 
   // In play the world is rebuilt over the new content at once, and rebuilding it under a prompt or
   // a fight's turn order would pull the table out from under the question. The editor rebuilds it
   // on the way back to play, which is when every other content edit reaches it too.
-  const blocked = mode === 'play' ? saveBlockedBy(demo) : null;
+  const blocked = mode === 'play' ? game.saveBlockedBy() : null;
   if (blocked !== null) return refuse(blocked);
   // Code in a pack runs in this page with everything the game can reach -- the shadowing in
   // `script/hooks.ts` is a guard rail, not a sandbox -- so it comes in only when somebody says so.
@@ -878,7 +847,7 @@ const camera = new PerspectiveCamera(45, window.innerWidth / window.innerHeight,
  */
 const orbit = new OrbitCamera({ yaw: 0, pitch: 0.85 });
 /** Over whoever is selected, and whoever comes out of a portal (`game/camera-focus.ts`). */
-const focus = new CameraFocus(orbit, view, () => ({ grid: demo.grid, at: (id) => { const who = demo.state.entity(id); return who === undefined || who.tile === NO_TILE ? null : who.at; }, talking: mode === 'play' ? talkingTo(demo) : null }));
+const focus = new CameraFocus(orbit, view, () => ({ grid: game.board.grid, at: (id) => { const who = game.board.state.entity(id); return who === undefined || who.tile === NO_TILE ? null : who.at; }, talking: mode === 'play' ? game.talkingTo() : null, selected: mode === 'play' ? game.board.party.selected : null }));
 
 /** Put the camera over a coordinate the designer typed, at the level they are building on. */
 function navigateBuilding(x: number, y: number): void {
@@ -934,9 +903,9 @@ function frameCamera(): void {
 
 /** Look at whoever is selected, keeping the angle and distance. */
 function frameParty(): void {
-  const id = demo.party.selected;
+  const id = game.board.party.selected;
   if (id === null) return;
-  const entity = demo.state.entity(id);
+  const entity = game.board.state.entity(id);
   if (entity === undefined || !activeGrid.isTile(entity.tile)) return;
   const centre = tileCenter(activeGrid, entity.tile, view.layout);
   orbit.lookAt({ x: centre.x, y: 0, z: centre.z });
@@ -1138,18 +1107,18 @@ const pointOf = (tile: number) => ({ x: activeGrid.xOf(tile), y: activeGrid.yOf(
 /** The interactable standing on a tile, if any. */
 function objectOn(tile: number): string | null {
   // Anywhere a thing covers: a prop drawn across a block is used from any tile of it.
-  return interactablesOf(demo.scene).find((i) => demo.state.interactableCovers(i.id).includes(tile))?.id ?? null;
+  return interactablesOf(game.board.scene).find((i) => game.board.state.interactableCovers(i.id).includes(tile))?.id ?? null;
 }
 
 /** Use a thing clicked on, walking up to it first when it is out of reach - used once the walk ends (`game/arrival.ts`). */
 function approachAndUse(id: string): string {
-  return approachThenUse(demo, id);
+  return game.approachThenUse(id);
 }
 
 /** The living entity standing on a tile — a click on a token, not the ground. */
 function entityOn(tile: number): string | null {
-  for (const id of demo.state.occupantsOf(tile)) {
-    if (demo.state.entity(id)?.alive === true) return id;
+  for (const id of game.board.state.occupantsOf(tile)) {
+    if (game.board.state.entity(id)?.alive === true) return id;
   }
   return null;
 }
@@ -1161,9 +1130,9 @@ function entityOn(tile: number): string | null {
 function entityNear(spot: Spot): string | null {
   let best: string | null = null;
   let bestDistance = 0.5;
-  for (const entity of demo.state.allEntities()) {
+  for (const entity of game.board.state.allEntities()) {
     // Not whoever is already chosen: a click at their own feet is a step to one side, not a choice of them again.
-    if (!entity.alive || entity.tile === NO_TILE || entity.id === demo.party.selected) continue;
+    if (!entity.alive || entity.tile === NO_TILE || entity.id === game.board.party.selected) continue;
     const distance = Math.hypot(entity.at.x - spot.x, entity.at.y - spot.y);
     if (distance < bestDistance) {
       best = entity.id;
@@ -1181,7 +1150,7 @@ function entityNear(spot: Spot): string | null {
  * view rather than a rebuild — without this the old room stays on screen while
  * every number underneath it changes.
  */
-let boundScene = demo.scene.id;
+let boundScene = game.board.scene.id;
 
 function rebindScene(grown?: TileGrid): void {
   const scene = activeScene();
@@ -1191,7 +1160,7 @@ function rebindScene(grown?: TileGrid): void {
   // The party's own grid when it is their room, so an edit reaches the
   // pathfinder; a grid of its own when the editor is looking somewhere else, so
   // editing one room cannot corrupt the one being played.
-  activeGrid = scene.id === demo.scene.id ? demo.grid : gridFromScene(scene, paletteForProject(session.project)).grid;
+  activeGrid = scene.id === game.board.scene.id ? game.board.grid : gridFromScene(scene, paletteForProject(session.project)).grid;
 
   // The same view, pointed at the other room: its caches, its lights and the
   // party's own tokens carry over; the ground and the scenery do not.
@@ -1206,23 +1175,23 @@ function rebindScene(grown?: TileGrid): void {
 
 function refreshPlay(): void {
   // A conversation is its speaker's: set aside when somebody else is selected, back when they are.
-  syncTalks(demo);
+  game.syncTalks();
   autosaveOnTravel();
   rebindScene();
   // Tokens belong to the played room. Drawing them over another room's grid puts
   // the party on whatever happens to share those tile indices.
-  if (activeScene().id === demo.scene.id) {
+  if (activeScene().id === game.board.scene.id) {
     drainMotions();
-    view.syncTokens(demo.state, { reading: demo.rolls.length > 0 });
-    view.setOpenings(new Set(interactablesOf(demo.scene).map((thing) => thing.id).filter((id) => demo.state.isOpen(id)))); // doors swing
+    view.syncTokens(game.board.state, { reading: game.board.rolls.length > 0 });
+    view.setOpenings(new Set(interactablesOf(game.board.scene).map((thing) => thing.id).filter((id) => game.board.state.isOpen(id)))); // doors swing
     drainFloaters();
     view.showZones(paintedZones());
-    view.showSelection(demo.party.selected === null ? NO_TILE : (demo.state.entity(demo.party.selected)?.tile ?? NO_TILE), demo.party.selected);
+    view.showSelection(game.board.party.selected === null ? NO_TILE : (game.board.state.entity(game.board.party.selected)?.tile ?? NO_TILE), game.board.party.selected);
     // A target to pick lights the creatures it could be; otherwise, in a
     // fight, the Close-range walk round whoever is selected. Out of a fight a
     // walk goes anywhere the floor does, and the floor is not lit for it.
-    view.showArc(aimedArc(demo, targeting)); // a jump being aimed: the arc to where the pointer is
-    view.showReach(reachRings(demo, targeting?.abilityId === JUMP_ID)); // the ranges as circles: the fighter's, the push's, the jump's
+    view.showArc(game.aimedArc(targeting)); // a jump being aimed: the arc to where the pointer is
+    view.showReach(game.reachRings(targeting?.abilityId === JUMP_ID)); // the ranges as circles: the fighter's, the push's, the jump's
     view.showHighlights(
       targeting !== null
         ? aimingHighlights(targeting)
@@ -1243,12 +1212,12 @@ function refreshPlay(): void {
  */
 function paintedZones(): { tiles: number[]; color: string }[] {
   return [
-    ...demo.world.zoneFootprints().map((zone) => ({
+    ...game.board.world.zoneFootprints().map((zone) => ({
       tiles: zone.tiles,
-      color: demo.world.conditionDef(zone.condition)?.color ?? hueOf(zone.condition),
+      color: game.board.world.conditionDef(zone.condition)?.color ?? hueOf(zone.condition),
     })),
     // A spot somebody marked to come back to: one tile, in the party's blue.
-    ...demo.world.marks().map((mark) => ({ tiles: [mark.tile], color: '#7fd1ff' })),
+    ...game.board.world.marks().map((mark) => ({ tiles: [mark.tile], color: '#7fd1ff' })),
   ];
 }
 
@@ -1261,50 +1230,49 @@ function paintedZones(): { tiles: number[]; color: string }[] {
  * to it rather than after.
  */
 function aimingHighlights(armed: NonNullable<typeof targeting>): number[] {
-  const tileOf = (id: string): number => demo.state.entity(id)?.tile ?? NO_TILE;
+  const tileOf = (id: string): number => game.board.state.entity(id)?.tile ?? NO_TILE;
   if (armed.tiles === undefined) return armed.valid.map(tileOf).filter((t) => t !== NO_TILE);
   if (armed.abilityId === JUMP_ID) return []; // a jump's reach is a circle on the ground, not lit squares
-  const ability = abilitiesOf(demo, armed.characterId).find((a) => a.id === armed.abilityId);
+  const ability = game.abilitiesOf(armed.characterId).find((a) => a.id === armed.abilityId);
   const aimed = armed.aimed;
   if (ability === undefined || aimed === undefined || !armed.tiles.includes(aimed)) return armed.tiles;
-  const caught = shapeAt(demo, armed.characterId, ability, aimed).map(tileOf).filter((t) => t !== NO_TILE);
+  const caught = game.shapeAt(armed.characterId, ability, aimed).map(tileOf).filter((t) => t !== NO_TILE);
   return [...armed.tiles, ...caught];
 }
 
 /**
- * Where saves live: named slots over `localStorage`, guarded so a browser
- * that blocks site data reads as "no saves" rather than taking the page down.
- * The quick slot and the autosave slot are fixed and overwritten; "Save as…"
+ * Where saves live (`savesFor`): the account's, on the server, when it plays the game beside the page; else
+ * named slots over `localStorage`. The quick slot and the autosave slot are fixed and overwritten; "Save as…"
  * mints a new one every time.
  */
-const slots = new SaveSlots(browserStore());
+const slots = savesFor();
 
 /** "The Husk Vault, level 2" — a line for the saves list. */
 function whereWeAre(): string {
-  const level = demo.scenario.partyLevel;
-  return `${demo.scene.name || demo.scene.id}${level > 1 ? `, level ${level}` : ''}`;
+  const level = game.board.scenario.partyLevel;
+  return `${game.board.scene.name || game.board.scene.id}${level > 1 ? `, level ${level}` : ''}`;
 }
 
 /** Save into a slot, and say so in the log either way. */
 function saveTo(id: string | undefined, name: string, quiet = false): boolean {
-  const text = serialiseSave(demo);
+  const text = game.serialiseSave();
   if (text === null) return false;
-  const slot = slots.write(text, name, whereWeAre(), id);
-  if (!quiet) note(demo, slot === null ? 'This browser will not let the game save.' : `Saved: ${name}.`, 'system');
+  const slot = slots.write(text, name, whereWeAre(), id, game.board.project.id);
+  if (!quiet) game.note(slot === null ? slots.refused() : `Saved: ${name}.`, 'system');
   return slot !== null;
 }
 
 function saveNow(): boolean {
-  return saveTo(QUICK_SLOT, 'Quick save');
+  return saveTo(projectSlot(QUICK_SLOT, game.board.project.id), 'Quick save');
 }
 
 /** Load a slot back into the game. */
 function loadSlot(id: string): boolean {
   const text = slots.read(id);
   if (text === null) return false;
-  const result = loadGameText(demo, text);
+  const result = game.loadGameText(text);
   if (!result.ok) {
-    note(demo, `That save could not be opened: ${result.reason}.`, 'system');
+    game.note(`That save could not be opened: ${result.reason}.`, 'system');
     return false;
   }
   // The room may have changed under the renderer, so force a rebind the way
@@ -1312,8 +1280,8 @@ function loadSlot(id: string): boolean {
   boundScene = '';
   // A load is not a doorway: the room changed, but the autosave from the
   // last real doorway must survive so a bad load can be undone.
-  lastRoom = demo.scene.id;
-  note(demo, 'Loaded.', 'system');
+  lastRoom = game.board.scene.id;
+  game.note('Loaded.', 'system');
   return true;
 }
 
@@ -1322,11 +1290,11 @@ function loadSlot(id: string): boolean {
  * into `travelTo`, because a script's `goto` travels without going through
  * `main.ts` at all; every action ends in `refreshPlay`, which is enough.
  */
-let lastRoom = demo.scene.id;
+let lastRoom = game.board.scene.id;
 function autosaveOnTravel(): void {
-  if (demo.scene.id === lastRoom) return;
-  lastRoom = demo.scene.id;
-  if (saveBlockedBy(demo) === null) saveTo(AUTO_SLOT, 'Autosave', true);
+  if (game.board.scene.id === lastRoom) return;
+  lastRoom = game.board.scene.id;
+  if (game.saveBlockedBy() === null) saveTo(projectSlot(AUTO_SLOT, game.board.project.id), 'Autosave', true);
 }
 
 
@@ -1359,30 +1327,30 @@ let restOpen = false;
 
 /** Start using an ability: run it, or arm the bar for a target first. */
 function beginAbility(abilityId: string): void {
-  const who = demo.party.selected;
+  const who = game.board.party.selected;
   if (who === null) return;
-  const ability = abilitiesOf(demo, who).find((a) => a.id === abilityId);
+  const ability = game.abilitiesOf(who).find((a) => a.id === abilityId);
   if (ability === undefined) return;
   if (ability.target.kind === 'point') {
-    const tiles = pointTiles(demo, who, ability);
-    if (tiles.length === 0) note(demo, `${ability.name}: nowhere to aim it.`, 'system');
+    const tiles = game.pointTiles(who, ability);
+    if (tiles.length === 0) game.note(`${ability.name}: nowhere to aim it.`, 'system');
     else targeting = { characterId: who, abilityId, name: ability.name, valid: [], tiles };
     refreshPlay();
     return;
   }
   const wantsPick = ability.target.kind !== 'none' && ability.target.kind !== 'self';
   if (wantsPick) {
-    const valid = abilityTargets(demo, who, ability);
+    const valid = game.abilityTargets(who, ability);
     // One thing to pick is no pick at all.
     if (valid.length === 1) {
-      useAbility(demo, who, abilityId, valid);
+      game.useAbility(who, abilityId, valid);
     } else if (valid.length === 0) {
-      note(demo, `${ability.name}: nothing in range.`, 'system');
+      game.note(`${ability.name}: nothing in range.`, 'system');
     } else {
       targeting = { characterId: who, abilityId, name: ability.name, valid };
     }
   } else {
-    useAbility(demo, who, abilityId);
+    game.useAbility(who, abilityId);
   }
   refreshPlay();
 }
@@ -1393,27 +1361,27 @@ function pickTarget(tile: number, spot?: Spot): void {
   // A card aimed at the ground takes the tile itself, whoever is standing on
   // it: "a point within Far range" is a place in the room.
   if (targeting.tiles !== undefined) {
-    if (!targeting.tiles.includes(tile) && !(targeting.abilityId === JUMP_ID && jumpReaches(demo, targeting.characterId, tile, spot))) {
-      note(demo, `${targeting.name}: that is out of range.`, 'system');
+    if (!targeting.tiles.includes(tile) && !(targeting.abilityId === JUMP_ID && game.jumpReaches(targeting.characterId, tile, spot))) {
+      game.note(`${targeting.name}: that is out of range.`, 'system');
       return;
     }
     const aimed = targeting;
     targeting = null;
-    if (aimed.abilityId === JUMP_ID) jumpTo(demo, aimed.characterId, tile, spot); else useAbility(demo, aimed.characterId, aimed.abilityId, [], { point: tile });
+    if (aimed.abilityId === JUMP_ID) game.jumpTo(aimed.characterId, tile, spot); else game.useAbility(aimed.characterId, aimed.abilityId, [], { point: tile });
     return;
   }
   const occupant = entityOn(tile);
   if (occupant === null || !targeting.valid.includes(occupant)) {
-    note(demo, `${targeting.name}: that is not a target it can reach.`, 'system');
+    game.note(`${targeting.name}: that is not a target it can reach.`, 'system');
     return;
   }
   const armed = targeting;
   targeting = null;
-  useAbility(demo, armed.characterId, armed.abilityId, [occupant]);
+  game.useAbility(armed.characterId, armed.abilityId, [occupant]);
 }
 
 function takeLevel(id: string, plan: LevelUpPlan): boolean {
-  const result = applyLevelUp(demo, id, plan);
+  const result = game.applyLevelUp(id, plan);
   if (result.ok) {
     levelling = null;
     levelIssues = [];
@@ -1427,42 +1395,42 @@ function takeLevel(id: string, plan: LevelUpPlan): boolean {
 /** An equip or a take-off from the gear pages: a refusal said on the plastic and in the log. */
 function gearDone(result: EquipResult): void {
   loadoutIssue = result.ok ? null : `Cannot do that: ${result.reason}.`;
-  if (!result.ok) note(demo, loadoutIssue!, 'system');
+  if (!result.ok) game.note(loadoutIssue!, 'system');
   refreshPlay();
 }
 
 function renderPlayPanel(): void {
   render(
     h(Fragment, null, h(PartyHud, {
-      members: hudMembers(demo),
-      portrait: (id: string) => { const who = demo.state.entity(id); return who === undefined ? null : portraitOf(view.registry, assets, view.drawnModelFor(who)); },
-      onSelect: (id: string) => { if (demo.party.select(id)) focus.on(id); refreshPlay(); },
+      members: game.hudMembers(),
+      portrait: (id: string) => { const who = game.board.state.entity(id); return who === undefined ? null : portraitOf(view.registry, assets, view.drawnModelFor(who)); },
+      onSelect: (id: string) => { if (game.select(id)) focus.on(id); refreshPlay(); },
       onLevelUp: (id: string) => { levelling = id; levelIssues = []; refreshPlay(); },
-      onDrop: (id: string, drop: Drop) => { dropCard(demo.party, id, drop); refreshPlay(); },
+      onDrop: (id: string, drop: Drop) => { game.dropCard(id, drop); refreshPlay(); },
     }), h(ActionBar, {
-      characterId: demo.party.selected,
-      name: demo.party.selected === null ? '' : nameOf(demo, demo.party.selected),
-      weapon: demo.party.selected === null ? '' : gearOf(demo, demo.party.selected).weapon,
-      abilities: demo.party.selected === null ? [] : abilityList(demo, demo.party.selected),
-      light: demo.party.selected === null ? null : (demo.state.entity(demo.party.selected)?.good ?? null),
-      bad: { ...demo.state.bad }, round: demo.encounter?.round ?? null,
-      fighting: inCombat(demo),
-      side: inCombat(demo) ? demo.encounter!.view().side : null,
+      characterId: game.board.party.selected,
+      name: game.board.party.selected === null ? '' : game.nameOf(game.board.party.selected),
+      weapon: game.board.party.selected === null ? '' : game.gearOf(game.board.party.selected).weapon,
+      abilities: game.board.party.selected === null ? [] : game.abilityList(game.board.party.selected),
+      light: game.board.party.selected === null ? null : (game.board.state.entity(game.board.party.selected)?.good ?? null),
+      bad: { ...game.board.state.bad }, round: game.board.encounter?.round ?? null,
+      fighting: game.inCombat(),
+      side: game.inCombat() ? game.board.encounter!.view().side : null,
       targeting:
         targeting === null
           ? null
           : { abilityId: targeting.abilityId, name: targeting.name, ...(targeting.tiles === undefined ? {} : { spot: true }) },
-      jump: jumpOffered(demo),
+      jump: game.jumpOffered(),
       // While a conversation is open it takes the cards' place, and the keys and the cards step aside.
-      talking: talkingView(demo), onAnswer: (response: Response) => { answerPending(demo, response); refreshPlay(); },
-      onUse: (id: string) => { if (id !== JUMP_ID) return beginAbility(id); targeting = jumpAim(demo); refreshPlay(); },
+      talking: game.talkingView(), onAnswer: (response: Response) => { game.answerPending(response); refreshPlay(); },
+      onUse: (id: string) => { if (id !== JUMP_ID) return beginAbility(id); targeting = game.jumpAim(); refreshPlay(); },
       onCancelTargeting: () => { targeting = null; refreshPlay(); },
       onPassToGm: () => {
-        endTurn(demo);
+        game.endTurn();
         refreshPlay();
       },
       onLoadout: () => {
-        loadoutOpen = demo.party.selected;
+        loadoutOpen = game.board.party.selected;
         loadoutIssue = null;
         refreshPlay();
       },
@@ -1470,14 +1438,14 @@ function renderPlayPanel(): void {
         restOpen = true;
         refreshPlay();
       },
-    }), loadoutOpen !== null && demo.sheets.has(loadoutOpen)
+    }), loadoutOpen !== null && game.board.sheets.has(loadoutOpen)
       ? h(LoadoutPanel, {
-          name: nameOf(demo, loadoutOpen),
-          view: loadoutView(demo, loadoutOpen),
-          resting: false, sheet: hudMembers(demo).find((m) => m.id === loadoutOpen), portrait: ((who) => who === undefined ? null : portraitOf(view.registry, assets, view.drawnModelFor(who)))(demo.state.entity(loadoutOpen)),
+          name: game.nameOf(loadoutOpen),
+          view: game.loadoutView(loadoutOpen),
+          resting: false, sheet: game.hudMembers().find((m) => m.id === loadoutOpen), portrait: ((who) => who === undefined ? null : portraitOf(view.registry, assets, view.drawnModelFor(who)))(game.board.state.entity(loadoutOpen)),
           issue: loadoutIssue,
           onSwap: (cardIn: string, cardOut: string | undefined) => {
-            const result = swapCard(demo, loadoutOpen!, cardIn, cardOut);
+            const result = game.swapCard(loadoutOpen!, cardIn, cardOut);
             loadoutIssue = result.ok ? null : result.reason;
             refreshPlay();
           },
@@ -1487,15 +1455,15 @@ function renderPlayPanel(): void {
             refreshPlay();
           },
           // The gear pages: the pack as cards, dragged onto the one whose binder this is.
-          gear: gearView(demo, loadoutOpen), onEquip: (item: string) => gearDone(equipItem(demo, loadoutOpen!, item)),
-          onUnequip: (slot: GearSlot) => gearDone(unequipItem(demo, loadoutOpen!, slot)), onUseItem: (item: string) => { useItem(demo, item); refreshPlay(); },
+          gear: game.gearView(loadoutOpen), onEquip: (item: string) => gearDone(game.equipItem(loadoutOpen!, item)),
+          onUnequip: (slot: GearSlot) => gearDone(game.unequipItem(loadoutOpen!, slot)), onUseItem: (item: string) => { game.useItem(item); refreshPlay(); },
         })
       : null, restOpen
       ? h(RestPanel, {
-          party: demo.party.members().map((id) => ({ id, name: nameOf(demo, id) })),
+          party: game.board.party.members().map((id) => ({ id, name: game.nameOf(id) })),
           onRest: (kind: 'short' | 'long', plan: RestPlan) => {
-            const result = rest(demo, kind, plan);
-            if (!result.ok) note(demo, `Cannot rest: ${result.reason}.`, 'system');
+            const result = game.rest(kind, plan);
+            if (!result.ok) game.note(`Cannot rest: ${result.reason}.`, 'system');
             restOpen = false;
             refreshPlay();
           },
@@ -1504,10 +1472,10 @@ function renderPlayPanel(): void {
             refreshPlay();
           },
         })
-      : null, levelling !== null && demo.sheets.has(levelling) && awaitingLevel(demo).includes(levelling)
+      : null, levelling !== null && game.board.sheets.has(levelling) && game.awaitingLevel().includes(levelling)
       ? h(LevelUpPanel, {
-          sheet: demo.sheets.get(levelling)!,
-          content: characterContentFor(demo.project),
+          sheet: game.board.sheets.get(levelling)!,
+          content: characterContentFor(game.board.project),
           issues: levelIssues,
           onApply: (plan: LevelUpPlan) => void takeLevel(levelling!, plan),
           onClose: () => {
@@ -1517,32 +1485,32 @@ function renderPlayPanel(): void {
           },
         })
       : null, h(PlayPanel, {
-      log: demo.log,
-      container: containerView(demo, (id) => withinReach(demo, id, DEMO_REACH), refreshPlay),
+      log: game.board.log,
+      container: game.containerView((id) => game.withinReach(id, DEMO_REACH), refreshPlay),
       inspecting,
       onCloseInspect: () => {
         inspecting = null;
         refreshPlay();
       },
-      journal: journalEntries(demo),
+      journal: game.journalEntries(),
       // A name in the log points at somebody on the board: the same marker the
       // pointer leaves under a tile, put there by reading rather than aiming.
       onHoverEntity: (id: string | null) => {
-        const tile = id === null ? NO_TILE : demo.state.entity(id)?.tile ?? NO_TILE;
+        const tile = id === null ? NO_TILE : game.board.state.entity(id)?.tile ?? NO_TILE;
         view.showCursor(tile);
       },
-      pending: demo.pending,
+      pending: game.board.pending,
       // One at a time, in the order they were rolled: a feature that catches the
       // whole party rolls several in one burst, and they queue.
-      rolls: demo.rolls,
-      millis: demo.diceMillis,
+      rolls: game.board.rolls,
+      millis: game.board.diceMillis,
       onRollDone: (id: number) => {
-        demo.rolls = demo.rolls.filter((waiting) => waiting.id !== id);
+        game.rollShown(id);
         refreshPlay();
       },
-      within: reachableInteractable(demo),
-      saveBlocked: saveBlockedBy(demo),
-      saves: slots.list(),
+      within: game.reachableInteractable(),
+      saveBlocked: game.saveBlockedBy(),
+      saves: slots.list().filter((slot) => projectOfSlot(slot) === game.board.project.id), // a save of another project will not load here
       onSave: () => {
         saveNow();
         refreshPlay();
@@ -1562,20 +1530,21 @@ function renderPlayPanel(): void {
         refreshPlay();
       },
       onUse: (id: string) => {
-        useSelectedOn(demo, id);
+        game.useSelectedOn(id);
         refreshPlay();
       },
       onAnswer: (response: Response) => {
-        answerPending(demo, response);
+        game.answerPending(response);
         refreshPlay();
       },
-      nameOf: (id: string) => nameOf(demo, id),
-      actorGood: demo.scenario.actorId === null ? 0 : (demo.state.entity(demo.scenario.actorId)?.good?.value ?? 0),
+      nameOf: (id: string) => game.nameOf(id),
+      actorGood: game.board.scenario.actorId === null ? 0 : (game.board.state.entity(game.board.scenario.actorId)?.good?.value ?? 0),
     })),
     app,
   );
 }
 refreshPlay();
+if (start.edit) setMode('edit'); else if (start.load !== null && !resumed()) loadSlot(start.load); // a reload came back to the game kept
 
 /** Press on the board in the editor. Whatever the press took hold of lifts off the ground, to be carried. */
 function pressAt(event: PointerEvent, at: Spot): void {
@@ -1634,7 +1603,7 @@ canvas.addEventListener('pointerdown', (event) => {
 });
 
 /** Facts about whatever stands on a tile — a party member, an adversary, an object: `game/inspect.ts`. */
-const inspectTile = (tile: number): Inspection | null => inspection(demo, entityOn(tile), objectOn(tile));
+const inspectTile = (tile: number): Inspection | null => game.inspection(entityOn(tile), objectOn(tile));
 
 /** A click on the board in play mode. */
 function clickAt(event: PointerEvent): void {
@@ -1652,18 +1621,18 @@ function clickAt(event: PointerEvent): void {
 
   // A new order interrupts the walk in flight: whoever is still moving is put down where they have
   // got to, and everything below is measured from there, not from the tile the document moved them to.
-  landWalkers(demo.party, view);
-  cancelApproach(demo); // a new order replaces what the walk in flight was for
-  const occupant = lit !== null ? null : entityNear(spot) ?? [entityOn(tile)].find((id) => id !== demo.party.selected) ?? null;
+  game.landWalkers(view);
+  game.cancelApproach(); // a new order replaces what the walk in flight was for
+  const occupant = lit !== null ? null : entityNear(spot) ?? [entityOn(tile)].find((id) => id !== game.board.party.selected) ?? null;
   if (occupant !== null) {
-    const entity = demo.state.entity(occupant)!;
-    if (entity.faction === 'party') { if (demo.party.select(occupant)) focus.on(occupant); }
-    else attackWithSelected(demo, occupant);
+    const entity = game.board.state.entity(occupant)!;
+    if (entity.faction === 'party') { if (game.select(occupant)) focus.on(occupant); }
+    else game.attackWithSelected(occupant);
   } else {
     // A click on a thing uses it, walking up to it when it is out of reach; on bare ground, walk.
     const object = lit ?? objectOn(tile);
     if (object !== null) approachAndUse(object);
-    else { const walk = moveSelectedTo(demo, tile, spot); view.ripple(spot, walk.moved || walk.pending === true); } // the ground answers
+    else { const walk = game.moveSelectedTo(tile, spot); view.ripple(spot, walk.moved || walk.pending === true); } // the ground answers
   }
   view.clearPath(); // the walk is under way: the line it was going to take is not needed on the ground now
   refreshPlay();
@@ -1696,6 +1665,7 @@ canvas.addEventListener('pointermove', (event) => {
     return;
   }
   if (mode === 'edit') {
+    noteArtOnBoard(() => view.artUnder(aim(event))); // how the art under the pointer was made, as in play
     // The ghost only needs where the pointer is; working out the cell costs a
     // raycast against the terrain meshes, so a hover does not pay for one.
     if (placementTool()) lastBuildPointer = { clientX: event.clientX, clientY: event.clientY };
@@ -1713,7 +1683,7 @@ canvas.addEventListener('pointermove', (event) => {
   resting = { clientX: event.clientX, clientY: event.clientY, drawn: performance.now() };
   const over = ground?.tile ?? NO_TILE;
   view.showCursor(over);
-  view.spotlight(aim(event), over);
+  view.spotlight(aim(event), over); noteArtOnBoard(() => view.artUnder(aim(event)));
   hoverWalk(ground);
   // A card aimed at the ground redraws its shape as the pointer moves, so what
   // it would catch is on the board before the click rather than in the log
@@ -1721,7 +1691,7 @@ canvas.addEventListener('pointermove', (event) => {
   if (targeting?.tiles !== undefined && targeting.aimed !== over) {
     targeting = { ...targeting, aimed: over, ...(ground === null ? {} : { aimedAt: ground.spot }) };
     refreshPlay();
-  } else if (targeting?.abilityId === JUMP_ID && ground !== null) view.showArc(aimedArc(demo, (targeting = { ...targeting, aimedAt: ground.spot }))); // a jump follows the pointer within the tile too
+  } else if (targeting?.abilityId === JUMP_ID && ground !== null) view.showArc(game.aimedArc((targeting = { ...targeting, aimedAt: ground.spot }))); // a jump follows the pointer within the tile too
 });
 
 canvas.addEventListener('pointerleave', () => {
@@ -1729,7 +1699,7 @@ canvas.addEventListener('pointerleave', () => {
   steering = null;
   resting = null;
   lastBuildPointer = null;
-  view.showCursor(NO_TILE);
+  view.showCursor(NO_TILE); noteArtOnBoard(null);
   view.clearPath();
 });
 
@@ -1747,9 +1717,9 @@ canvas.addEventListener('pointercancel', () => {
 function hoverWalk(ground: { tile: number; spot: Spot } | null): void {
   // Drawn from the body on the screen, not the tile the document holds: mid-walk they differ, and
   // a click will land them where they are before it walks them anywhere.
-  const line = ground === null || mode !== 'play' || targeting !== null || activeScene().id !== demo.scene.id
+  const line = ground === null || mode !== 'play' || targeting !== null || activeScene().id !== game.board.scene.id
     ? null
-    : hoverLine(demo, ground, { entityNear, entityOn, objectOn }, standingNow(view, demo.party.selected));
+    : game.hoverLine(ground, { entityNear, entityOn, objectOn }, standingNow(view, game.board.party.selected));
   if (line === null) view.clearPath();
   else view.showPath(line.route, line.beyond, line.run);
 }
@@ -1764,7 +1734,7 @@ canvas.addEventListener('pointerup', (event) => {
     steering = null;
     if (wasClick && button === 0) clickAt(event);
     // A right-click on the way to use something, or to talk to somebody, calls it off: they stop where they have got to.
-    if (wasClick && button === 2 && cancelApproach(demo)) { landWalkers(demo.party, view); refreshPlay(); return; }
+    if (wasClick && button === 2 && game.cancelApproach()) { game.landWalkers(view); refreshPlay(); return; }
     if (wasClick && button === 2) {
       // A still right-click puts down whatever was being aimed - a jump, a card - and otherwise looks at what is there.
       const tile = tileUnderPointer(event);
@@ -1841,11 +1811,11 @@ window.addEventListener('keydown', (event) => {
     refreshPlay();
   } else if (event.key === 'Tab') {
     event.preventDefault();
-    const next = demo.party.selectNext();
+    const next = game.selectNext();
     if (next !== null) focus.on(next);
     refreshPlay();
   } else if (event.key === ' ' || event.key === 'Enter') {
-    endTurn(demo);
+    game.endTurn();
     refreshPlay();
   } else if (event.key === 'f' || event.key === 'F') {
     frameParty();
@@ -1893,7 +1863,7 @@ window.addEventListener('beforeunload', (event) => {
  */
 function followSelected(now: number): void {
   if (mode !== 'play' || steering === null || held.size > 0 || now - steering.since < STEER_HOLD) return;
-  const id = demo.party.selected;
+  const id = game.board.party.selected;
   if (id === null) return;
   const token = view.tokenFor(id);
   if (token === undefined) return;
@@ -1905,7 +1875,7 @@ function followSelected(now: number): void {
  * The press has to be held a moment first, so a click is still a click.
  */
 function steerWalk(now: number): void {
-  if (steering === null || mode !== 'play' || targeting !== null || activeScene().id !== demo.scene.id) return;
+  if (steering === null || mode !== 'play' || targeting !== null || activeScene().id !== game.board.scene.id) return;
   if (now - steering.since < STEER_HOLD || now - steering.last < STEER_EVERY) return;
   // How long this step stands for: the walk covers what a walk covers in that time, and no more.
   const seconds = (now - steering.last) / 1000;
@@ -1915,9 +1885,9 @@ function steerWalk(now: number): void {
   const ground = groundUnderPointer(steering);
   const flat = ground !== null ? null : aim(steering).ray.intersectPlane(buildPlane.set(UP, -view.layout.baseHeight), groundPoint);
   const spot = ground?.spot ?? (flat === null ? null : worldToSpot(activeGrid, flat.x, flat.z, view.layout));
-  const step = spot === null ? null : steerStep(demo, spot, seconds);
+  const step = spot === null ? null : game.steerStep(spot, seconds);
   if (step === null) return;
-  if (moveSelectedTo(demo, demo.grid.tileAtSpot(step.x, step.y), step).moved) steering.walked = true;
+  if (game.moveSelectedTo(game.board.grid.tileAtSpot(step.x, step.y), step).moved) steering.walked = true;
   view.clearPath();
   refreshPlay();
 }
@@ -1950,64 +1920,64 @@ const state = {
   webgl2,
   frames: 0,
   errors,
-  tiles: demo.grid.size,
-  entities: demo.state.allEntities().length,
+  tiles: game.board.grid.size,
+  entities: game.board.state.allEntities().length,
   decos: view.decoCount,
   missingModels: (): string[] => view.registry.missing(),
-  party: (): string[] => demo.party.members(),
-  selected: (): string | null => demo.party.selected,
-  select: (id: string): boolean => { const ok = demo.party.select(id); if (ok) refreshPlay(); return ok; },
-  selectNext: (): string | null => { const id = demo.party.selectNext(); refreshPlay(); return id; },
-  linked: (id: string): string[] => demo.party.groupOf(id),
-  link: (id: string, withId: string): boolean => { const ok = demo.party.link(id, withId); if (ok) refreshPlay(); return ok; },
-  unlink: (id: string): boolean => { const ok = demo.party.unlink(id); if (ok) refreshPlay(); return ok; },
-  tileOf: (id: string): number => demo.state.entity(id)?.tile ?? NO_TILE,
-  zones: (): { id: string; name: string; tiles: number[] }[] => demo.world.zoneFootprints().map((z) => ({ id: z.id, name: z.name, tiles: z.tiles })),
-  inCombat: (): boolean => inCombat(demo),
-  round: (): number => demo.encounter?.round ?? 0,
-  adversaries: (): string[] => demo.state.entitiesOf('adversary').filter((e) => e.alive).map((e) => e.id),
+  party: (): string[] => game.board.party.members(),
+  selected: (): string | null => game.board.party.selected,
+  select: (id: string): boolean => { const ok = game.select(id); if (ok) refreshPlay(); return ok; },
+  selectNext: (): string | null => { const id = game.selectNext(); refreshPlay(); return id; },
+  linked: (id: string): string[] => game.board.party.groupOf(id),
+  link: (id: string, withId: string): boolean => { const ok = game.link(id, withId); if (ok) refreshPlay(); return ok; },
+  unlink: (id: string): boolean => { const ok = game.unlink(id); if (ok) refreshPlay(); return ok; },
+  tileOf: (id: string): number => game.board.state.entity(id)?.tile ?? NO_TILE,
+  zones: (): { id: string; name: string; tiles: number[] }[] => game.board.world.zoneFootprints().map((z) => ({ id: z.id, name: z.name, tiles: z.tiles })),
+  inCombat: (): boolean => game.inCombat(),
+  round: (): number => game.board.encounter?.round ?? 0,
+  adversaries: (): string[] => game.board.state.entitiesOf('adversary').filter((e) => e.alive).map((e) => e.id),
   hitPoints: (id: string): { marked: number; max: number } => {
-    const pool = demo.state.entity(id)?.hitPoints;
+    const pool = game.board.state.entity(id)?.hitPoints;
     return { marked: pool?.marked ?? 0, max: pool?.max ?? 0 };
   },
   moveTo: (tile: number): boolean => {
-    const result = moveSelectedTo(demo, tile);
+    const result = game.moveSelectedTo(tile);
     if (result.moved || result.pending === true) refreshPlay();
     return result.moved;
   },
   walkTo: (x: number, y: number): boolean => {
-    const result = moveSelectedTo(demo, activeGrid.tileAtSpot(x, y), { x, y });
+    const result = game.moveSelectedTo(activeGrid.tileAtSpot(x, y), { x, y });
     if (result.moved || result.pending === true) refreshPlay();
     return result.moved;
   },
-  underPressure: (): number[] => underPressureTiles(demo),
+  underPressure: (): number[] => game.underPressureTiles(),
   standingNow: (id: string): { x: number; y: number } | null => view.spotOf(id),
   standingAt: (id: string): { x: number; y: number } | null => {
-    const entity = demo.state.entity(id);
+    const entity = game.board.state.entity(id);
     return entity === undefined || entity.tile === NO_TILE ? null : { x: entity.at.x, y: entity.at.y };
   },
   /** Where a spot on the ground lands on screen, in CSS pixels from the page origin. */
   screenAt: (x: number, y: number): { x: number; y: number } => screenAt({ x, y }, 0),
   previewAt: (x: number, y: number): { route: { x: number; y: number }[]; beyond: { x: number; y: number }[]; run: boolean } | null => {
     // From the body, exactly as the hover does it: the driver has to answer what a player sees.
-    const preview = previewWalk(demo, activeGrid.tileAtSpot(x, y), { x, y }, standingNow(view, demo.party.selected) ?? undefined);
+    const preview = game.previewWalk(activeGrid.tileAtSpot(x, y), { x, y }, standingNow(view, game.board.party.selected) ?? undefined);
     if (preview === null) return null;
     return { ...preview, route: preview.route.map((s) => ({ x: s.x, y: s.y })), beyond: preview.beyond.map((s) => ({ x: s.x, y: s.y })) };
   },
   pathPoints: (): number => view.pathPointCount,
   attack: (id: string): boolean => {
-    const result = attackWithSelected(demo, id);
-    arrived(demo); // a creature walked up to, to talk: the driver does not wait for the walk to be drawn
+    const result = game.attackWithSelected(id);
+    game.arrived(); // a creature walked up to, to talk: the driver does not wait for the walk to be drawn
     refreshPlay();
     return result !== null && result.refused === null;
   },
   endGmTurn: (): number => {
-    const acted = endTurn(demo); // let the room have its turn: the party's spotlight is given up first when it is theirs
+    const acted = game.endTurn(); // let the room have its turn: the party's spotlight is given up first when it is theirs
     refreshPlay();
     return acted;
   },
   highlighted: (): number => view.highlightedCount,
-  reachable: (): number[] => reachableTiles(demo).tiles(),
+  reachable: (): number[] => game.reachableTiles().tiles(),
   sample: (x: number, y: number): number[] => {
     // The drawing buffer is not preserved between frames, so read it inside the
     // same task that drew it rather than whenever a caller happens to ask.
@@ -2017,38 +1987,38 @@ const state = {
   },
 
   use: (id: string): string => {
-    const result = useSelectedOn(demo, id);
+    const result = game.useSelectedOn(id);
     refreshPlay();
     return result.status;
   },
   approach: (id: string): string => {
     const first = approachAndUse(id);
     // The driver does not wait for the walk to be drawn: what it was for happens now.
-    const status = first === 'walking' ? (arrived(demo), demo.pending === null ? 'done' : 'waiting') : first;
+    const status = first === 'walking' ? (game.arrived(), game.board.pending === null ? 'done' : 'waiting') : first;
     refreshPlay();
     return status;
   },
   useInReach: (): string => {
-    const id = reachableInteractable(demo);
+    const id = game.reachableInteractable();
     if (id === null) return 'none';
-    const result = useSelectedOn(demo, id);
+    const result = game.useSelectedOn(id);
     refreshPlay();
     return result.status;
   },
   answer: (response: Response): string => {
-    const result = answerPending(demo, response);
+    const result = game.answerPending(response);
     refreshPlay();
     return result.status;
   },
-  log: (): { text: string; tone: string }[] => demo.log.map((l) => ({ ...l })),
+  log: (): { text: string; tone: string }[] => game.board.log.map((l) => ({ ...l })),
   setDiceSpeed: (millis: number): void => {
-    demo.diceMillis = Math.max(0, millis);
+    game.setDiceSpeed(millis);
     refreshPlay();
   },
   dice: (): { good: number; bad: number; total: number }[] =>
-    demo.rolls.map((shown) => ({ good: shown.roll.good, bad: shown.roll.bad, total: shown.roll.total })),
+    game.board.rolls.map((shown) => ({ good: shown.roll.good, bad: shown.roll.bad, total: shown.roll.total })),
   clearDice: (): void => {
-    demo.rolls.length = 0;
+    game.clearRolls();
     refreshPlay();
   },
   /**
@@ -2058,36 +2028,36 @@ const state = {
    * answered 'dialogue' while a player was being shown a roll to make.
    */
   pendingKind: (): string | null => {
-    const pending = demo.pending;
+    const pending = game.board.pending;
     if (pending === null) return null;
     const talking = pending.kind === 'script' ? pending.dialogue : null;
     if (talking !== null) return talking.prompt?.kind ?? 'dialogue';
     return pending.prompt.kind;
   },
-  objects: (): string[] => interactablesOf(demo.scene).map((i) => i.id),
-  container: (): { id: string; lines: { item: string; count: number }[] } | null => ((open) => open === null ? null : { id: open.id, lines: open.lines.map((l) => ({ item: l.item, count: l.count })) })(containerView(demo, () => true, () => {})),
-  take: (item: string): boolean => ((open) => open !== null && takeFromContainer(demo, open.id, item) && (refreshPlay(), true))(containerView(demo, () => true, () => {})),
+  objects: (): string[] => interactablesOf(game.board.scene).map((i) => i.id),
+  container: (): { id: string; lines: { item: string; count: number }[] } | null => ((open) => open === null ? null : { id: open.id, lines: open.lines.map((l) => ({ item: l.item, count: l.count })) })(game.containerView(() => true, () => {})),
+  take: (item: string): boolean => ((open) => open !== null && game.takeFromContainer(open.id, item) && (refreshPlay(), true))(game.containerView(() => true, () => {})),
   doorAngle: (id: string): number | null => view.doorAngle(id),
   dialogueOptions: (): string[] =>
-    scriptPending(demo)?.dialogue?.view?.options.map((o) => o.text) ?? [],
-  hasDialogue: (): boolean => scriptPending(demo)?.dialogue != null,
-  within: (): string | null => reachableInteractable(demo),
+    game.scriptPending()?.dialogue?.view?.options.map((o) => o.text) ?? [],
+  hasDialogue: (): boolean => game.scriptPending()?.dialogue != null,
+  within: (): string | null => game.reachableInteractable(),
   /** Put the selected member beside a thing, so a test can reach it. */
   standBeside: (id: string): boolean => {
-    const object = interactablesOf(demo.scene).find((i) => i.id === id);
-    const actor = demo.party.selected;
+    const object = interactablesOf(game.board.scene).find((i) => i.id === id);
+    const actor = game.board.party.selected;
     if (object === undefined || actor === null) return false;
-    const tile = demo.grid.indexOf(object.position.x - 1, object.position.y);
-    if (!demo.grid.isTile(tile)) return false;
-    demo.state.moveEntity(actor, tile);
+    const tile = game.board.grid.indexOf(object.position.x - 1, object.position.y);
+    if (!game.board.grid.isTile(tile)) return false;
+    game.placeAt(actor, tile);
     refreshPlay();
     return true;
   },
 
   abilities: (id: string) =>
-    abilityList(demo, id).map((v) => ({ id: v.ability.id, usable: v.usable, reason: v.reason, targets: v.targets })),
+    game.abilityList(id).map((v) => ({ id: v.ability.id, usable: v.usable, reason: v.reason, targets: v.targets })),
   useAbility: (id: string, ability: string, targets: string[] = [], point?: number): string => {
-    const result = useAbility(demo, id, ability, targets, point === undefined ? {} : { point });
+    const result = game.useAbility(id, ability, targets, point === undefined ? {} : { point });
     refreshPlay();
     return result.status;
   },
@@ -2097,83 +2067,78 @@ const state = {
   },
   lit: (): number[] => (targeting === null ? [] : aimingHighlights(targeting)),
   setGood: (id: string, value: number): void => {
-    const entity = demo.state.entity(id);
-    if (entity?.good === undefined) return;
-    entity.good = { max: entity.good.max, value: Math.max(0, Math.min(entity.good.max, value)) };
+    if (game.board.state.entity(id)?.good === undefined) return;
+    game.setGood(id, value);
     refreshPlay();
   },
   shape: (ability: string, tile: number): string[] => {
-    const who = demo.party.selected;
-    const card = who === null ? undefined : abilitiesOf(demo, who).find((a) => a.id === ability);
-    return who === null || card === undefined ? [] : shapeAt(demo, who, card, tile);
+    const who = game.board.party.selected;
+    const card = who === null ? undefined : game.abilitiesOf(who).find((a) => a.id === ability);
+    return who === null || card === undefined ? [] : game.shapeAt(who, card, tile);
   },
   passToGm: (): number => {
-    const acted = endTurn(demo);
+    const acted = game.endTurn();
     refreshPlay();
     return acted;
   },
   loadout: (id: string) => {
-    const view = loadoutView(demo, id);
+    const view = game.loadoutView(id);
     return { loadout: view.loadout.map((c) => c.id), vault: view.vault.map((c) => c.id), granted: view.granted.map((c) => c.id) };
   },
   swapCard: (id: string, cardIn: string, cardOut?: string): string | null => {
-    const result = swapCard(demo, id, cardIn, cardOut);
+    const result = game.swapCard(id, cardIn, cardOut);
     refreshPlay();
     return result.ok ? null : result.reason;
   },
   rest: (kind: 'short' | 'long', plan: unknown): boolean => {
-    const result = rest(demo, kind, plan as RestPlan);
+    const result = game.rest(kind, plan as RestPlan);
     refreshPlay();
     return result.ok;
   },
-  conditionsOf: (id: string): string[] => [...(demo.state.entity(id)?.conditions ?? [])],
+  conditionsOf: (id: string): string[] => [...(game.board.state.entity(id)?.conditions ?? [])],
   setCondition: (id: string, condition: string, on: boolean): boolean => {
-    const changed = on ? demo.world.applyCondition(id, condition, 'scene') : demo.world.clearCondition(id, condition);
+    const changed = game.setCondition(id, condition, on);
     refreshPlay();
     return changed;
   },
   targeting: (): string | null => targeting?.abilityId ?? null,
-  turnSide: (): string | null => (inCombat(demo) ? demo.encounter!.view().side : null),
+  turnSide: (): string | null => (game.inCombat() ? game.board.encounter!.view().side : null),
   /** Start the room's first encounter where the party stands, for a test. */
   startFight: (): boolean => {
-    const encounter = demo.scene.encounters[0];
+    const encounter = game.board.scene.encounters[0];
     if (encounter === undefined) return false;
-    startEncounter(demo, encounter.id);
+    game.startEncounter(encounter.id);
     refreshPlay();
     return true;
   },
   /** Put the selected member next to a creature, so a test can reach it. */
   standNear: (id: string): boolean => {
-    const target = demo.state.entity(id);
-    const actor = demo.party.selected;
+    const target = game.board.state.entity(id);
+    const actor = game.board.party.selected;
     if (target === undefined || actor === null) return false;
-    const blocked = demo.state.blockedFor(actor);
+    const blocked = game.board.state.blockedFor(actor);
     let stand = NO_TILE;
-    demo.grid.forEachNeighbor(target.tile, false, (tile) => {
-      if (stand === NO_TILE && demo.grid.isPassable(tile) && !blocked(tile)) stand = tile;
+    game.board.grid.forEachNeighbor(target.tile, false, (tile) => {
+      if (stand === NO_TILE && game.board.grid.isPassable(tile) && !blocked(tile)) stand = tile;
     });
     if (stand === NO_TILE) return false;
-    demo.state.moveEntity(actor, stand);
+    game.placeAt(actor, stand);
     refreshPlay();
     return true;
   },
   /** Hand a character a set of domain cards, for a test of the vault. */
   setCards: (id: string, cards: string[]): void => {
-    const sheet = demo.sheets.get(id);
-    if (sheet === undefined) return;
-    const grown = { ...sheet, domainCards: cards };
-    delete (grown as { loadout?: readonly string[] }).loadout;
-    setSheet(demo, grown);
-    refreshWorld(demo);
+    if (!game.board.sheets.has(id)) return;
+    game.setCards(id, cards);
     refreshPlay();
   },
 
-  sceneId: (): string => demo.scene.id,
+  sceneId: (): string => game.board.scene.id,
   // `tiles` is captured once at boot; this reads the room the party is in.
   sceneTiles: (): number => activeGrid.size,
-  scenes: (): string[] => demo.project.scenes.map((s) => s.id),
+  scenes: (): string[] => game.board.project.scenes.map((s) => s.id),
   travelTo: (scene: string): boolean => {
-    const moved = travelTo(demo, scene);
+    const moved = game.travelTo(scene);
     refreshPlay();
     return moved;
   },
@@ -2239,7 +2204,7 @@ const state = {
   dialogueNodes: (dialogue: string): string[] =>
     session.project.dialogues.find((d) => d.id === dialogue)?.nodes.map((n) => n.id) ?? [],
 
-  carried: (): { id: string; name: string; quantity: number }[] => carriedItems(demo),
+  carried: (): { id: string; name: string; quantity: number }[] => game.carriedItems(),
   inspect: (tile: number): { kind: string; id: string; name: string; facts: string[] } | null => {
     inspecting = inspectTile(tile);
     refreshPlay();
@@ -2247,39 +2212,37 @@ const state = {
   },
   animating: (): number => view.animationCount,
   clipOf: (id: string): string | null => view.clipOf(id),
-  objectTile: (id: string): number => demo.state.interactableTile(id),
+  objectTile: (id: string): number => game.board.state.interactableTile(id),
   objectState: (id: string): { used: boolean; open: boolean; removed: boolean } => {
-    const s = demo.state.interactable(id);
+    const s = game.thingState(id); // read through the seam: reading a thing's state makes it
     return { used: s.used, open: s.open, removed: s.removed };
   },
   useItem: (id: string): string => {
-    const result = useItem(demo, id);
+    const result = game.useItem(id);
     refreshPlay();
     return result.status;
   },
   wound: (id: string, marks: number): void => {
-    const entity = demo.state.entity(id);
-    if (entity !== undefined) entity.hitPoints.marked = Math.min(entity.hitPoints.max, Math.max(0, marks));
+    game.wound(id, marks);
     refreshPlay();
   },
   markStress: (id: string, marks: number): void => {
-    const entity = demo.state.entity(id);
-    if (entity !== undefined) entity.stress = { ...entity.stress, marked: Math.min(entity.stress.max, Math.max(0, marks)) };
+    game.markStress(id, marks);
     refreshPlay();
   },
   stressOf: (id: string): { marked: number; max: number } => {
-    const entity = demo.state.entity(id);
+    const entity = game.board.state.entity(id);
     return { marked: entity?.stress.marked ?? 0, max: entity?.stress.max ?? 0 };
   },
   equip: (id: string): string => {
-    const who = demo.party.selected;
-    const result = who === null ? { ok: false as const, reason: 'nobody selected' } : equipItem(demo, who, id);
+    const who = game.board.party.selected;
+    const result = who === null ? { ok: false as const, reason: 'nobody selected' } : game.equipItem(who, id);
     refreshPlay();
     return result.ok ? result.slot : `refused: ${result.reason}`;
   },
-  gear: (id: string): { weapon: string; armor: string } => gearOf(demo, id),
+  gear: (id: string): { weapon: string; armor: string } => game.gearOf(id),
   giveItem: (id: string, quantity = 1): void => {
-    demo.world.addItem(id, quantity);
+    game.giveItem(id, quantity);
     refreshPlay();
   },
 
@@ -2308,13 +2271,13 @@ const state = {
     if (mode === 'edit') renderPanel();
   },
   grantLevel: (level?: number): number => {
-    demo.world.grantLevel(level);
+    game.grantLevel(level);
     refreshPlay();
-    return demo.scenario.partyLevel;
+    return game.board.scenario.partyLevel;
   },
-  awaitingLevel: (): string[] => awaitingLevel(demo),
+  awaitingLevel: (): string[] => game.awaitingLevel(),
   takeLevel: (id: string, plan: unknown): boolean => takeLevel(id, plan as LevelUpPlan),
-  characterLevel: (id: string): number => demo.sheets.get(id)?.level ?? 0,
+  characterLevel: (id: string): number => game.board.sheets.get(id)?.level ?? 0,
   cursorTile: (): number => view.cursorAt,
   arc: (): 'ok' | 'blocked' | null => view.arcShowing,
   /** Where a tile's centre lands on screen, in CSS pixels from the page origin. */
@@ -2322,7 +2285,7 @@ const state = {
   gliding: (): number => view.glidingCount,
   ripples: (): number => view.rippleCount,
   arrive: (): boolean => {
-    const began = arrive(demo);
+    const began = game.arrive();
     if (began) refreshPlay();
     return began;
   },
@@ -2331,7 +2294,7 @@ const state = {
   floaters: (): { id: string; text: string }[] =>
     liveFloaters.map((f) => ({ id: f.el.dataset['entity'] ?? '', text: f.el.textContent ?? '' })),
   journal: (): { id: string; status: string; done: string[]; summary: string }[] =>
-    journalEntries(demo).map((q) => ({
+    game.journalEntries().map((q) => ({
       id: q.id,
       status: q.status,
       done: q.objectives.filter((o) => o.done).map((o) => o.id),
@@ -2343,12 +2306,12 @@ const state = {
     return ok;
   },
   load: (): boolean => {
-    const ok = loadSlot(QUICK_SLOT);
+    const ok = loadSlot(projectSlot(QUICK_SLOT, game.board.project.id));
     refreshPlay();
     return ok;
   },
   saveAs: (name: string): string | null => {
-    const text = serialiseSave(demo);
+    const text = game.serialiseSave();
     const slot = text === null ? null : slots.write(text, name, whereWeAre());
     refreshPlay();
     return slot?.id ?? null;
@@ -2360,8 +2323,8 @@ const state = {
   },
   saves: (): { id: string; name: string; where: string; savedAt: number }[] =>
     slots.list().map((slot) => ({ id: slot.id, name: slot.name, where: slot.where, savedAt: slot.savedAt })),
-  saveBlocked: (): string | null => saveBlockedBy(demo),
-  saveText: (): string | null => slots.read(QUICK_SLOT),
+  saveBlocked: (): string | null => game.saveBlockedBy(),
+  saveText: (): string | null => slots.read(projectSlot(QUICK_SLOT, game.board.project.id)),
 
   mode: (): 'play' | 'edit' => mode,
   setMode,
@@ -2425,9 +2388,9 @@ function frame(now = performance.now()): void {
   steerWalk(now);
   view.tick(dt);
   // The last token stops: the ambush the walk woke begins.
-  if (demo.ambush !== null && view.glidingCount === 0 && arrive(demo)) { cancelApproach(demo); refreshPlay(); } // a walk that woke a fight is not a walk to use something
-  if (demo.approaching !== null && view.glidingCount === 0 && arrived(demo)) refreshPlay(); // there: now what it was for
-  followSelected(now);
+  if (game.board.ambush !== null && view.glidingCount === 0 && game.arrive()) { game.cancelApproach(); refreshPlay(); } // a walk that woke a fight is not a walk to use something
+  if (game.board.approaching !== null && view.glidingCount === 0 && game.arrived()) refreshPlay(); // there: now what it was for
+  followSelected(now); if (game.changedBehind()) refreshPlay(); // the server's board stood the game elsewhere: drawn again
   focus.tick();
   // The line is drawn from the figure, so a figure that is walking changes it even though the
   // pointer has not moved an inch. Redrawn on the walk's own cadence rather than every frame:
@@ -2453,7 +2416,7 @@ frame();
 // Card art: whatever is in `public/cards/`, plus anything imported into this
 // browser. One fetch, and a miss is silent - most machines have no directory at
 // all, and every card can draw its own emblem instead.
-useCardArtImports(new CardArtImports(browserStore()));
+useCardArtImports(new CardArtImports(sharedBrowserStore()));
 void loadCardArtIndex().then((index) => {
   useCardArtIndex(index);
   // The action bar was drawn before the index arrived, so redraw it - but only

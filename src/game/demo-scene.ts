@@ -1344,7 +1344,7 @@ function clearPartyTemporary(demo: Pick<DemoScene, 'state' | 'sheets' | 'charact
       entity.conditionDurations.delete(condition);
       cleared.push(condition);
     }
-    if (cleared.length > 0) note(demo, `${nameOf(demo, entity.id)} shakes off ${cleared.join(' and ')}.`, 'good');
+    if (cleared.length > 0) note(demo, `${nameOf(demo, entity.id)} shakes off ${cleared.map((c) => demo.world.conditionName(c)).join(' and ')}.`, 'good');
   }
   syncPools(demo);
 }
@@ -3228,7 +3228,7 @@ function clearTemporaryConditions(demo: Pick<DemoScene, 'state' | 'sheets' | 'wo
     cleared.push(condition);
   }
   if (cleared.length > 0) {
-    note(demo, `${theNameOf(demo, adversaryId)} shakes off ${cleared.join(' and ')}.`, 'combat');
+    note(demo, `${theNameOf(demo, adversaryId)} shakes off ${cleared.map((c) => demo.world.conditionName(c)).join(' and ')}.`, 'combat');
   }
 }
 
@@ -3246,7 +3246,7 @@ function clearWithBad(demo: Pick<DemoScene, 'state' | 'sheets' | 'world' | 'log'
     adversary.conditions.delete(condition);
     adversary.conditionDurations.delete(condition);
   }
-  note(demo, `The GM spends a Shadow: ${theNameOf(demo, adversaryId, true)} shakes off ${held.join(' and ')}.`, 'bad');
+  note(demo, `The GM spends a Shadow: ${theNameOf(demo, adversaryId, true)} shakes off ${held.map((c) => demo.world.conditionName(c)).join(' and ')}.`, 'bad');
 }
 
 /**
@@ -3905,7 +3905,7 @@ function landAttack(demo: DemoScene, attack: IncomingAttack, plan: DefensePlan |
   landedFeatures(demo, attack, final.hitPointsMarked);
   playAttackedOn(demo, attack.defender, attack.attacker);
   const ended = [...demo.world.endsOnHit(attack.defender), ...(final.hitPointsMarked > 0 ? demo.world.endsOnDamage(attack.defender) : [])];
-  for (const condition of ended) note(demo, `${who} is no longer ${condition}.`, 'system');
+  for (const condition of ended) note(demo, `${who} is no longer ${demo.world.conditionName(condition)}.`, 'system');
   noteReduction(demo, who, resolved);
   note(
     demo,

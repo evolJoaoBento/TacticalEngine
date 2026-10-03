@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures';
 
 /**
  * Select in the Terrain tab takes hold of a piece of building: press on it, drag it across the

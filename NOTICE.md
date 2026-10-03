@@ -30,8 +30,10 @@ own art, which `equipment.lock.json` names. The source is at
   Content under the DPCGL, and the attribution that licence requires is kept in `docs/CONTEXT.md`,
   which is the only place holding its wording. This licence covers the code that implements those
   rules; it does not reach the rules themselves, and nothing here relicenses them. That includes
-  the equipment catalogue (`src/engine/content/equipment/catalogue.json`): the stats and text of
-  the weapons, armour, items and consumables are Public Game Content under the DPCGL, not ours.
+  the equipment catalogue (`src/engine/content/equipment/catalogue.json`) and the character pack
+  (`src/engine/content/pack/shipped/srd-characters.json`): the stats and text of the weapons,
+  armour, items and consumables, and of the classes, subclasses, ancestries, communities and cards,
+  are Public Game Content under the DPCGL, not ours.
   Daggerheart is a trademark of Critical Role, LLC; this project is unaffiliated and unendorsed.
 
 - **Kreon**, the play UI's font: Copyright 2018 The Kreon Project Authors, used under the SIL Open

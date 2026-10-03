@@ -1,6 +1,7 @@
 import { useState } from 'preact/hooks';
 import type { GrantedCard, LoadoutCard } from '../demo-abilities';
 import { artFor } from './card-art';
+import { artNoteHandlers } from './AiNote';
 import { SIGIL_HEIGHT, SIGIL_WIDTH, sigilOf, type Sigil } from './card-sigil';
 import { PIP_ICONS } from './pool-icons';
 
@@ -26,6 +27,7 @@ export function CardSigil({ card, className }: { card: { id: string; domain: str
   return (
     <svg
       className={className}
+      {...artNoteHandlers(`card:${card.id}`)}
       viewBox={`0 0 ${SIGIL_WIDTH} ${SIGIL_HEIGHT}`}
       preserveAspectRatio="xMidYMid slice"
       aria-hidden="true"
@@ -64,7 +66,7 @@ function ImageArtwork({ card, className, src }: { card: { id: string; domain: st
   const [failed, setFailed] = useState(false);
   return failed
     ? <CardSigil card={card} className={className} />
-    : <img className={className} src={src} alt="" aria-hidden="true" onError={() => setFailed(true)} />;
+    : <img className={className} src={src} alt="" aria-hidden="true" onError={() => setFailed(true)} {...artNoteHandlers(`card:${card.id}`)} />;
 }
 
 /** A domain card, drawn from the SRD text and whatever art it has. */
