@@ -1,31 +1,16 @@
 /**
- * The engine in the page, asked beside the game (`docs/SERVER.md`, phase 3, slice 2c).
+ * Where the page's games part, counted (`docs/SERVER.md`, phases 3 to 5).
  *
- * The game still answers the page: this asks the replica - the Rust engine built to WebAssembly
- * (`wasm-engine.ts`) - the same question, and keeps count of where the two part. Nothing a player sees
- * changes; the e2e suite reads the count (`window.__replica`) and holds it to nought. It runs only where
- * the page is served for development, the dev server the tests use, and only when `npm run wasm` has
- * built the engine: a page without it is the page it was.
+ * The page plays the engine built to WebAssembly (`WasmGame`), and in development holds it to the game on the
+ * server (`wire.ts`); the questions the pointer asks are put to the page's views and to the engine. Every such
+ * comparison is counted here, and where two part the parting is kept - the first few - and said to the console
+ * as an error, which a watching spec fails on; the e2e suite reads the count (`window.__replica`) and holds it to
+ * nought. `firstDifference` says where two values first part, key order aside. And `engineModule` is the engine,
+ * compiled once for the page.
  *
- * The replica is built from the project once, and again when the editor has changed the project under
- * the game (`projectChanged`); between, before each question, it is told how the game stands if that
- * has changed since it was last told.
- *
- * And a second game, in a second engine, is played in step with the page's (slice 3b, `mirror`): every
- * intent the page's game is given, it is given too, with the same arguments, and its answer and its board
- * (`board.ts`) are held to the page's. It is brought into step - built, told the game, its dice set - only
- * between questions, since a question waiting has no form to send; where it parts, it is out of step until
- * the next time it can be brought in. This is the game the page is to play (`WasmGame`), checked before the
- * page plays it.
+ * (It was the mirror's - a second engine played in step with the page's own TypeScript game - until that game,
+ * the oracle, was deleted: phase 5, slice 0.)
  */
-
-import type { DemoScene } from './demo-scene';
-import { boardOf, rollsOf } from './board';
-import { replicaOf } from './replica';
-import { talkingAside } from './talks';
-import { openContainer } from './prop-use';
-import { shippedContent } from './shipped';
-import { WasmEngine } from './wasm-engine';
 
 /** Where the game and the replica parted: the question, what it was asked with, and each answer. */
 export interface Parting {
@@ -121,131 +106,6 @@ export function replicaCount(): ReplicaCount {
   return JSON.parse(JSON.stringify(count)) as ReplicaCount;
 }
 
-export class Shadow {
-  private builtFor: object | null = null;
-  private told = '';
-  /** The game played in step, and what it was built from; whether it is in step, and its log's start then. */
-  private stepBuiltFor: object | null = null;
-  private inStep = false;
-  private logs = { ours: 0, theirs: 0 };
-
-  constructor(private readonly engine: WasmEngine, private readonly demo: DemoScene, private readonly shipped: unknown, private readonly game: WasmEngine | null = null) {}
-
-  /** The editor changed the project under the game: the replica is built again before it is next asked. */
-  projectChanged(): void {
-    this.builtFor = null;
-    this.stepBuiltFor = null;
-    this.inStep = false;
-  }
-
-  /** Something the game played in step was not told of happened: it is brought into step again before the next intent. */
-  outOfStep(): void {
-    this.inStep = false;
-  }
-
-  /** Bring the game played in step into step: only between questions, which have no form to send. */
-  private bringIntoStep(game: WasmEngine): void {
-    if (this.demo.pending !== null || talkingAside(this.demo).length > 0) return;
-    try {
-      if (this.stepBuiltFor !== this.demo.project) {
-        game.build(this.demo.project, this.shipped, 'mirror', { animated: this.demo.animated, askDefender: this.demo.askDefender });
-        this.stepBuiltFor = this.demo.project;
-      }
-      game.restore(replicaOf(this.demo));
-      game.call('restoreRng', [this.demo.rng.save()]);
-      game.call('restoreWalk', [this.demo.ambush, this.demo.approaching, openContainer(this.demo), rollsOf(this.demo)]);
-      game.call('restoreLog', [this.demo.log]);
-      game.call('restoreViews', [this.demo.motions, this.demo.floaters]);
-      this.logs = { ours: this.demo.log.length, theirs: (game.board() as { log: unknown[] }).log.length };
-      this.inStep = true;
-    } catch (failure) {
-      this.part('in step', null, null, { failed: failure instanceof Error ? failure.message : String(failure) });
-    }
-  }
-
-  private part(question: string, asked: unknown, game: unknown, replica: unknown): void {
-    this.inStep = false;
-    recordParting(question, asked, game, replica);
-  }
-
-  /**
-   * An intent given to the page's game, and to the game played in step: their answers, and their boards
-   * after, held to each other. The page's answer is the one given.
-   */
-  mirror<T>(call: string, args: readonly unknown[], ours: () => T, compare: { answer: boolean } = { answer: true }): T {
-    const game = this.game;
-    if (game === null) return ours();
-    if (!this.inStep) this.bringIntoStep(game);
-    const stepped = this.inStep;
-    const answer = ours();
-    if (!stepped) return answer;
-    let theirs: unknown;
-    try {
-      theirs = game.call(call, args);
-    } catch (failure) {
-      theirs = { failed: failure instanceof Error ? failure.message : String(failure) };
-    }
-    count.asked++;
-    // A question asked for the mark it leaves on the game (`abilityList` names the actor) is held by the board
-    // alone: its answer is the page's view of a card, which the engine writes in its own shape.
-    if (compare.answer && !same(answer, theirs)) {
-      this.part(call, args, answer, theirs);
-      return answer;
-    }
-    const boards = { ours: since(boardOf(this.demo), this.logs.ours), theirs: since(game.board(), this.logs.theirs) };
-    const parted = firstDifference(boards.ours, boards.theirs, 'board');
-    if (parted !== null) this.part(`${call}: ${parted.path}`, args, parted.game, parted.replica);
-    return answer;
-  }
-
-  /**
-   * The game's answer, the replica asked the same and any parting counted. The replica is told how the game
-   * stands before either answers: some of the game's answers leave a mark on it (whom a card may be aimed at
-   * names the actor), and the replica, asked after, leaves the same.
-   */
-  check<T>(question: string, asked: unknown, game: () => T, replica: (engine: WasmEngine) => unknown, seen: (answer: T) => unknown = (a) => a): T {
-    let synced = true;
-    try {
-      if (this.builtFor !== this.demo.project) {
-        this.engine.build(this.demo.project, this.shipped, 'replica');
-        this.builtFor = this.demo.project;
-        this.told = '';
-      }
-      const now = replicaOf(this.demo);
-      const text = plain(now);
-      if (text !== this.told) {
-        this.engine.restore(now);
-        this.told = text;
-      }
-    } catch (failure) {
-      synced = false;
-      this.told = '';
-      if (count.first.length < KEPT) count.first.push({ question: 'told', asked: null, game: null, replica: { failed: failure instanceof Error ? failure.message : String(failure) } });
-    }
-    const ours = game();
-    if (!synced) {
-      count.parted++;
-      return ours;
-    }
-    let theirs: unknown;
-    try {
-      theirs = replica(this.engine);
-    } catch (failure) {
-      theirs = { failed: failure instanceof Error ? failure.message : String(failure) };
-    }
-    count.asked++;
-    const said = seen(ours);
-    if (plain(said) !== plain(theirs)) {
-      count.parted++;
-      const parting = { question, asked: JSON.parse(plain(asked)), game: JSON.parse(plain(said)), replica: JSON.parse(plain(theirs)) };
-      if (count.first.length < KEPT) {
-        count.first.push(parting);
-        console.error('the replica parted from the game', JSON.stringify(parting).slice(0, 2000));
-      }
-    }
-    return ours;
-  }
-}
 
 let compiled: Promise<WebAssembly.Module | null> | null = null;
 
@@ -264,7 +124,7 @@ export function engineModule(): Promise<WebAssembly.Module | null> {
 }
 
 /** Which game the page plays: its own, or the engine's (`wasm-game.ts`). */
-let playing: 'wasm' | 'ts' = 'ts';
+let playing: 'wasm' | 'ts' = 'wasm';
 /** Where the wire to the server's game stands (`wire.ts`): `off` where there is none. */
 let server: () => string = () => 'off';
 
@@ -275,13 +135,3 @@ export function publishCount(engine?: 'wasm' | 'ts', wire?: () => string): void 
   if (typeof window !== 'undefined') window.__replica = { count: replicaCount, playing: () => playing, server: () => server() };
 }
 
-/** A shadow for a game, once the engine is here - or never. The count is published the first time. */
-export async function shadowFor(demo: DemoScene): Promise<Shadow | null> {
-  // The mirror is development's: a build's page that plays its own game is not held to the engine.
-  if (!import.meta.env.DEV) return null;
-  const module = await engineModule();
-  if (module === null) return null;
-  const shadow = new Shadow(await WasmEngine.of(module), demo, shippedContent(), await WasmEngine.of(module));
-  publishCount();
-  return shadow;
-}

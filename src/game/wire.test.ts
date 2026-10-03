@@ -13,9 +13,8 @@ import { createRng } from '../engine/core/rng';
 import { migrateDocument } from '../engine/scene/migrate';
 import { projectSchema, type ProjectDoc } from '../engine/scene/schema';
 import { boardOf, type BoardSnapshot } from './board';
-import { LocalGame } from './oracle/local-game';
 import { buildProjectScene, type DemoScene } from './demo-scene';
-import { firstDifference, replicaCount, Shadow } from './shadow';
+import { firstDifference, replicaCount } from './shadow';
 import { shippedContent } from './shipped';
 import { WasmEngine } from './wasm-engine';
 import { WasmGame } from './wasm-game';
@@ -167,9 +166,9 @@ describe('the wire to the server\'s game', () => {
 
   it.skipIf(!built)('plays on the server\'s seed from the start, and every intent in step with it, answers coming back late', async () => {
     const bytes = readFileSync(WASM);
-    for (const kind of ['ts', 'wasm'] as const) {
+    for (const kind of ['wasm'] as const) {
       const demo = buildProjectScene(project(), `wire:${kind}`);
-      const game = kind === 'ts' ? new LocalGame(demo, false) : new WasmGame(demo, await WasmEngine.load(bytes), shippedContent());
+      const game = new WasmGame(demo, await WasmEngine.load(bytes), shippedContent());
       const server = new EngineServer(await WasmEngine.load(bytes));
       const before = replicaCount();
       const wire = new Wire(() => server, demo, shippedContent());
@@ -203,7 +202,7 @@ describe('the wire to the server\'s game', () => {
   it.skipIf(!built)('counts a parting, and stands the page\'s game where the server\'s is', async () => {
     const bytes = readFileSync(WASM);
     const demo = buildProjectScene(project(), 'wire:parting');
-    const game = new LocalGame(demo, false);
+    const game = new WasmGame(demo, await WasmEngine.load(bytes), shippedContent());
     const server = new EngineServer(await WasmEngine.load(bytes));
     const wire = new Wire(() => server, demo, shippedContent());
     game.wireWith(wire);
@@ -242,7 +241,7 @@ describe('the wire to the server\'s game', () => {
   it.skipIf(!built)('saves through the server\'s game: its own text, held to the page\'s by value', async () => {
     const bytes = readFileSync(WASM);
     const demo = buildProjectScene(project(), 'wire:save');
-    const game = new LocalGame(demo, false);
+    const game = new WasmGame(demo, await WasmEngine.load(bytes), shippedContent());
     const server = new EngineServer(await WasmEngine.load(bytes));
     const wire = new Wire(() => server, demo, shippedContent());
     game.wireWith(wire);
@@ -280,7 +279,7 @@ describe('the wire to the server\'s game', () => {
   it.skipIf(!built)('opens a fresh game on the server after the editor changes the page\'s, and closes when it cannot connect again', async () => {
     const bytes = readFileSync(WASM);
     const demo = buildProjectScene(project(), 'wire:edited');
-    const game = new LocalGame(demo, false);
+    const game = new WasmGame(demo, await WasmEngine.load(bytes), shippedContent());
     const server = new EngineServer(await WasmEngine.load(bytes));
     // A game opened with lines in its log already: only what is written after it is told the page's is held.
     server.noisy = true;
@@ -323,7 +322,7 @@ describe('the wire to the server\'s game', () => {
   it.skipIf(!built)('connects again when the connection drops, and goes on with the game the server kept, or a fresh one', async () => {
     const bytes = readFileSync(WASM);
     const demo = buildProjectScene(project(), 'wire:dropped');
-    const game = new LocalGame(demo, false);
+    const game = new WasmGame(demo, await WasmEngine.load(bytes), shippedContent());
     const server = new EngineServer(await WasmEngine.load(bytes));
     let current = server.connection();
     let connections = 0;
@@ -417,7 +416,7 @@ describe('the wire to the server\'s game', () => {
     const bytes = readFileSync(WASM);
     const server = new EngineServer(await WasmEngine.load(bytes));
     const first = buildProjectScene(project(), 'wire:before-reload');
-    const played = new LocalGame(first, false);
+    const played = new WasmGame(first, await WasmEngine.load(bytes), shippedContent());
     const wire = new Wire(() => server.connection(), first, shippedContent());
     played.wireWith(wire);
     await wire.ready;
@@ -433,11 +432,9 @@ describe('the wire to the server\'s game', () => {
     played.selectNext();
     await settle(server);
     const before = replicaCount();
-    // The page reloaded: a fresh game of its own, from another seed, comes back to the one the server kept -
-    // with the mirror beside it, as in development, built before the page came back.
+    // The page reloaded: a fresh game of its own, from another seed, comes back to the one the server kept.
     const again = buildProjectScene(project(), 'wire:after-reload');
-    const game = new LocalGame(again, false);
-    game.shadowWith(new Shadow(await WasmEngine.load(bytes), again, shippedContent(), await WasmEngine.load(bytes)));
+    const game = new WasmGame(again, await WasmEngine.load(bytes), shippedContent());
     game.selectNext();
     const back = new Wire(() => server.connection(), again, shippedContent(), { resume: true });
     game.wireWith(back);
@@ -451,7 +448,7 @@ describe('the wire to the server\'s game', () => {
     expect(server.sent.filter((m) => m['op'] === 'open').length, 'no game opened').toBe(1);
     for (let n = 0; n < 20; n++) act(game, again, g);
     await settle(server);
-    // A save loaded: the mirror, told the page's log when the page came back, holds the same log after it.
+    // A save loaded: the page's engine, told the page's log when the page came back, holds the same log after it.
     while (again.pending !== null) {
       game.answerPending({ kind: 'continue' });
       await settle(server);
@@ -464,7 +461,7 @@ describe('the wire to the server\'s game', () => {
     // Another project's page does not come back to it: it opens its own.
     const other = buildProjectScene({ ...project(), id: 'another' }, 'wire:other');
     const elsewhere = new Wire(() => server.connection(), other, shippedContent(), { resume: true });
-    new LocalGame(other, false).wireWith(elsewhere);
+    new WasmGame(other, await WasmEngine.load(bytes), shippedContent()).wireWith(elsewhere);
     await elsewhere.ready;
     expect(elsewhere.resumed).toBe(false);
     expect(elsewhere.status()).toBe('fresh');
@@ -478,10 +475,10 @@ describe('the wire to the server\'s game', () => {
   }, 120_000);
 
   /** A page and the server's game, the server's opening a question of its own - Kara stood beside a thing and using it - as the first intent arrives. */
-  async function asking(name: string, thing: string, options: { connect?: (server: EngineServer) => () => Transport; retries?: number[]; wasm?: boolean } = {}) {
+  async function asking(name: string, thing: string, options: { connect?: (server: EngineServer) => () => Transport; retries?: number[] } = {}) {
     const bytes = readFileSync(WASM);
     const demo = buildProjectScene(project(), `wire:${name}`);
-    const game = options.wasm === true ? new WasmGame(demo, await WasmEngine.load(bytes), shippedContent()) : new LocalGame(demo, false);
+    const game = new WasmGame(demo, await WasmEngine.load(bytes), shippedContent());
     const server = new EngineServer(await WasmEngine.load(bytes));
     const wire = new Wire(options.connect?.(server) ?? (() => server), demo, shippedContent(), { retries: options.retries ?? [0], later: (run) => setTimeout(run, 0) });
     game.wireWith(wire);
@@ -542,7 +539,7 @@ describe('the wire to the server\'s game', () => {
   }, 120_000);
 
   it.skipIf(!built)('shows the server\'s question with the page playing the engine, the engine told the game after', async () => {
-    const { demo, game, server, wire, before } = await asking('asked-wasm', 'door-12-7', { wasm: true });
+    const { demo, game, server, wire, before } = await asking('asked-wasm', 'door-12-7');
     expect(wire.status()).toBe('asked');
     const held = (server.engine.board() as BoardSnapshot).pending;
     expect(boardOf(demo).pending).toEqual(held);
@@ -618,7 +615,7 @@ describe('the wire to the server\'s game', () => {
     expect((server.engine.board() as BoardSnapshot).pending).not.toBeNull();
     // Reloaded: the question shown again, from the board of the game kept.
     const again = buildProjectScene(project(), 'wire:reloaded-asked');
-    const game = new LocalGame(again, false);
+    const game = new WasmGame(again, await WasmEngine.load(readFileSync(WASM)), shippedContent());
     const back = new Wire(() => server.connection(), again, shippedContent(), { resume: true });
     game.wireWith(back);
     await back.ready;

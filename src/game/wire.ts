@@ -83,6 +83,8 @@ export class Wire {
   private inFlight = 0;
   private logs = { ours: 0, theirs: 0 };
   private retell: () => void = () => undefined;
+  /** What the page's views have still to draw, as the game that plays the page's holds it. */
+  private views: () => [unknown, unknown] = () => [this.demo.motions, this.demo.floaters];
   private transport: Transport;
   /** Which connection a message went by: a drop is the drop of the one it is. */
   private connection = 0;
@@ -123,9 +125,13 @@ export class Wire {
     return true;
   }
 
-  /** The game it is the wire of: told when the page's game was changed under it (`LocalGame.edited`). */
-  attach(retell: () => void): void {
+  /**
+   * The game it is the wire of: told when the page's game was changed under it, and asked what its views have
+   * still to draw - which the engine playing the page's game holds, not the page's game itself.
+   */
+  attach(retell: () => void, views?: () => [unknown, unknown]): void {
     this.retell = retell;
+    if (views !== undefined) this.views = views;
   }
 
   status(): WireState {
@@ -318,7 +324,7 @@ export class Wire {
     told.push(this.send({ op: 'call', call: 'restoreLog', args: [demo.log] }));
     // What the page's views have still to draw - walks it played while the connection was down, say - the
     // server's game holds the same, so the next drain is the same on both.
-    told.push(this.send({ op: 'call', call: 'restoreViews', args: [demo.motions, demo.floaters] }));
+    told.push(this.send({ op: 'call', call: 'restoreViews', args: this.views() }));
     this.logs = { ours: demo.log.length, theirs: 0 };
     this.state = 'in';
     void Promise.all(told).then((said) => {

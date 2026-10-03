@@ -157,6 +157,7 @@ fn a_game_brought_into_step_is_told_what_is_still_to_be_drawn() {
     let motions = json!([{ "id": "kara", "path": [310, 311], "route": [{ "x": 2, "y": 7 }, { "x": 3, "y": 7 }] }]);
     let floaters = json!([{ "id": "kara", "text": "-2 HP", "tone": "bad" }]);
     session.dispatch("restoreViews", &[motions.clone(), floaters.clone()]).unwrap();
+    assert_eq!(session.dispatch("views", &[]).unwrap(), json!([motions, floaters]), "read, and left where it is");
     assert_eq!(session.dispatch("takeMotions", &[]).unwrap(), motions);
     assert_eq!(session.dispatch("takeFloaters", &[]).unwrap(), floaters);
     assert_eq!(session.dispatch("takeMotions", &[]).unwrap(), json!([]));

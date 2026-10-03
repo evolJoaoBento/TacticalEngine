@@ -145,6 +145,8 @@ impl Session {
             }
             // ---- what a view drains ----
             "takeMotions" => Value::Array(std::mem::take(&mut self.motions)),
+            // What a view has still to draw, read and left where it is - for a game that tells another its own.
+            "views" => json!([self.motions, to(&self.floaters)]),
             "takeFloaters" => to(std::mem::take(&mut self.floaters)),
             "rollShownAt" => {
                 let at = a.number(0)? as usize;

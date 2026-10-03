@@ -14,36 +14,19 @@ import { migrateDocument } from '../engine/scene/migrate';
 import { projectSchema, type ProjectDoc } from '../engine/scene/schema';
 import { boardOf, rollsOf, type BoardSnapshot } from './board';
 import { buildProjectScene } from './demo-scene';
-import { LocalGame } from './oracle/local-game';
-import type { Plays } from './client';
-import { firstDifference, replicaCount, Shadow } from './shadow';
+import { firstDifference, replicaCount } from './shadow';
 import { talkingAside } from './talks';
 import { talkingView } from './ui/play-views';
 import { interactablesOf } from '../engine/scene/prop-functions';
 import { shippedContent } from './shipped';
 import { WasmEngine } from './wasm-engine';
-import { WasmGame, engineChosen } from './wasm-game';
+import { WasmGame } from './wasm-game';
 import { act, answerFor } from '../../tests/fixtures/random-play';
 import { barWorkshop } from '../../tests/fixtures/bar-workshop';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const WASM = resolve(here, '../../public/wasm/engine.wasm');
 const built = existsSync(WASM);
-
-describe('which game the page plays', () => {
-  it("is the engine's - always in a build, and in development unless the page's own is asked for", () => {
-    expect(engineChosen(false)).toBe('wasm');
-    expect(engineChosen(true)).toBe('wasm');
-    vi.stubGlobal('location', { search: '?play&engine=ts' });
-    try {
-      expect(engineChosen(true)).toBe('ts');
-      // A build has no page's own game to ask for: the oracle is development's.
-      expect(engineChosen(false)).toBe('wasm');
-    } finally {
-      vi.unstubAllGlobals();
-    }
-  });
-});
 
 describe('the page playing the engine', () => {
   if (!built) console.warn(`${WASM} is not built: \`npm run wasm\` builds it, and these are skipped until it is`);
@@ -95,24 +78,21 @@ describe('the page playing the engine', () => {
     const bytes = readFileSync(WASM);
     const project = projectSchema.parse(migrateDocument(JSON.parse(readFileSync(resolve(here, '../../projects/default.json'), 'utf8'))));
     const g = createRng('rolls-waiting');
-    // A game played with no engine beside it - the page's before its shadow has arrived - until dice wait.
+    // A game played until dice wait to be shown...
     const demo = buildProjectScene(project, 'rolls-waiting');
-    const local = new LocalGame(demo, false);
-    for (let n = 0; n < 400 && (demo.rolls.length === 0 || demo.pending !== null); n++) act(local, demo, g);
+    const first = new WasmGame(demo, await WasmEngine.load(bytes), shippedContent());
+    for (let n = 0; n < 400 && (demo.rolls.length === 0 || demo.pending !== null); n++) act(first, demo, g);
     expect(demo.rolls.length, 'dice waiting').toBeGreaterThan(0);
     expect(demo.pending).toBeNull();
     const before = replicaCount();
-    // The shadow arrives, and is brought into step at the next intent; then the page plays the engine.
-    local.shadowWith(new Shadow(await WasmEngine.load(bytes), demo, shippedContent(), await WasmEngine.load(bytes)));
-    local.syncTalks();
+    // ...then another engine brought into step with the page's game - a project loaded, the editor's change -
+    // is told them, and the page's dice stay to be shown.
     const engine = await WasmEngine.load(bytes);
     const game = new WasmGame(demo, engine, shippedContent());
     expect((engine.board() as BoardSnapshot).rolls).toEqual(rollsOf(demo));
     game.syncTalks();
     expect(rollsOf(demo).length).toBeGreaterThan(0);
-    const after = replicaCount();
-    expect(after.first.slice(before.first.length)).toEqual([]);
-    expect(after.asked - before.asked).toBe(1);
+    expect(replicaCount().first.slice(before.first.length)).toEqual([]);
   });
 
   it.skipIf(!built)('shows a question the engine holds and plays its answer there; knows a conversation set aside', async () => {
@@ -170,10 +150,10 @@ const MARKING_READS = ['abilityList', 'readContainer', 'readThing'];
 /** A `WasmGame` that writes down every intent its page's own game was asked to play. */
 class Watched extends WasmGame {
   readonly ran: string[] = [];
-  protected override play<T>(call: string, args: readonly unknown[], run: (plays: Plays) => T, compare: { answer: boolean }): T {
-    return super.play(call, args, (plays) => {
+  protected override play<T>(call: string, args: readonly unknown[], read: (() => T) | undefined, compare: { answer: boolean }): T {
+    return super.play(call, args, read === undefined ? undefined : () => {
       this.ran.push(call);
-      return run(plays);
+      return read();
     }, compare);
   }
 }

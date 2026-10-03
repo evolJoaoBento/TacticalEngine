@@ -47,7 +47,6 @@ npm run dev          # 127.0.0.1:8420 (Playwright starts its own on 8421)
 npx tsc --noEmit     # the only static check
 npx vitest run       # unit
 npx playwright test  # e2e, ~2.7 min — run it before claiming done (the page plays the engine)
-VITE_ENGINE=ts npx playwright test  # the same, the page's own TypeScript game playing - the oracle, for now
 npm run test:e2e:server  # the same suite, its games played on a Rust server of its own (docs/SERVER.md)
 ```
 

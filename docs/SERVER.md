@@ -56,6 +56,12 @@ The TypeScript engine keeps working the whole way: the port grows beside it, and
 to the server only when a whole session plays the same. Single-player parity comes first; co-op is
 added after, so the rules are not redesigned while they are being transliterated.
 
+**Since phase 5 the oracle is gone for the game layer** (3 October 2026): the page plays the Rust, and the
+TypeScript game's rules are deleted. Its fixtures (`server/fixtures/session.json`, `play.json`, `kit.json`,
+`walk.json`, `fight.json`, `ask.json`, `bar.json`, `replica.json`) are frozen - the Rust is still held to them,
+and nothing writes them again - and a rule changes in Rust alone, held by the Rust's own tests and the e2e
+suite. `src/engine`, which the editor still reads, keeps its own golden tests.
+
 ## Things to get right
 
 - **Project hooks are JavaScript** (`script/hooks.ts`: `project.code[]`, compiled with `new
@@ -225,11 +231,50 @@ The slices:
    fixture writers alone.
 4. **Later**: the oracle deleted; the views reading the engine's board.
 
+## Phase 5, designed: multiplayer (its four decisions taken, 3 October 2026)
+
+The game is to be played by several people at once. Phases 3 and 4 built the spine: the server's game is the
+one that counts, the page predicts each intent with the same engine and is stood where the server's board says
+where they part, and there are accounts, sessions, a game kept across a dropped connection, and saves on the
+server. What is missing is the game being shared.
+
+- **Co-op, the engine the GM** (decided): several players share one game, each playing their own characters;
+  the engine plays the GM's side as it does now. A human GM is for later.
+- **Hosted on the user's machine, friends joining over the internet** (decided): the Rust server reached through
+  a tunnel or a forwarded port - so HTTPS, a production build that plays with the server, and a server that
+  trusts no page.
+- **Free outside a fight, the spotlight inside one** (decided): out of a fight anyone acts with their own
+  characters at any time, the server putting the intents in order; in a fight the party's turn is shared - any
+  player acts with their own character - and then the GM's, as the engine runs it now.
+- **The oracle deleted first** (decided): the page no longer plays the TypeScript rules, and multiplayer's own
+  rules - who plays whom, the shared turn - are written once, in Rust. The fixtures the TypeScript wrote are
+  frozen: the Rust is still held to them, but nothing writes them again.
+
+The slices:
+
+0. **The oracle deleted** - (a) out of every path that runs it: `LocalGame` and its rules table, the mirror,
+   `?engine=ts`, the suite's TypeScript mode, the fixtures' writers (the fixtures kept, frozen); (b) the rules
+   themselves and the tests that play them (42 of the 78 test files under `src/game`), the views' tests that
+   need a game played standing on the engine instead.
+1. **The server's game trusted alone** - it is never told a page's game (a page out of step is only ever stood
+   where the server says); the project and its content are the server's own, not sent by the page; a walk cut
+   short is held to the path the server resolved; the test driver's hands only on a server started for tests.
+2. **In a build** - the page plays with the server wherever the server serves it, not in development alone;
+   ready for a tunnel (the session cookie secure over HTTPS, the origin checked through a proxy); how to run it
+   for friends, written down.
+3. **A shared game** - a game with an id of its own, opened by its host over a project and joined by others with
+   an invitation; every change to it pushed to every player's page, which is stood where it says, walks and
+   numbers over heads drawn; who plays which character (seats), set by the host.
+4. **Who may act** - every intent held to the player's seats; the selection each player's own; the turn as
+   decided; a question asked of the player whose character it is, the others shown that it waits; a
+   conversation its talker's player's.
+5. **The lobby** - opening a game, inviting, joining, taking seats, starting; a shared game's saves its host's.
+
 ## Running it
 
 ```bash
 cd server && cargo test                                         # the Rust port against its fixtures
-npx vitest run src/engine/grid/grid.golden.test.ts src/engine/rules/rules.golden.test.ts src/engine/character/character.golden.test.ts src/engine/dialogue/dialogue.golden.test.ts src/engine/content/content.golden.test.ts src/engine/combat/combat.golden.test.ts src/engine/script/script.golden.test.ts src/engine/script/conditions.golden.test.ts src/engine/script/runner.golden.test.ts src/engine/script/hooks.golden.test.ts src/engine/scene/scene.golden.test.ts src/engine/scene/room.golden.test.ts src/engine/scene/party.golden.test.ts src/game/session.golden.test.ts src/game/play.golden.test.ts   # the fixtures are still what TypeScript does (runner.golden writes runner.json and world.json)
+npx vitest run src/engine/grid/grid.golden.test.ts src/engine/rules/rules.golden.test.ts src/engine/character/character.golden.test.ts src/engine/dialogue/dialogue.golden.test.ts src/engine/content/content.golden.test.ts src/engine/combat/combat.golden.test.ts src/engine/script/script.golden.test.ts src/engine/script/conditions.golden.test.ts src/engine/script/runner.golden.test.ts src/engine/script/hooks.golden.test.ts src/engine/scene/scene.golden.test.ts src/engine/scene/room.golden.test.ts src/engine/scene/party.golden.test.ts   # the engine core's fixtures are still what TypeScript does (runner.golden writes runner.json and world.json); the game layer's are frozen
 npm run build:server && npm run server                          # the game from the Rust server alone, on 8430
 npm run server                                                  # (npm run dev starts it too, for the routes alone)
 npx vitest run tests/unit/accounts.golden.test.ts tests/unit/store.golden.test.ts   # the fixtures are still what TypeScript does
@@ -1326,5 +1371,17 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
       runs names them. 3 of 3 deliberate mutations fail these - the oracle imported with the page, a question
       only told of dropped by a fill, the oracle loaded in every build (the build's guard failing) - and a build
       made under Vitest, where development is on and the oracle's import stays, failed the guard as it should.
-  - **Next**: the oracle deleted, when it is decided - the rules, their tests, the fixtures' writers, after which
-    the fixtures are frozen; and the views reading the engine's board rather than the page's game.
+  - **Next**: phase 5, multiplayer - designed above - beginning with the oracle deleted.
+- **Phase 5** - started 3 October 2026, as designed above (multiplayer).
+  - **The oracle out of every path that runs it** (slice 0a). `LocalGame` and its rules table, the mirror
+    (`Shadow`, `shadowFor`), `?engine=ts` and `VITE_ENGINE=ts`, and the seven writers of the game layer's
+    fixtures are gone; the fixtures stay, frozen, and the Rust is still held to them. An intent on the table
+    (`GameTable`) is its name and its arguments, nothing of a rule; the engine is the page's only game, and a page
+    whose engine was never built has none. The tests that played the page's own game beside the wire, the board
+    and `WasmGame` stand on the engine now - the board's proof checks every step, a question open or a
+    conversation set aside included, where it skipped those. Moving them found one more thing a page told the
+    server wrongly: after a reconnect it said its views had nothing to draw, reading the page's game, while the
+    engine playing it held walks still to be drawn - the engine is asked now (`views`, read and left where it is).
+    The suite runs in two modes: on the engine, and on the server.
+  - **Next**: slice 1, the server's game trusted alone; then the rules themselves and the tests that play them
+    deleted (slice 0b), which the bundle's guard, once nothing names them, lists.

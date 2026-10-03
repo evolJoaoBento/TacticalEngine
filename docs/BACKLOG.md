@@ -4,6 +4,12 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## Phase 5 (multiplayer), slice 0a: the oracle out of every path that runs it — done
+
+The page's own TypeScript game no longer plays anywhere: `LocalGame`, its rules table, the mirror, `?engine=ts`
+and the fixture writers are gone, the game layer's fixtures frozen. The suite runs on the engine and on the
+server. Next: the server's game trusted alone (slice 1), then the rules and their tests deleted (slice 0b).
+
 ## Phase 4, slice 3: the page's own game's rules quarantined — done
 
 The page's bundle carries none of its own TypeScript game's rules: `GameTable` (`src/game/client.ts`) names a rule

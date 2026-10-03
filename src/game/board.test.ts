@@ -1,12 +1,13 @@
 /**
  * A board stood back up (`restoreFromBoard`): the page's game told how the game stands by the engine that
- * plays it. A game played at random, and at every step where nothing waits - no question, no conversation set
- * aside, which a board cannot give back - a fresh game, built from the same project, stood where that game's
- * board says, must then say the game stands exactly the same: the same proof the Rust's restore was given.
+ * plays it. A game played at random by the engine built to WebAssembly, and at every step a fresh game, built
+ * from the same project, stood where the engine's board says, must then say the game stands exactly the same -
+ * a question open, the conversations set aside and all: the same proof the Rust's restore was given. Needs
+ * `npm run wasm`, and says so without it.
  */
 
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRng, type Rng } from '../engine/core/rng';
@@ -15,17 +16,21 @@ import { migrateDocument } from '../engine/scene/migrate';
 import { interactablesOf } from '../engine/scene/prop-functions';
 import { projectSchema, type ProjectDoc } from '../engine/scene/schema';
 import { buildProjectScene, type DemoScene } from './demo-scene';
-import { boardOf, restoreFromBoard } from './board';
-import { LocalGame } from './oracle/local-game';
+import { boardOf, restoreFromBoard, type BoardSnapshot } from './board';
+import type { GameTable } from './client';
 import { firstDifference } from './shadow';
-import { talkingAside } from './talks';
+import { shippedContent } from './shipped';
+import { WasmEngine } from './wasm-engine';
+import { WasmGame } from './wasm-game';
 import { barWorkshop } from '../../tests/fixtures/bar-workshop';
 
 const here = dirname(fileURLToPath(import.meta.url));
+const WASM = resolve(here, '../../public/wasm/engine.wasm');
+const built = existsSync(WASM);
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 
 /** One intent, as the dice fall; a question is answered as it comes. */
-function act(game: LocalGame, demo: DemoScene, g: Rng): void {
+function act(game: GameTable, demo: DemoScene, g: Rng): void {
   if (demo.pending !== null) {
     const p = demo.pending;
     const prompt = p.kind === 'script' ? (p.dialogue?.prompt ?? p.prompt) : p.prompt;
@@ -74,20 +79,25 @@ function act(game: LocalGame, demo: DemoScene, g: Rng): void {
 }
 
 describe('a board stood back up', () => {
-  it('stands a fresh game exactly where the board says, step after step', () => {
+  if (!built) console.warn(`${WASM} is not built: \`npm run wasm\` builds it, and these are skipped until it is`);
+
+  it.skipIf(!built)('stands a fresh game exactly where the engine\'s board says, step after step', async () => {
+    const bytes = readFileSync(WASM);
     const fallback = projectSchema.parse(migrateDocument(JSON.parse(readFileSync(resolve(here, '../../projects/default.json'), 'utf8'))));
     const projects: [string, ProjectDoc][] = [['default', fallback], ['the workshop', barWorkshop(fallback)]];
     const g = createRng('board');
     let restored = 0;
     let fighting = 0;
+    let waiting = 0;
     for (const [name, project] of projects) {
       for (let s = 0; s < 3; s++) {
         const demo = buildProjectScene(projectSchema.parse(clone(project)), `board:${name}:${s}`);
-        const game = new LocalGame(demo);
+        const engine = await WasmEngine.load(bytes);
+        const game = new WasmGame(demo, engine, shippedContent());
         for (let n = 0; n < 50; n++) {
           act(game, demo, g);
-          if (demo.pending !== null || talkingAside(demo).length > 0) continue;
-          const board = clone(boardOf(demo));
+          const board = engine.board() as BoardSnapshot;
+          if (board.pending !== null || board.aside.length > 0) waiting++;
           const fresh = buildProjectScene(projectSchema.parse(clone(project)), `board:fresh:${name}:${s}:${n}`);
           fresh.askDefender = true;
           fresh.animated = true;
@@ -99,15 +109,17 @@ describe('a board stood back up', () => {
         }
       }
     }
-    expect(restored).toBeGreaterThan(200);
+    expect(restored).toBe(300);
     expect(fighting).toBeGreaterThan(50);
+    // Questions open and conversations set aside among them: a board gives those back now too.
+    expect(waiting).toBeGreaterThan(10);
   }, 300_000);
 });
 
 describe('a board filled into the page\'s game', () => {
   const project = (): ProjectDoc => projectSchema.parse(migrateDocument(JSON.parse(readFileSync(resolve(here, '../../projects/default.json'), 'utf8'))));
 
-  it('keeps the ground the page holds in the same room, and enters another room afresh', () => {
+  it.skipIf(!built)('keeps the ground the page holds in the same room, and enters another room afresh', async () => {
     const demo = buildProjectScene(project(), 'fill-ground');
     // The editor changes the ground under the game in place (`takeGround`): the page's grid is the one to keep.
     const ground = demo.grid;
@@ -118,7 +130,7 @@ describe('a board filled into the page\'s game', () => {
     // Another room on the board: entered as it was left, on that room's own ground.
     const elsewhere = buildProjectScene(project(), 'fill-elsewhere');
     const other = elsewhere.project.scenes.find((s) => s.id !== elsewhere.scene.id)!.id;
-    new LocalGame(elsewhere, false).travelTo(other);
+    new WasmGame(elsewhere, await WasmEngine.load(readFileSync(WASM)), shippedContent()).travelTo(other);
     restoreFromBoard(demo, JSON.parse(JSON.stringify(boardOf(elsewhere))));
     expect(demo.scene.id).toBe(other);
     expect(demo.grid).not.toBe(ground);

@@ -12,14 +12,13 @@
  * game, and the engine - the page's answer, in the page's shapes, given. The editor still changes the page's
  * game - its project, its ground, its party - and the engine is built again and told the game after.
  *
- * The page's own game plays only when development asks for it (`?engine=ts`, `VITE_ENGINE=ts`) while it is the
- * oracle the Rust is held to, or where the engine was never built (`oracle/local-game.ts`) - loaded by an import
- * only development makes, so a build carries none of its rules (phase 4, slice 3).
+ * There is no other game: the page's own TypeScript rules, the oracle the Rust was held to, are gone
+ * (`docs/SERVER.md`, phase 5, slice 0). A page whose engine was never built has no game, and says so.
  */
 
 import { BOOT } from 'virtual:boot-project';
 import { restoreFromBoard, rollsOf, type BoardSnapshot } from './board';
-import { GameTable, type GameClient, type LocalPowers, type Plays } from './client';
+import { GameTable, type GameClient, type LocalPowers } from './client';
 import type { DemoScene } from './demo-scene';
 import { openContainer } from './prop-use';
 import { replicaOf } from './replica';
@@ -32,13 +31,6 @@ import { loadAccountSaves } from './account-saves';
 import { SaveSlots, browserStore, type SaveShelf } from './save-slots';
 
 export type { GameClient, LocalPowers } from './client';
-
-/** The page's own rules, which a game the engine plays is never given: touched, it says so rather than plays. */
-const NO_PLAYS = new Proxy({} as Plays, {
-  get(_, rule) {
-    throw new Error(`the page's own game plays nothing beside the engine (${String(rule)})`);
-  },
-});
 
 export class WasmGame extends GameTable {
   /** The engine's board, as written, that the page's game was last stood where it says. */
@@ -73,8 +65,13 @@ export class WasmGame extends GameTable {
     this.toldFromThePage();
   }
 
+  /** The engine holds what the views have still to draw: read, and left where it is. */
+  protected override viewsWaiting(): [unknown, unknown] {
+    return this.engine.call('views', []) as [unknown, unknown];
+  }
+
   /** An intent: the engine plays it and answers, and the page's game is filled from its board after. */
-  protected play<T>(call: string, args: readonly unknown[], run: (plays: Plays) => T, compare: { answer: boolean }): T {
+  protected play<T>(call: string, args: readonly unknown[], read: (() => T) | undefined, compare: { answer: boolean }): T {
     let engines: unknown;
     try {
       engines = this.engine.call(call, args);
@@ -86,7 +83,7 @@ export class WasmGame extends GameTable {
     this.fill();
     // A question asked for the mark it leaves on the game (`abilityList`, a container or a thing read) is
     // answered in the page's shapes: read off the page's game, now where the engine's is, which it marks alike.
-    return compare.answer ? (engines as T) : run(NO_PLAYS);
+    return compare.answer || read === undefined ? (engines as T) : read();
   }
 
   /** A question the pointer asks: put to both, held to each other; the page's answer, being the same, given. */
@@ -111,17 +108,6 @@ let spare: WasmEngine | null = null;
 async function refill(): Promise<void> {
   const module = await engineModule();
   if (module !== null) spare = await WasmEngine.of(module);
-}
-
-/**
- * Which game the page plays: the engine's, unless development asks for the page's own (`?engine=ts`, or a dev
- * server's `VITE_ENGINE=ts`) while it is the oracle.
- */
-export function engineChosen(dev: boolean = import.meta.env.DEV): 'wasm' | 'ts' {
-  if (!dev) return 'wasm';
-  const asked = typeof location === 'undefined' ? null : new URLSearchParams(location.search).get('engine');
-  if (asked === 'wasm' || asked === 'ts') return asked;
-  return import.meta.env['VITE_ENGINE'] === 'ts' ? 'ts' : 'wasm';
 }
 
 /** Whether the page's game is held to one on the server (`play-socket.ts`): asked once, as the page boots. */
@@ -154,26 +140,14 @@ function wireUp(game: GameTable, demo: DemoScene, resume: boolean): void {
   publishCount(undefined, () => wire.status());
 }
 
-/**
- * The page's own game, the oracle: loaded only in development - the import is one a build drops - when asked for,
- * or where the engine was never built.
- */
-let Oracle: (new (demo: DemoScene) => GameTable) | null = null;
 
-async function loadOracle(): Promise<void> {
-  if (import.meta.env.DEV && Oracle === null) Oracle = (await import('./oracle/local-game')).LocalGame;
-}
-
-/** The game the page plays, now: the engine's when it is chosen and one is ready, else - in development - the page's own. */
+/** The game the page plays, now: the engine's, from one kept ready - or, where the engine was never built, none. */
 export function gameFor(demo: DemoScene): GameClient & LocalPowers {
-  let game: GameTable;
-  if (engineChosen() === 'wasm' && spare !== null) {
-    const engine = spare;
-    spare = null;
-    void refill();
-    game = new WasmGame(demo, engine, shippedContent());
-  } else if (Oracle !== null) game = new Oracle(demo);
-  else throw new Error('There is no game to play: the engine was not built (npm run wasm).');
+  if (spare === null) throw new Error('There is no game to play: the engine was not built (npm run wasm).');
+  const engine = spare;
+  spare = null;
+  void refill();
+  const game = new WasmGame(demo, engine, shippedContent());
   wireUp(game, demo, booting && reloaded());
   return game;
 }
@@ -194,7 +168,7 @@ const OPENING_MS = 3000;
 
 /** The game the page boots with, once the engine - when it is chosen - is ready, and the server's game open. */
 export async function gameReady(demo: DemoScene): Promise<GameClient & LocalPowers> {
-  const [account] = await Promise.all([serverAccount(BOOT), engineChosen() === 'wasm' ? refill() : null, loadOracle()]);
+  const [account] = await Promise.all([serverAccount(BOOT), refill()]);
   serverOn = account !== null;
   booting = true;
   const game = gameFor(demo);
