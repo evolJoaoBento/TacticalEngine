@@ -30,43 +30,44 @@ import { deriveCharacter } from '../engine/character/sheet';
 import type { SceneDoc } from '../engine/scene/schema';
 import type { TileGrid } from '../engine/grid/grid';
 import type { LogTone } from '../engine/script/schema';
-import {
-  answerPending,
-  attackWithSelected,
-  endTurn,
-  gatherParty,
-  moveSelectedTo,
-  reachableInteractable,
-  refreshWorld,
-  setSheet,
-  syncPools,
-  syncRoster,
-  useSelectedOn,
-  type DemoScene,
-} from './demo-scene';
+import { gatherParty, reachableInteractable, refreshWorld, setSheet, syncPools, syncRoster, type DemoScene } from './demo-scene';
+import type { answerPending, attackWithSelected, endTurn, moveSelectedTo, useSelectedOn } from './demo-scene';
 import { inCombat, scriptPending } from './moment';
-import { aimedArc, arrive, jumpAim, jumpOffered, jumpReaches, jumpTo, previewWalk, reachableTiles, startEncounter, underPressureTiles } from './movement';
-import { approachThenUse, arrived, cancelApproach } from './arrival';
-import { characterContentFor, syncAuthoredEncounters, takeGround, travelTo } from './room';
+import { aimedArc, jumpAim, jumpOffered, jumpReaches, previewWalk, reachableTiles, underPressureTiles } from './movement';
+import type { arrive, jumpTo, startEncounter } from './movement';
+import type { approachThenUse, arrived, cancelApproach } from './arrival';
+import { characterContentFor, syncAuthoredEncounters, takeGround } from './room';
+import type { travelTo } from './room';
 import { reachRings } from './circle';
-import { nameOf, note } from './log';
-import { applyLevelUp, awaitingLevel } from './level-up';
-import { equipItem, gearOf, unequipItem } from './equip';
+import { nameOf } from './log';
+import type { note } from './log';
+import { awaitingLevel } from './level-up';
+import type { applyLevelUp } from './level-up';
+import { gearOf } from './equip';
+import type { equipItem, unequipItem } from './equip';
 import { gearView } from './gear';
-import { useItem } from './use-item';
+import type { useItem } from './use-item';
 import { inspection } from './inspect';
-import { abilitiesOf, abilityList, abilityTargets, loadoutView, pointTiles, rest, shapeAt, swapCard, useAbility } from './demo-abilities';
-import { loadGameText, saveBlockedBy, serialiseSave } from './save';
-import { closeContainer, openContainer, takeFromContainer, withinReach } from './prop-use';
-import { sellTo } from './shop';
-import { syncTalks } from './talks';
+import { abilitiesOf, abilityList, abilityTargets, loadoutView, pointTiles, shapeAt } from './demo-abilities';
+import type { rest, swapCard, useAbility } from './demo-abilities';
+import { saveBlockedBy, serialiseSave } from './save';
+import type { loadGameText } from './save';
+import { openContainer, withinReach } from './prop-use';
+import type { closeContainer, takeFromContainer } from './prop-use';
+import type { sellTo } from './shop';
+import type { syncTalks } from './talks';
 import { hoverLine } from './hover';
 import { steerStep } from './steer';
-import { landWalkers } from './land';
-import { dropCard, type Drop } from './party-drop';
+import type { landWalkers } from './land';
+import type { dropCard, Drop } from './party-drop';
 import { carriedItems, containerView, hudMembers, journalEntries, talkingTo, talkingView } from './ui/play-views';
-import { shadowFor, type Shadow } from './shadow';
+import type { Shadow } from './shadow';
 import type { Wire } from './wire';
+/**
+ * The page's own game's play - every intent's rules (`oracle/plays.ts`) - as a type only: the bundle carries none
+ * of it. A game that plays them is given them (`oracle/local-game.ts`); the engine's never is.
+ */
+export type Plays = typeof import('./oracle/plays');
 import { userSettings } from './user-settings';
 
 /** What the board is: the game's state as the page reads it, every frame. */
@@ -216,36 +217,28 @@ export interface LocalPowers {
 }
 
 /**
- * The game running in this page. Built over a `DemoScene` and seated at a table as the page plays it: the
- * defender asked how a hit lands, and the tokens walking, a fight a walk wakes starting when they arrive.
+ * The table every game the page plays is played at (`docs/SERVER.md`, phase 4, slice 3): the board, every
+ * intent by its name, the queries - the views over the page's game, which are the page's - and the editor's and
+ * the test driver's hands. Seated as the page plays: the defender asked how a hit lands, and the tokens
+ * walking, a fight a walk wakes starting when they arrive.
+ *
+ * Who plays an intent is the game's (`play`): the engine built to WebAssembly (`WasmGame`), or - in
+ * development, while it is the oracle - the page's own TypeScript game (`oracle/local-game.ts`), the only one
+ * given its rules (`Plays`). An intent names the rule it would play on that table and never imports it.
  */
-export class LocalGame implements GameClient, LocalPowers {
-  /** The replica the pointer's questions are also put to, once the engine is here; none outside development. */
-  private shadow: Shadow | null = null;
+export abstract class GameTable implements GameClient, LocalPowers {
   /** The game on the server this one is held to (`wire.ts`); none outside development, or for nobody signed in. */
   private wire: Wire | null = null;
   private behind = false;
 
-  /** `shadowed`: whether the page's dev engine is fetched to shadow it; a game that is the engine's own is not. */
-  constructor(protected readonly demo: DemoScene, shadowed = true) {
+  constructor(protected readonly demo: DemoScene) {
     demo.askDefender = true;
     demo.animated = true;
-    if (shadowed) {
-      void shadowFor(demo).then((shadow) => {
-        this.shadow = shadow;
-      });
-    }
   }
 
   /** The editor changed the game under it - its project, its ground, its party - not by an intent. */
   protected edited(projectChanged: boolean): void {
-    if (projectChanged) this.shadow?.projectChanged();
-    else this.shadow?.outOfStep();
-  }
-
-  /** For a test: a shadow given rather than fetched. */
-  shadowWith(shadow: Shadow): void {
-    this.shadow = shadow;
+    void projectChanged;
   }
 
   /** Held to the game on the server: told of every intent, and telling this game when the server's restores it. */
@@ -270,68 +263,73 @@ export class LocalGame implements GameClient, LocalPowers {
   }
 
   /** An intent: played (`play`), and - with a wire - sent up to the server's game and held to its answer. */
-  protected did<T>(call: string, args: readonly unknown[], run: () => T, compare: { answer: boolean } = { answer: true }): T {
-    // A question the server's game holds: answered there, not here (`wire.ts`).
-    if (this.wire?.asking() === true) return this.wire.whileAsked(call, args, run);
+  protected did<T>(call: string, args: readonly unknown[], run: (plays: Plays) => T, compare: { answer: boolean } = { answer: true }): T {
+    // A question the server's game holds: answered there, not here; anything else played here, which refuses it.
+    if (this.wire?.asking() === true) return this.wire.whileAsked(call, args, () => this.play(call, args, run, compare));
     const sending = this.wire?.before() ?? false;
     const answer = this.play(call, args, run, compare);
     if (sending) this.wire!.after(call, args, answer, compare);
     return answer;
   }
 
-  /** An intent played: done, and - with a shadow - done in step in the engine too, the two held to each other. */
-  protected play<T>(call: string, args: readonly unknown[], run: () => T, compare: { answer: boolean }): T {
-    return this.shadow === null ? run() : this.shadow.mirror(call, args, run, compare);
-  }
+  /**
+   * An intent played, by whoever plays this table's game. `run` plays it by the page's own rules, given them; a
+   * read asked for its mark (`compare.answer` false) reads the page's game and needs none.
+   */
+  protected abstract play<T>(call: string, args: readonly unknown[], run: (plays: Plays) => T, compare: { answer: boolean }): T;
 
-  /** The game's answer - and, with a replica, the replica's beside it, any parting counted. */
+  /** A question the pointer asks, answered from the page's game - and, beside it, by the game's engine if it has one. */
   protected asked<T>(question: string, asked: unknown, game: () => T, replica: Parameters<Shadow['check']>[3], seen?: (answer: T) => unknown): T {
-    return this.shadow === null ? game() : this.shadow.check(question, asked, game, replica, seen);
+    void question;
+    void asked;
+    void replica;
+    void seen;
+    return game();
   }
 
   get board(): Board {
     return this.demo;
   }
 
-  moveSelectedTo(...args: After<typeof moveSelectedTo>) { return this.did('moveSelectedTo', args, () => moveSelectedTo(this.demo, ...args)); }
-  attackWithSelected(...args: After<typeof attackWithSelected>) { return this.did('attackWithSelected', args, () => attackWithSelected(this.demo, ...args)); }
-  endTurn() { return this.did('endTurn', [], () => endTurn(this.demo)); }
-  useAbility(...args: After<typeof useAbility>) { return this.did('useAbility', args, () => useAbility(this.demo, ...args)); }
-  answerPending(...args: After<typeof answerPending>) { return this.did('answerPending', args, () => answerPending(this.demo, ...args)); }
-  useSelectedOn(...args: After<typeof useSelectedOn>) { return this.did('useSelectedOn', args, () => useSelectedOn(this.demo, ...args)); }
-  approachThenUse(...args: After<typeof approachThenUse>) { return this.did('approachThenUse', args, () => approachThenUse(this.demo, ...args)); }
-  arrived() { return this.did('arrived', [], () => arrived(this.demo)); }
-  cancelApproach() { return this.did('cancelApproach', [], () => cancelApproach(this.demo)); }
-  arrive() { return this.did('arrive', [], () => arrive(this.demo)); }
-  takeFromContainer(...args: After<typeof takeFromContainer>) { return this.did('takeFromContainer', args, () => takeFromContainer(this.demo, ...args)); }
-  equipItem(...args: After<typeof equipItem>) { return this.did('equipItem', args, () => equipItem(this.demo, ...args)); }
-  unequipItem(...args: After<typeof unequipItem>) { return this.did('unequipItem', args, () => unequipItem(this.demo, ...args)); }
-  useItem(...args: After<typeof useItem>) { return this.did('useItem', args, () => useItem(this.demo, ...args)); }
-  swapCard(...args: After<typeof swapCard>) { return this.did('swapCard', args, () => swapCard(this.demo, ...args)); }
-  rest(...args: After<typeof rest>) { return this.did('rest', args, () => rest(this.demo, ...args)); }
-  applyLevelUp(...args: After<typeof applyLevelUp>) { return this.did('applyLevelUp', args, () => applyLevelUp(this.demo, ...args)); }
-  travelTo(...args: After<typeof travelTo>) { return this.did('travelTo', args, () => travelTo(this.demo, ...args)); }
-  loadGameText(...args: After<typeof loadGameText>) { return this.did('loadGameText', args, () => loadGameText(this.demo, ...args)); }
+  moveSelectedTo(...args: After<typeof moveSelectedTo>) { return this.did('moveSelectedTo', args, (p) => p.moveSelectedTo(this.demo, ...args)); }
+  attackWithSelected(...args: After<typeof attackWithSelected>) { return this.did('attackWithSelected', args, (p) => p.attackWithSelected(this.demo, ...args)); }
+  endTurn() { return this.did('endTurn', [], (p) => p.endTurn(this.demo)); }
+  useAbility(...args: After<typeof useAbility>) { return this.did('useAbility', args, (p) => p.useAbility(this.demo, ...args)); }
+  answerPending(...args: After<typeof answerPending>) { return this.did('answerPending', args, (p) => p.answerPending(this.demo, ...args)); }
+  useSelectedOn(...args: After<typeof useSelectedOn>) { return this.did('useSelectedOn', args, (p) => p.useSelectedOn(this.demo, ...args)); }
+  approachThenUse(...args: After<typeof approachThenUse>) { return this.did('approachThenUse', args, (p) => p.approachThenUse(this.demo, ...args)); }
+  arrived() { return this.did('arrived', [], (p) => p.arrived(this.demo)); }
+  cancelApproach() { return this.did('cancelApproach', [], (p) => p.cancelApproach(this.demo)); }
+  arrive() { return this.did('arrive', [], (p) => p.arrive(this.demo)); }
+  takeFromContainer(...args: After<typeof takeFromContainer>) { return this.did('takeFromContainer', args, (p) => p.takeFromContainer(this.demo, ...args)); }
+  equipItem(...args: After<typeof equipItem>) { return this.did('equipItem', args, (p) => p.equipItem(this.demo, ...args)); }
+  unequipItem(...args: After<typeof unequipItem>) { return this.did('unequipItem', args, (p) => p.unequipItem(this.demo, ...args)); }
+  useItem(...args: After<typeof useItem>) { return this.did('useItem', args, (p) => p.useItem(this.demo, ...args)); }
+  swapCard(...args: After<typeof swapCard>) { return this.did('swapCard', args, (p) => p.swapCard(this.demo, ...args)); }
+  rest(...args: After<typeof rest>) { return this.did('rest', args, (p) => p.rest(this.demo, ...args)); }
+  applyLevelUp(...args: After<typeof applyLevelUp>) { return this.did('applyLevelUp', args, (p) => p.applyLevelUp(this.demo, ...args)); }
+  travelTo(...args: After<typeof travelTo>) { return this.did('travelTo', args, (p) => p.travelTo(this.demo, ...args)); }
+  loadGameText(...args: After<typeof loadGameText>) { return this.did('loadGameText', args, (p) => p.loadGameText(this.demo, ...args)); }
   jumpTo(...args: After<typeof jumpTo>) {
     // The player's "roll jumps automatically" is read inside the jump: the engine is told it.
     const [id, destination, aim] = args;
-    return this.did('jumpTo', [id, destination, aim ?? null, userSettings().autoRollJumps], () => jumpTo(this.demo, ...args));
+    return this.did('jumpTo', [id, destination, aim ?? null, userSettings().autoRollJumps], (p) => p.jumpTo(this.demo, ...args));
   }
-  startEncounter(...args: After<typeof startEncounter>): void { this.did('startEncounter', args, () => { startEncounter(this.demo, ...args); return null; }); }
-  syncTalks() { return this.did('syncTalks', [], () => syncTalks(this.demo)); }
-  note(text: string, tone: LogTone) { return this.did('note', [text, tone], () => note(this.demo, text, tone)); }
+  startEncounter(...args: After<typeof startEncounter>): void { this.did('startEncounter', args, (p) => { p.startEncounter(this.demo, ...args); return null; }); }
+  syncTalks() { return this.did('syncTalks', [], (p) => p.syncTalks(this.demo)); }
+  note(text: string, tone: LogTone) { return this.did('note', [text, tone], (p) => p.note(this.demo, text, tone)); }
   select(id: string) { return this.did('select', [id], () => this.demo.party.select(id)); }
   selectNext() { return this.did('selectNext', [], () => this.demo.party.selectNext()); }
   link(id: string, withId: string) { return this.did('link', [id, withId], () => this.demo.party.link(id, withId)); }
   unlink(id: string) { return this.did('unlink', [id], () => this.demo.party.unlink(id)); }
-  dropCard(id: string, drop: Drop) { return this.did('dropCard', [id, drop], () => dropCard(this.demo.party, id, drop)); }
+  dropCard(id: string, drop: Drop) { return this.did('dropCard', [id, drop], (p) => p.dropCard(this.demo.party, id, drop)); }
   landWalkers(view: Parameters<typeof landWalkers>[1]) {
     // Where each walker is drawn is the page's to say: the engine is told every walker and the spot, at once.
     const drawn = this.demo.party.members().filter((id) => view.isGliding(id)).map((id) => [id, view.spotOf(id)] as const).filter(([, at]) => at !== null);
-    return this.did('landWalkers', [drawn], () => landWalkers(this.demo.party, view));
+    return this.did('landWalkers', [drawn], (p) => p.landWalkers(this.demo.party, view));
   }
-  closeContainer(): void { this.did('closeContainer', [], () => { closeContainer(this.demo); return null; }); }
-  sellTo(id: string, item: string) { return this.did('sellTo', [id, item], () => sellTo(this.demo, id, item)); }
+  closeContainer(): void { this.did('closeContainer', [], (p) => { p.closeContainer(this.demo); return null; }); }
+  sellTo(id: string, item: string) { return this.did('sellTo', [id, item], (p) => p.sellTo(this.demo, id, item)); }
   takeMotions() { return this.did('takeMotions', [], () => this.demo.motions.splice(0)); }
   takeFloaters() { return this.did('takeFloaters', [], () => this.demo.floaters.splice(0)); }
   rollShown(id: number): void {

@@ -14,7 +14,7 @@ import { createRng } from '../engine/core/rng';
 import { migrateDocument } from '../engine/scene/migrate';
 import { projectSchema, type ProjectDoc } from '../engine/scene/schema';
 import { buildProjectScene } from './demo-scene';
-import { LocalGame } from './client';
+import { LocalGame } from './oracle/local-game';
 import { act, answerFor } from '../../tests/fixtures/random-play';
 import { replicaCount, Shadow } from './shadow';
 import { shippedContent } from './shipped';

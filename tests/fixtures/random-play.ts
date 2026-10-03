@@ -10,7 +10,7 @@ import { NO_TILE } from '../../src/engine/grid/grid';
 import { interactablesOf } from '../../src/engine/scene/prop-functions';
 import type { Response } from '../../src/engine/script/runner';
 import type { DemoScene } from '../../src/game/demo-scene';
-import type { LocalGame } from '../../src/game/client';
+import type { GameTable } from '../../src/game/client';
 
 export function answerFor(demo: DemoScene, g: Rng): Response {
   const p = demo.pending;
@@ -33,7 +33,7 @@ export function answerFor(demo: DemoScene, g: Rng): Response {
 }
 
 /** One intent, as the dice fall, given through the page's seam. */
-export function act(game: LocalGame, demo: DemoScene, g: Rng): void {
+export function act(game: GameTable, demo: DemoScene, g: Rng): void {
   if (demo.pending !== null) {
     game.answerPending(answerFor(demo, g));
     return;

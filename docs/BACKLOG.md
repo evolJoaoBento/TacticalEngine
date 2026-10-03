@@ -4,6 +4,13 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## Phase 4, slice 3: the page's own game's rules quarantined — done
+
+The page's bundle carries none of its own TypeScript game's rules: `GameTable` (`src/game/client.ts`) names a rule
+only as a type, `WasmGame` is given none, and `LocalGame` with the rules (`src/game/oracle/`) loads only in
+development and for the tests, the oracle the Rust is held to. A walk of the page's imports and a check of every
+build's bundle hold it. Next: the oracle deleted, when decided; the views reading the engine's board.
+
 ## Phase 4, slice 2: the page's game filled from the engine's board — done
 
 `WasmGame` no longer plays anything in the page's own TypeScript game: the engine plays, and the page's game is

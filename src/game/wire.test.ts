@@ -13,7 +13,7 @@ import { createRng } from '../engine/core/rng';
 import { migrateDocument } from '../engine/scene/migrate';
 import { projectSchema, type ProjectDoc } from '../engine/scene/schema';
 import { boardOf, type BoardSnapshot } from './board';
-import { LocalGame } from './client';
+import { LocalGame } from './oracle/local-game';
 import { buildProjectScene, type DemoScene } from './demo-scene';
 import { firstDifference, replicaCount, Shadow } from './shadow';
 import { shippedContent } from './shipped';
@@ -544,7 +544,16 @@ describe('the wire to the server\'s game', () => {
   it.skipIf(!built)('shows the server\'s question with the page playing the engine, the engine told the game after', async () => {
     const { demo, game, server, wire, before } = await asking('asked-wasm', 'door-12-7', { wasm: true });
     expect(wire.status()).toBe('asked');
-    expect(boardOf(demo).pending).toEqual((server.engine.board() as BoardSnapshot).pending);
+    const held = (server.engine.board() as BoardSnapshot).pending;
+    expect(boardOf(demo).pending).toEqual(held);
+    // Anything else is played by the page's engine - told a question is open, which refuses as the page's own
+    // game did - and not sent; a selection, which the engine takes, leaves the server's question on screen.
+    const sent = server.sent.length;
+    expect(game.moveSelectedTo(demo.state.entity('kara')!.tile - 2).moved).toBe(false);
+    game.selectNext();
+    expect(boardOf(demo).pending).toEqual(held);
+    await settle(server);
+    expect(server.sent.length).toBe(sent);
     expect(game.answerPending({ kind: 'roll' }).status).toBe('waiting');
     await settle(server);
     for (let n = 0; n < 10 && wire.status() === 'asked'; n++) {

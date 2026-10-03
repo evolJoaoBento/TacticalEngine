@@ -118,7 +118,9 @@ export function restoreFromBoard(demo: DemoScene, board: BoardSnapshot): void {
   demo.snapshots.clear();
   for (const [id, room] of replica.rooms) demo.snapshots.set(id, room);
   demo.party.restore(replica.party);
-  demo.pending = board.pending === null ? null : shownFrom(demo, board.pending as Projected);
+  // A question the board shows, shown; one its game was only told is open (`questionOpen` - a question another
+  // game holds, which the page shows from that game's board) kept as the page shows it.
+  demo.pending = board.pending !== null ? shownFrom(demo, board.pending as Projected) : replica.questionOpen ? demo.pending : null;
   asideFrom(demo, board.aside);
   demo.encounter = replica.encounter === null ? null : EncounterRunner.restore(demo.state, replica.encounter);
   // The GM's turn, as far as a board says: who has been spotlighted this turn, if it is under way. The rest of it

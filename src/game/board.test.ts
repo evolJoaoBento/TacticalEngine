@@ -16,7 +16,7 @@ import { interactablesOf } from '../engine/scene/prop-functions';
 import { projectSchema, type ProjectDoc } from '../engine/scene/schema';
 import { buildProjectScene, type DemoScene } from './demo-scene';
 import { boardOf, restoreFromBoard } from './board';
-import { LocalGame } from './client';
+import { LocalGame } from './oracle/local-game';
 import { firstDifference } from './shadow';
 import { talkingAside } from './talks';
 import { barWorkshop } from '../../tests/fixtures/bar-workshop';

@@ -200,9 +200,9 @@ export class Wire {
    * conversations kept where they are, which a stand-in for a question must not be set aside as; anything
    * else played on the page's game alone, which refuses it as it would with any question open, and not sent.
    */
-  whileAsked<T>(call: string, args: readonly unknown[], run: () => T): T {
+  whileAsked<T>(call: string, args: readonly unknown[], playHere: () => T): T {
     if (call === 'syncTalks') return false as T;
-    if (call !== 'answerPending') return run();
+    if (call !== 'answerPending') return playHere();
     if (this.answering) return { status: 'refused', lines: [] } as T;
     this.answering = true;
     const epoch = this.epoch;

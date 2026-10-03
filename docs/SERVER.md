@@ -1303,5 +1303,28 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
       regardless: 26 seconds for all eleven, where one took 210 and timed out under load.
     - **Not yet**: the wire still cannot stand the page where a server's board says while a conversation is set
       aside: the page's engine is then told the page's game, which carries no paused script.
-  - **Next**: slice 3 - the page's own game's play code moved where the page's bundle cannot import it, the
-    oracle for the Rust with its tests and fixture writers.
+  - **Quarantined** (slice 3). The page's own game's rules - every intent it plays - are the oracle now, and
+    the page's bundle carries none of them.
+    - **The table and the rules apart** (`src/game/client.ts`): `GameTable` holds the board, every intent by its
+      name, the queries - the views over the page's game, which stay the page's - and the editor's and the test
+      driver's hands; an intent names the rule it would play on a table of rules it is given (`Plays`, a type
+      only, which the bundle erases) and never imports it. `WasmGame` is a table the engine plays and is given
+      no rules - a rule touched there throws, rather than plays - and `LocalGame` (`src/game/oracle/`) is the
+      one given them (`oracle/plays.ts`, the one place that imports the rules), with the development mirror. It
+      is loaded by an import only development makes (`loadOracle`), which a build drops: the page's own game
+      plays only when development asks or where the engine was never built; a build without the engine has no
+      game, and says so.
+    - **A question the server holds, with the engine playing**: anything but its answer is played by the page's
+      engine, told a question is open (`questionOpen`, which it honours), and so refused as the page's own game
+      refused it; a fill from that engine keeps the question the page shows, which its board only knows is open.
+    - **Held twice**: `tests/unit/oracle-quarantine.test.ts` walks the page's imports from `src/main.ts` - those
+      that load with a module, not types and not imports made on request - and no module under
+      `src/game/oracle/` is reached, while the tests do reach it; and every build checks its own bundle
+      (`tools/bundle-guard.mjs`, run by `npm run build` and `npm run build:server`) for words only a rule writes
+      into the log, failing where one is there. The rules live in modules the page still loads for its model and
+      its views (`demo-scene.ts` and the rest): it is the bundler that leaves them out, once nothing the page
+      runs names them. 3 of 3 deliberate mutations fail these - the oracle imported with the page, a question
+      only told of dropped by a fill, the oracle loaded in every build (the build's guard failing) - and a build
+      made under Vitest, where development is on and the oracle's import stays, failed the guard as it should.
+  - **Next**: the oracle deleted, when it is decided - the rules, their tests, the fixtures' writers, after which
+    the fixtures are frozen; and the views reading the engine's board rather than the page's game.

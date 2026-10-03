@@ -14,7 +14,8 @@ import { migrateDocument } from '../engine/scene/migrate';
 import { projectSchema, type ProjectDoc } from '../engine/scene/schema';
 import { boardOf, rollsOf, type BoardSnapshot } from './board';
 import { buildProjectScene } from './demo-scene';
-import { LocalGame } from './client';
+import { LocalGame } from './oracle/local-game';
+import type { Plays } from './client';
 import { firstDifference, replicaCount, Shadow } from './shadow';
 import { talkingAside } from './talks';
 import { talkingView } from './ui/play-views';
@@ -169,10 +170,10 @@ const MARKING_READS = ['abilityList', 'readContainer', 'readThing'];
 /** A `WasmGame` that writes down every intent its page's own game was asked to play. */
 class Watched extends WasmGame {
   readonly ran: string[] = [];
-  protected override play<T>(call: string, args: readonly unknown[], run: () => T, compare: { answer: boolean }): T {
-    return super.play(call, args, () => {
+  protected override play<T>(call: string, args: readonly unknown[], run: (plays: Plays) => T, compare: { answer: boolean }): T {
+    return super.play(call, args, (plays) => {
       this.ran.push(call);
-      return run();
+      return run(plays);
     }, compare);
   }
 }
