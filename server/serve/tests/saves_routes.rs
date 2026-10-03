@@ -149,7 +149,8 @@ async fn a_game_on_the_server_saves_itself_into_its_players_folder() {
     let root = folder("game");
     let fixture = fixture();
     let project = &fixture["projects"][0];
-    let tables = Tables::new(root.clone());
+    // The tests' tables: a fight is started below with the test driver's hand.
+    let tables = Tables::new(root.clone()).for_tests();
     let opened = tables.ask("kara", json!({ "id": 1, "op": "open", "project": project, "shipped": fixture["shipped"], "table": { "animated": true, "askDefender": true } })).await;
     let seed = opened["ok"]["seed"].as_str().unwrap().to_string();
     let shipped: Shipped = serde_json::from_value(fixture["shipped"].clone()).unwrap();

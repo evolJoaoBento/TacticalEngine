@@ -4,7 +4,7 @@
 //! TypeScript's fixtures; this only reads the arguments and writes the answer in the TypeScript's shape.
 //!
 //! The test driver's hands (`wound`, `setGood`, `placeAt`...) are here too: the page's local powers, which a
-//! game played elsewhere is told of as it is told of any intent.
+//! game played elsewhere takes only when it was started for the tests (`serve::play`, `TEST_HANDS`).
 
 use super::session::Session;
 use crate::character::progression::LevelUpPlan;
@@ -107,11 +107,12 @@ impl Session {
             "unlink" => json!(self.party.unlink(&self.world.state, a.text(0)?)),
             "dropCard" => json!(self.drop_card(a.text(0)?, a.get(1))?),
             "landWalkers" => {
-                // Everyone a cut-short walk put down, at once, each where the page drew them: who was landed.
+                // Everyone a cut-short walk put down, at once, each where the page drew them - on the line they
+                // were walking (`landing.rs`): who was landed.
                 let mut landed = Vec::new();
                 for walker in a.get(0).as_array().map_or(&[][..], Vec::as_slice) {
                     let (Some(id), Ok(at)) = (walker[0].as_str(), serde_json::from_value::<Spot>(walker[1].clone())) else { continue };
-                    if self.party.land_at(&mut self.world.state, id, at) {
+                    if self.land_walker(id, at) {
                         landed.push(id.to_string());
                     }
                 }
@@ -141,12 +142,14 @@ impl Session {
             "abilityList" => to(self.ability_list(a.text(0)?)),
             "landAt" => {
                 let at = a.spot(1)?.ok_or("argument 1: no spot")?;
-                json!(self.party.land_at(&mut self.world.state, a.text(0)?, at))
+                json!(self.land_walker(a.text(0)?, at))
             }
             // ---- what a view drains ----
-            "takeMotions" => Value::Array(std::mem::take(&mut self.motions)),
-            // What a view has still to draw, read and left where it is - for a game that tells another its own.
-            "views" => json!([self.motions, to(&self.floaters)]),
+            "takeMotions" => {
+                let motions = std::mem::take(&mut self.motions);
+                self.drained(&motions);
+                Value::Array(motions)
+            }
             "takeFloaters" => to(std::mem::take(&mut self.floaters)),
             "rollShownAt" => {
                 let at = a.number(0)? as usize;

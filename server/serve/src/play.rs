@@ -10,26 +10,32 @@
 //! Messages are JSON, each with an `id` the answer carries back:
 //!
 //! - `{ id, op: "open", project, shipped, table: { animated, askDefender }, rng? }` - a game stood up, the seed
-//!   the server's own: `{ id, ok: { seed, board } }`. A server started for the tests (`--dice-from-page`) sets
+//!   the server's own: `{ id, ok: { seed, board } }`. A server started for the tests (`--for-tests`) sets
 //!   its game's dice where the page's are (`rng`), so a suite written against the page's own seeds rolls what
 //!   it was written for; any other ignores it;
-//! - `{ id, op: "call", call, args }` - an intent: `{ id, ok: { answer, board } }`;
+//! - `{ id, op: "call", call, args }` - an intent: `{ id, ok: { answer, board } }`. Never one that tells the
+//!   game how the page's stands (`NEVER_TOLD`), and the test driver's hands (`TEST_HANDS`) only on a server
+//!   started for the tests;
+//! - `{ id, op: "load", slot }` - the account's save in that slot (`saves.rs`) loaded, as `loadGameText` loads
+//!   one: `{ id, ok: { answer, board } }`. The text is the server's own, never one the page sends;
 //! - `{ id, op: "ask", ask, ... }` - what the pointer asks: `{ id, ok: <answer> }`;
 //! - `{ id, op: "save", slot?, name, where, project? }` - the game saved by itself into the account's own
 //!   folder (`saves.rs`): its own text, in the slot named or a fresh one, `{ id, ok: { slot, text } }`, or why
 //!   it may not be saved now;
-//! - `{ id, op: "restore", replica }` - told how the game stands, the page's being the one the server's is
-//!   held to while it is brought into step: `{ id, ok: { board } }`;
 //! - `{ id, op: "resume" }` - the game kept since the socket last closed, and the id of the project it was
 //!   opened over: `{ id, ok: { board, project } }`;
 //!
 //! and `{ id, error }` for anything refused. A game outlives its socket for a while (`KEPT_FOR`), so a page
-//! that lost its connection comes back to it; past that it goes. The content a game is played over still
-//! comes from the page (`shipped`), which in single play is the player's own; the server's own copy of it is
-//! for later.
+//! that lost its connection comes back to it; past that it goes.
+//!
+//! The server's game is trusted alone (phase 5, slice 1): once opened it is never told how a page's game stands -
+//! a page out of step is stood where the server's board says - and a walk cut short is held to the line the
+//! game gave it (`engine::game::landing`). The project and the content a game is played over still come from
+//! the page, once, at `open`, which in single play are the player's own; the server's own copy of them is for
+//! the shared game (slice 3).
 
 use crate::accounts::{account_of, host_of, now_ms, read_accounts, read_sessions};
-use crate::saves::{is_slot_id, mint_id, write_save, Slot};
+use crate::saves::{is_slot_id, mint_id, read_save, write_save, Slot};
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
 use axum::extract::State;
 use axum::http::{HeaderMap, StatusCode};
@@ -55,6 +61,15 @@ pub const PLAY_URL: &str = "/__play";
 /// How long a game is kept after its socket closes, for the page to come back to it.
 pub const KEPT_FOR: Duration = Duration::from_secs(10 * 60);
 
+/// The intents that tell a game how another stands - its dice, its walk, its log, its views' queues - which the
+/// page's own engine is told after the editor's changes, and the server's game never is. And a save's text,
+/// which the server loads from the account's own folder (`load`).
+pub const NEVER_TOLD: &[&str] = &["restoreRng", "restoreWalk", "restoreLog", "restoreViews", "loadGameText"];
+
+/// The test driver's hands (`window.__engine`): somebody put somewhere, wounded, handed a card or a level, a
+/// fight started or a room entered by fiat. Only a server started for the tests (`--for-tests`) takes them.
+pub const TEST_HANDS: &[&str] = &["placeAt", "setGood", "wound", "markStress", "setCondition", "giveItem", "grantLevel", "setCards", "startEncounter", "travelTo"];
+
 /// One message for a game, and where its answer goes.
 struct Job {
     message: Value,
@@ -75,8 +90,9 @@ pub struct Tables {
     games: Arc<Mutex<HashMap<String, Table>>>,
     /// How long a game is kept after its socket closes.
     kept_for: Duration,
-    /// The tests' server: a game opened with its dice where the page's are (`--dice-from-page`).
-    dice_from_page: bool,
+    /// The tests' server (`--for-tests`): a game opened with its dice where the page's are, and the test driver's
+    /// hands taken.
+    for_tests: bool,
 }
 
 /// A project's code run in QuickJS, compiled once for each body of code a game is built with.
@@ -149,10 +165,6 @@ fn answer(slot: &mut Option<Session>, message: &Value, hooks: &HooksFor) -> Resu
             }
             Ok(json!({ "text": session.serialise_save().ok_or("nothing to save")? }))
         }
-        Some("restore") => {
-            face::respond(slot, &json!({ "op": "restore", "replica": message["replica"] }), Rc::clone(hooks))?;
-            Ok(json!({ "board": board(slot) }))
-        }
         Some("resume") => match slot {
             Some(session) => Ok(json!({ "board": session.board() })),
             None => Err("no game to resume".into()),
@@ -169,12 +181,37 @@ impl Tables {
 
     /// Tables whose games are kept for `kept_for` after their socket closes.
     pub fn keeping(root: PathBuf, kept_for: Duration) -> Tables {
-        Tables { root, games: Arc::new(Mutex::new(HashMap::new())), kept_for, dice_from_page: false }
+        Tables { root, games: Arc::new(Mutex::new(HashMap::new())), kept_for, for_tests: false }
     }
 
-    /// The tests' tables: each game opened with its dice where the page's are, not at the server's own seed.
-    pub fn with_dice_from_page(self) -> Tables {
-        Tables { dice_from_page: true, ..self }
+    /// The tests' tables: each game opened with its dice where the page's are, not at the server's own seed, and
+    /// the test driver's hands taken.
+    pub fn for_tests(self) -> Tables {
+        Tables { for_tests: true, ..self }
+    }
+
+    /// Why a message is refused before its game is asked, if it is: an intent that would tell the game how the
+    /// page's stands, a test hand on a server not started for the tests, a save the account does not have.
+    fn refused(&self, account: &str, message: &mut Value) -> Option<String> {
+        match message["op"].as_str() {
+            Some("call") => {
+                let call = message["call"].as_str().unwrap_or("");
+                if NEVER_TOLD.contains(&call) {
+                    return Some(format!("\"{call}\" is never told to the server's game"));
+                }
+                if TEST_HANDS.contains(&call) && !self.for_tests {
+                    return Some(format!("\"{call}\" is the tests' alone"));
+                }
+                None
+            }
+            Some("load") => {
+                let slot = message["slot"].as_str().unwrap_or("");
+                let Some(text) = read_save(&self.root, account, slot) else { return Some("no such save".into()) };
+                *message = json!({ "id": message["id"], "op": "call", "call": "loadGameText", "args": [text] });
+                None
+            }
+            _ => None,
+        }
     }
 
     /// Games left longer than they are kept, gone: their threads end when the way in is dropped.
@@ -187,8 +224,11 @@ impl Tables {
     pub async fn ask(&self, account: &str, mut message: Value) -> Value {
         let id = message["id"].clone();
         // The page's dice are taken only by the tests' server.
-        if !self.dice_from_page && message["op"] == "open" {
+        if !self.for_tests && message["op"] == "open" {
             message["rng"] = Value::Null;
+        }
+        if let Some(why) = self.refused(account, &mut message) {
+            return json!({ "id": id, "error": why });
         }
         let message_op = message["op"].as_str().unwrap_or("").to_string();
         let asked = if message_op == "save" { message.clone() } else { Value::Null };
@@ -303,7 +343,7 @@ pub fn router(root: PathBuf) -> Router {
     router_for(Tables::new(root))
 }
 
-/// The play route over tables made as they are wanted - the tests' (`Tables::with_dice_from_page`).
+/// The play route over tables made as they are wanted - the tests' (`Tables::for_tests`).
 pub fn router_for(tables: Tables) -> Router {
     Router::new().route(PLAY_URL, get(handle)).with_state(tables)
 }

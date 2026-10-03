@@ -65,11 +65,6 @@ export class WasmGame extends GameTable {
     this.toldFromThePage();
   }
 
-  /** The engine holds what the views have still to draw: read, and left where it is. */
-  protected override viewsWaiting(): [unknown, unknown] {
-    return this.engine.call('views', []) as [unknown, unknown];
-  }
-
   /** An intent: the engine plays it and answers, and the page's game is filled from its board after. */
   protected play<T>(call: string, args: readonly unknown[], read: (() => T) | undefined, compare: { answer: boolean }): T {
     let engines: unknown;

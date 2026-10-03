@@ -12,6 +12,7 @@ pub mod dispatch;
 pub mod face;
 pub mod features;
 pub mod kit;
+pub mod landing;
 pub mod fight;
 pub mod leap;
 pub mod log;

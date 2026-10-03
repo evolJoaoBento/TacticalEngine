@@ -80,7 +80,7 @@ describe('the dev server starting it', () => {
       expect(e2eRoot()).toBe('/scratch/e2e');
       // Over the scratch folder, the page's dice taken; a dev server's over the repository, its own seed.
       process.env['TACTICAL_SERVER_PORT'] = '8431';
-      expect(serverArguments('/repo')).toEqual(['--root', '/scratch/e2e', '--port', '8431', '--dice-from-page']);
+      expect(serverArguments('/repo')).toEqual(['--root', '/scratch/e2e', '--port', '8431', '--for-tests']);
       expect(serverArguments('/repo', false)).toEqual(['--root', '/repo', '--port', '8431']);
       process.env['VITEST'] = 'true';
       expect(servesRust('serve')).toBe(false);

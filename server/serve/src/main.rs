@@ -1,10 +1,11 @@
-//! `tactical-serve [--root <repository>] [--site <built client>] [--host 127.0.0.1] [--port 8430] [--dice-from-page]`
+//! `tactical-serve [--root <repository>] [--site <built client>] [--host 127.0.0.1] [--port 8430] [--for-tests]`
 //!
 //! Started by the Vite dev server (`tools/rust-server.ts`), which passes the routes through to it; or on
 //! its own - `npm run build:server`, then `npm run server` - when it serves the game itself: the built
 //! client from `--site` (`dist-server` by default) and the assets live from `public/`. It keeps its files
-//! under `--root`, the repository by default. `--dice-from-page` is the tests' (`tests/e2e/server-mode.ts`): a
-//! game opened takes the page's dice rather than the server's own seed, so the suite rolls what it was written for.
+//! under `--root`, the repository by default. `--for-tests` is the tests' (`tests/e2e/server-mode.ts`): a game
+//! opened takes the page's dice rather than the server's own seed, so the suite rolls what it was written for, and
+//! the test driver's hands - somebody wounded, put somewhere, handed a card - are taken (`play.rs`).
 
 use std::net::SocketAddr;
 use std::path::PathBuf;
@@ -37,7 +38,7 @@ async fn main() {
     let serves_the_game = site.join("index.html").is_file();
     // The private card art only to this machine: never when the server listens beyond it.
     let private_art = address.ip().is_loopback();
-    let settings = serve::Settings { dice_from_page: std::env::args().any(|arg| arg == "--dice-from-page") };
+    let settings = serve::Settings { for_tests: std::env::args().any(|arg| arg == "--for-tests") };
     let app = if serves_the_game { serve::site(root.clone(), site.clone(), private_art) } else { serve::app_with(root.clone(), settings) };
     println!("tactical-serve: listening on http://{address}, keeping files under {}", root.display());
     if serves_the_game {

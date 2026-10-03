@@ -1,5 +1,6 @@
 /**
- * The wire (`docs/SERVER.md`, phase 3, slice 3d): the page's game held to the game the server plays.
+ * The wire (`docs/SERVER.md`, phase 3, slice 3d; phase 5, slice 1): the page's game held to the game the server
+ * plays, which is trusted alone.
  *
  * The page plays every intent at once, as it always has, and sends it up as it does (`Transport`, a
  * websocket to `/__play` in the page, `play-socket.ts`); the server plays the same intent in a game of its own
@@ -7,34 +8,36 @@
  * intent - the board snapshot taken then, since more may have been played by the time the answer is back.
  * Where they part, the parting is counted as the mirror's are (`window.__replica`), the rest of what is
  * on its way up is played and not held to anything, and when the last of it is answered the page's game is
- * stood where the server's board says (`restoreFromBoard`) - the page restored from the server.
+ * stood where the server's board says (`restoreFromBoard`) - the page restored from the server. An intent the
+ * server refuses is a parting too, and the page is stood where the server's game is, asked for it (`resume`).
  *
- * The server's game is opened when the wire is, and the page's dice go on from the server's: the seed is the
- * server's from the start. It is brought into step - told the page's game, as the mirror is - only between
- * questions, which have no form to send: before the first intent, after the editor has changed the game
- * (a fresh game opened over the project as it is now), and after a parting the board could not give back -
- * a question open, a conversation set aside. In development only, and only for somebody signed in.
+ * The server is never told how the page's game stands: a page out of step is only ever stood where the
+ * server's board says. The server's game is opened over the page's project when the wire is, and the page
+ * is stood where it says at once - its seed the dice the page goes on with. What the page plays while it is
+ * opening is sent up behind the opening, and the page stood where the last of it leaves the server's game. A
+ * save is loaded by its slot (`load`): the server loads its own copy, from the account's folder. The editor's
+ * changes - the ground, the party, the project's cards, a pack imported - make a game the server's never was:
+ * the wire closes, and the editor's playtest is the page's alone. In development only, and only for somebody
+ * signed in.
  *
  * A connection that drops loses what was on its way; the page plays on, sending nothing, and the wire
  * connects again after a while, and again, longer each time (`RETRIES`), and asks for the game the server kept
- * (`resume`, for ten minutes after a socket closes): kept, of this project, it is told the page's game, which
- * went on without it; gone, a fresh one is opened and told it. A page reloaded asks first for the game kept
- * (`resume`): kept, of this project, the page is stood where that game is (`resumed`), and the seed is the one
- * it was played with; else a game is opened as for any page.
+ * (`resume`, for ten minutes after a socket closes): kept, of this project, the page is stood where it is -
+ * what it played alone in between undone; gone, a fresh one is opened, and the page stood where that is. A
+ * page reloaded asks first for the game kept (`resume`): kept, of this project, the page is stood where that
+ * game is (`resumed`); else a game is opened as for any page.
  *
  * A question the server's game holds - a roll a script waits on, a defender asked how a hit lands, a line of a
  * conversation - the page's game cannot be given back: it is a script paused part-way, which no board carries.
  * So the page shows it from the server's board (`shownFrom`: what the views read of a question, and no runner),
  * and the answer is not played on the page but sent up (`asked`) without predicting it; the server's game plays
- * it, and the page is stood where its board says after - the next question shown the same way, or none.
+ * it, and the page is stood where its board says after - the next question shown the same way, or none. A
+ * conversation set aside is known by who is having it (`asideFrom`), and the server's game plays it on.
  */
 
-import { boardOf, restoreFromBoard, rollsOf, shownFrom, type BoardSnapshot } from './board';
+import { boardOf, restoreFromBoard, shownFrom, type BoardSnapshot } from './board';
 import type { DemoScene } from './demo-scene';
-import { openContainer } from './prop-use';
-import { replicaOf } from './replica';
 import { firstDifference, recordAsked, recordParting, since } from './shadow';
-import { talkingAside } from './talks';
 import type { SaveSlot } from './save-slots';
 
 /** What the server said: what was asked for, or why not. */
@@ -50,11 +53,11 @@ export interface Transport {
 }
 
 /**
- * Where the wire stands: `opening` the server's game, `fresh` (opened, not yet told the page's), `in` step,
- * `parted` (waiting for what is on its way up), `asked` (the page showing a question the server's game holds),
- * `out` of step (to be told the page's game), `lost` (the connection dropped, and trying again), `closed`.
+ * Where the wire stands: `opening` the server's game, `in` step, `parted` (waiting for what is on its way up,
+ * to be stood where the last of it leaves the server's game), `asked` (the page showing a question the server's
+ * game holds), `lost` (the connection dropped, and trying again), `closed`.
  */
-export type WireState = 'opening' | 'fresh' | 'in' | 'parted' | 'asked' | 'out' | 'lost' | 'closed';
+export type WireState = 'opening' | 'in' | 'parted' | 'asked' | 'lost' | 'closed';
 
 /** How long to wait before each try to connect again, in milliseconds; when they are spent the wire closes. */
 export const RETRIES: readonly number[] = [500, 1000, 2000, 4000, 8000, 15000, 30000];
@@ -73,30 +76,31 @@ interface Played {
   board: BoardSnapshot;
 }
 
-const copy = (value: unknown): unknown => JSON.parse(JSON.stringify(value ?? null));
+/** The game the server kept, and the id of the project it was opened over. */
+interface Kept {
+  board: BoardSnapshot;
+  project: unknown;
+}
 
+const copy = (value: unknown): unknown => JSON.parse(JSON.stringify(value ?? null));
 
 export class Wire {
   private state: WireState = 'opening';
-  /** Bumped when the server is told the page's game: answers to what was sent before it are held to nothing. */
+  /** Bumped when the page lets go of the server's game: answers to what was sent before it are held to nothing. */
   private epoch = 0;
   private inFlight = 0;
   private logs = { ours: 0, theirs: 0 };
   private retell: () => void = () => undefined;
-  /** What the page's views have still to draw, as the game that plays the page's holds it. */
-  private views: () => [unknown, unknown] = () => [this.demo.motions, this.demo.floaters];
   private transport: Transport;
   /** Which connection a message went by: a drop is the drop of the one it is. */
   private connection = 0;
   private tries = 0;
-  /** The editor changed the game while the connection was down: a fresh game when it is back. */
-  private stale = false;
   /** The page showing a question the server's game holds (`shownFrom`), and an answer to it on its way up. */
   private showing = false;
   private answering = false;
   /** Whether the page came back to the game the server kept (a reload). */
   resumed = false;
-  /** The server's game opened, and the page's dice going on from its - or the page come back to the game kept. */
+  /** The server's game opened, and the page stood where it is - or the page come back to the game kept. */
   readonly ready: Promise<void>;
 
   constructor(private readonly connect: () => Transport, private readonly demo: DemoScene, private readonly shipped: unknown, private readonly options: WireOptions = {}) {
@@ -106,7 +110,7 @@ export class Wire {
 
   private async start(): Promise<void> {
     if (this.options.resume === true && (await this.comeBack())) return;
-    await this.open();
+    if (this.state === 'opening') await this.open();
   }
 
   /** A page reloaded: stood where the game the server kept is, if it can be. Whether there is nothing more to do. */
@@ -119,19 +123,16 @@ export class Wire {
       return true;
     }
     if (this.state !== 'opening') return true;
-    const kept = said.ok as { board: BoardSnapshot; project: unknown } | undefined;
-    if (kept === undefined || kept.project !== this.demo.project.id || !this.standAt(kept.board)) return false;
+    const kept = said.ok as Kept | undefined;
+    if (kept === undefined || kept.project !== this.demo.project.id) return false;
     this.resumed = true;
+    this.opened(kept.board);
     return true;
   }
 
-  /**
-   * The game it is the wire of: told when the page's game was changed under it, and asked what its views have
-   * still to draw - which the engine playing the page's game holds, not the page's game itself.
-   */
-  attach(retell: () => void, views?: () => [unknown, unknown]): void {
+  /** The game it is the wire of, told when the page's game was stood somewhere under it. */
+  attach(retell: () => void): void {
     this.retell = retell;
-    if (views !== undefined) this.views = views;
   }
 
   status(): WireState {
@@ -159,35 +160,36 @@ export class Wire {
       this.state = 'closed';
       return;
     }
-    const opened = said.ok as { seed: string; board: BoardSnapshot } | undefined;
     if (this.state !== 'opening') return;
+    const opened = said.ok as { seed: string; board: BoardSnapshot } | undefined;
     if (opened === undefined) {
       recordParting('server: open', null, null, { failed: said.error ?? 'no game' });
-      this.state = 'closed';
+      this.close();
       return;
     }
-    // The server's seed, from the start: the page's dice go on from where its game's are.
-    this.demo.rng.restore(opened.board.rng);
-    this.retell();
-    this.state = 'fresh';
-  }
-
-  /** The editor changed the page's game, or its project: the server is told it again before the next intent. */
-  outOfStep(): void {
-    if (this.state === 'opening' || this.state === 'closed') return;
-    if (this.state === 'lost') {
-      this.stale = true;
-      return;
-    }
-    this.release();
-    this.nextEpoch();
-    this.state = 'out';
+    this.opened(opened.board);
   }
 
   /**
-   * The page let go of a question the server's game held, which it cannot answer itself: the server's game is
-   * gone, closed, or about to be told the page's.
+   * The server's game open, or come back to: the page stood where it is - unless what the page played while it
+   * was opening is still on its way up, when it is stood where the last of that leaves it.
    */
+  private opened(board: BoardSnapshot): void {
+    if (this.inFlight > 0) this.state = 'parted';
+    else this.standAt(board);
+  }
+
+  /**
+   * The editor changed the page's game, or its project: a game the server's never was, which it is never told.
+   * The wire closes, and the editor's playtest is the page's alone. Not while the server's game is opening: the
+   * page that opens it builds its ground over the project the opening carries, which changes nothing.
+   */
+  outOfStep(): void {
+    if (this.state === 'opening') return;
+    this.close();
+  }
+
+  /** The page let go of a question the server's game held, which it cannot answer itself. */
   private release(): void {
     if (!this.showing) return;
     this.showing = false;
@@ -216,28 +218,21 @@ export class Wire {
       if (epoch !== this.epoch || this.state !== 'asked') return;
       this.answering = false;
       const played = said.ok as Played | undefined;
-      if (played === undefined) {
-        recordParting(`server ${call}: refused`, args, null, { failed: said.error });
-        this.release();
-        this.state = 'out';
-        return;
-      }
-      if (!this.standAt(played.board)) {
-        this.release();
-        this.state = 'out';
-      }
+      if (played !== undefined) return this.standAt(played.board);
+      recordParting(`server ${call}: refused`, args, null, { failed: said.error });
+      this.state = 'parted';
+      this.standWhereTheServerIs();
     });
     return { status: 'waiting', lines: [] } as T;
   }
 
   /**
    * The page stood where a board of the server's says the game is: a question it holds shown, not played
-   * (`asked`); none, and in step. Not when a conversation is set aside, on either side - a runner the board
-   * does not carry. Whether it was.
+   * (`asked`); none, and in step. The conversations set aside known by who is having them - the server's game
+   * plays them on.
    */
-  private standAt(board: BoardSnapshot): boolean {
+  private standAt(board: BoardSnapshot): void {
     const demo = this.demo;
-    if (board.aside.length > 0 || talkingAside(demo).length > 0) return false;
     // The question the server's game holds, if one: shown from its board (`restoreFromBoard`, `shownFrom`).
     restoreFromBoard(demo, board);
     this.showing = board.pending !== null;
@@ -249,7 +244,26 @@ export class Wire {
     this.logs = { ours: demo.log.length, theirs: board.log.length };
     this.state = board.pending === null ? 'in' : 'asked';
     this.retell();
-    return true;
+  }
+
+  /**
+   * The server's game asked where it is, and the page stood there - counted as on its way up, so the page is
+   * stood where the last of what went after it leaves the server's game, if more did. Gone, the wire closes.
+   */
+  private standWhereTheServerIs(): void {
+    const epoch = this.epoch;
+    this.inFlight++;
+    void this.send({ op: 'resume' }).then((said) => {
+      if (epoch !== this.epoch || this.state === 'closed' || this.state === 'lost') return;
+      this.inFlight--;
+      const kept = said.ok as Kept | undefined;
+      if (kept === undefined) {
+        recordParting('server: resume', null, null, { failed: said.error ?? 'no game' });
+        this.close();
+        return;
+      }
+      if (this.inFlight === 0) this.standAt(kept.board);
+    });
   }
 
   /** Everything sent before now held to nothing. */
@@ -281,7 +295,7 @@ export class Wire {
     (this.options.later ?? ((run, ms) => void setTimeout(run, ms)))(() => void this.reconnect(), wait);
   }
 
-  /** Connected again: the game the server kept told the page's, or a fresh one opened when it is gone. */
+  /** Connected again: the page stood where the game the server kept is, or where a fresh one opened is. */
   private async reconnect(): Promise<void> {
     if (this.state !== 'lost') return;
     this.transport = this.connect();
@@ -294,49 +308,30 @@ export class Wire {
     }
     if (this.state !== 'lost') return;
     this.tries = 0;
-    const kept = said.ok as { board: BoardSnapshot; project: unknown } | undefined;
-    const same = kept !== undefined && kept.project === this.demo.project.id && !this.stale;
-    this.stale = false;
-    // A question the server's game held, shown here: still held, shown again where the game now is; gone, let go.
-    if (this.showing) {
-      if (same && this.standAt(kept.board)) return;
-      this.release();
+    const kept = said.ok as Kept | undefined;
+    if (kept !== undefined && kept.project === this.demo.project.id) return this.standAt(kept.board);
+    // Gone - the server started again - or another project's: a fresh game, and the page stood where it is.
+    this.release();
+    let fresh: Said;
+    try {
+      fresh = await this.transport.send(this.opening());
+    } catch {
+      if (this.state === 'lost') this.retry();
+      return;
     }
-    this.state = same ? 'fresh' : 'out';
+    if (this.state !== 'lost') return;
+    const opened = fresh.ok as { board: BoardSnapshot } | undefined;
+    if (opened === undefined) {
+      recordParting('server: open', null, null, { failed: fresh.error ?? 'no game' });
+      this.close();
+      return;
+    }
+    this.standAt(opened.board);
   }
 
-  /** Before an intent: the server brought into step if it can be; whether the intent is to be sent up. */
+  /** Before an intent: whether it is to be sent up - behind the opening, too, while the server's game opens. */
   before(): boolean {
-    if (this.state === 'fresh' || this.state === 'out') this.bringIntoStep();
-    return this.state === 'in' || this.state === 'parted';
-  }
-
-  /** The server told the page's game: a fresh one first when it was out of step, so nothing of the old is left. */
-  private bringIntoStep(): void {
-    const demo = this.demo;
-    if (demo.pending !== null || talkingAside(demo).length > 0) return;
-    const epoch = this.nextEpoch();
-    const told: Promise<Said>[] = [];
-    if (this.state === 'out') told.push(this.send(this.opening()));
-    told.push(this.send({ op: 'restore', replica: replicaOf(demo) }));
-    told.push(this.send({ op: 'call', call: 'restoreRng', args: [demo.rng.save()] }));
-    told.push(this.send({ op: 'call', call: 'restoreWalk', args: [demo.ambush, demo.approaching, openContainer(demo), rollsOf(demo)] }));
-    told.push(this.send({ op: 'call', call: 'restoreLog', args: [demo.log] }));
-    // What the page's views have still to draw - walks it played while the connection was down, say - the
-    // server's game holds the same, so the next drain is the same on both.
-    told.push(this.send({ op: 'call', call: 'restoreViews', args: this.views() }));
-    this.logs = { ours: demo.log.length, theirs: 0 };
-    this.state = 'in';
-    void Promise.all(told).then((said) => {
-      if (epoch !== this.epoch) return;
-      const refused = said.find((s) => s.error !== undefined);
-      if (refused !== undefined) {
-        recordParting('server: in step', null, null, { failed: refused.error });
-        this.state = 'out';
-        return;
-      }
-      this.logs.theirs = (said[said.length - 1]!.ok as Played).board.log.length;
-    }, () => undefined);
+    return this.state === 'in' || this.state === 'parted' || this.state === 'opening';
   }
 
   /**
@@ -348,13 +343,22 @@ export class Wire {
     return [this.send({ op: 'call', call: 'takeMotions', args: [] }), this.send({ op: 'call', call: 'takeFloaters', args: [] })];
   }
 
+  /**
+   * How an intent is sent up: as it was played - but a save, loaded by its slot, which the server reads from the
+   * account's own folder rather than being told its text.
+   */
+  private message(call: string, args: readonly unknown[]): Record<string, unknown> {
+    if (call === 'loadGameText') return { op: 'load', slot: args[1] };
+    return { op: 'call', call, args };
+  }
+
   /** An intent the page has played, sent up, and its answer held to the page's, and the board just after. */
   after(call: string, args: readonly unknown[], answer: unknown, compare: { answer: boolean }): void {
     const epoch = this.epoch;
     const ours = this.state === 'in' ? { answer: compare.answer ? copy(answer) : undefined, board: since(boardOf(this.demo), this.logs.ours) } : null;
     this.inFlight++;
-    void this.send({ op: 'call', call, args }).then((said) => {
-      if (epoch !== this.epoch || this.state === 'closed') return;
+    void this.send(this.message(call, args)).then((said) => {
+      if (epoch !== this.epoch || this.state === 'closed' || this.state === 'lost') return;
       this.inFlight--;
       const played = said.ok as Played | undefined;
       if (this.state === 'in' && ours !== null) {
@@ -378,7 +382,7 @@ export class Wire {
    * not. `null` at once when the server is not in step to save the game the page has.
    */
   save(slot: { id: string; name: string; where: string; project?: string }, text: string): Promise<{ slot: SaveSlot; text: string } | null> | null {
-    if (!this.before() || this.state !== 'in') return null;
+    if (this.state !== 'in') return null;
     const epoch = this.epoch;
     const ours = JSON.parse(text) as unknown;
     return this.send({ op: 'save', slot: slot.id, name: slot.name, where: slot.where, ...(slot.project === undefined ? {} : { project: slot.project }) }).then((said) => {
@@ -398,11 +402,11 @@ export class Wire {
 
   /**
    * After a parting, the last of what was on its way up answered: the page stood where the server's game is -
-   * a question it holds shown from its board. A conversation set aside, on either side, the board cannot give
-   * back: then the page's game is told the server instead.
+   * where its board says, or, the last intent refused, where the server says its game is when asked.
    */
   private restoreFrom(board: BoardSnapshot | null): void {
-    if (board === null || !this.standAt(board)) this.state = 'out';
+    if (board !== null) this.standAt(board);
+    else this.standWhereTheServerIs();
   }
 
   /** A message sent by the connection there is now; that connection gone is the wire lost, and trying again. */

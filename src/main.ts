@@ -558,9 +558,9 @@ function setMode(next: 'play' | 'edit'): void {
   mode = next;
   editor.end();
   // The tray only lives in the play tree, so dice still tumbling when the
-  // editor opens have nowhere to land. Drop them rather than showing a roll
-  // from before the edit when play comes back.
-  if (mode === 'edit') game.clearRolls();
+  // editor opens are dropped; and the server's game is let go: whatever the
+  // editor does makes a game it never was, so its playtest is the page's.
+  if (mode === 'edit') game.toTheEditor();
   // The editor may be pointed at a scene a load has since removed.
   if (!session.project.scenes.some((scene) => scene.id === editor.sceneId)) {
     editor.switchScene(game.board.scene.id);
@@ -1270,7 +1270,7 @@ function saveNow(): boolean {
 function loadSlot(id: string): boolean {
   const text = slots.read(id);
   if (text === null) return false;
-  const result = game.loadGameText(text);
+  const result = game.loadGameText(text, id);
   if (!result.ok) {
     game.note(`That save could not be opened: ${result.reason}.`, 'system');
     return false;

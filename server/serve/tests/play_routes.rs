@@ -85,7 +85,8 @@ async fn a_game_on_the_server_plays_as_the_engine_plays() {
     let fixture = fixture();
     let shipped: Shipped = serde_json::from_value(fixture["shipped"].clone()).unwrap();
     let project = &fixture["projects"][1];
-    let tables = Tables::new(root("host"));
+    // The tests' tables: the intents below start a fight and put somebody beside a husk with the test driver's hands.
+    let tables = Tables::new(root("host")).for_tests();
 
     let opened = tables.ask("kara", json!({ "id": 1, "op": "open", "project": project, "shipped": fixture["shipped"], "table": { "animated": true, "askDefender": true } })).await;
     assert_eq!(opened["id"], 1, "{opened}");
@@ -128,12 +129,13 @@ async fn a_game_on_the_server_plays_as_the_engine_plays() {
     assert_eq!(resumed["ok"]["project"], project["id"], "{}", resumed["ok"]["project"]);
     assert!(resumed["ok"]["project"].is_string());
 
-    // Told how the game stands - here, as it was opened - it stands so, as a session told the same does.
-    let told = tables.ask("kara", json!({ "id": 101, "op": "restore", "replica": opened["ok"]["board"]["replica"] })).await;
-    beside.restore_replica(&opened["ok"]["board"]["replica"]).unwrap();
-    assert_eq!(told["ok"]["board"]["replica"], opened["ok"]["board"]["replica"], "{told}");
-    assert_eq!(told["ok"]["board"], beside.board());
-    assert_ne!(told["ok"]["board"], resumed["ok"]["board"], "the game had moved on from where it was opened");
+    // Never told how a page's game stands: not by a replica, nor its dice, walk, log, views or a save's text.
+    assert_eq!(tables.ask("kara", json!({ "id": 101, "op": "restore", "replica": opened["ok"]["board"]["replica"] })).await["error"], "no op \"restore\"");
+    for call in serve::play::NEVER_TOLD {
+        let said = tables.ask("kara", json!({ "id": 102, "op": "call", "call": call, "args": [] })).await;
+        assert_eq!(said["error"], format!("\"{call}\" is never told to the server's game"), "{said}");
+    }
+    assert_eq!(tables.ask("kara", json!({ "id": 103, "op": "resume" })).await["ok"]["board"], beside.board(), "and none of it moved the game");
 
     // Refusals: nobody's game, an op nobody knows, an intent nobody knows.
     assert_eq!(tables.ask("finn", json!({ "id": 1, "op": "call", "call": "endTurn", "args": [] })).await, json!({ "id": 1, "error": "no game: open one" }));
@@ -220,7 +222,7 @@ async fn the_tests_server_takes_the_pages_dice_and_no_other_does() {
     let own = Tables::new(root("own-dice")).ask("kara", open.clone()).await;
     assert_ne!(own["ok"]["board"]["rng"], 123456789, "{}", own["ok"]["board"]["rng"]);
     // The tests' server: the page's dice, so a suite written against the page's own seeds rolls what it was written for.
-    let tests = Tables::new(root("page-dice")).with_dice_from_page();
+    let tests = Tables::new(root("page-dice")).for_tests();
     let opened = tests.ask("kara", open.clone()).await;
     assert_eq!(opened["ok"]["board"]["rng"], 123456789);
     assert!(opened["ok"]["seed"].is_string(), "the server still says the seed it built with");
@@ -228,4 +230,79 @@ async fn the_tests_server_takes_the_pages_dice_and_no_other_does() {
     let mut bare = open;
     bare["rng"] = Value::Null;
     assert_ne!(tests.ask("kara", bare).await["ok"]["board"]["rng"], 123456789);
+}
+
+#[tokio::test]
+async fn the_test_drivers_hands_are_the_tests_servers_alone() {
+    let fixture = fixture();
+    let open = json!({ "id": 1, "op": "open", "project": fixture["projects"][0], "shipped": fixture["shipped"], "table": {} });
+    let own = Tables::new(root("hands-own"));
+    let tests = Tables::new(root("hands-tests")).for_tests();
+    let opened = own.ask("kara", open.clone()).await;
+    tests.ask("kara", open).await;
+    let member = opened["ok"]["board"]["replica"]["party"]["selected"].as_str().expect("somebody selected").to_string();
+    for hand in serve::play::TEST_HANDS {
+        let said = own.ask("kara", json!({ "id": 2, "op": "call", "call": hand, "args": [member] })).await;
+        assert_eq!(said["error"], format!("\"{hand}\" is the tests' alone"), "{said}");
+    }
+    assert_eq!(own.ask("kara", json!({ "id": 3, "op": "resume" })).await["ok"]["board"], opened["ok"]["board"], "nothing the hands asked was done");
+    // The tests' server takes them.
+    let wounded = tests.ask("kara", json!({ "id": 4, "op": "call", "call": "wound", "args": [member, 1] })).await;
+    assert!(wounded["ok"].is_object(), "{wounded}");
+}
+
+#[tokio::test]
+async fn a_save_is_loaded_from_the_accounts_own_folder_by_its_slot() {
+    let fixture = fixture();
+    let tables = Tables::new(root("load"));
+    let open = json!({ "id": 1, "op": "open", "project": fixture["projects"][0], "shipped": fixture["shipped"], "table": {} });
+    let opened = tables.ask("kara", open).await;
+    let saved = tables.ask("kara", json!({ "id": 2, "op": "save", "name": "Here", "where": "the vault" })).await;
+    let slot = saved["ok"]["slot"]["id"].as_str().expect("a slot").to_string();
+    // The game moves on; the save loaded puts it back where it was saved.
+    tables.ask("kara", json!({ "id": 3, "op": "call", "call": "selectNext", "args": [] })).await;
+    let loaded = tables.ask("kara", json!({ "id": 4, "op": "load", "slot": slot })).await;
+    assert_eq!(loaded["ok"]["answer"], json!({ "ok": true }), "{loaded}");
+    assert_eq!(loaded["ok"]["board"]["replica"]["party"], opened["ok"]["board"]["replica"]["party"]);
+    // Only the account's own: another's slot, or none, is no save.
+    assert_eq!(tables.ask("kara", json!({ "id": 5, "op": "load", "slot": "nope" })).await["error"], "no such save");
+    tables.ask("finn", json!({ "id": 6, "op": "open", "project": fixture["projects"][0], "shipped": fixture["shipped"], "table": {} })).await;
+    assert_eq!(tables.ask("finn", json!({ "id": 7, "op": "load", "slot": slot })).await["error"], "no such save");
+}
+
+#[tokio::test]
+async fn a_walk_cut_short_puts_its_walker_down_only_on_the_line_it_walked() {
+    let fixture = fixture();
+    let tables = Tables::new(root("landing"));
+    let open = json!({ "id": 1, "op": "open", "project": fixture["projects"][0], "shipped": fixture["shipped"], "table": { "animated": true } });
+    let opened = tables.ask("kara", open).await;
+    let board = &opened["ok"]["board"]["replica"];
+    let member = board["party"]["selected"].as_str().expect("somebody selected").to_string();
+    let call = |n: u32, call: &str, args: Value| tables.ask("kara", json!({ "id": n, "op": "call", "call": call, "args": args }));
+
+    // Nobody has walked: nobody is put down anywhere - not even where they stand.
+    let stood = board["state"]["entities"][member.as_str()]["at"].clone();
+    assert_eq!(call(2, "landWalkers", json!([[[member, stood]]])).await["ok"]["answer"], json!([]));
+
+    // A walk a few tiles east, drawn by a view.
+    let tile = board["state"]["entities"][member.as_str()]["tile"].as_i64().expect("the member's tile");
+    let walked = call(3, "moveSelectedTo", json!([tile + 3])).await;
+    assert_eq!(walked["ok"]["answer"]["moved"], true, "{walked}");
+    let motions = call(4, "takeMotions", json!([])).await["ok"]["answer"].clone();
+    let route: Vec<Value> = motions.as_array().unwrap().iter().find(|m| m["id"] == member.as_str()).expect("the walk drawn")["route"].as_array().unwrap().clone();
+    let (start, end) = (&route[0], &route[route.len() - 1]);
+    let half = json!({ "x": (start["x"].as_f64().unwrap() + end["x"].as_f64().unwrap()) / 2.0, "y": (start["y"].as_f64().unwrap() + end["y"].as_f64().unwrap()) / 2.0 });
+    // Ground somebody stands on, a tile from the line: somewhere a walker could be put down, but not this one.
+    let far = json!({ "x": start["x"].as_f64().unwrap(), "y": start["y"].as_f64().unwrap() + 1.0 });
+    assert!(board["state"]["entities"].as_object().unwrap().values().any(|e| e["at"] == far), "{far} is stood on");
+
+    // Off the line: not put down there.
+    assert_eq!(call(5, "landWalkers", json!([[[member, far]]])).await["ok"]["answer"], json!([]));
+    // Part-way along it: put down where the page drew them.
+    let landed = call(6, "landWalkers", json!([[[member, half]]])).await;
+    assert_eq!(landed["ok"]["answer"], json!([member]), "{landed}");
+    let stands = landed["ok"]["board"]["replica"]["state"]["entities"][member.as_str()]["at"].clone();
+    assert_eq!(stands, half);
+    // Landed, the line is spent: not put down again until they walk again.
+    assert_eq!(call(7, "landWalkers", json!([[[member, end]]])).await["ok"]["answer"], json!([]));
 }

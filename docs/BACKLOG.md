@@ -4,6 +4,14 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## Phase 5 (multiplayer), slice 1: the server's game trusted alone — done
+
+The server's game is never told how a page's game stands: the page is stood where the server's board says -
+at an open, a reconnect, a refusal - and nowhere else; a save is loaded from the server's own copy by its slot;
+a walk cut short is put down only on the line the game gave it; the test driver's hands only on a server
+started `--for-tests`. The editor's changes close the wire: its playtest is the page's alone. Next: the rules
+and their tests deleted (slice 0b), then the page playing with the server in a build (slice 2).
+
 ## Phase 5 (multiplayer), slice 0a: the oracle out of every path that runs it — done
 
 The page's own TypeScript game no longer plays anywhere: `LocalGame`, its rules table, the mirror, `?engine=ts`

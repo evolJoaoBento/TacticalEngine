@@ -257,8 +257,10 @@ The slices:
    themselves and the tests that play them (42 of the 78 test files under `src/game`), the views' tests that
    need a game played standing on the engine instead.
 1. **The server's game trusted alone** - it is never told a page's game (a page out of step is only ever stood
-   where the server says); the project and its content are the server's own, not sent by the page; a walk cut
-   short is held to the path the server resolved; the test driver's hands only on a server started for tests.
+   where the server says); a save loaded from the server's own copy; a walk cut short is held to the path the
+   server resolved; the test driver's hands only on a server started for tests. The project and its content
+   still come from the page, once, when a game is opened - in single play they are the player's own; the
+   server's own copy of them is the shared game's (slice 3).
 2. **In a build** - the page plays with the server wherever the server serves it, not in development alone;
    ready for a tunnel (the session cookie secure over HTTPS, the origin checked through a proxy); how to run it
    for friends, written down.
@@ -1383,5 +1385,30 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     server wrongly: after a reconnect it said its views had nothing to draw, reading the page's game, while the
     engine playing it held walks still to be drawn - the engine is asked now (`views`, read and left where it is).
     The suite runs in two modes: on the engine, and on the server.
-  - **Next**: slice 1, the server's game trusted alone; then the rules themselves and the tests that play them
-    deleted (slice 0b), which the bundle's guard, once nothing names them, lists.
+  - **The server's game trusted alone** (slice 1). Once opened, the server's game is never told how a page's
+    stands: the `restore` op is gone, and the intents that tell a game another's dice, walk, log and views'
+    queues (`restoreRng`, `restoreWalk`, `restoreLog`, `restoreViews`) and a save's text (`loadGameText`) are
+    refused by every server (`serve::play::NEVER_TOLD`). The wire (`wire.ts`) stands the page where the
+    server's board says and nowhere else: at once when the game opens (what the page played while it opened
+    sent behind the opening, and the page stood where the last of it leaves the server's game); where the
+    game kept is when the connection comes back - what the page played alone in between undone - or where a
+    fresh one is when it was gone; and, an intent refused, where the server says its game is when asked
+    (`resume`). The `fresh` and `out` states and the telling (`bringIntoStep`) are gone, and so is the `views`
+    peek that served it. A save is loaded by its slot (`{ op: "load", slot }`): the server reads its own copy
+    from the account's folder. The editor's changes make a game the server's never was: entering the editor,
+    or a change to the game in play (an undo, a pack imported), closes the wire, and the editor's playtest is
+    the page's alone. A walk cut short is put down only within `SLACK` (three quarters of a tile) of the line
+    the game gave the walker - the motion still to be drawn, or the one a view drained, in the room it was
+    walked in - and once (`engine::game::landing`), the page's engine holding it the same. The test driver's
+    hands (`serve::play::TEST_HANDS`: `placeAt`, `setGood`, `wound`, `markStress`, `setCondition`, `giveItem`,
+    `grantLevel`, `setCards`, `startEncounter`, `travelTo`) are taken only by a server started for the tests,
+    `--for-tests` - which also takes the page's dice, and which replaces `--dice-from-page`
+    (`Tables::for_tests`). Every one of the 11 deliberate mutations - the page not stood at an open, a kept
+    game, a fresh one, or after a refusal; the wire left open after the editor; a save sent as text; what is
+    played while opening not sent; the line not checked, or used twice; the hands or the telling taken by any
+    server - fails a test.
+    - **Still sent by the page**: the project and the content a game is played over, at `open`; and the page's
+      own lines in the log (`note`: a save made, a card with nowhere to aim), which are for slice 4 to make the
+      page's alone.
+  - **Next**: the rules themselves and the tests that play them deleted (slice 0b), which the bundle's guard,
+    once nothing names them, lists; then the page playing with the server in a build (slice 2).

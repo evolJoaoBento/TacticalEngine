@@ -120,7 +120,8 @@ export interface GameClient {
   rest(...args: After<typeof rest>): Answer<typeof rest>;
   applyLevelUp(...args: After<typeof applyLevelUp>): Answer<typeof applyLevelUp>;
   travelTo(...args: After<typeof travelTo>): boolean;
-  loadGameText(...args: After<typeof loadGameText>): Answer<typeof loadGameText>;
+  /** A save loaded from its text - and its slot, which the server's game loads its own copy of (`wire.ts`). */
+  loadGameText(text: string, slot?: string): Answer<typeof loadGameText>;
   jumpTo(...args: After<typeof jumpTo>): Answer<typeof jumpTo>;
   startEncounter(...args: After<typeof startEncounter>): void;
   /** Put the conversations where the selection says. */
@@ -194,6 +195,11 @@ export interface GameClient {
 
 /** What only a page holding the game itself can do: the test driver's hands, and the editor's. */
 export interface LocalPowers {
+  /**
+   * The editor opened: the dice still to be shown dropped, and the server's game let go - the editor's playtest
+   * is the page's alone (`wire.ts`).
+   */
+  toTheEditor(): void;
   /** Fold the project's edited sheets and cards back into the party (`main.ts`'s `rederiveParty`). */
   rederive(): void;
   /** The editor's ground taken into the game being played: whether the room is still the shape it was. */
@@ -239,18 +245,10 @@ export abstract class GameTable implements GameClient, LocalPowers {
   /** Held to the game on the server: told of every intent, and telling this game when the server's restores it. */
   wireWith(wire: Wire): void {
     this.wire = wire;
-    wire.attach(
-      () => {
-        this.edited(false);
-        this.behind = true;
-      },
-      () => this.viewsWaiting(),
-    );
-  }
-
-  /** What the page's views have still to draw: the queues of whatever plays the page's game. */
-  protected viewsWaiting(): [unknown, unknown] {
-    return [this.demo.motions, this.demo.floaters];
+    wire.attach(() => {
+      this.edited(false);
+      this.behind = true;
+    });
   }
 
   changedBehind(): boolean {
@@ -307,7 +305,7 @@ export abstract class GameTable implements GameClient, LocalPowers {
   rest(...args: After<typeof rest>) { return this.did('rest', args); }
   applyLevelUp(...args: After<typeof applyLevelUp>) { return this.did('applyLevelUp', args); }
   travelTo(...args: After<typeof travelTo>) { return this.did('travelTo', args); }
-  loadGameText(...args: After<typeof loadGameText>) { return this.did('loadGameText', args); }
+  loadGameText(text: string, slot?: string) { return this.did<Answer<typeof loadGameText>>('loadGameText', slot === undefined ? [text] : [text, slot]); }
   jumpTo(...args: After<typeof jumpTo>) {
     // The player's "roll jumps automatically" is read inside the jump: the engine is told it.
     const [id, destination, aim] = args;
@@ -336,6 +334,10 @@ export abstract class GameTable implements GameClient, LocalPowers {
     this.did('rollShownAt', [at]);
   }
   clearRolls(): void { this.did('clearRolls', []); }
+  toTheEditor(): void {
+    this.clearRolls();
+    this.wire?.close();
+  }
   setDiceSpeed(millis: number): void { this.demo.diceMillis = Math.max(0, millis); }
 
   serialiseSave() { return serialiseSave(this.demo); }

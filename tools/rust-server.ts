@@ -81,11 +81,11 @@ export function rustProxy(port: number = serverPort(), tests: boolean = playsOnS
 
 /**
  * How the server is started: over the repository on its port - or, for the tests whose games it plays, over
- * their scratch folder, each game taking the page's dice (`--dice-from-page`) so the suite rolls what it was
- * written for.
+ * their scratch folder, each game taking the page's dice so the suite rolls what it was written for, and the
+ * test driver's hands (`--for-tests`).
  */
 export function serverArguments(root: string, tests: boolean = playsOnServer()): string[] {
-  return tests ? ['--root', e2eRoot(), '--port', String(serverPort()), '--dice-from-page'] : ['--root', root, '--port', String(serverPort())];
+  return tests ? ['--root', e2eRoot(), '--port', String(serverPort()), '--for-tests'] : ['--root', root, '--port', String(serverPort())];
 }
 
 /**

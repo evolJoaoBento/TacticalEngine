@@ -24,7 +24,7 @@ use crate::dialogue::schema::Dialogue;
 use super::rules::{movement_for, DEMO_BAND_TILES};
 use crate::character::sheet::{derive_character, starting_pools, CharacterSheet, DerivedCharacter};
 use crate::grid::terrain::TerrainPalette;
-use crate::grid::tile_grid::{TileGrid, NO_TILE};
+use crate::grid::tile_grid::{Spot, TileGrid, NO_TILE};
 use crate::rng::{Rng, Seed};
 use crate::rules::resources::{Currency, MarkPool, MAX_SLOTS};
 use crate::scene::grid_from_scene::{grid_from_scene, palette_for_project};
@@ -130,6 +130,9 @@ pub struct Session {
     pub floaters: Vec<Floater>,
     /// How creatures got where they are - walked, thrown, put down - for whoever moves the tokens.
     pub motions: Vec<Value>,
+    /// The line each walker was last given to be drawn along, once a view drained it, and the room it was
+    /// walked in: where a walk cut short may put them down (`landing.rs`).
+    pub(crate) walked: HashMap<String, (u64, Vec<Spot>)>,
     /// Duality rolls the party made, for whoever shows the dice.
     pub rolls: Vec<RollShow>,
     /// Ask the party what it answers a roll or a blow with, rather than deciding for them.
@@ -279,6 +282,7 @@ impl Session {
             talks: Ordered::default(),
             floaters: Vec::new(),
             motions: Vec::new(),
+            walked: HashMap::new(),
             rolls: Vec::new(),
             ask_defender: false,
             room: 0,
