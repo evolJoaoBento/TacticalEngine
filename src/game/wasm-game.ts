@@ -14,8 +14,9 @@
  * page's shapes, is the one given, being the same. The editor still changes the page's game - its project,
  * its ground, its party - and the engine is built again and told the game after.
  *
- * Chosen with `?engine=wasm`, or for a whole dev server with `VITE_ENGINE=wasm`, in development where
- * `npm run wasm` has built the engine; anywhere else the page plays its own game, as it did.
+ * The page's game wherever the engine is built - in a build as in development (`docs/SERVER.md`, phase 4,
+ * slice 1). The page's own game plays only when asked for, in development, while it is the oracle the Rust is
+ * held to (`?engine=ts`, or `VITE_ENGINE=ts` for a whole dev server), or where the engine was never built.
  */
 
 import { BOOT } from 'virtual:boot-project';
@@ -133,11 +134,15 @@ async function refill(): Promise<void> {
   if (module !== null) spare = await WasmEngine.of(module);
 }
 
-/** Which game the page plays: `?engine=` says, else the dev server's `VITE_ENGINE`, else the page's own. */
-export function engineChosen(): 'wasm' | 'ts' {
+/**
+ * Which game the page plays: the engine's, unless development asks for the page's own (`?engine=ts`, or a dev
+ * server's `VITE_ENGINE=ts`) while it is the oracle.
+ */
+export function engineChosen(dev: boolean = import.meta.env.DEV): 'wasm' | 'ts' {
+  if (!dev) return 'wasm';
   const asked = typeof location === 'undefined' ? null : new URLSearchParams(location.search).get('engine');
   if (asked === 'wasm' || asked === 'ts') return asked;
-  return import.meta.env['VITE_ENGINE'] === 'wasm' ? 'wasm' : 'ts';
+  return import.meta.env['VITE_ENGINE'] === 'ts' ? 'ts' : 'wasm';
 }
 
 /** Whether the page's game is held to one on the server (`play-socket.ts`): asked once, as the page boots. */

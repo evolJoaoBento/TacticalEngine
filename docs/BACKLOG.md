@@ -4,6 +4,12 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## Phase 4, slice 1: the engine always plays — done
+
+The engine built to WebAssembly is the page's game in a build as in development, and the builds compile it;
+the page's own TypeScript game plays only when development asks (`?engine=ts`, `VITE_ENGINE=ts`) while it is
+the oracle. Next: the page's game filled from the engine's board, then the TypeScript play code quarantined.
+
 ## Phase 3: the server's game is the one the page plays — done
 
 `npm run test:e2e:server` runs the whole suite with its games played on a Rust server of its own - each test

@@ -249,15 +249,16 @@ export class Shadow {
 
 let compiled: Promise<WebAssembly.Module | null> | null = null;
 
-/** The engine, compiled once for the page: `null` outside development, or when it was never built. */
+/**
+ * The engine, compiled once for the page - in a build as in development, the builds compiling it (`npm run
+ * build` runs `npm run wasm` first) - or `null` where it was never built.
+ */
 export function engineModule(): Promise<WebAssembly.Module | null> {
   if (compiled === null) {
-    compiled = import.meta.env.DEV
-      ? fetch('/wasm/engine.wasm')
-          .then((response) => (response.ok ? response.arrayBuffer() : null))
-          .then((bytes) => (bytes === null ? null : WebAssembly.compile(bytes)))
-          .catch(() => null)
-      : Promise.resolve(null);
+    compiled = fetch('/wasm/engine.wasm')
+      .then((response) => (response.ok ? response.arrayBuffer() : null))
+      .then((bytes) => (bytes === null ? null : WebAssembly.compile(bytes)))
+      .catch(() => null);
   }
   return compiled;
 }
@@ -276,6 +277,8 @@ export function publishCount(engine?: 'wasm' | 'ts', wire?: () => string): void 
 
 /** A shadow for a game, once the engine is here - or never. The count is published the first time. */
 export async function shadowFor(demo: DemoScene): Promise<Shadow | null> {
+  // The mirror is development's: a build's page that plays its own game is not held to the engine.
+  if (!import.meta.env.DEV) return null;
   const module = await engineModule();
   if (module === null) return null;
   const shadow = new Shadow(await WasmEngine.of(module), demo, shippedContent(), await WasmEngine.of(module));

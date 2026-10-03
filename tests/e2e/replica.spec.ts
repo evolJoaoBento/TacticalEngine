@@ -74,9 +74,9 @@ test('the replica answers the pointer as the game does, through a fight', async 
   const playing = await page.evaluate(() => window.__replica!.playing());
   const server = await page.evaluate(() => window.__replica!.server());
   console.log('REPLICA:', JSON.stringify({ playing, server, asked: count.asked, parted: count.parted }));
-  // A suite run with the engine chosen (`VITE_ENGINE=wasm`) is played by it, not by the page's own game - and so
-  // is one whose games are played on the server, the page's own game the shadow.
-  expect(playing).toBe(process.env['VITE_ENGINE'] === 'wasm' || ON_SERVER ? 'wasm' : 'ts');
+  // The engine plays the page's game - on the server too, the page's own the shadow - unless a run asks for the
+  // page's own (`VITE_ENGINE=ts`) while it is the oracle.
+  expect(playing).toBe(process.env['VITE_ENGINE'] === 'ts' && !ON_SERVER ? 'ts' : 'wasm');
   // On the server: the wire in step with the server's game, which played every intent of the fight.
   expect(server).toBe(ON_SERVER ? 'in' : 'off');
   expect(count.parted, `where the replica parted from the game: ${JSON.stringify(count.first, null, 1)}`).toBe(0);

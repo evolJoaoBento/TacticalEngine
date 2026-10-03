@@ -190,6 +190,41 @@ mechanism with another player's intents arriving as boards. In four:
   A question restored from the server mid-way is the one path that waits on the wire: the page shows it from
   the board and sends the answer up without predicting it.
 
+## Phase 4, designed (its three decisions taken, 3 October 2026)
+
+Phase 3 is done by its measure - the suite passes with its games played on the server - and its plan's next
+step is the TypeScript game layer deleted. The page's views read the TypeScript game (`Board` is live
+`DemoScene` objects, read every frame), so the page has to stop *playing* it before it can go.
+
+- **The oracle is quarantined first** (decided): the page stops loading the TypeScript game, which stays,
+  with its tests and the writers of the golden fixtures, as a dev-only oracle; deleting it is a later slice
+  of its own, after which the fixtures are frozen and a rule changes in Rust alone.
+- **Builds compile the engine** (decided): `npm run build` and `npm run build:server` build
+  `public/wasm/engine.wasm` first, so the Rust toolchain is needed wherever the site is built. Nothing
+  binary enters git.
+- **The layer is `src/game`'s play code** (decided): the intents and the rules - `demo-scene`'s play,
+  movement, abilities, interaction, saves and the rest. `src/engine` stays: the editor's validation and
+  previews read it, and so does filling the page's model from the engine's board.
+- **Filled, not played**: after each intent the page's model is stood where the engine's board says
+  (`restoreFromBoard`) rather than played beside it. Measured over 299 boards of random play: 0.47 ms at the
+  median, 1.7 ms at the 90th centile, 3.6 ms at worst, the board's JSON about 20 KB - and only when the board
+  changed, which the drains every frame do not. So the views stay as they are; the views reading the engine's
+  board directly is a later, separate job.
+
+The slices:
+
+1. **The engine always plays** - `WasmGame` the page's game wherever the engine is built, in a build as in
+   development; the builds compile it; the page's own game only by asking for it (`?engine=ts`,
+   `VITE_ENGINE=ts`) while it is the oracle. The e2e suite's modes become the engine's and the engine's on
+   the server.
+2. **Filled from the engine's board** - `WasmGame` stops playing each intent in the page's game and stands
+   it where the engine's board says when that changed; a question shown from the board as the wire shows the
+   server's (`shownFrom`); the conversations set aside put on the board, in both engines, and shown the same
+   way - the one thing a board could not give back.
+3. **Quarantined** - the play code moved where the page's bundle cannot import it, run by its tests and the
+   fixture writers alone.
+4. **Later**: the oracle deleted; the views reading the engine's board.
+
 ## Running it
 
 ```bash
@@ -1235,6 +1270,14 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
       nothing parted in any. 4 of 4 Rust tests hold the tests' server to taking the page's dice and no other
       server to it, the rooms and the views' queues each have one, and `rust-server.test.ts` holds the tests'
       routes to the three and the server's arguments to the scratch folder and the flag.
-  - **Next**: the TypeScript game layer deleted, as the plan says once the suite passes on the server - the page's
-    own game today is the views' model and the shadow, and taking it away means the views reading the
-    engine's board instead; and a conversation set aside, the last thing a board cannot give back.
+  - **Next**: phase 4, below.
+- **Phase 4** - started 3 October 2026, as designed above (the TypeScript game quarantined, then deleted).
+  - **The engine always plays** (slice 1). `WasmGame` is the page's game wherever the engine is built - in a
+    build as in development (`engineModule` no longer development's alone; the mirror still is) - and
+    `npm run build` / `npm run build:server` compile it first. The page's own game plays only when development
+    asks for it (`?engine=ts`, `VITE_ENGINE=ts`), while it is the oracle; a build cannot ask (`engineChosen`).
+    `npx playwright test` now runs the suite on the engine, `VITE_ENGINE=ts npx playwright test` on the page's
+    own game. A build for the Rust server (`npm run build:server`, then `npm run server`) opened in a browser
+    played the engine: the vault door picked, nothing parted, no error.
+  - **Next**: slice 2 - the page's game filled from the engine's board rather than played beside it, and the
+    conversations set aside on the board.

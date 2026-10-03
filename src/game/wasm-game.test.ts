@@ -5,7 +5,7 @@
  * `npm run wasm`, and says so without it.
  */
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -18,13 +18,28 @@ import { LocalGame } from './client';
 import { replicaCount, Shadow } from './shadow';
 import { shippedContent } from './shipped';
 import { WasmEngine } from './wasm-engine';
-import { WasmGame } from './wasm-game';
+import { WasmGame, engineChosen } from './wasm-game';
 import { act, answerFor } from '../../tests/fixtures/random-play';
 import { barWorkshop } from '../../tests/fixtures/bar-workshop';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const WASM = resolve(here, '../../public/wasm/engine.wasm');
 const built = existsSync(WASM);
+
+describe('which game the page plays', () => {
+  it("is the engine's - always in a build, and in development unless the page's own is asked for", () => {
+    expect(engineChosen(false)).toBe('wasm');
+    expect(engineChosen(true)).toBe('wasm');
+    vi.stubGlobal('location', { search: '?play&engine=ts' });
+    try {
+      expect(engineChosen(true)).toBe('ts');
+      // A build has no page's own game to ask for: the oracle is development's.
+      expect(engineChosen(false)).toBe('wasm');
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});
 
 describe('the page playing the engine', () => {
   if (!built) console.warn(`${WASM} is not built: \`npm run wasm\` builds it, and these are skipped until it is`);
