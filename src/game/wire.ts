@@ -29,13 +29,12 @@
  * it, and the page is stood where its board says after - the next question shown the same way, or none.
  */
 
-import { boardOf, restoreFromBoard, rollsOf, type BoardSnapshot } from './board';
+import { boardOf, restoreFromBoard, rollsOf, shownFrom, type BoardSnapshot } from './board';
 import type { DemoScene } from './demo-scene';
 import { openContainer } from './prop-use';
 import { replicaOf } from './replica';
 import { firstDifference, recordAsked, recordParting, since } from './shadow';
 import { talkingAside } from './talks';
-import type { Pending } from './demo-scene';
 import type { SaveSlot } from './save-slots';
 
 /** What the server said: what was asked for, or why not. */
@@ -76,36 +75,6 @@ interface Played {
 
 const copy = (value: unknown): unknown => JSON.parse(JSON.stringify(value ?? null));
 
-/** A question as a board gives it (`pendingOf`, `board.ts`; `board_pending` in the Rust). */
-interface Projected {
-  kind: Pending['kind'];
-  prompt: unknown;
-  interactable?: string | null;
-  with?: string | null;
-  dialogue?: { id: string; view: { node: string; options: unknown[] } | null; prompt: unknown; by: string | null } | null;
-}
-
-/**
- * A question the server's game holds, as the page's views read one: its kind and prompt, and for a script the
- * thing it came from, whom it is with, and the conversation on screen - its node and lines found in the
- * page's own project, its options as the server gave them. No runner: the page does not play the answer.
- */
-export function shownFrom(demo: DemoScene, projected: Projected): Pending {
-  if (projected.kind !== 'script') return { kind: projected.kind, prompt: projected.prompt } as unknown as Pending;
-  const d = projected.dialogue ?? null;
-  const node = d?.view === null || d === null ? undefined : demo.dialogues.get(d.id)?.nodes.find((n) => n.id === d.view!.node);
-  const dialogue =
-    d === null
-      ? null
-      : { id: d.id, view: node === undefined || d.view === null ? null : { node, lines: node.lines, options: d.view.options }, prompt: d.prompt, ...(d.by === null ? {} : { by: d.by }) };
-  return {
-    kind: 'script',
-    prompt: projected.prompt,
-    interactable: projected.interactable ?? null,
-    ...(projected.with === null || projected.with === undefined ? {} : { with: projected.with }),
-    dialogue,
-  } as unknown as Pending;
-}
 
 export class Wire {
   private state: WireState = 'opening';
@@ -263,8 +232,8 @@ export class Wire {
   private standAt(board: BoardSnapshot): boolean {
     const demo = this.demo;
     if (board.aside.length > 0 || talkingAside(demo).length > 0) return false;
+    // The question the server's game holds, if one: shown from its board (`restoreFromBoard`, `shownFrom`).
     restoreFromBoard(demo, board);
-    demo.pending = board.pending === null ? null : shownFrom(demo, board.pending as Projected);
     this.showing = board.pending !== null;
     this.answering = false;
     // What either side had still to draw is the other's no longer: the page's dropped, the server's drained.

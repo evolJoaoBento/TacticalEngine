@@ -1,26 +1,23 @@
 /**
- * The page playing the Rust engine (`docs/SERVER.md`, phase 3, slice 3b, its second half).
+ * The page playing the Rust engine (`docs/SERVER.md`: phase 3, slice 3b; phase 4, slices 1 and 2).
  *
- * `WasmGame` is `LocalGame` with the roles turned round: every intent is played by the engine built to
- * WebAssembly, and the engine's answer is the one the page is given. The page's own game is played beside
- * it, intent for intent, and held to it - the answer and the board (`board.ts`) - because it is what the
- * page's views read: the HUD, the panels, the board's drawing, the right-click card all read a `DemoScene`,
- * and the one beside the engine is it, in step. Where the two part, the page's game is stood where the
- * engine's board says (`restoreFromBoard`), and the parting is counted as the shadow counts one
- * (`window.__replica`). A question waiting, or a conversation set aside, the board cannot give back: while
- * the engine holds one the page's game is out of step, and brought back when it has closed.
+ * `WasmGame` is the page's game wherever the engine is built - in a build as in development. Every intent is
+ * played by the engine built to WebAssembly, and the engine's answer is the one the page is given. The page's
+ * own game - the `DemoScene` its views read: the HUD, the panels, the board's drawing, the right-click card -
+ * is not played: it is filled from the engine's board (`restoreFromBoard`) whenever that has changed since it
+ * last was, which the drains every frame leave as it was. A question the engine holds is shown from its board
+ * (`shownFrom`), and the conversations set aside are known by who is having them; the engine plays them on.
  *
- * The questions the pointer asks are put to both and held to each other; the page's answer, already in the
- * page's shapes, is the one given, being the same. The editor still changes the page's game - its project,
- * its ground, its party - and the engine is built again and told the game after.
+ * The questions the pointer asks are put to both and held to each other - the page's views over the filled
+ * game, and the engine - the page's answer, in the page's shapes, given. The editor still changes the page's
+ * game - its project, its ground, its party - and the engine is built again and told the game after.
  *
- * The page's game wherever the engine is built - in a build as in development (`docs/SERVER.md`, phase 4,
- * slice 1). The page's own game plays only when asked for, in development, while it is the oracle the Rust is
- * held to (`?engine=ts`, or `VITE_ENGINE=ts` for a whole dev server), or where the engine was never built.
+ * The page's own game plays only when development asks for it (`?engine=ts`, `VITE_ENGINE=ts`) while it is the
+ * oracle the Rust is held to, or where the engine was never built (`LocalGame`).
  */
 
 import { BOOT } from 'virtual:boot-project';
-import { boardOf, restoreFromBoard, rollsOf, type BoardSnapshot } from './board';
+import { restoreFromBoard, rollsOf, type BoardSnapshot } from './board';
 import { LocalGame, type GameClient, type LocalPowers } from './client';
 import type { DemoScene } from './demo-scene';
 import { openContainer } from './prop-use';
@@ -35,15 +32,9 @@ import { SaveSlots, browserStore, type SaveShelf } from './save-slots';
 
 export type { GameClient, LocalPowers } from './client';
 
-/** A board, its log cut to the lines since the two games were last brought into step. */
-const since = (board: unknown, from: number): Record<string, unknown> => {
-  const b = JSON.parse(JSON.stringify(board ?? null)) as Record<string, unknown> & { log: unknown[] };
-  return { ...b, log: b.log.slice(from) };
-};
-
 export class WasmGame extends LocalGame {
-  private inStep = false;
-  private logs = { ours: 0, theirs: 0 };
+  /** The engine's board, as written, that the page's game was last stood where it says. */
+  private filled = '';
 
   constructor(demo: DemoScene, private readonly engine: WasmEngine, private readonly shipped: unknown) {
     super(demo, false);
@@ -59,27 +50,22 @@ export class WasmGame extends LocalGame {
     this.engine.call('restoreWalk', [this.demo.ambush, this.demo.approaching, openContainer(this.demo), rollsOf(this.demo)]);
     this.engine.call('restoreLog', [this.demo.log]);
     this.engine.call('restoreViews', [this.demo.motions, this.demo.floaters]);
-    this.logs = { ours: this.demo.log.length, theirs: (this.engine.board() as BoardSnapshot).log.length };
-    this.inStep = true;
+    this.filled = this.engine.boardText();
   }
 
-  /** The page's game stood where the engine's board says - or, while the engine holds a question, out of step. */
-  private bringBack(): void {
-    const board = this.engine.board() as BoardSnapshot;
-    if (board.pending !== null || board.aside.length > 0) {
-      this.inStep = false;
-      return;
-    }
-    restoreFromBoard(this.demo, board);
-    this.logs = { ours: this.demo.log.length, theirs: board.log.length };
-    this.inStep = true;
+  /** The page's game stood where the engine's board says, if it has changed since the page's last was. */
+  private fill(): void {
+    const text = this.engine.boardText();
+    if (text === this.filled) return;
+    this.filled = text;
+    restoreFromBoard(this.demo, (JSON.parse(text) as { ok: BoardSnapshot }).ok);
   }
 
   protected override edited(): void {
     this.toldFromThePage();
   }
 
-  /** An intent: the engine plays it and answers; the page's game plays it beside, held to it. */
+  /** An intent: the engine plays it and answers, and the page's game is filled from its board after. */
   protected override play<T>(call: string, args: readonly unknown[], run: () => T, compare: { answer: boolean }): T {
     let engines: unknown;
     try {
@@ -89,27 +75,15 @@ export class WasmGame extends LocalGame {
       recordParting(`${call}: the engine failed`, args, null, { failed: failure instanceof Error ? failure.message : String(failure) });
       return run();
     }
-    if (!this.inStep) {
-      // A question the board could not give back: the engine plays alone until it has closed.
-      this.bringBack();
-      return compare.answer ? (engines as T) : run();
-    }
-    const pages = run();
-    recordAsked();
-    const answer = compare.answer ? firstDifference(pages, engines, 'answer') : null;
-    const board = answer ?? firstDifference(since(boardOf(this.demo), this.logs.ours), since(this.engine.board(), this.logs.theirs), 'board');
-    if (board !== null) {
-      recordParting(`${call}: ${board.path}`, args, board.game, board.replica);
-      this.bringBack();
-    }
-    // A question asked for its mark on the game (`abilityList`) is answered in the page's shapes.
-    return compare.answer ? (engines as T) : pages;
+    this.fill();
+    // A question asked for the mark it leaves on the game (`abilityList`, a container or a thing read) is
+    // answered in the page's shapes: read off the page's game, now where the engine's is, which it marks alike.
+    return compare.answer ? (engines as T) : run();
   }
 
   /** A question the pointer asks: put to both, held to each other; the page's answer, being the same, given. */
   protected override asked<T>(question: string, asked: unknown, game: () => T, replica: (engine: WasmEngine) => unknown, seen: (answer: T) => unknown = (a) => a): T {
     const pages = game();
-    if (!this.inStep) return pages;
     let engines: unknown;
     try {
       engines = replica(this.engine);
@@ -118,10 +92,7 @@ export class WasmGame extends LocalGame {
     }
     recordAsked();
     const parted = firstDifference(seen(pages), engines, question);
-    if (parted !== null) {
-      recordParting(`${question}: ${parted.path}`, asked, parted.game, parted.replica);
-      this.bringBack();
-    }
+    if (parted !== null) recordParting(`${question}: ${parted.path}`, asked, parted.game, parted.replica);
     return pages;
   }
 }

@@ -38,6 +38,8 @@ class EngineServer implements Transport {
   closed = false;
   /** Messages refused because the server was closed. */
   refused = 0;
+  /** Messages sent and not yet answered. */
+  out = 0;
   /** The project the game kept is of, as the server's tables keep it; `null` once it has gone. */
   kept: unknown = null;
   noisy = false;
@@ -58,7 +60,13 @@ class EngineServer implements Transport {
     }
     // Written out now, as the socket does: what is told is how the game stood when it was given.
     const text = JSON.stringify(message);
-    return new Promise((answered) => setTimeout(() => answered(this.answer(JSON.parse(text) as Record<string, unknown>)), 0));
+    this.out++;
+    return new Promise((answered) =>
+      setTimeout(() => {
+        this.out--;
+        answered(this.answer(JSON.parse(text) as Record<string, unknown>));
+      }, 0),
+    );
   }
 
   close(): void {
@@ -137,9 +145,11 @@ class EngineServer implements Transport {
 }
 
 /** Every answer on its way back, back. */
+/** Every answer on its way back, back - and a few ticks more for what each sets going (a retry, a told game). */
 async function settle(server: EngineServer): Promise<void> {
-  for (let i = 0; i < 400; i++) await new Promise((r) => setTimeout(r, 0));
-  void server;
+  const tick = (): Promise<void> => new Promise((r) => setTimeout(r, 0));
+  for (let i = 0; i < 4000 && server.out > 0; i++) await tick();
+  for (let i = 0; i < 20; i++) await tick();
 }
 
 const project = (): ProjectDoc => projectSchema.parse(migrateDocument(JSON.parse(readFileSync(resolve(here, '../../projects/default.json'), 'utf8'))));

@@ -4,6 +4,13 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## Phase 4, slice 2: the page's game filled from the engine's board — done
+
+`WasmGame` no longer plays anything in the page's own TypeScript game: the engine plays, and the page's game is
+stood where the engine's board says whenever it changed - the question shown from the board, the conversations
+set aside known by who is having them, the editor's ground kept, the board's pools taken. Next: the TypeScript
+play code quarantined out of the page's bundle.
+
 ## Phase 4, slice 1: the engine always plays — done
 
 The engine built to WebAssembly is the page's game in a build as in development, and the builds compile it;

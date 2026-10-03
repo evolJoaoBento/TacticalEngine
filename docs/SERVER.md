@@ -1279,5 +1279,29 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     `npx playwright test` now runs the suite on the engine, `VITE_ENGINE=ts npx playwright test` on the page's
     own game. A build for the Rust server (`npm run build:server`, then `npm run server`) opened in a browser
     played the engine: the vault door picked, nothing parted, no error.
-  - **Next**: slice 2 - the page's game filled from the engine's board rather than played beside it, and the
-    conversations set aside on the board.
+  - **Filled from the engine's board** (slice 2). `WasmGame` no longer plays an intent in the page's own game: the
+    engine plays it and answers, and the page's game is stood where the engine's board says whenever the board,
+    as the engine writes it (`WasmEngine.boardText`), has changed since the last time - which the drains every
+    frame leave as it was. Only the three reads answered in the page's shapes (`abilityList`, a container read,
+    a thing read) still run there, on the filled game. The pointer's questions are still put to both.
+    - **A board filled, not re-derived** (`restoreFromBoard`): the question open shown from the board
+      (`shownFrom`, moved from the wire), the conversations set aside known by who is having them
+      (`asideFrom` - the engine holds and plays them; the board already said who), the GM's turn as far as the
+      board says (who has been spotlighted); the same room's state put back in place on the ground the page
+      holds - which the editor changes under it (`takeGround`) and no snapshot carries; and the pools the
+      board's, not derived again by the page's rules.
+    - **What the suite found on the engine alone**, each fixed: re-entering the room on every fill threw the
+      editor's ground away (a wall placed, a platform carried - and the walk went through them), and deriving
+      the pools again overwrote what the engine gave (an armour score from a project's own card), which the run
+      on the server caught as a parting.
+    - **Held**: `wasm-game.test.ts` plays both projects at random, 360 steps, the page's board held to the
+      engine's after every one and a spy holding the page's own game to playing nothing but the three reads; a
+      lock's roll held by the engine, shown on the page and answered there; the Warden's conversation read by
+      the page's own views, set aside when somebody else is selected and back when she is. `board.test.ts`
+      holds the same room kept and another entered, and the board's pools taken. 9 of 9 deliberate mutations of
+      the filling fail them. The wire's tests settle only while an answer is out now, not for 400 ticks
+      regardless: 26 seconds for all eleven, where one took 210 and timed out under load.
+    - **Not yet**: the wire still cannot stand the page where a server's board says while a conversation is set
+      aside: the page's engine is then told the page's game, which carries no paused script.
+  - **Next**: slice 3 - the page's own game's play code moved where the page's bundle cannot import it, the
+    oracle for the Rust with its tests and fixture writers.

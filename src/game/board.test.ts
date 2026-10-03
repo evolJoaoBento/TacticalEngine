@@ -103,3 +103,36 @@ describe('a board stood back up', () => {
     expect(fighting).toBeGreaterThan(50);
   }, 300_000);
 });
+
+describe('a board filled into the page\'s game', () => {
+  const project = (): ProjectDoc => projectSchema.parse(migrateDocument(JSON.parse(readFileSync(resolve(here, '../../projects/default.json'), 'utf8'))));
+
+  it('keeps the ground the page holds in the same room, and enters another room afresh', () => {
+    const demo = buildProjectScene(project(), 'fill-ground');
+    // The editor changes the ground under the game in place (`takeGround`): the page's grid is the one to keep.
+    const ground = demo.grid;
+    const state = demo.state;
+    restoreFromBoard(demo, JSON.parse(JSON.stringify(boardOf(demo))));
+    expect(demo.grid).toBe(ground);
+    expect(demo.state).toBe(state);
+    // Another room on the board: entered as it was left, on that room's own ground.
+    const elsewhere = buildProjectScene(project(), 'fill-elsewhere');
+    const other = elsewhere.project.scenes.find((s) => s.id !== elsewhere.scene.id)!.id;
+    new LocalGame(elsewhere, false).travelTo(other);
+    restoreFromBoard(demo, JSON.parse(JSON.stringify(boardOf(elsewhere))));
+    expect(demo.scene.id).toBe(other);
+    expect(demo.grid).not.toBe(ground);
+    expect(firstDifference(boardOf(demo), boardOf(elsewhere), 'board')).toBeNull();
+  });
+
+  it('takes the pools as the board has them, not derived again', () => {
+    const demo = buildProjectScene(project(), 'fill-pools');
+    const board = JSON.parse(JSON.stringify(boardOf(demo))) as ReturnType<typeof boardOf>;
+    const kara = (board.replica.state.entities as Record<string, { armorSlots: { max: number; marked: number } }>)['kara']!;
+    // An armour score the game whose board it is gave Kara - a card of the project's, say - that the page's
+    // own rules would not.
+    kara.armorSlots = { max: kara.armorSlots.max + 2, marked: 1 };
+    restoreFromBoard(demo, board);
+    expect(demo.state.entity('kara')!.armorSlots).toEqual(kara.armorSlots);
+  });
+});

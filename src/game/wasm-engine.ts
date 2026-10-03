@@ -120,13 +120,18 @@ export class WasmEngine {
     return length === 0 ? undefined : this.answered(length);
   }
 
-  /** One message, and its answer; an `{ error }` is thrown. */
-  private send(message: unknown): unknown {
+  /** One message, and its answer as the engine wrote it, unread. */
+  private sendRaw(message: unknown): string {
     const text = this.encoder.encode(JSON.stringify(message));
     const at = this.lend(text);
     const length = this.face.call(at, text.length);
     this.face.free(at, text.length);
-    const answer = JSON.parse(this.answered(length)) as { ok?: unknown; error?: string };
+    return this.answered(length);
+  }
+
+  /** One message, and its answer; an `{ error }` is thrown. */
+  private send(message: unknown): unknown {
+    const answer = JSON.parse(this.sendRaw(message)) as { ok?: unknown; error?: string };
     if (answer.error !== undefined) throw new Error(`the engine: ${answer.error}`);
     return answer.ok ?? null;
   }
@@ -148,6 +153,14 @@ export class WasmEngine {
   /** How the game stands, as the page reads it (`game/board.rs`). */
   board(): unknown {
     return this.call('board');
+  }
+
+  /**
+   * How the game stands, as the engine wrote it - `{"ok": <board>}` - to tell whether it has changed since it was
+   * last read without reading it (`WasmGame`).
+   */
+  boardText(): string {
+    return this.sendRaw({ op: 'call', call: 'board', args: [] });
   }
 
   /** Told how the game stands. */
