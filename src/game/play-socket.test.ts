@@ -5,7 +5,7 @@
  */
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { PlaySocket, serverAccount } from './play-socket';
+import { PlaySocket, hasServer, serverAccount, serverAllowed } from './play-socket';
 
 class FakeSocket {
   static readonly CONNECTING = 0;
@@ -117,6 +117,36 @@ describe('the socket to the server\'s game', () => {
     vi.stubGlobal('location', { search: '?play&server=off' });
     asked.length = 0;
     expect(await serverAccount('file')).toBeNull();
+    expect(asked).toEqual([]);
+  });
+});
+
+describe('a server behind the page', () => {
+  const development = { DEV: true, MODE: 'development' };
+  const forTheServer = { DEV: false, MODE: 'server' };
+  const staticBuild = { DEV: false, MODE: 'production' };
+
+  it('is there in development and in a build the Rust server serves, and not in a static build', () => {
+    expect([hasServer(development), hasServer(forTheServer), hasServer(staticBuild)]).toEqual([true, true, false]);
+    vi.stubGlobal('location', { search: '' });
+    expect([serverAllowed(development), serverAllowed(forTheServer), serverAllowed(staticBuild)]).toEqual([true, true, false]);
+    // Turned off, in either.
+    vi.stubGlobal('location', { search: '?server=off' });
+    expect([serverAllowed(development), serverAllowed(forTheServer)]).toEqual([false, false]);
+  });
+
+  it('is asked who is signed in, in a build the Rust server serves, and a static build asks nobody', async () => {
+    const asked: string[] = [];
+    const admin = { id: 'admin', name: 'admin', admin: true };
+    vi.stubGlobal('fetch', async (url: string) => {
+      asked.push(url);
+      return { ok: true, status: 200, json: async () => admin };
+    });
+    vi.stubGlobal('location', { search: '' });
+    expect(await serverAccount('file', false, forTheServer)).toEqual(admin);
+    expect(asked).toEqual(['/__accounts/me']);
+    asked.length = 0;
+    expect(await serverAccount('file', false, staticBuild)).toBeNull();
     expect(asked).toEqual([]);
   });
 });

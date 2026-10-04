@@ -263,7 +263,7 @@ The slices:
    server's own copy of them is the shared game's (slice 3).
 2. **In a build** - the page plays with the server wherever the server serves it, not in development alone;
    ready for a tunnel (the session cookie secure over HTTPS, the origin checked through a proxy); how to run it
-   for friends, written down.
+   for friends, written down (`docs/HOSTING.md`).
 3. **A shared game** - a game with an id of its own, opened by its host over a project and joined by others with
    an invitation; every change to it pushed to every player's page, which is stood where it says, walks and
    numbers over heads drawn; who plays which character (seats), set by the host.
@@ -1439,4 +1439,22 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     - **The engine core the page no longer reaches**: `engine/scene/interact.ts`, `engine/combat/area.ts`,
       `engine/combat/adversary-features.ts` and `engine/script/thing-effects.ts` are bundled no more; they stay
       while the Rust core's golden writers use them.
-  - **Next**: the page playing with the server in a build (slice 2).
+  - **In a build, through a tunnel** (slice 2). The page plays with the server wherever there is one
+    (`hasServer`): a dev server, and now the build the Rust server serves (`npm run build:server`); a static
+    build still has none. The server reads a request for where the page was loaded from: the first
+    `X-Forwarded-Host` a proxy set, else `Host` (`accounts::page_host`). That host is beyond this machine when
+    it is not `localhost`, a `127.*` address or `::1` (`beyond_this_machine`). Every check of the page's own
+    origin - a POST's (`from_the_page`), the games' websocket - is held to that host (`same_origin`), so a
+    tunnel that rewrites `Host` to the server's own address still lets the page in, and another site still is
+    not. The session cookie is `Secure` when the page came over HTTPS (`over_https`: its origin, or
+    `X-Forwarded-Proto`). From beyond this machine `admin` does not sign in with the password it was made with,
+    and nobody makes an account unless the server was started with `--sign-up` (`Keeper::with_sign_up`,
+    `Settings::sign_up`, which a served build now takes too). The private card art in `public/cards/` is
+    decided per request: this machine's alone, so a tunnel - which connects from this machine - is handed the
+    build's. Proved end to end by `npm run test:e2e:tunnel` (`playwright.tunnel.config.ts`, `tests/tunnel/`).
+    The build made for the server is served by the Rust server over a scratch folder, behind a proxy that
+    rewrites `Host` as the strictest tunnels do, and a browser asking for `friends.example` follows a friend's
+    path: admin's first password and a new account refused, the art withheld, a locally made account signed
+    in, the game opened over the websocket, an intent played on the server with nothing parted.
+    `docs/HOSTING.md` says how to run it for friends; each plays their own game until slice 3.
+  - **Next**: the shared game (slice 3).

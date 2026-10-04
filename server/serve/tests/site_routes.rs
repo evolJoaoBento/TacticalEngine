@@ -36,8 +36,17 @@ async fn get(root: &Path, site: &Path, path: &str) -> (StatusCode, String, Strin
 }
 
 async fn fetch(root: &Path, site: &Path, path: &str, private_art: bool) -> (StatusCode, String, String) {
-    let request = Request::builder().uri(path).body(Body::empty()).unwrap();
-    let response = serve::site(root.to_path_buf(), site.to_path_buf(), private_art).oneshot(request).await.unwrap();
+    fetch_from(root, site, path, private_art, None).await
+}
+
+/// A request as a tunnel brings it: from this machine, saying the page was loaded from `forwarded_host`.
+async fn fetch_from(root: &Path, site: &Path, path: &str, private_art: bool, forwarded_host: Option<&str>) -> (StatusCode, String, String) {
+    let mut request = Request::builder().uri(path).header("host", "127.0.0.1:8430");
+    if let Some(host) = forwarded_host {
+        request = request.header("x-forwarded-host", host);
+    }
+    let request = request.body(Body::empty()).unwrap();
+    let response = serve::site(root.to_path_buf(), site.to_path_buf(), private_art, serve::Settings::default()).oneshot(request).await.unwrap();
     let kind = response.headers().get("content-type").map(|v| v.to_str().unwrap().to_string()).unwrap_or_default();
     let status = response.status();
     (status, kind, String::from_utf8_lossy(&response.into_body().collect().await.unwrap().to_bytes()).into_owned())
@@ -90,5 +99,18 @@ async fn the_private_card_art_is_served_only_to_this_machine() {
     assert!(!fetch(&root, &site, "/cards/bard.webp", false).await.2.contains("private art"));
     // Everything else is served alike.
     assert_eq!(fetch(&root, &site, "/models/Quim.glb", false).await.2, "glTF live");
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[tokio::test]
+async fn the_private_card_art_is_not_handed_through_a_tunnel() {
+    let (root, site) = folder("tunnel");
+    // A tunnel connects from this machine, but says the page was loaded from a host beyond it: the build's.
+    assert_eq!(fetch_from(&root, &site, "/cards/index.json", true, Some("friends.example")).await.2, "{}\n");
+    assert!(!fetch_from(&root, &site, "/cards/bard.webp", true, Some("friends.example")).await.2.contains("private art"));
+    // This machine's own name, through a proxy or not, is this machine.
+    assert_eq!(fetch_from(&root, &site, "/cards/bard.webp", true, Some("localhost:8430")).await.2, "private art");
+    // Everything else goes through the tunnel as it is.
+    assert_eq!(fetch_from(&root, &site, "/models/Quim.glb", true, Some("friends.example")).await.2, "glTF live");
     let _ = std::fs::remove_dir_all(&root);
 }

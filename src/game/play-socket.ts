@@ -58,18 +58,37 @@ export class PlaySocket implements Transport {
   }
 }
 
-/** Whether the page plays beside the server at all: in development, unless turned off (`?server=off`). */
-export function serverAllowed(): boolean {
-  return import.meta.env.DEV && new URLSearchParams(location.search).get('server') !== 'off';
+/** How the page was built: in development, or for production - and which (`vite build --mode server`). */
+export interface Built {
+  DEV: boolean;
+  MODE: string;
 }
 
 /**
- * Who the page's game is held to a game on the server for, and whose saves the server keeps: in development,
- * on a dev server that keeps accounts - not the tests', which has no server to ask, unless their games are
- * played on one (`VITE_E2E_SERVER`) - somebody signed in, and not turned off (`?server=off`). Nobody, else.
+ * Whether there is a server behind the page: a dev server, or the Rust server serving a build made for it
+ * (`npm run build:server`, `--mode server`). A static build (`npm run build`) has none, and asks nothing.
  */
-export async function serverAccount(boot: 'file' | 'builtin', tests: boolean = import.meta.env['VITE_E2E_SERVER'] === '1'): Promise<SignedIn | null> {
-  if (!serverAllowed() || (boot === 'builtin' && !tests)) return null;
+export function hasServer(built: Built = import.meta.env): boolean {
+  return built.DEV || built.MODE === 'server';
+}
+
+/**
+ * Whether the page plays beside the server at all: where there is one (`hasServer`) - in development, and in
+ * a build the Rust server serves, for friends through a tunnel (`docs/HOSTING.md`) - unless turned off
+ * (`?server=off`).
+ */
+export function serverAllowed(built: Built = import.meta.env): boolean {
+  return hasServer(built) && new URLSearchParams(location.search).get('server') !== 'off';
+}
+
+/**
+ * Who the page's game is held to a game on the server for, and whose saves the server keeps: where there is
+ * a server that keeps accounts (`serverAllowed`) - not the tests', which has no server to ask, unless their
+ * games are played on one (`VITE_E2E_SERVER`) - somebody signed in, and not turned off (`?server=off`).
+ * Nobody, else.
+ */
+export async function serverAccount(boot: 'file' | 'builtin', tests: boolean = import.meta.env['VITE_E2E_SERVER'] === '1', built: Built = import.meta.env): Promise<SignedIn | null> {
+  if (!serverAllowed(built) || (boot === 'builtin' && !tests)) return null;
   const who = await whoAmI();
   return who === null || who === 'none' ? null : who;
 }

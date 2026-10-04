@@ -311,3 +311,36 @@ async fn a_walk_cut_short_puts_its_walker_down_only_on_the_line_it_walked() {
     // Landed, the line is spent: not put down again until they walk again.
     assert_eq!(call(7, "landWalkers", json!([[[member, end]]])).await["ok"]["answer"], json!([]));
 }
+
+#[tokio::test]
+async fn the_play_route_takes_a_page_a_tunnel_brings_from_its_public_host() {
+    let root = root("tunnel");
+    let account = Account { id: "wren".into(), name: "Wren".into(), salt: "s".into(), hash: "h".into(), admin: false, created: 0, rest: IndexMap::new() };
+    write_accounts(&root, &[account]).unwrap();
+    let mut sessions = IndexMap::new();
+    sessions.insert("good-token".to_string(), Signed { account: "wren".into(), expires: i64::MAX });
+    write_sessions(&root, &sessions).unwrap();
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = listener.local_addr().unwrap();
+    tokio::spawn(async move { axum::serve(listener, serve::app(root)).await.unwrap() });
+
+    // The tunnel connects from this machine; the page was loaded from its public host, over HTTPS.
+    let connect = |origin: &str, forwarded: Option<&str>| {
+        let mut request = format!("ws://{address}/__play").into_client_request().unwrap();
+        let headers = request.headers_mut();
+        headers.insert("origin", origin.parse().unwrap());
+        headers.insert("cookie", format!("{SESSION_COOKIE}=good-token").parse().unwrap());
+        if let Some(host) = forwarded {
+            headers.insert("x-forwarded-host", host.parse().unwrap());
+        }
+        tokio_tungstenite::connect_async(request)
+    };
+    let status = |e: tokio_tungstenite::tungstenite::Error| match e {
+        tokio_tungstenite::tungstenite::Error::Http(response) => response.status().as_u16(),
+        other => panic!("{other}"),
+    };
+    assert!(connect("https://friends.example", Some("friends.example")).await.is_ok(), "the page, through the tunnel");
+    // A page from another site, through the same tunnel; and a public origin no proxy vouches for.
+    assert_eq!(status(connect("https://elsewhere.example", Some("friends.example")).await.unwrap_err()), 403);
+    assert_eq!(status(connect("https://friends.example", None).await.unwrap_err()), 403);
+}

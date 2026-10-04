@@ -29,6 +29,8 @@ pub struct Settings {
     /// The tests' server (`--for-tests`, `play.rs`): a game opened with its dice where the page's are, and the
     /// test driver's hands taken.
     pub for_tests: bool,
+    /// Somebody from beyond this machine may make an account (`--sign-up`, `accounts.rs`).
+    pub sign_up: bool,
 }
 
 /// The server, keeping its files under `root` - the repository, where `data/` is.
@@ -38,7 +40,7 @@ pub fn app(root: PathBuf) -> Router {
 
 /// The server, as `app`, run as `settings` say.
 pub fn app_with(root: PathBuf, settings: Settings) -> Router {
-    let keeper = accounts::Keeper::new(root.clone());
+    let keeper = accounts::Keeper::new(root.clone()).with_sign_up(settings.sign_up);
     let shop = store::Shop::new(root.clone());
     let shelf = your_models::Shelf::new(root.clone());
     let workshop = manifest::Workshop::new(root.clone());
@@ -86,17 +88,25 @@ pub const ASSETS: &str = "public";
 /// either, and a path that climbs out of them (`..`) is refused before any file is looked at.
 ///
 /// **The card art in `public/cards/` is private** - reference art for this machine, never to be handed
-/// on (`tools/build-public-assets.ts` keeps it out of every build). It is served only with `private_art`,
-/// which the binary sets only when it listens on this machine alone; otherwise `/cards/` is the build's,
-/// which carries an empty index and nothing else, as a built site does.
-pub fn site(root: PathBuf, site: PathBuf, private_art: bool) -> Router {
+/// on (`tools/build-public-assets.ts` keeps it out of every build). It is served only to a request from
+/// this machine (`accounts::beyond_this_machine` - a tunnel connects from this machine too, but says whose
+/// host the page was loaded from), and only with `private_art`, which the binary sets only when it listens
+/// on this machine alone. Anybody else is given the build's `/cards/`, which carries an empty index and
+/// nothing else, as a built site does.
+pub fn site(root: PathBuf, site: PathBuf, private_art: bool, settings: Settings) -> Router {
+    use axum::body::Body;
+    use axum::http::Request;
+    use tower::ServiceExt;
     use tower_http::services::{ServeDir, ServeFile};
     let page = ServeFile::new(site.join("index.html"));
     let files = ServeDir::new(root.join(ASSETS)).fallback(ServeDir::new(&site).fallback(page.clone()));
-    let router = app(root).fallback_service(files);
-    if private_art {
-        router
-    } else {
-        router.nest_service("/cards", ServeDir::new(site.join("cards")).fallback(page))
-    }
+    let private = ServeDir::new(root.join(ASSETS).join("cards")).fallback(page.clone());
+    let built = ServeDir::new(site.join("cards")).fallback(page);
+    let cards = tower::service_fn(move |request: Request<Body>| {
+        let header = |name: &str| request.headers().get(name).and_then(|v| v.to_str().ok()).map(str::to_string);
+        let here = private_art && !accounts::beyond_this_machine(header);
+        let (private, built) = (private.clone(), built.clone());
+        async move { if here { private.oneshot(request).await } else { built.oneshot(request).await } }
+    });
+    app_with(root, settings).fallback_service(files).nest_service("/cards", cards)
 }

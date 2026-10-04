@@ -48,6 +48,7 @@ npx tsc --noEmit     # the only static check
 npx vitest run       # unit
 npx playwright test  # e2e, ~2.7 min — run it before claiming done (the page plays the engine)
 npm run test:e2e:server  # the same suite, its games played on a Rust server of its own (docs/SERVER.md)
+npm run test:e2e:tunnel  # a friend's way in: the server's build, through a Host-rewriting proxy (docs/HOSTING.md)
 ```
 
 Ship a **slice**: one behaviour complete — rule, content, editor field, validation, tests, docs.

@@ -139,3 +139,92 @@ async fn an_account_kept_by_the_typescript_signs_in_here() {
     assert_eq!(file[1]["id"], "violet");
     let _ = std::fs::remove_dir_all(&root);
 }
+
+/// A request through a tunnel: from this machine, the page loaded from `friends.example` over HTTPS.
+const TUNNEL: [(&str, &str); 5] = [
+    ("x-tactical-save", "1"),
+    ("origin", "https://friends.example"),
+    ("host", "127.0.0.1:8430"),
+    ("x-forwarded-host", "friends.example"),
+    ("x-forwarded-proto", "https"),
+];
+
+/// As `send`, to a server started as `settings` say.
+async fn send_to(root: &PathBuf, settings: serve::Settings, path: &str, body: &str, headers: &[(&str, &str)]) -> Reply {
+    let mut request = Request::builder().method("POST").uri(path);
+    for (name, value) in headers {
+        request = request.header(*name, *value);
+    }
+    let response = serve::app_with(root.clone(), settings).oneshot(request.body(Body::from(body.to_string())).unwrap()).await.unwrap();
+    let status = response.status();
+    let cookie = response.headers().get("set-cookie").map(|v| v.to_str().unwrap().to_string());
+    let bytes = response.into_body().collect().await.unwrap().to_bytes();
+    Reply { status, body: serde_json::from_slice(&bytes).unwrap(), cookie, cache: None }
+}
+
+#[test]
+fn the_page_host_is_the_one_a_proxy_says_and_this_machine_is_its_own_names() {
+    use serve::accounts::{beyond_this_machine, over_https, page_host, same_origin};
+    let headers = |pairs: &'static [(&'static str, &'static str)]| move |name: &str| pairs.iter().find(|(n, _)| *n == name).map(|(_, v)| v.to_string());
+    assert_eq!(page_host(headers(&[("host", "127.0.0.1:8430")])).as_deref(), Some("127.0.0.1:8430"));
+    assert_eq!(page_host(headers(&[("host", "127.0.0.1:8430"), ("x-forwarded-host", "Friends.Example, inner.proxy")])).as_deref(), Some("friends.example"));
+    for here in ["localhost", "localhost:8430", "127.0.0.1:8420", "127.9.9.9", "[::1]:8430"] {
+        let pairs: &'static [(&'static str, &'static str)] = Box::leak(Box::new([("host", here)]));
+        assert!(!beyond_this_machine(headers(pairs)), "{here}");
+    }
+    for there in ["friends.example", "192.168.1.20:8430", "[2001:db8::1]:443", "localhost.example"] {
+        let pairs: &'static [(&'static str, &'static str)] = Box::leak(Box::new([("host", "127.0.0.1:8430"), ("x-forwarded-host", there)]));
+        assert!(beyond_this_machine(headers(pairs)), "{there}");
+    }
+    assert!(!beyond_this_machine(headers(&[])), "no host at all is a request made here");
+    assert!(over_https(headers(&[("origin", "https://friends.example")])));
+    assert!(over_https(headers(&[("x-forwarded-proto", "https")])));
+    assert!(!over_https(headers(&[("origin", "http://127.0.0.1:8420")])));
+    assert!(same_origin(headers(&TUNNEL)));
+    assert!(!same_origin(headers(&[("origin", "https://elsewhere.example"), ("host", "127.0.0.1:8430"), ("x-forwarded-host", "friends.example")])));
+    assert!(same_origin(headers(&[("host", "127.0.0.1:8430")])), "no origin: not a browser's, let be");
+}
+
+#[tokio::test]
+async fn through_a_tunnel_the_cookie_is_secure_and_the_origin_is_the_page_hosts() {
+    let root = folder("tunnel");
+    let settings = serve::Settings { sign_up: true, ..serve::Settings::default() };
+    let made = send_to(&root, settings, "/__accounts/register", r#"{"name":"Wren","password":"hunter22"}"#, &TUNNEL).await;
+    assert_eq!(made.status, StatusCode::OK, "{}", made.body);
+    let set = made.cookie.unwrap();
+    assert!(set.ends_with("; Secure"), "{set}");
+    // Signed out the same way: the clearing is Secure too.
+    let mut out = TUNNEL.to_vec();
+    let cookie = pair(&set);
+    out.push(("cookie", cookie.as_str()));
+    assert!(send_to(&root, settings, "/__accounts/logout", "", &out).await.cookie.unwrap().ends_with("; Secure"));
+    // Over plain HTTP on this machine: not Secure, or the browser would never send it back.
+    let here = send_to(&root, settings, "/__accounts/login", r#"{"name":"Wren","password":"hunter22"}"#, &PAGE).await;
+    assert!(!here.cookie.unwrap().contains("Secure"));
+    // Another site posting through the same tunnel is not the page.
+    let mut forged = TUNNEL.to_vec();
+    forged[1] = ("origin", "https://elsewhere.example");
+    let refused = send_to(&root, settings, "/__accounts/login", r#"{"name":"Wren","password":"hunter22"}"#, &forged).await;
+    assert_eq!((refused.status, refused.body["reason"].clone()), (StatusCode::FORBIDDEN, json!("sent from another origin")));
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[tokio::test]
+async fn from_beyond_this_machine_admin_keeps_its_first_password_home_and_nobody_signs_up_unasked() {
+    let root = folder("beyond");
+    let closed = serve::Settings::default();
+    let admin = send_to(&root, closed, "/__accounts/login", r#"{"name":"admin","password":"admin"}"#, &TUNNEL).await;
+    assert_eq!(admin.status, StatusCode::FORBIDDEN, "{}", admin.body);
+    assert!(admin.cookie.is_none());
+    // On this machine it signs in as it always has.
+    assert_eq!(send_to(&root, closed, "/__accounts/login", r#"{"name":"admin","password":"admin"}"#, &PAGE).await.status, StatusCode::OK);
+    // Nor is an account made from beyond, unless the server was started to let one be.
+    let made = send_to(&root, closed, "/__accounts/register", r#"{"name":"Stranger","password":"hunter22"}"#, &TUNNEL).await;
+    assert_eq!((made.status, made.body["reason"].clone()), (StatusCode::FORBIDDEN, json!("new accounts are made on the machine the server runs on")));
+    // Made here, it signs in from beyond.
+    assert_eq!(send_to(&root, closed, "/__accounts/register", r#"{"name":"Wren","password":"hunter22"}"#, &PAGE).await.status, StatusCode::OK);
+    assert_eq!(send_to(&root, closed, "/__accounts/login", r#"{"name":"Wren","password":"hunter22"}"#, &TUNNEL).await.status, StatusCode::OK);
+    let open = serve::Settings { sign_up: true, ..serve::Settings::default() };
+    assert_eq!(send_to(&root, open, "/__accounts/register", r#"{"name":"Stranger","password":"hunter22"}"#, &TUNNEL).await.status, StatusCode::OK);
+    let _ = std::fs::remove_dir_all(&root);
+}

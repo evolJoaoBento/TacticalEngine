@@ -19,6 +19,7 @@
 
 import { SHIPPED_MODELS as BUILT_MODELS } from 'virtual:shipped-models';
 import { PROVENANCE as BUILT_MARKS } from 'virtual:art-provenance';
+import { hasServer } from './play-socket';
 
 export interface ShippedModel {
   id: string;
@@ -54,8 +55,8 @@ export async function asked<T>(url: string, built: T, valid: (value: unknown) =>
 
 export const listOfModels = (value: unknown): value is ShippedModel[] => Array.isArray(value) && value.every(isModel);
 
-/** Whether this page has a server to ask: a dev server, or a build the Rust server serves. */
-const served = import.meta.env.DEV || import.meta.env.MODE === 'server';
+/** Whether this page has a server to ask: a dev server, or a build the Rust server serves (`hasServer`). */
+const served = hasServer();
 
 export const SHIPPED_MODELS: readonly ShippedModel[] = served ? await asked<ShippedModel[]>(SHIPPED_URL, [...BUILT_MODELS], listOfModels) : [...BUILT_MODELS];
 export const PROVENANCE: Readonly<Record<string, Mark>> = served ? await asked<Record<string, Mark>>(MARKS_URL, { ...BUILT_MARKS }, isMarks) : { ...BUILT_MARKS };

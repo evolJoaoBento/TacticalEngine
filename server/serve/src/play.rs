@@ -34,7 +34,7 @@
 //! the page, once, at `open`, which in single play are the player's own; the server's own copy of them is for
 //! the shared game (slice 3).
 
-use crate::accounts::{account_of, host_of, now_ms, read_accounts, read_sessions};
+use crate::accounts::{account_of, now_ms, page_host, read_accounts, read_sessions, same_origin};
 use crate::saves::{is_slot_id, mint_id, read_save, write_save, Slot};
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
 use axum::extract::State;
@@ -301,9 +301,10 @@ impl Tables {
 /// Who may play: a session cookie the accounts know, from the page's own origin.
 fn player(tables: &Tables, headers: &HeaderMap) -> Result<String, (StatusCode, &'static str)> {
     let header = |name: &str| headers.get(name).and_then(|v| v.to_str().ok()).map(str::to_string);
-    match (header("origin"), header("host")) {
-        (Some(origin), Some(host)) if host_of(&origin).as_deref() == Some(host.as_str()) => {}
-        _ => return Err((StatusCode::FORBIDDEN, "not from the page")),
+    // From the page's own origin: the host it was loaded from, which a proxy in front of the server says
+    // (`page_host`). A socket with no origin at all is not a page's.
+    if header("origin").is_none() || page_host(header).is_none() || !same_origin(header) {
+        return Err((StatusCode::FORBIDDEN, "not from the page"));
     }
     let now = now_ms();
     let accounts = read_accounts(&tables.root);

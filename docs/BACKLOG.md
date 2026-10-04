@@ -4,6 +4,14 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## Phase 5 (multiplayer), slice 2: in a build, through a tunnel — done
+
+The build the Rust server serves plays with it, and the server is ready to be reached through a tunnel: the
+origin checked against the host a proxy says the page came from, the session cookie `Secure` over HTTPS,
+`admin`'s first password and sign-up (unless `--sign-up`) refused from beyond this machine, the private card
+art kept home. `npm run test:e2e:tunnel` plays a friend's way in through a `Host`-rewriting proxy;
+`docs/HOSTING.md` says how to host. Next: the shared game (slice 3).
+
 ## Phase 5 (multiplayer), slice 0b: the rules deleted — done
 
 The page's own TypeScript play is gone: four modules whole, 53 play functions and everything only they reached,

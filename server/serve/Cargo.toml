@@ -32,10 +32,11 @@ sha2 = "0.10"
 subtle = "2"
 url = "2"
 tower-http = { version = "0.6", features = ["fs"] }
+# The card art decided per request (`site`): a service that hands each request to one folder or the other.
+tower = { version = "0.5", features = ["util"] }
 
 [dev-dependencies]
 # A websocket client, for the play route's round trip.
 tokio-tungstenite = "0.26"
 futures-util = "0.3"
-tower = { version = "0.5", features = ["util"] }
 http-body-util = "0.1"
