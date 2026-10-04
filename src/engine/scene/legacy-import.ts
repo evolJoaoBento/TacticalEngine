@@ -199,6 +199,7 @@ export function importLegacyCampaign(
       abilities: [],
       code: [],
       conditionDefs: [],
+      packs: [],
       scenes,
       dialogues: [],
       items: [],

@@ -96,7 +96,7 @@ export function useInteractable(
  * the thing used, so a chest does not pay out twice. Flavour on its own does
  * not: reading an inscription should not consume it.
  */
-function openingEffects(interactable: Interactable): Effect[] {
+export function openingEffects(interactable: Interactable): Effect[] {
   const effects: Effect[] = [];
   if (interactable.flavor !== '') {
     effects.push({ kind: 'log', text: interactable.flavor, tone: 'narration' });

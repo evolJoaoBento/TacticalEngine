@@ -1,0 +1,1443 @@
+{
+ "about": "tools/art-provenance.ts and tools/default-project.ts run for the Rust port; written by tests/unit/art-provenance.golden.test.ts",
+ "files": [
+  {
+   "text": "{\"model:arty\":\"ai-assisted\",\"card:bare-bones\":\"human-made\",\"equipment:broadsword.webp\":\"ai-generated\"}",
+   "read": {
+    "model:arty": "ai-assisted",
+    "card:bare-bones": "human-made",
+    "equipment:broadsword.webp": "ai-generated"
+   }
+  },
+  {
+   "text": "{\"model:arty\":\"robot\",\"Model:arty\":\"human-made\",\"model:\":\"human-made\",\"model:-x\":\"human-made\",\"model:a b\":\"human-made\",\"card:ok_1.two-3\":\"human-made\",\"equipment:x\":null}",
+   "read": {
+    "card:ok_1.two-3": "human-made"
+   }
+  },
+  {
+   "text": "{\"model:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\":\"human-made\",\"model:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\":\"human-made\"}",
+   "read": {
+    "model:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": "human-made"
+   }
+  },
+  {
+   "text": "[\"model:arty\"]",
+   "read": {}
+  },
+  {
+   "text": "null",
+   "read": {}
+  },
+  {
+   "text": "not json",
+   "read": {}
+  },
+  {
+   "text": "",
+   "read": {}
+  }
+ ],
+ "changes": [
+  {
+   "key": "model:arty",
+   "provenance": "ai-assisted",
+   "file": "{\n  \"model:arty\": \"ai-assisted\"\n}\n"
+  },
+  {
+   "key": "model:Arty",
+   "provenance": "human-made",
+   "file": "{\n  \"model:arty\": \"ai-assisted\",\n  \"model:Arty\": \"human-made\"\n}\n"
+  },
+  {
+   "key": "model:apple",
+   "provenance": "ai-generated",
+   "file": "{\n  \"model:apple\": \"ai-generated\",\n  \"model:arty\": \"ai-assisted\",\n  \"model:Arty\": \"human-made\"\n}\n"
+  },
+  {
+   "key": "model:Zed",
+   "provenance": "human-made",
+   "file": "{\n  \"model:apple\": \"ai-generated\",\n  \"model:arty\": \"ai-assisted\",\n  \"model:Arty\": \"human-made\",\n  \"model:Zed\": \"human-made\"\n}\n"
+  },
+  {
+   "key": "model:zed",
+   "provenance": "human-made",
+   "file": "{\n  \"model:apple\": \"ai-generated\",\n  \"model:arty\": \"ai-assisted\",\n  \"model:Arty\": \"human-made\",\n  \"model:zed\": \"human-made\",\n  \"model:Zed\": \"human-made\"\n}\n"
+  },
+  {
+   "key": "model:b",
+   "provenance": "human-made",
+   "file": "{\n  \"model:apple\": \"ai-generated\",\n  \"model:arty\": \"ai-assisted\",\n  \"model:Arty\": \"human-made\",\n  \"model:b\": \"human-made\",\n  \"model:zed\": \"human-made\",\n  \"model:Zed\": \"human-made\"\n}\n"
+  },
+  {
+   "key": "model:a_b",
+   "provenance": "human-made",
+   "file": "{\n  \"model:a_b\": \"human-made\",\n  \"model:apple\": \"ai-generated\",\n  \"model:arty\": \"ai-assisted\",\n  \"model:Arty\": \"human-made\",\n  \"model:b\": \"human-made\",\n  \"model:zed\": \"human-made\",\n  \"model:Zed\": \"human-made\"\n}\n"
+  },
+  {
+   "key": "model:a-b",
+   "provenance": "human-made",
+   "file": "{\n  \"model:a_b\": \"human-made\",\n  \"model:a-b\": \"human-made\",\n  \"model:apple\": \"ai-generated\",\n  \"model:arty\": \"ai-assisted\",\n  \"model:Arty\": \"human-made\",\n  \"model:b\": \"human-made\",\n  \"model:zed\": \"human-made\",\n  \"model:Zed\": \"human-made\"\n}\n"
+  },
+  {
+   "key": "model:a.b",
+   "provenance": "human-made",
+   "file": "{\n  \"model:a_b\": \"human-made\",\n  \"model:a-b\": \"human-made\",\n  \"model:a.b\": \"human-made\",\n  \"model:apple\": \"ai-generated\",\n  \"model:arty\": \"ai-assisted\",\n  \"model:Arty\": \"human-made\",\n  \"model:b\": \"human-made\",\n  \"model:zed\": \"human-made\",\n  \"model:Zed\": \"human-made\"\n}\n"
+  },
+  {
+   "key": "model:a:b",
+   "provenance": "human-made",
+   "file": "{\n  \"model:a_b\": \"human-made\",\n  \"model:a-b\": \"human-made\",\n  \"model:a:b\": \"human-made\",\n  \"model:a.b\": \"human-made\",\n  \"model:apple\": \"ai-generated\",\n  \"model:arty\": \"ai-assisted\",\n  \"model:Arty\": \"human-made\",\n  \"model:b\": \"human-made\",\n  \"model:zed\": \"human-made\",\n  \"model:Zed\": \"human-made\"\n}\n"
+  },
+  {
+   "key": "model:a1",
+   "provenance": "human-made",
+   "file": "{\n  \"model:a_b\": \"human-made\",\n  \"model:a-b\": \"human-made\",\n  \"model:a:b\": \"human-made\",\n  \"model:a.b\": \"human-made\",\n  \"model:a1\": \"human-made\",\n  \"model:apple\": \"ai-generated\",\n  \"model:arty\": \"ai-assisted\",\n  \"model:Arty\": \"human-made\",\n  \"model:b\": \"human-made\",\n  \"model:zed\": \"human-made\",\n  \"model:Zed\": \"human-made\"\n}\n"
+  },
+  {
+   "key": "model:a10",
+   "provenance": "human-made",
+   "file": "{\n  \"model:a_b\": \"human-made\",\n  \"model:a-b\": \"human-made\",\n  \"model:a:b\": \"human-made\",\n  \"model:a.b\": \"human-made\",\n  \"model:a1\": \"human-made\",\n  \"model:a10\": \"human-made\",\n  \"model:apple\": \"ai-generated\",\n  \"model:arty\": \"ai-assisted\",\n  \"model:Arty\": \"human-made\",\n  \"model:b\": \"human-made\",\n  \"model:zed\": \"human-made\",\n  \"model:Zed\": \"human-made\"\n}\n"
+  },
+  {
+   "key": "model:a2",
+   "provenance": "human-made",
+   "file": "{\n  \"model:a_b\": \"human-made\",\n  \"model:a-b\": \"human-made\",\n  \"model:a:b\": \"human-made\",\n  \"model:a.b\": \"human-made\",\n  \"model:a1\": \"human-made\",\n  \"model:a10\": \"human-made\",\n  \"model:a2\": \"human-made\",\n  \"model:apple\": \"ai-generated\",\n  \"model:arty\": \"ai-assisted\",\n  \"model:Arty\": \"human-made\",\n  \"model:b\": \"human-made\",\n  \"model:zed\": \"human-made\",\n  \"model:Zed\": \"human-made\"\n}\n"
+  },
+  {
+   "key": "model:A",
+   "provenance": "human-made",
+   "file": "{\n  \"model:A\": \"human-made\",\n  \"model:a_b\": \"human-made\",\n  \"model:a-b\": \"human-made\",\n  \"model:a:b\": \"human-made\",\n  \"model:a.b\": \"human-made\",\n  \"model:a1\": \"human-made\",\n  \"model:a10\": \"human-made\",\n  \"model:a2\": \"human-made\",\n  \"model:apple\": \"ai-generated\",\n  \"model:arty\": \"ai-assisted\",\n  \"model:Arty\": \"human-made\",\n  \"model:b\": \"human-made\",\n  \"model:zed\": \"human-made\",\n  \"model:Zed\": \"human-made\"\n}\n"
+  },
+  {
+   "key": "model:a",
+   "provenance": "human-made",
+   "file": "{\n  \"model:a\": \"human-made\",\n  \"model:A\": \"human-made\",\n  \"model:a_b\": \"human-made\",\n  \"model:a-b\": \"human-made\",\n  \"model:a:b\": \"human-made\",\n  \"model:a.b\": \"human-made\",\n  \"model:a1\": \"human-made\",\n  \"model:a10\": \"human-made\",\n  \"model:a2\": \"human-made\",\n  \"model:apple\": \"ai-generated\",\n  \"model:arty\": \"ai-assisted\",\n  \"model:Arty\": \"human-made\",\n  \"model:b\": \"human-made\",\n  \"model:zed\": \"human-made\",\n  \"model:Zed\": \"human-made\"\n}\n"
+  },
+  {
+   "key": "model:aA",
+   "provenance": "human-made",
+   "file": "{\n  \"model:a\": \"human-made\",\n  \"model:A\": \"human-made\",\n  \"model:a_b\": \"human-made\",\n  \"model:a-b\": \"human-made\",\n  \"model:a:b\": \"human-made\",\n  \"model:a.b\": \"human-made\",\n  \"model:a1\": \"human-made\",\n  \"model:a10\": \"human-made\",\n  \"model:a2\": \"human-made\",\n  \"model:aA\": \"human-made\",\n  \"model:apple\": \"ai-generated\",\n  \"model:arty\": \"ai-assisted\",\n  \"model:Arty\": \"human-made\",\n  \"model:b\": \"human-made\",\n  \"model:zed\": \"human-made\",\n  \"model:Zed\": \"human-made\"\n}\n"
+  },
+  {
+   "key": "model:Aa",
+   "provenance": "human-made",
+   "file": "{\n  \"model:a\": \"human-made\",\n  \"model:A\": \"human-made\",\n  \"model:a_b\": \"human-made\",\n  \"model:a-b\": \"human-made\",\n  \"model:a:b\": \"human-made\",\n  \"model:a.b\": \"human-made\",\n  \"model:a1\": \"human-made\",\n  \"model:a10\": \"human-made\",\n  \"model:a2\": \"human-made\",\n  \"model:aA\": \"human-made\",\n  \"model:Aa\": \"human-made\",\n  \"model:apple\": \"ai-generated\",\n  \"model:arty\": \"ai-assisted\",\n  \"model:Arty\": \"human-made\",\n  \"model:b\": \"human-made\",\n  \"model:zed\": \"human-made\",\n  \"model:Zed\": \"human-made\"\n}\n"
+  },
+  {
+   "key": "model:AA",
+   "provenance": "human-made",
+   "file": "{\n  \"model:a\": \"human-made\",\n  \"model:A\": \"human-made\",\n  \"model:a_b\": \"human-made\",\n  \"model:a-b\": \"human-made\",\n  \"model:a:b\": \"human-made\",\n  \"model:a.b\": \"human-made\",\n  \"model:a1\": \"human-made\",\n  \"model:a10\": \"human-made\",\n  \"model:a2\": \"human-made\",\n  \"model:aA\": \"human-made\",\n  \"model:Aa\": \"human-made\",\n  \"model:AA\": \"human-made\",\n  \"model:apple\": \"ai-generated\",\n  \"model:arty\": \"ai-assisted\",\n  \"model:Arty\": \"human-made\",\n  \"model:b\": \"human-made\",\n  \"model:zed\": \"human-made\",\n  \"model:Zed\": \"human-made\"\n}\n"
+  },
+  {
+   "key": "model:aa",
+   "provenance": "human-made",
+   "file": "{\n  \"model:a\": \"human-made\",\n  \"model:A\": \"human-made\",\n  \"model:a_b\": \"human-made\",\n  \"model:a-b\": \"human-made\",\n  \"model:a:b\": \"human-made\",\n  \"model:a.b\": \"human-made\",\n  \"model:a1\": \"human-made\",\n  \"model:a10\": \"human-made\",\n  \"model:a2\": \"human-made\",\n  \"model:aa\": \"human-made\",\n  \"model:aA\": \"human-made\",\n  \"model:Aa\": \"human-made\",\n  \"model:AA\": \"human-made\",\n  \"model:apple\": \"ai-generated\",\n  \"model:arty\": \"ai-assisted\",\n  \"model:Arty\": \"human-made\",\n  \"model:b\": \"human-made\",\n  \"model:zed\": \"human-made\",\n  \"model:Zed\": \"human-made\"\n}\n"
+  },
+  {
+   "key": "card:bare-bones",
+   "provenance": "human-made",
+   "file": "{\n  \"card:bare-bones\": \"human-made\",\n  \"model:a\": \"human-made\",\n  \"model:A\": \"human-made\",\n  \"model:a_b\": \"human-made\",\n  \"model:a-b\": \"human-made\",\n  \"model:a:b\": \"human-made\",\n  \"model:a.b\": \"human-made\",\n  \"model:a1\": \"human-made\",\n  \"model:a10\": \"human-made\",\n  \"model:a2\": \"human-made\",\n  \"model:aa\": \"human-made\",\n  \"model:aA\": \"human-made\",\n  \"model:Aa\": \"human-made\",\n  \"model:AA\": \"human-made\",\n  \"model:apple\": \"ai-generated\",\n  \"model:arty\": \"ai-assisted\",\n  \"model:Arty\": \"human-made\",\n  \"model:b\": \"human-made\",\n  \"model:zed\": \"human-made\",\n  \"model:Zed\": \"human-made\"\n}\n"
+  },
+  {
+   "key": "equipment:broadsword.webp",
+   "provenance": "ai-generated",
+   "file": "{\n  \"card:bare-bones\": \"human-made\",\n  \"equipment:broadsword.webp\": \"ai-generated\",\n  \"model:a\": \"human-made\",\n  \"model:A\": \"human-made\",\n  \"model:a_b\": \"human-made\",\n  \"model:a-b\": \"human-made\",\n  \"model:a:b\": \"human-made\",\n  \"model:a.b\": \"human-made\",\n  \"model:a1\": \"human-made\",\n  \"model:a10\": \"human-made\",\n  \"model:a2\": \"human-made\",\n  \"model:aa\": \"human-made\",\n  \"model:aA\": \"human-made\",\n  \"model:Aa\": \"human-made\",\n  \"model:AA\": \"human-made\",\n  \"model:apple\": \"ai-generated\",\n  \"model:arty\": \"ai-assisted\",\n  \"model:Arty\": \"human-made\",\n  \"model:b\": \"human-made\",\n  \"model:zed\": \"human-made\",\n  \"model:Zed\": \"human-made\"\n}\n"
+  },
+  {
+   "key": "equipment:Broad_sword.webp",
+   "provenance": "ai-generated",
+   "file": "{\n  \"card:bare-bones\": \"human-made\",\n  \"equipment:Broad_sword.webp\": \"ai-generated\",\n  \"equipment:broadsword.webp\": \"ai-generated\",\n  \"model:a\": \"human-made\",\n  \"model:A\": \"human-made\",\n  \"model:a_b\": \"human-made\",\n  \"model:a-b\": \"human-made\",\n  \"model:a:b\": \"human-made\",\n  \"model:a.b\": \"human-made\",\n  \"model:a1\": \"human-made\",\n  \"model:a10\": \"human-made\",\n  \"model:a2\": \"human-made\",\n  \"model:aa\": \"human-made\",\n  \"model:aA\": \"human-made\",\n  \"model:Aa\": \"human-made\",\n  \"model:AA\": \"human-made\",\n  \"model:apple\": \"ai-generated\",\n  \"model:arty\": \"ai-assisted\",\n  \"model:Arty\": \"human-made\",\n  \"model:b\": \"human-made\",\n  \"model:zed\": \"human-made\",\n  \"model:Zed\": \"human-made\"\n}\n"
+  },
+  {
+   "key": "card:9lives",
+   "provenance": "human-made",
+   "file": "{\n  \"card:9lives\": \"human-made\",\n  \"card:bare-bones\": \"human-made\",\n  \"equipment:Broad_sword.webp\": \"ai-generated\",\n  \"equipment:broadsword.webp\": \"ai-generated\",\n  \"model:a\": \"human-made\",\n  \"model:A\": \"human-made\",\n  \"model:a_b\": \"human-made\",\n  \"model:a-b\": \"human-made\",\n  \"model:a:b\": \"human-made\",\n  \"model:a.b\": \"human-made\",\n  \"model:a1\": \"human-made\",\n  \"model:a10\": \"human-made\",\n  \"model:a2\": \"human-made\",\n  \"model:aa\": \"human-made\",\n  \"model:aA\": \"human-made\",\n  \"model:Aa\": \"human-made\",\n  \"model:AA\": \"human-made\",\n  \"model:apple\": \"ai-generated\",\n  \"model:arty\": \"ai-assisted\",\n  \"model:Arty\": \"human-made\",\n  \"model:b\": \"human-made\",\n  \"model:zed\": \"human-made\",\n  \"model:Zed\": \"human-made\"\n}\n"
+  },
+  {
+   "key": "card:_under",
+   "provenance": "human-made",
+   "file": "{\n  \"card:_under\": \"human-made\",\n  \"card:9lives\": \"human-made\",\n  \"card:bare-bones\": \"human-made\",\n  \"equipment:Broad_sword.webp\": \"ai-generated\",\n  \"equipment:broadsword.webp\": \"ai-generated\",\n  \"model:a\": \"human-made\",\n  \"model:A\": \"human-made\",\n  \"model:a_b\": \"human-made\",\n  \"model:a-b\": \"human-made\",\n  \"model:a:b\": \"human-made\",\n  \"model:a.b\": \"human-made\",\n  \"model:a1\": \"human-made\",\n  \"model:a10\": \"human-made\",\n  \"model:a2\": \"human-made\",\n  \"model:aa\": \"human-made\",\n  \"model:aA\": \"human-made\",\n  \"model:Aa\": \"human-made\",\n  \"model:AA\": \"human-made\",\n  \"model:apple\": \"ai-generated\",\n  \"model:arty\": \"ai-assisted\",\n  \"model:Arty\": \"human-made\",\n  \"model:b\": \"human-made\",\n  \"model:zed\": \"human-made\",\n  \"model:Zed\": \"human-made\"\n}\n"
+  },
+  {
+   "key": "model:Arty",
+   "provenance": null,
+   "file": "{\n  \"card:_under\": \"human-made\",\n  \"card:9lives\": \"human-made\",\n  \"card:bare-bones\": \"human-made\",\n  \"equipment:Broad_sword.webp\": \"ai-generated\",\n  \"equipment:broadsword.webp\": \"ai-generated\",\n  \"model:a\": \"human-made\",\n  \"model:A\": \"human-made\",\n  \"model:a_b\": \"human-made\",\n  \"model:a-b\": \"human-made\",\n  \"model:a:b\": \"human-made\",\n  \"model:a.b\": \"human-made\",\n  \"model:a1\": \"human-made\",\n  \"model:a10\": \"human-made\",\n  \"model:a2\": \"human-made\",\n  \"model:aa\": \"human-made\",\n  \"model:aA\": \"human-made\",\n  \"model:Aa\": \"human-made\",\n  \"model:AA\": \"human-made\",\n  \"model:apple\": \"ai-generated\",\n  \"model:arty\": \"ai-assisted\",\n  \"model:b\": \"human-made\",\n  \"model:zed\": \"human-made\",\n  \"model:Zed\": \"human-made\"\n}\n"
+  },
+  {
+   "key": "model:nobody",
+   "provenance": null,
+   "file": "{\n  \"card:_under\": \"human-made\",\n  \"card:9lives\": \"human-made\",\n  \"card:bare-bones\": \"human-made\",\n  \"equipment:Broad_sword.webp\": \"ai-generated\",\n  \"equipment:broadsword.webp\": \"ai-generated\",\n  \"model:a\": \"human-made\",\n  \"model:A\": \"human-made\",\n  \"model:a_b\": \"human-made\",\n  \"model:a-b\": \"human-made\",\n  \"model:a:b\": \"human-made\",\n  \"model:a.b\": \"human-made\",\n  \"model:a1\": \"human-made\",\n  \"model:a10\": \"human-made\",\n  \"model:a2\": \"human-made\",\n  \"model:aa\": \"human-made\",\n  \"model:aA\": \"human-made\",\n  \"model:Aa\": \"human-made\",\n  \"model:AA\": \"human-made\",\n  \"model:apple\": \"ai-generated\",\n  \"model:arty\": \"ai-assisted\",\n  \"model:b\": \"human-made\",\n  \"model:zed\": \"human-made\",\n  \"model:Zed\": \"human-made\"\n}\n"
+  },
+  {
+   "key": "model:arty",
+   "provenance": "human-made",
+   "file": "{\n  \"card:_under\": \"human-made\",\n  \"card:9lives\": \"human-made\",\n  \"card:bare-bones\": \"human-made\",\n  \"equipment:Broad_sword.webp\": \"ai-generated\",\n  \"equipment:broadsword.webp\": \"ai-generated\",\n  \"model:a\": \"human-made\",\n  \"model:A\": \"human-made\",\n  \"model:a_b\": \"human-made\",\n  \"model:a-b\": \"human-made\",\n  \"model:a:b\": \"human-made\",\n  \"model:a.b\": \"human-made\",\n  \"model:a1\": \"human-made\",\n  \"model:a10\": \"human-made\",\n  \"model:a2\": \"human-made\",\n  \"model:aa\": \"human-made\",\n  \"model:aA\": \"human-made\",\n  \"model:Aa\": \"human-made\",\n  \"model:AA\": \"human-made\",\n  \"model:apple\": \"ai-generated\",\n  \"model:arty\": \"human-made\",\n  \"model:b\": \"human-made\",\n  \"model:zed\": \"human-made\",\n  \"model:Zed\": \"human-made\"\n}\n"
+  }
+ ],
+ "marks": [
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"key\":\"model:arty\",\"provenance\":\"human-made\"}",
+   "verdict": {
+    "ok": true,
+    "key": "model:arty",
+    "provenance": "human-made"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"key\":\"model:arty\",\"provenance\":null}",
+   "verdict": {
+    "ok": true,
+    "key": "model:arty",
+    "provenance": null
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"key\":\"model:arty\"}",
+   "verdict": {
+    "ok": false,
+    "status": 422,
+    "reason": "not AI generated, AI assisted, human made, or nothing"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"key\":\"model:arty\",\"provenance\":\"robot\"}",
+   "verdict": {
+    "ok": false,
+    "status": 422,
+    "reason": "not AI generated, AI assisted, human made, or nothing"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"key\":\"thing:arty\",\"provenance\":\"human-made\"}",
+   "verdict": {
+    "ok": false,
+    "status": 422,
+    "reason": "not a piece of art the engine knows how to name"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"key\":\"model:\",\"provenance\":\"human-made\"}",
+   "verdict": {
+    "ok": false,
+    "status": 422,
+    "reason": "not a piece of art the engine knows how to name"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"key\":5,\"provenance\":\"human-made\"}",
+   "verdict": {
+    "ok": false,
+    "status": 422,
+    "reason": "not a piece of art the engine knows how to name"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "[]",
+   "verdict": {
+    "ok": false,
+    "status": 422,
+    "reason": "not a piece of art the engine knows how to name"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "5",
+   "verdict": {
+    "ok": false,
+    "status": 422,
+    "reason": "not a piece of art the engine knows how to name"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "null",
+   "verdict": {
+    "ok": false,
+    "status": 422,
+    "reason": "not a piece of art the engine knows how to name"
+   }
+  },
+  {
+   "method": "GET",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"key\":\"model:arty\",\"provenance\":\"human-made\"}",
+   "verdict": {
+    "ok": false,
+    "status": 405,
+    "reason": "a change is a POST"
+   }
+  },
+  {
+   "method": "GET",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"key\":\"model:arty\",\"provenance\":null}",
+   "verdict": {
+    "ok": false,
+    "status": 405,
+    "reason": "a change is a POST"
+   }
+  },
+  {
+   "method": "GET",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"key\":\"model:arty\"}",
+   "verdict": {
+    "ok": false,
+    "status": 405,
+    "reason": "a change is a POST"
+   }
+  },
+  {
+   "method": "GET",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"key\":\"model:arty\",\"provenance\":\"robot\"}",
+   "verdict": {
+    "ok": false,
+    "status": 405,
+    "reason": "a change is a POST"
+   }
+  },
+  {
+   "method": "GET",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"key\":\"thing:arty\",\"provenance\":\"human-made\"}",
+   "verdict": {
+    "ok": false,
+    "status": 405,
+    "reason": "a change is a POST"
+   }
+  },
+  {
+   "method": "GET",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"key\":\"model:\",\"provenance\":\"human-made\"}",
+   "verdict": {
+    "ok": false,
+    "status": 405,
+    "reason": "a change is a POST"
+   }
+  },
+  {
+   "method": "GET",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"key\":5,\"provenance\":\"human-made\"}",
+   "verdict": {
+    "ok": false,
+    "status": 405,
+    "reason": "a change is a POST"
+   }
+  },
+  {
+   "method": "GET",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "[]",
+   "verdict": {
+    "ok": false,
+    "status": 405,
+    "reason": "a change is a POST"
+   }
+  },
+  {
+   "method": "GET",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "5",
+   "verdict": {
+    "ok": false,
+    "status": 405,
+    "reason": "a change is a POST"
+   }
+  },
+  {
+   "method": "GET",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "null",
+   "verdict": {
+    "ok": false,
+    "status": 405,
+    "reason": "a change is a POST"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"key\":\"model:arty\",\"provenance\":\"human-made\"}",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "not sent by the page"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"key\":\"model:arty\",\"provenance\":null}",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "not sent by the page"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"key\":\"model:arty\"}",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "not sent by the page"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"key\":\"model:arty\",\"provenance\":\"robot\"}",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "not sent by the page"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"key\":\"thing:arty\",\"provenance\":\"human-made\"}",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "not sent by the page"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"key\":\"model:\",\"provenance\":\"human-made\"}",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "not sent by the page"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"key\":5,\"provenance\":\"human-made\"}",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "not sent by the page"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "[]",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "not sent by the page"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "5",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "not sent by the page"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "null",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "not sent by the page"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "https://elsewhere.example",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"key\":\"model:arty\",\"provenance\":\"human-made\"}",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "sent from another origin"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "https://elsewhere.example",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"key\":\"model:arty\",\"provenance\":null}",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "sent from another origin"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "https://elsewhere.example",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"key\":\"model:arty\"}",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "sent from another origin"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "https://elsewhere.example",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"key\":\"model:arty\",\"provenance\":\"robot\"}",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "sent from another origin"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "https://elsewhere.example",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"key\":\"thing:arty\",\"provenance\":\"human-made\"}",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "sent from another origin"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "https://elsewhere.example",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"key\":\"model:\",\"provenance\":\"human-made\"}",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "sent from another origin"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "https://elsewhere.example",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"key\":5,\"provenance\":\"human-made\"}",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "sent from another origin"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "https://elsewhere.example",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "[]",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "sent from another origin"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "https://elsewhere.example",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "5",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "sent from another origin"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "https://elsewhere.example",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "null",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "sent from another origin"
+   }
+  }
+ ],
+ "saves": [
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"id\":\"p\",\"scenes\":[{\"id\":\"hall\"}]}",
+   "verdict": {
+    "ok": true,
+    "text": "{\"id\":\"p\",\"scenes\":[{\"id\":\"hall\"}]}\n"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\n  \"id\": \"p\",\n  \"scenes\": [\n    {\n      \"id\": \"hall\"\n    }\n  ]\n}\n",
+   "verdict": {
+    "ok": true,
+    "text": "{\n  \"id\": \"p\",\n  \"scenes\": [\n    {\n      \"id\": \"hall\"\n    }\n  ]\n}\n"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"id\":\"p\",\"scenes\":[]}",
+   "verdict": {
+    "ok": false,
+    "status": 422,
+    "reason": "not a project: no id, or no scenes"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"id\":5,\"scenes\":[{}]}",
+   "verdict": {
+    "ok": false,
+    "status": 422,
+    "reason": "not a project: no id, or no scenes"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"scenes\":[{}]}",
+   "verdict": {
+    "ok": false,
+    "status": 422,
+    "reason": "not a project: no id, or no scenes"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"id\":\"p\",\"scenes\":{}}",
+   "verdict": {
+    "ok": false,
+    "status": 422,
+    "reason": "not a project: no id, or no scenes"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "[{\"id\":\"p\",\"scenes\":[{}]}]",
+   "verdict": {
+    "ok": false,
+    "status": 422,
+    "reason": "not a project: no id, or no scenes"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "null",
+   "verdict": {
+    "ok": false,
+    "status": 422,
+    "reason": "not a project: no id, or no scenes"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "\"text\"",
+   "verdict": {
+    "ok": false,
+    "status": 422,
+    "reason": "not a project: no id, or no scenes"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "not json",
+   "verdict": {
+    "ok": false,
+    "status": 400,
+    "reason": "not JSON"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "",
+   "verdict": {
+    "ok": false,
+    "status": 400,
+    "reason": "not JSON"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"id\":\"p\",\"scenes\":[{}]}\r\n",
+   "verdict": {
+    "ok": true,
+    "text": "{\"id\":\"p\",\"scenes\":[{}]}\r\n"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"id\":\"é\",\"scenes\":[{}]}",
+   "verdict": {
+    "ok": true,
+    "text": "{\"id\":\"é\",\"scenes\":[{}]}\n"
+   }
+  },
+  {
+   "method": "GET",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"id\":\"p\",\"scenes\":[{\"id\":\"hall\"}]}",
+   "verdict": {
+    "ok": false,
+    "status": 405,
+    "reason": "a save is a POST"
+   }
+  },
+  {
+   "method": "GET",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\n  \"id\": \"p\",\n  \"scenes\": [\n    {\n      \"id\": \"hall\"\n    }\n  ]\n}\n",
+   "verdict": {
+    "ok": false,
+    "status": 405,
+    "reason": "a save is a POST"
+   }
+  },
+  {
+   "method": "GET",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"id\":\"p\",\"scenes\":[]}",
+   "verdict": {
+    "ok": false,
+    "status": 405,
+    "reason": "a save is a POST"
+   }
+  },
+  {
+   "method": "GET",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"id\":5,\"scenes\":[{}]}",
+   "verdict": {
+    "ok": false,
+    "status": 405,
+    "reason": "a save is a POST"
+   }
+  },
+  {
+   "method": "GET",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"scenes\":[{}]}",
+   "verdict": {
+    "ok": false,
+    "status": 405,
+    "reason": "a save is a POST"
+   }
+  },
+  {
+   "method": "GET",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"id\":\"p\",\"scenes\":{}}",
+   "verdict": {
+    "ok": false,
+    "status": 405,
+    "reason": "a save is a POST"
+   }
+  },
+  {
+   "method": "GET",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "[{\"id\":\"p\",\"scenes\":[{}]}]",
+   "verdict": {
+    "ok": false,
+    "status": 405,
+    "reason": "a save is a POST"
+   }
+  },
+  {
+   "method": "GET",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "null",
+   "verdict": {
+    "ok": false,
+    "status": 405,
+    "reason": "a save is a POST"
+   }
+  },
+  {
+   "method": "GET",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "\"text\"",
+   "verdict": {
+    "ok": false,
+    "status": 405,
+    "reason": "a save is a POST"
+   }
+  },
+  {
+   "method": "GET",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "not json",
+   "verdict": {
+    "ok": false,
+    "status": 405,
+    "reason": "a save is a POST"
+   }
+  },
+  {
+   "method": "GET",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "",
+   "verdict": {
+    "ok": false,
+    "status": 405,
+    "reason": "a save is a POST"
+   }
+  },
+  {
+   "method": "GET",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"id\":\"p\",\"scenes\":[{}]}\r\n",
+   "verdict": {
+    "ok": false,
+    "status": 405,
+    "reason": "a save is a POST"
+   }
+  },
+  {
+   "method": "GET",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"id\":\"é\",\"scenes\":[{}]}",
+   "verdict": {
+    "ok": false,
+    "status": 405,
+    "reason": "a save is a POST"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"id\":\"p\",\"scenes\":[{\"id\":\"hall\"}]}",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "not sent by the page"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\n  \"id\": \"p\",\n  \"scenes\": [\n    {\n      \"id\": \"hall\"\n    }\n  ]\n}\n",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "not sent by the page"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"id\":\"p\",\"scenes\":[]}",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "not sent by the page"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"id\":5,\"scenes\":[{}]}",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "not sent by the page"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"scenes\":[{}]}",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "not sent by the page"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"id\":\"p\",\"scenes\":{}}",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "not sent by the page"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "[{\"id\":\"p\",\"scenes\":[{}]}]",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "not sent by the page"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "null",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "not sent by the page"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "\"text\"",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "not sent by the page"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "not json",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "not sent by the page"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "not sent by the page"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"id\":\"p\",\"scenes\":[{}]}\r\n",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "not sent by the page"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"id\":\"é\",\"scenes\":[{}]}",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "not sent by the page"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "https://elsewhere.example",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"id\":\"p\",\"scenes\":[{\"id\":\"hall\"}]}",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "sent from another origin"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "https://elsewhere.example",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\n  \"id\": \"p\",\n  \"scenes\": [\n    {\n      \"id\": \"hall\"\n    }\n  ]\n}\n",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "sent from another origin"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "https://elsewhere.example",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"id\":\"p\",\"scenes\":[]}",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "sent from another origin"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "https://elsewhere.example",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"id\":5,\"scenes\":[{}]}",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "sent from another origin"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "https://elsewhere.example",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"scenes\":[{}]}",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "sent from another origin"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "https://elsewhere.example",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"id\":\"p\",\"scenes\":{}}",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "sent from another origin"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "https://elsewhere.example",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "[{\"id\":\"p\",\"scenes\":[{}]}]",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "sent from another origin"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "https://elsewhere.example",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "null",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "sent from another origin"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "https://elsewhere.example",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "\"text\"",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "sent from another origin"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "https://elsewhere.example",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "not json",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "sent from another origin"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "https://elsewhere.example",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "sent from another origin"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "https://elsewhere.example",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"id\":\"p\",\"scenes\":[{}]}\r\n",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "sent from another origin"
+   }
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "https://elsewhere.example",
+    "host": "127.0.0.1:8420"
+   },
+   "body": "{\"id\":\"é\",\"scenes\":[{}]}",
+   "verdict": {
+    "ok": false,
+    "status": 403,
+    "reason": "sent from another origin"
+   }
+  }
+ ]
+}

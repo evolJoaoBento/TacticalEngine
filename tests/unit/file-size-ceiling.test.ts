@@ -27,12 +27,9 @@ const CEILING = 1500;
  * under the ceiling; lower it when the file shrinks. Never raise one.
  */
 const PINNED: Record<string, number> = {
-  'src/game/demo-defense.test.ts': 10540,
-  'src/game/demo-scene.ts': 4377,
-  'src/editor/authored-scenario.test.ts': 3416,
-  'tests/e2e/demo.spec.ts': 2918,
+  'tests/e2e/demo.spec.ts': 2913,
   'src/engine/script/world.ts': 2616,
-  'src/main.ts': 2470,
+  'src/main.ts': 2426,
   'src/engine/script/runner.ts': 1953,
   'src/editor/session.ts': 1631,
   'tests/fixtures/cards.ts': 1652,

@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures';
 import { closeLoadout } from './pack';
 
 /** A 1x1 PNG, small enough to paste and real enough for the browser to decode. */

@@ -7,7 +7,7 @@ import { describe, it, expect } from 'vitest';
 import { TileGrid, type Spot } from '../engine/grid/grid';
 import { OrbitCamera } from '../engine/render/camera';
 import { DEFAULT_LAYOUT, spotToWorld } from '../engine/render/layout';
-import { CameraFocus } from './camera-focus';
+import { CameraFocus, LEASH_TILES } from './camera-focus';
 
 function setup() {
   const grid = new TileGrid({ width: 20, height: 10 });
@@ -66,3 +66,53 @@ describe('the camera on whoever is played', () => {
     expect(camera.goal.target.x).toBeCloseTo(spotToWorld(grid, { x: 18.5, y: 1.5 }).x, 9);
   });
 });
+
+describe('the leash to whoever is played', () => {
+  function leashed(selected: string | null, talking: Spot | null = null) {
+    const grid = new TileGrid({ width: 40, height: 40 });
+    const camera = new OrbitCamera({ yaw: 0, pitch: 0.85 });
+    camera.snap();
+    const where = new Map<string, Spot>([['kara', { x: 20.5, y: 20.5 }]]);
+    const view = { hasWalk: () => false, layout: DEFAULT_LAYOUT };
+    const focus = new CameraFocus(camera, view, () => ({ grid, at: (id) => where.get(id) ?? null, talking, selected }));
+    return { grid, camera, where, focus };
+  }
+  const away = (camera: OrbitCamera, point: { x: number; z: number }) => Math.hypot(camera.goal.target.x - point.x, camera.goal.target.z - point.z);
+
+  it('lets the camera be panned away from them, as far as the leash and no further', () => {
+    const { grid, camera, focus } = leashed('kara');
+    const kara = spotToWorld(grid, { x: 20.5, y: 20.5 });
+    camera.follow(kara, 0);
+    camera.pan(3, 0);
+    focus.tick();
+    expect(away(camera, kara)).toBeCloseTo(3, 9);
+    for (let i = 0; i < 40; i++) {
+      camera.pan(2, 1);
+      focus.tick();
+    }
+    expect(away(camera, kara)).toBeCloseTo(LEASH_TILES * DEFAULT_LAYOUT.tileSize, 9);
+  });
+
+  it('follows them at the end of the leash when they walk off', () => {
+    const { grid, camera, where, focus } = leashed('kara');
+    camera.follow(spotToWorld(grid, { x: 20.5, y: 20.5 }), 0);
+    where.set('kara', { x: 38.5, y: 20.5 });
+    focus.tick();
+    expect(away(camera, spotToWorld(grid, { x: 38.5, y: 20.5 }))).toBeCloseTo(LEASH_TILES * DEFAULT_LAYOUT.tileSize, 9);
+  });
+
+  it('holds nobody in the editor, and gives way to a conversation', () => {
+    const editor = leashed(null);
+    editor.camera.pan(100, 0);
+    const before = { ...editor.camera.goal.target };
+    editor.focus.tick();
+    expect(editor.camera.goal.target).toEqual(before);
+
+    const talk = leashed('kara', { x: 2.5, y: 2.5 });
+    talk.focus.tick();
+    const listener = spotToWorld(talk.grid, { x: 2.5, y: 2.5 });
+    expect(talk.camera.goal.target.x).toBeCloseTo(listener.x, 9);
+    expect(talk.camera.goal.target.z).toBeCloseTo(listener.z, 9);
+  });
+});
+

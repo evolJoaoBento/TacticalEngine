@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
-import type { GrantedCard, LoadoutCard, LoadoutView, SheetStats } from '../demo-abilities';
+import type { GrantedCard, LoadoutCard, LoadoutView } from '../demo-abilities';
 import { CardFace, GrantedFace } from './CardFace';
 import { CardArtImport } from './CardArtImport';
 import { useGearPages } from './GearBinder';
-import { Pips, type HudMember } from './PartyHud';
+import type { HudMember } from './PartyHud';
+import { SheetPaper } from './SheetPaper';
 import type { GearView } from '../gear';
 import type { GearSlot } from '../equip';
 import './cards.css';
@@ -43,43 +44,6 @@ const nothing = (): void => undefined;
  * `gear.css`, each half of it half of this. The two have to agree.
  */
 const GEAR_TURN_MS = 640;
-
-const signed = (value: number): string => (value > 0 ? `+${value}` : `${value}`);
-/** A threshold they do not have is `Infinity`, which is not a number anybody writes on a sheet. */
-const threshold = (value: number): string => (Number.isFinite(value) ? `${value}` : '—');
-
-/**
- * The block of numbers a paper sheet is mostly made of: what it takes to hit them, how hard a blow
- * must be to cost more than one Hit Point, and what they add to a roll.
- *
- * The thresholds are laid out the way the printed sheet does it -- the three bands in a line with
- * the two numbers between them -- because that is the shape a player reads damage against: find
- * where the number falls, read off how many Hit Points to mark.
- */
-function SheetNumbers({ stats }: { stats: SheetStats }) {
-  return <div className="sheet-stats" data-testid="sheet-stats">
-    <div className="sheet-defence">
-      <div className="sheet-shield" data-testid="sheet-evasion"><b>{stats.evasion}</b><span>Evasion</span></div>
-      <div className="sheet-shield" data-testid="sheet-proficiency"><b>{stats.proficiency}</b><span>Proficiency</span></div>
-      <div className="sheet-bands" data-testid="sheet-thresholds" aria-label={`Damage thresholds: Major ${threshold(stats.thresholds.major)}, Severe ${threshold(stats.thresholds.severe)}`}>
-        <span>Minor<small>mark 1 HP</small></span>
-        <b>{threshold(stats.thresholds.major)}</b>
-        <span>Major<small>mark 2 HP</small></span>
-        <b>{threshold(stats.thresholds.severe)}</b>
-        <span>Severe<small>mark 3 HP</small></span>
-      </div>
-    </div>
-    <div className="sheet-traits">
-      {stats.traits.map(trait => <div key={trait.id} className={`sheet-trait${trait.spellcast ? ' is-spellcast' : ''}`} data-testid={`sheet-trait-${trait.id}`}>
-        <b>{signed(trait.value)}</b><span>{trait.id}</span>{trait.spellcast ? <small>Spellcast</small> : null}
-      </div>)}
-    </div>
-    {stats.experiences.length === 0 ? null : <div className="sheet-experiences">
-      <h3>Experiences</h3>
-      {stats.experiences.map(experience => <p key={experience.name}><span>{experience.name}</span><b>{signed(experience.modifier)}</b></p>)}
-    </div>}
-  </div>;
-}
 
 /**
  * How many columns the card grid is showing.
@@ -418,40 +382,16 @@ export function LoadoutPanel(props: LoadoutPanelProps): preact.JSX.Element {
         <aside className="deck-sheet" data-testid="loadout-sheet">
           {/* The leaf is the binder's board; the paper is a sheet lying on it, with board showing
               round three sides of it. */}
-          <div className="sheet-paper">
-          {/* The head of the sheet: who they are and how they are holding up on the left, their
-              photograph on the right. A row of its own, because a float does nothing inside a
-              flex column -- which is how the photo first ended up stranded above the name. */}
-          <div className="sheet-top">
-            <div className="sheet-id">
-              <div className="deck-eyebrow">{props.sheet?.role ?? 'Character'}{view.stats === undefined ? '' : ` · Level ${view.stats.level}`}</div>
-              <h2 className="sheet-name">{props.name}</h2>
-              {props.sheet === undefined ? null : <>
-                <Pips label="HP" marked={props.sheet.hitPoints.marked} max={props.sheet.hitPoints.max} colour="var(--play-hp)" icon="heart" left testId="sheet-hp" />
-                <Pips label="Stress" marked={props.sheet.stress.marked} max={props.sheet.stress.max} colour="var(--play-stress)" icon="bolt" left testId="sheet-stress" />
-                <Pips label="Armor" marked={props.sheet.armorSlots.marked} max={props.sheet.armorSlots.max} colour="var(--play-armor)" icon="shield" left testId="sheet-armor" />
-                {props.sheet.good === undefined ? null
-                  : <Pips label="Light" marked={props.sheet.good.value} max={props.sheet.good.max} colour="var(--play-light)" icon="star" testId="sheet-light" />}
-              </>}
-            </div>
-            {props.portrait === null || props.portrait === undefined ? null : (
-              <span className="hud-shot sheet-shot" data-testid="sheet-portrait">
-                <img src={props.portrait} alt="" aria-hidden="true" />
-              </span>
-            )}
-          </div>
-          {view.stats === undefined ? null : <SheetNumbers stats={view.stats} />}
-          {props.sheet === undefined ? null : <>
-            <p className="sheet-line"><span>Gear</span><b>{props.sheet.gear}</b></p>
-            {props.sheet.conditions.length > 0 ? <p className="sheet-line"><span>Conditions</span><b>{props.sheet.conditions.join(' · ')}</b></p> : null}
-          </>}
-          {/* One line for the three counts: the pocket page opposite already says each of them over
-              its own section, and the paper has better things to spend three rows on. */}
-          <p className="sheet-line" data-testid="sheet-counts"><span>Cards</span><b>{view.loadout.length} / {view.limit} in hand · {view.granted.length} always · {view.vault.length} in the vault</b></p>
-          {/* A refused recall says so here now that there is no footer band to say it in. It is
-              the only word a player gets about why a swap did not happen, so it keeps its name. */}
-          {props.issue === null ? null : <p className="sheet-issue" role="alert" data-testid="loadout-issue">{props.issue}</p>}
-          </div>
+          <SheetPaper name={props.name} eyebrow={`${props.sheet?.role ?? 'Character'}${view.stats === undefined ? '' : ` · Level ${view.stats.level}`}`}
+            {...(props.sheet === undefined ? {} : { sheet: props.sheet })} {...(props.portrait === undefined ? {} : { portrait: props.portrait })}
+            {...(view.stats === undefined ? {} : { stats: view.stats })}>
+            {/* One line for the three counts: the pocket page opposite already says each of them over
+                its own section, and the paper has better things to spend three rows on. */}
+            <p className="sheet-line" data-testid="sheet-counts"><span>Cards</span><b>{view.loadout.length} / {view.limit} in hand · {view.granted.length} always · {view.vault.length} in the vault</b></p>
+            {/* A refused recall says so here now that there is no footer band to say it in. It is
+                the only word a player gets about why a swap did not happen, so it keeps its name. */}
+            {props.issue === null ? null : <p className="sheet-issue" role="alert" data-testid="loadout-issue">{props.issue}</p>}
+          </SheetPaper>
           {/* The divider's back, turned over onto the sheet with the card pages: black card, its tab out
               of the left edge reading Back, the equipment sheet lying on it. */}
           {gearOpen ? (

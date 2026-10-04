@@ -18,19 +18,13 @@
 
 import { z } from 'zod';
 
-import { setSheet, type DemoScene } from './demo-scene';
+import { type DemoScene } from './demo-scene';
 import { inCombat } from './moment';
-import { characterContentFor, enterSavedScene } from './room';
-import { deriveCharacter } from '../engine/character/sheet';
 import { characterSheetSchema } from '../engine/character/sheet-schema';
 import { logToneSchema } from '../engine/script/schema';
-import {
-  restoreScenario,
-  scenarioSnapshot,
-  scenarioSnapshotSchema,
-} from '../engine/script/world';
+import { scenarioSnapshot, scenarioSnapshotSchema } from '../engine/script/world';
 import { sceneSnapshotSchema } from '../engine/scene/state';
-import { migrateDocument, CURRENT_FORMAT_VERSION } from '../engine/scene/migrate';
+import { CURRENT_FORMAT_VERSION } from '../engine/scene/migrate';
 import { talkingAside } from './talks';
 
 export const saveSchema = z.object({
@@ -125,76 +119,3 @@ export function serialiseSave(demo: DemoScene): string | null {
 }
 
 export type LoadResult = { ok: true } | { ok: false; reason: string };
-
-/**
- * Put a saved campaign back into a live `DemoScene`.
- *
- * The scenario is refilled in place rather than replaced: every
- * `SceneScriptWorld` built so far points at that object, and handing back a new
- * one would leave the room writing flags nobody reads.
- */
-export function loadGame(demo: DemoScene, save: SaveGame): LoadResult {
-  if (save.projectId !== demo.project.id) {
-    return { ok: false, reason: `this save belongs to project "${save.projectId}"` };
-  }
-  const current = save.scenes[save.sceneId];
-  if (current === undefined) {
-    return { ok: false, reason: `the save has no state for scene "${save.sceneId}"` };
-  }
-  // Every refusal gets its chance *before* anything is touched: a save naming a
-  // room the editor has since deleted must leave the game being played alone
-  // rather than half-loaded.
-  if (!demo.project.scenes.some((scene) => scene.id === save.sceneId)) {
-    return { ok: false, reason: `this project has no scene "${save.sceneId}"` };
-  }
-
-  restoreScenario(demo.scenario, save.scenario);
-  for (const sheet of save.sheets) {
-    const derived = deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities);
-    if (derived.issues.length > 0) {
-      return { ok: false, reason: `${sheet.name}'s sheet: ${derived.issues[0]!.message}` };
-    }
-  }
-  for (const sheet of save.sheets) {
-    // Somebody who joined after the project was written - added in the Party
-    // panel, played, saved - is on the saved board with no sheet in this
-    // document. The save's sheet is the one they have, and the party is the
-    // list the game writes as well as reads, so they go into the document
-    // rather than being pulled off the board on the next Play.
-    if (!demo.sheets.has(sheet.id)) {
-      demo.sheets.set(sheet.id, sheet);
-      if (!demo.project.party.some((s) => s.id === sheet.id)) {
-        demo.project.party.push(characterSheetSchema.parse(sheet));
-      }
-    }
-    setSheet(demo, sheet);
-  }
-  enterSavedScene(demo, save.sceneId, current);
-
-  demo.snapshots.clear();
-  for (const [id, snapshot] of Object.entries(save.scenes)) {
-    if (id !== save.sceneId) demo.snapshots.set(id, snapshot);
-  }
-  demo.rng.restore(save.rng);
-  demo.log.length = 0;
-  for (const line of save.log) demo.log.push({ ...line });
-  if (save.selected !== null && demo.party.members().includes(save.selected)) {
-    demo.party.select(save.selected);
-  }
-  return { ok: true };
-}
-
-/** Parse and load in one step, reporting a malformed save rather than throwing. */
-export function loadGameText(demo: DemoScene, text: string): LoadResult {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(text);
-  } catch {
-    return { ok: false, reason: 'this is not a save file' };
-  }
-  // Migrate before validating. A save older than this build is rewritten on the way in; one
-  // newer is left alone so the schema refuses it and the reason below is the true one.
-  const result = saveSchema.safeParse(migrateDocument(parsed));
-  if (!result.success) return { ok: false, reason: 'this save is damaged or from a newer build' };
-  return loadGame(demo, result.data);
-}

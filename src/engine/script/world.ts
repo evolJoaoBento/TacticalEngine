@@ -1474,7 +1474,7 @@ export class SceneScriptWorld implements ScriptWorld {
   }
 
   proficiencyOf(id: string): number {
-    return this.characters.get(id)?.sheet.proficiency ?? 1;
+    return this.characters.get(id)?.proficiency ?? 1;
   }
 
   /**

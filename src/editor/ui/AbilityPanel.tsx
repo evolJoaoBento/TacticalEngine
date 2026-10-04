@@ -20,6 +20,7 @@
  */
 
 import { useState } from 'preact/hooks';
+import { AiBadge, artMarkHandlers } from './AiMark';
 import type { EditorSession } from '../session';
 import { addAbility, addCard, addCardWithAbility, removeCard, removeCardWithAbility, updateAbility, updateCard, updateCardWords } from '../card-edits';
 import { scriptIdFor, unscriptedCards } from '../card-list';
@@ -974,7 +975,10 @@ export function AbilityPanel(props: AbilityPanelProps): preact.JSX.Element {
       </div>
 
       {props.preview === undefined || shown === null ? null : (
-        <div style={{ width: '230px', flex: 'none', overflow: 'auto' }}>{props.preview(shown)}</div>
+        <div class="ph-ai-frame" style={{ width: '230px', flex: 'none', overflow: 'auto', alignSelf: 'flex-start' }} data-testid="card-preview-frame" {...artMarkHandlers(`card:${shown.id}`)}>
+          {props.preview(shown)}
+          <AiBadge art={`card:${shown.id}`} />
+        </div>
       )}
     </div>
   );

@@ -7,11 +7,17 @@
  * read back once it has loaded, so a state is chosen rather than typed.
  */
 
-import { useEffect } from 'preact/hooks';
+import { useEffect, useState } from 'preact/hooks';
 import { modelAssetSchema, type ModelAsset } from '../../engine/render/assets';
 import { addAsset, removeAsset, updateAsset, type EditorSession } from '../session';
 import { memory } from '../model-memory';
 import { Icon } from './icons';
+import { AiBadge, artMarkHandlers } from './AiMark';
+import { shippedPack } from '../../game/listed-packs';
+import { addEngineModel, assignedAncestry, isShippedModel, setModelAncestry } from '../../game/model-ancestries';
+import { ancestryOfModel } from '../../game/character-models';
+import { currentUser } from '../../game/accounts';
+import { listYourModels, ownerOfModelUrl, type YourModel } from '../../game/your-models';
 
 /** The back arrow every workspace returns to the board with, before its title, styled like the others'. */
 const CLOSE_BUTTON: Record<string, string | number> = {
@@ -68,6 +74,8 @@ function freeId(session: EditorSession, wanted: string): string {
  * printing it would fill the panel — so it is reported by size instead.
  */
 function sourceLabel(url: string): string {
+  const owner = ownerOfModelUrl(url);
+  if (owner !== null) return `${owner === currentUser() ? 'your models' : `${owner}'s models`} · ${url.slice(url.lastIndexOf('/') + 1)}`;
   if (!url.startsWith('data:')) return url;
   const base64 = url.slice(url.indexOf(',') + 1);
   const bytes = Math.floor((base64.length * 3) / 4);
@@ -123,6 +131,35 @@ export function ModelsWorkspace(props: {
     props.onChange();
   };
 
+  // Which ancestry a shipped model draws is kept for every project, not in this one, so it is sent to
+  // the server rather than run as an edit - there is no undoing it with Ctrl+Z - and each model says
+  // whether it was kept.
+  const ancestries = [...(shippedPack('srd-characters')?.ancestries ?? []), ...session.project.ancestries]
+    .filter((entry, i, all) => all.findIndex((other) => other.id === entry.id) === i)
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const nameOfAncestry = (id: string): string => ancestries.find((entry) => entry.id === id)?.name ?? id;
+  const [ancestryNotes, setAncestryNotes] = useState<Record<string, string>>({});
+  const [engineNote, setEngineNote] = useState<string | null>(null);
+  // Your models: what is in the signed-in player's own folder, which the editor lays under this project.
+  const [yours, setYours] = useState<YourModel[] | string | null>(null);
+  useEffect(() => {
+    if (currentUser() === null) return;
+    void listYourModels().then((mine) => setYours(Array.isArray(mine) ? mine : mine.refused));
+  }, []);
+  const chooseAncestry = async (id: string, ancestry: string): Promise<void> => {
+    setAncestryNotes((was) => ({ ...was, [id]: 'Keeping it…' }));
+    const refused = await setModelAncestry(id, ancestry === '' ? null : ancestry);
+    setAncestryNotes((was) => ({
+      ...was,
+      [id]: refused !== null
+        ? `Not kept: ${refused}.`
+        : ancestry === ''
+          ? 'Kept, for every project: given to no ancestry.'
+          : `Kept, for every project: New Game offers it to a ${nameOfAncestry(ancestry)}.`,
+    }));
+    props.onChange();
+  };
+
   const setClip = (asset: ModelAsset, state: ClipState, name: string): void => {
     const next: Record<string, string> = { ...(asset.clips ?? {}) };
     if (name === '') delete next[state];
@@ -141,6 +178,97 @@ export function ModelsWorkspace(props: {
           <strong style={{ flex: 1 }}>Models</strong>
         </div>
 
+        {/* Adding one is at the top, where the page opens, rather than under every model there is. */}
+        <label class="ph-item" data-testid="add-model">
+          + Model
+          <input
+            class="ph-file"
+            type="file"
+            accept=".glb,.gltf,model/gltf-binary,model/gltf+json"
+            onChange={(e) => {
+              const input = e.currentTarget;
+              const file = input.files?.[0];
+              if (file === undefined) return;
+              void readAsDataUrl(file).then(async (url) => {
+                const id = freeId(session, idFromFileName(file.name));
+                const asset = modelAssetSchema.parse({ id, url, scale: 1 });
+                session.run(addAsset(asset));
+                // Awaited: a tab closed the moment after a file is picked must still have
+                // written it, or the model is remembered only until the page goes away.
+                await memory().put(asset);
+                props.onAssetsChanged?.();
+                props.onRequestAssets?.(id);
+                props.onChange();
+                // Let the same file be picked again after a remove.
+                input.value = '';
+              });
+            }}
+          />
+        </label>
+        <div class="ph-note">
+          The file is stored in the project, so a save carries its art with it, and this browser
+          remembers it for the next time the editor opens. Pick it from Terrain's Props tab, name it
+          on an object, or point a creature at it from Encounters.
+        </div>
+        {/* Or into the engine itself: a file in public/models, which every project has and New Game can offer. */}
+        <label class="ph-item" data-testid="add-engine-model" title="Write the file into public/models: every project has it, and it can be given an ancestry">
+          + Model to the engine
+          <input
+            class="ph-file"
+            type="file"
+            accept=".glb,model/gltf-binary"
+            onChange={(e) => {
+              const input = e.currentTarget;
+              const file = input.files?.[0];
+              if (file === undefined) return;
+              setEngineNote(`Adding ${file.name}…`);
+              void file.arrayBuffer().then(async (bytes) => {
+                const added = await addEngineModel(file.name, bytes);
+                input.value = '';
+                if ('refused' in added) {
+                  setEngineNote(`Not added: ${added.refused}.`);
+                  return;
+                }
+                // In this project at once, as every shipped model is when a project opens.
+                if (!session.project.assets.some((asset) => asset.id === added.id)) {
+                  session.run(addAsset(modelAssetSchema.parse({ id: added.id, url: added.url, scale: 1 })));
+                }
+                setEngineNote(`Added to the engine as ${added.url.slice(1)}: every project has it now, and it can be given an ancestry below. The folder is not in git - to have it on another machine, upload it with the others and lock it (tools/lock-models.mjs).`);
+                props.onAssetsChanged?.();
+                props.onRequestAssets?.(added.id);
+                props.onChange();
+              });
+            }}
+          />
+        </label>
+        <div class="ph-note" data-testid="engine-model-note">
+          {engineNote ?? 'A .glb added to the engine is written into public/models, where the build’s own models are: every project has it, not only this one.'}
+        </div>
+        {yours === null ? null : (
+          <div data-testid="your-models">
+            <strong>Your models</strong>
+            {typeof yours === 'string' ? (
+              <div class="ph-note">{yours}</div>
+            ) : yours.length === 0 ? (
+              <div class="ph-note">None yet. Get a model in the Store, or open a project that carries some: they come here, and into every project you open.</div>
+            ) : (
+              <>
+                <div class="ph-note">Got from the Store, or brought in by a project you opened: every project you open has them.</div>
+                {yours.map((model) => {
+                  const here = session.project.assets.find((asset) => asset.id === model.id);
+                  return (
+                    <div class="ph-row" key={model.id} data-testid="your-model" data-model={model.id}>
+                      <span style={{ flex: 1 }}>{model.id}</span>
+                      <span class="ph-note">{model.listing !== undefined ? 'from the Store · ' : ''}{here === undefined ? 'not in this project' : here.url === model.url ? 'in this project' : 'this project has its own ' + model.id}</span>
+                    </div>
+                  );
+                })}
+              </>
+            )}
+          </div>
+        )}
+
+
         {session.project.assets.map((asset) => {
           const clips = props.assetClips?.(asset.id) ?? [];
           const preview = props.preview?.(asset.id) ?? null;
@@ -152,14 +280,17 @@ export function ModelsWorkspace(props: {
                 {/* Where it will stand, on a tile with its base under it: big enough that a
                     nudge of a tenth of a tile is something you can see. */}
                 {preview !== null ? (
-                  <img
-                    src={preview}
-                    alt=""
-                    width={PREVIEW_SIZE}
-                    height={PREVIEW_SIZE}
-                    data-testid={`asset-preview-${asset.id}`}
-                    style={PREVIEW}
-                  />
+                  <span class="ph-ai-frame" {...artMarkHandlers(`model:${asset.id}`)}>
+                    <img
+                      src={preview}
+                      alt=""
+                      width={PREVIEW_SIZE}
+                      height={PREVIEW_SIZE}
+                      data-testid={`asset-preview-${asset.id}`}
+                      style={PREVIEW}
+                    />
+                    <AiBadge art={`model:${asset.id}`} />
+                  </span>
                 ) : null}
                 <div style={TUNING}>
               <div class="ph-row">
@@ -290,6 +421,34 @@ export function ModelsWorkspace(props: {
                 </span>
               </div>
 
+              {/* A model the build ships can be given an ancestry, for New Game to offer: kept for every project. */}
+              {isShippedModel(asset.id) ? (() => {
+                const given = assignedAncestry(asset.id);
+                const byName = given === undefined ? ancestryOfModel({ id: asset.id }, ancestries.map((entry) => entry.id)) : undefined;
+                return (
+                  <div class="ph-row">
+                    <label class="ph-heading" style={FIELD}>
+                      Ancestry
+                      <select
+                        class="ph-select"
+                        style={CONTROL}
+                        data-testid={`asset-ancestry-${asset.id}`}
+                        value={given ?? ''}
+                        onChange={(e) => void chooseAncestry(asset.id, e.currentTarget.value)}
+                      >
+                        <option value="">{byName === undefined ? 'None' : `None given (named for ${nameOfAncestry(byName)})`}</option>
+                        {ancestries.map((entry) => (
+                          <option key={entry.id} value={entry.id}>{entry.name}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <span class="ph-note" style={{ margin: 0 }} data-testid={`asset-ancestry-note-${asset.id}`}>
+                      {ancestryNotes[asset.id] ?? 'Which ancestry New Game offers it to - for every project, not only this one.'}
+                    </span>
+                  </div>
+                );
+              })() : null}
+
               <div class="ph-row">
                 {CLIP_STATES.map((state) => (
                   <label key={state} class="ph-heading" style={FIELD}>
@@ -326,37 +485,6 @@ export function ModelsWorkspace(props: {
           );
         })}
 
-        <label class="ph-item" data-testid="add-model">
-          + Model
-          <input
-            class="ph-file"
-            type="file"
-            accept=".glb,.gltf,model/gltf-binary,model/gltf+json"
-            onChange={(e) => {
-              const input = e.currentTarget;
-              const file = input.files?.[0];
-              if (file === undefined) return;
-              void readAsDataUrl(file).then(async (url) => {
-                const id = freeId(session, idFromFileName(file.name));
-                const asset = modelAssetSchema.parse({ id, url, scale: 1 });
-                session.run(addAsset(asset));
-                // Awaited: a tab closed the moment after a file is picked must still have
-                // written it, or the model is remembered only until the page goes away.
-                await memory().put(asset);
-                props.onAssetsChanged?.();
-                props.onRequestAssets?.(id);
-                props.onChange();
-                // Let the same file be picked again after a remove.
-                input.value = '';
-              });
-            }}
-          />
-        </label>
-        <div class="ph-note">
-          The file is stored in the project, so a save carries its art with it, and this browser
-          remembers it for the next time the editor opens. Pick it from Terrain's Props tab, name it
-          on an object, or point a creature at it from Encounters.
-        </div>
       </div>
     </div>
   );

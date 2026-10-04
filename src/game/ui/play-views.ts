@@ -14,10 +14,10 @@ import { inCombat } from '../moment';
 import { characterContentFor } from '../room';
 import type { HudMember } from './PartyHud';
 import type { JournalQuest, OpenContainer } from './PlayPanel';
-import { closeContainer, containerContents, openContainer, shopOpen, takeFromContainer } from '../prop-use';
+import { containerContents, openContainer, shopOpen } from '../prop-use';
 import { talkingAside } from '../talks';
 import { nameOf } from '../log';
-import { purse, sellTo, sellables, shopOf } from '../shop';
+import { purse, sellables, shopOf } from '../shop';
 import { interactablesOf } from '../../engine/scene/prop-functions';
 import type { Spot } from '../../engine/grid/grid';
 import type { TalkingView } from './Conversation';
@@ -70,25 +70,29 @@ export function hudMembers(demo: DemoScene): HudMember[] {
       conditions: [...entity.conditions].map((c) => demo.world.conditionName(c)),
       canLevel: waiting.has(entity.id) && !inCombat(demo) && demo.pending === null && !aside.has(entity.id),
       gear: `${gearOf(demo, entity.id).weapon} · ${gearOf(demo, entity.id).armor}`,
+      model: sheet?.model ?? entity.id,
       group: demo.party.groupOf(entity.id).length > 1 ? groups.indexOf(demo.party.groupOf(entity.id)[0]!) : null,
       talking: aside.has(entity.id),
     };
   });
 }
 
+/** What the container window's buttons do: each an intent of the game's (`GameTable.containerView`). */
+export interface ContainerActs {
+  take(item: string): void;
+  sell(item: string): void;
+  close(): void;
+}
+
 /**
- * The container window, when one is open: its contents, and what Take and Close do.
- *
- * Shut when whoever opened it has walked out of reach, the way a real chest stops being in front
- * of you - otherwise a window left open would let the party empty a chest from across the room.
+ * The container window, when one is open: its contents, and what Take, Sell and Close do (`acts`). The game
+ * shuts it when whoever opened it has walked out of reach (`GameTable.containerView`), the way a real chest
+ * stops being in front of you - otherwise a window left open would let the party empty a chest from across
+ * the room.
  */
-export function containerView(demo: DemoScene, reach: (id: string) => boolean, refresh: () => void): OpenContainer | null {
+export function containerView(demo: DemoScene, acts: ContainerActs): OpenContainer | null {
   const id = openContainer(demo);
   if (id === null) return null;
-  if (!reach(id)) {
-    closeContainer(demo);
-    return null;
-  }
   const prop = demo.scene.decos.find((deco) => deco.id === id);
   // A shop says what it is paid in and how much of it the party has; a merchant is called by name.
   const shop = shopOf(demo, id);
@@ -101,19 +105,10 @@ export function containerView(demo: DemoScene, reach: (id: string) => boolean, r
       paidIn: { name: itemOf(demo.project, shop.currency)?.name ?? shop.currency, held: purse(demo, shop) },
       // What the party can sell back: the seller's own lines, for half.
       selling: sellables(demo, id).map((line) => ({ ...line, card: gearCard(demo, line.item) })),
-      onSell: (item: string) => {
-        sellTo(demo, id, item);
-        refresh();
-      },
+      onSell: acts.sell,
     }),
-    onTake: (item) => {
-      takeFromContainer(demo, id, item);
-      refresh();
-    },
-    onClose: () => {
-      closeContainer(demo);
-      refresh();
-    },
+    onTake: acts.take,
+    onClose: acts.close,
   };
 }
 

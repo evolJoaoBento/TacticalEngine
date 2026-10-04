@@ -11,13 +11,19 @@
  *
  * A model is added by id and only when the project has none of that id, so one the author re-seated
  * or re-scaled keeps their settings, and a project that already has everything is left untouched.
+ *
+ * And the models it carries become the signed-in player's own (`your-models.ts`), on the fly and
+ * without waiting: an embedded file, or one in another player's folder, is in their folder for the
+ * next project they make.
  */
 
-import { SHIPPED_MODELS } from 'virtual:shipped-models';
+import { SHIPPED_MODELS } from './engine-lists';
 import { modelAssetSchema } from '../engine/render/assets';
 import type { ProjectDoc } from '../engine/scene/schema';
 import { renameRetiredModels } from '../engine/scene/retired-models';
 import { objectsToProps } from './prop-use';
+import { currentUser } from './accounts';
+import { importCarriedModels } from './your-models';
 
 export { SHIPPED_MODELS };
 
@@ -39,4 +45,6 @@ export function openProject(project: ProjectDoc): void {
   renameRetiredModels(project);
   for (const scene of project.scenes) objectsToProps(scene);
   withShippedModels(project);
+  const me = currentUser();
+  if (me !== null) void importCarriedModels([...project.assets], me);
 }

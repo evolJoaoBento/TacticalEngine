@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures';
 
 /**
  * Tiles laid outside the room make the room bigger: they are floor, somebody can walk out

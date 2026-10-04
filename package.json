@@ -7,14 +7,19 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "server": "cargo run --release --manifest-path server/Cargo.toml -p tactical-serve --",
+    "build": "npm run wasm && vite build && node tools/bundle-guard.mjs dist",
+    "build:server": "npm run wasm && vite build --mode server && node tools/bundle-guard.mjs dist-server",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "test:e2e:server": "node tools/e2e-server.mjs",
+    "test:e2e:tunnel": "npm run build:server && cargo build --release --manifest-path server/Cargo.toml -p tactical-serve && playwright test -c playwright.tunnel.config.ts",
     "check": "npm run typecheck && npm run test && npm run test:e2e",
-    "models": "node tools/fetch-models.mjs"
+    "models": "node tools/fetch-models.mjs",
+    "wasm": "node tools/build-wasm.mjs"
   },
   "dependencies": {
     "@preact/signals": "2.11.2",

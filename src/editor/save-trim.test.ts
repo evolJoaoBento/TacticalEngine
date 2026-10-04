@@ -1,7 +1,8 @@
 /**
  * What a saved project carries of the models it declares: every file-backed one, every embedded one
  * something names, and no embedded one nothing names - which the browser still remembers
- * (`model-memory.ts`) and lays back under the project the next time it opens.
+ * (`model-memory.ts`) and lays back under the project the next time it opens. A model from the player's
+ * own folder (`game/your-models.ts`) is laid under every project the same way, and left out the same way.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -22,6 +23,7 @@ function project() {
       { id: 'forgotten', url: EMBEDDED },
       { id: 'shipped', url: '/models/shipped.glb' },
       { id: 'quim', url: EMBEDDED },
+      { id: 'golem', url: '/__models/u/bramble/imported/golem.glb' },
     ],
   });
 }
@@ -36,7 +38,14 @@ describe('a saved project', () => {
   it('leaves the project being edited as it was: the editor still offers what the file leaves out', () => {
     const open = project();
     withoutUnusedEmbedded(open);
-    expect(open.assets.map((a) => a.id)).toEqual(['placed', 'forgotten', 'shipped', 'quim']);
+    expect(open.assets.map((a) => a.id)).toEqual(['placed', 'forgotten', 'shipped', 'quim', 'golem']);
+  });
+
+  it('leaves out a model from the player’s own folder nothing names, and keeps one something does', () => {
+    const open = project();
+    expect(withoutUnusedEmbedded(open).assets.map((a) => a.id)).not.toContain('golem');
+    open.scenes[0]!.decos.push({ model: 'golem', position: { x: 2, y: 2 }, rotation: 0 });
+    expect(withoutUnusedEmbedded(open).assets.map((a) => a.id)).toContain('golem');
   });
 
   it('writes the project unchanged when every embedded model is in use', () => {
