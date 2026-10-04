@@ -11,7 +11,7 @@
 
 import type { Spot } from '../engine/grid/grid';
 import type { Circle } from '../engine/grid/walk';
-import { bandLabel, maxSpanForBand, type RangeBand } from '../engine/rules/range';
+import { maxSpanForBand, type RangeBand } from '../engine/rules/range';
 import { jumpRange } from '../engine/rules/jump';
 import { DEMO_BAND_TILES, jumpRulesFor } from './demo-rules';
 import type { DemoScene } from './demo-scene';
@@ -47,11 +47,6 @@ export function pushCircle(demo: Fight, id: string): MovementCircle | null {
   const circle = movementCircle(demo, id);
   const band = demo.encounter?.pushOpens(id) ?? null;
   return circle === null || band === null ? null : { anchor: circle.anchor, band, radius: maxSpanForBand(band, DEMO_BAND_TILES) };
-}
-
-/** What the roll asks, and what it warns: the band it opens, and what a failure costs. */
-export function pushPrompt(name: string, band: RangeBand): string {
-  return `Push past ${bandLabel(band === 'far' ? 'close' : band === 'veryFar' ? 'far' : band)} range: an Agility Roll opens ${bandLabel(band)} range to ${name} for the rest of the turn. On a failure nobody moves, the spotlight passes to the GM, and the turn is over.`;
 }
 
 /** A circle to draw. */

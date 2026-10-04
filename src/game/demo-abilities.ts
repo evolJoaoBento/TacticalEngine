@@ -21,34 +21,18 @@ import {
   cardOf,
   grantRank,
 } from '../engine/content/abilities';
-import { canMarkStress, gain, spend } from '../engine/rules/resources';
+import { canMarkStress } from '../engine/rules/resources';
 import { reaches, type RangeBand } from '../engine/rules/range';
-import { tierOf } from '../engine/character/progression';
 import { isDomainCard, type CardDef, type CardGrant, type ContentPack } from '../engine/content/pack/import';
 import { deriveCharacter, grantedCards, lentCards, type DerivedCharacter } from '../engine/character/sheet';
 import { traitSchema, type Trait } from '../engine/scene/primitives';
 import { evaluateOptional } from '../engine/script/conditions';
-import { ScriptRunner } from '../engine/script/runner';
 import { useKey } from '../engine/script/world';
 import { NO_TILE } from '../engine/grid/grid';
 import { walkEffects, type TargetSelector } from '../engine/script/schema';
-import {
-  record,
-  refreshWorld,
-  settle,
-  settleFight,
-  syncPools,
-  vaultAfter,
-  worthAiming,
-  type DemoScene,
-  type UseOutcome,
-  setSheet,
-} from './demo-scene';
+import { worthAiming, type DemoScene } from './demo-scene';
 import { inCombat } from './moment';
-import { talkingAside } from './talks';
-import { DEMO_CHARACTERS } from './demo-rules';
-import { characterContentFor, settleTravel } from './room';
-import { nameOf, note, type LogLine } from './log';
+import { characterContentFor } from './room';
 
 /** An ability as the action bar shows it: what it is, and why it is greyed out. */
 export interface AbilityView {
@@ -269,137 +253,6 @@ export function abilityList(demo: DemoScene, characterId: string): AbilityView[]
   });
 }
 
-/**
- * Use an ability on some targets.
- *
- * The price is paid first, then the script runs. In a fight, the character's
- * action is spent when the script finishes, with the spotlight passing if its
- * roll said so. Stepping back from the roll it asks for, before any roll was
- * made, puts the card down again: the price comes back and the turn is still
- * theirs.
- */
-export function useAbility(
-  demo: DemoScene,
-  characterId: string,
-  abilityId: string,
-  targets: readonly string[] = [],
-  /** The tile a card aimed at the ground was aimed at. */
-  options: { point?: number } = {},
-): UseOutcome {
-  const ability = demo.project.abilities.find((a) => a.id === abilityId);
-  if (ability === undefined) return { status: 'missing', lines: [] };
-  if (!abilitiesOf(demo, characterId).some((a) => a.id === abilityId)) return { status: 'missing', lines: [] };
-  if (demo.pending !== null) return { status: 'busy', lines: [] };
-
-  // A pick the ability wants but the caller left out: the only valid one, or nothing.
-  let chosen = [...targets];
-  if (ability.target.kind === 'self') chosen = [characterId];
-  if (ability.target.kind !== 'none' && ability.target.kind !== 'self' && chosen.length === 0) {
-    const valid = abilityTargets(demo, characterId, ability);
-    if (valid.length === 1) chosen = valid;
-  }
-  const can = canUseAbility(demo, characterId, ability, chosen);
-  if (!can.ok) return { status: 'refused', lines: note(demo, `${nameOf(demo, characterId)} cannot use ${ability.name}: ${can.reason}.`, 'system') };
-  if (ability.target.kind === 'point' && (options.point === undefined || options.point === NO_TILE)) {
-    return { status: 'refused', lines: note(demo, `${ability.name} needs somewhere to aim.`, 'system') };
-  }
-  if (ability.target.kind !== 'none' && ability.target.kind !== 'point' && chosen.length === 0) {
-    return { status: 'refused', lines: note(demo, `${ability.name} needs a target.`, 'system') };
-  }
-  // A group is everyone Very Close to the one picked; the script's selectors
-  // read `target` as that group.
-  if (ability.target.kind === 'group') {
-    const around = demo.world.resolveTargets({ kind: 'adversaries', range: 'veryClose', around: 'target' }, { targets: chosen, hit: [] });
-    chosen = around.length === 0 ? chosen : around;
-  }
-
-  const entity = demo.state.entity(characterId)!;
-  demo.scenario.actorId = characterId;
-  const lines: LogLine[] = note(
-    demo,
-    `${nameOf(demo, characterId)} uses ${ability.name}${chosen.length > 0 && ability.target.kind !== 'self' ? ` on ${chosen.map((id) => nameOf(demo, id)).join(', ')}` : ''}.`,
-    'system',
-  );
-  // Pay.
-  if ((ability.cost.good ?? 0) > 0 && entity.good !== undefined) {
-    entity.good = spend(entity.good, ability.cost.good!).currency;
-    lines.push(...note(demo, `Spends ${ability.cost.good} Light.`, 'good'));
-  }
-  if ((ability.cost.stress ?? 0) > 0) {
-    demo.world.markStress(characterId, ability.cost.stress!);
-    lines.push(...note(demo, `Marks ${ability.cost.stress} Stress.`, 'bad'));
-  }
-  if (ability.uses !== undefined) {
-    const key = useKey(characterId, ability.id);
-    demo.scenario.abilityUses.set(key, (demo.scenario.abilityUses.get(key) ?? 0) + 1);
-  }
-
-  const fighting = inCombat(demo);
-  const finish = (runner: ScriptRunner): void => {
-    if (runner.cancelled && !runner.rolled) {
-      putBack(demo, characterId, ability);
-      return;
-    }
-    if (fighting && ability.action && inCombat(demo) && demo.encounter!.canAct(characterId)) {
-      demo.encounter!.act(characterId, { spotlightToGm: runner.spotlightToGm });
-    }
-    vaultAfter(demo, characterId, ability, runner);
-    settleFight(demo);
-  };
-
-  const runner = new ScriptRunner(demo.world, demo.rng, {
-    targets: chosen,
-    rollAs: 'actor',
-    ...(options.point === undefined || options.point === NO_TILE ? {} : { point: options.point }),
-  });
-  const result = runner.run(ability.effects);
-  lines.push(...record(demo, result.journal));
-  if (result.status === 'waiting') {
-    demo.pending = { kind: 'script', runner, prompt: result.prompt, interactable: null, recorded: result.journal.length, dialogue: null, onDone: finish };
-    return settle(demo, lines);
-  }
-  finish(runner);
-  return settleTravel(demo, lines);
-}
-
-/**
- * "After a long rest, place a number of tokens equal to your Presence on this
- * card." Every card whose pile refills on one of these events is topped back
- * up for whoever holds it — and cleared first, because the SRD's cards say
- * "clear all unspent tokens" as often as they say "place".
- */
-export function refillTokens(demo: DemoScene, events: readonly ('session' | 'longRest' | 'rest' | 'scene')[]): void {
-  for (const entity of demo.state.entitiesOf('party')) {
-    for (const ability of abilitiesOf(demo, entity.id)) {
-      const tokens = ability.tokens;
-      if (tokens === undefined || !events.includes(tokens.refill as 'rest')) continue;
-      const key = useKey(entity.id, ability.id);
-      demo.scenario.abilityTokens.delete(key);
-      const placed = demo.world.addTokens(entity.id, ability.id);
-      if (placed > 0) {
-        note(demo, `${nameOf(demo, entity.id)} places ${placed} token${placed === 1 ? '' : 's'} on ${ability.name}.`, 'good');
-      }
-    }
-  }
-}
-
-/** The card goes back in hand: what it cost is returned. */
-function putBack(demo: DemoScene, characterId: string, ability: AbilityDef): void {
-  const entity = demo.state.entity(characterId);
-  if (entity === undefined) return;
-  if ((ability.cost.good ?? 0) > 0 && entity.good !== undefined) {
-    entity.good = { ...entity.good, value: Math.min(entity.good.max, entity.good.value + ability.cost.good!) };
-  }
-  if ((ability.cost.stress ?? 0) > 0) demo.world.clearStress(characterId, ability.cost.stress!);
-  if (ability.uses !== undefined) {
-    const key = useKey(characterId, ability.id);
-    const used = (demo.scenario.abilityUses.get(key) ?? 1) - 1;
-    if (used <= 0) demo.scenario.abilityUses.delete(key);
-    else demo.scenario.abilityUses.set(key, used);
-  }
-  note(demo, `${nameOf(demo, characterId)} steps back from ${ability.name}; its cost is returned.`, 'system');
-}
-
 // ---------------------------------------------------------------------------
 // Loadout and vault
 // ---------------------------------------------------------------------------
@@ -412,16 +265,6 @@ export interface LoadoutCard {
   level: number;
   type: string;
   text: string;
-}
-
-/**
- * The domain a card belongs to, or `Unknown`.
- *
- * The action bar has a card id and needs the domain to draw the card's emblem
- * and wear its colour; the SRD library is the only place that knows.
- */
-export function cardDomain(cardId: string): string {
-  return DEMO_CHARACTERS.cards.get(cardId)?.domain ?? 'Unknown';
 }
 
 /** A card in play because of what its holder is, as the loadout shows it: no level, no recall. */
@@ -550,47 +393,6 @@ function lentBy(conditions: readonly string[], bearing: ReadonlySet<string>, dem
 
 export type SwapResult = { ok: true; stress: number } | { ok: false; reason: string };
 
-/**
- * Bring a card from the vault into the loadout, swapping one out when the
- * loadout is full. Free during a rest; otherwise "mark a number of Stress
- * equal to the vaulted card's Recall Cost".
- */
-export function swapCard(
-  demo: DemoScene,
-  characterId: string,
-  cardIn: string,
-  cardOut?: string,
-  options: { resting?: boolean } = {},
-): SwapResult {
-  const sheet = demo.sheets.get(characterId);
-  const character = demo.characters.get(characterId);
-  const entity = demo.state.entity(characterId);
-  if (sheet === undefined || character === undefined || entity === undefined) return { ok: false, reason: `no character "${characterId}"` };
-  if (demo.pending !== null) return { ok: false, reason: 'something is waiting for an answer' };
-  const loadout = loadoutOf(character);
-  const vault = vaultOf(character);
-  if (!vault.includes(cardIn)) return { ok: false, reason: 'that card is not in the vault' };
-  if (cardOut !== undefined && !loadout.includes(cardOut)) return { ok: false, reason: 'that card is not in the loadout' };
-  if (cardOut === undefined && loadout.length >= LOADOUT_LIMIT) return { ok: false, reason: `the loadout holds ${LOADOUT_LIMIT}; choose one to vault` };
-
-  const content = characterContentFor(demo.project);
-  const card = content.cards.get(cardIn);
-  const cost = options.resting === true ? 0 : (card?.recallCost ?? 0);
-  if (cost > 0 && !canMarkStress(entity.stress, cost)) return { ok: false, reason: `recalling it costs ${cost} Stress, and there is no room to mark it` };
-  if (cost > 0) demo.world.markStress(characterId, cost);
-
-  const next = [...loadout.filter((id) => id !== cardOut), cardIn];
-  setSheet(demo, { ...sheet, loadout: next });
-  refreshWorld(demo);
-  syncPools(demo);
-  note(
-    demo,
-    `${sheet.name} recalls ${card?.name ?? cardIn}${cardOut === undefined ? '' : ` and vaults ${content.cards.get(cardOut)?.name ?? cardOut}`}${cost > 0 ? `, marking ${cost} Stress` : ''}.`,
-    cost > 0 ? 'bad' : 'system',
-  );
-  return { ok: true, stress: cost };
-}
-
 // ---------------------------------------------------------------------------
 // Rests
 // ---------------------------------------------------------------------------
@@ -609,96 +411,6 @@ export interface RestPlan {
 }
 
 export type RestResult = { ok: true; badGained: number } | { ok: false; reason: string };
-
-/**
- * Take a short or a long rest.
- *
- * Short: each move clears 1d4 + tier of something, or gains a Light; the GM
- * gains 1d4 Shadow. Long: each move clears all of something; the GM gains 1d4 +
- * the party's size. Either refreshes the abilities it refreshes, ends the
- * conditions a rest ends, and swaps loadouts for free first.
- */
-export function rest(demo: DemoScene, kind: 'short' | 'long', plan: RestPlan): RestResult {
-  if (inCombat(demo)) return { ok: false, reason: 'not in the middle of a fight' };
-  if (demo.pending !== null || talkingAside(demo).length > 0) return { ok: false, reason: 'not in the middle of a conversation' };
-  const party = demo.state.entitiesOf('party');
-  if (party.length === 0) return { ok: false, reason: 'nobody to rest' };
-
-  note(demo, kind === 'short' ? 'The party stops to catch its breath.' : 'The party makes camp.', 'narration');
-
-  for (const [characterId, loadout] of Object.entries(plan.loadouts ?? {})) {
-    const character = demo.characters.get(characterId);
-    const sheet = demo.sheets.get(characterId);
-    if (character === undefined || sheet === undefined) continue;
-    const held = character.cards.map((c) => c.id);
-    const next = loadout.filter((id) => held.includes(id)).slice(0, LOADOUT_LIMIT);
-    setSheet(demo, { ...sheet, loadout: next });
-  }
-  refreshWorld(demo);
-  syncPools(demo);
-
-  // "If you choose to Prepare with one or more members of your party, you each gain 2 Light."
-  const preparing = Object.entries(plan.moves).filter(([, moves]) => moves.some((m) => m.kind === 'prepare')).length;
-  const goodEach = preparing >= 2 ? 2 : 1;
-
-  for (const [characterId, moves] of Object.entries(plan.moves)) {
-    const entity = demo.state.entity(characterId);
-    const sheet = demo.sheets.get(characterId);
-    if (entity === undefined || sheet === undefined) continue;
-    const who = sheet.name;
-    const amount = (): number => (kind === 'long' ? Infinity : demo.rng.die(4) + tierOf(sheet.level));
-    for (const move of moves.slice(0, 2)) {
-      switch (move.kind) {
-        case 'tendWounds': {
-          const target = demo.state.entity(move.target ?? characterId) ?? entity;
-          const cleared = Math.min(target.hitPoints.marked, amount());
-          target.hitPoints = { ...target.hitPoints, marked: target.hitPoints.marked - cleared };
-          if (cleared > 0 && target.hitPoints.marked < target.hitPoints.max) target.alive = true;
-          note(demo, `${who} tends ${target.id === characterId ? 'their' : `${nameOf(demo, target.id)}'s`} wounds: ${cleared} Hit Point${cleared === 1 ? '' : 's'} cleared.`, 'good');
-          break;
-        }
-        case 'clearStress': {
-          const cleared = Math.min(entity.stress.marked, amount());
-          entity.stress = { ...entity.stress, marked: entity.stress.marked - cleared };
-          note(demo, `${who} clears ${cleared} Stress.`, 'good');
-          break;
-        }
-        case 'repairArmor': {
-          const target = demo.state.entity(move.target ?? characterId) ?? entity;
-          const cleared = Math.min(target.armorSlots.marked, amount());
-          target.armorSlots = { ...target.armorSlots, marked: target.armorSlots.marked - cleared };
-          note(demo, `${who} repairs ${target.id === characterId ? 'their' : `${nameOf(demo, target.id)}'s`} armor: ${cleared} Armor Slot${cleared === 1 ? '' : 's'} cleared.`, 'good');
-          break;
-        }
-        case 'prepare': {
-          if (entity.good !== undefined) entity.good = gain(entity.good, goodEach).currency;
-          note(demo, `${who} prepares: ${goodEach} Light.`, 'good');
-          break;
-        }
-      }
-    }
-  }
-
-  // Features refresh, conditions end.
-  for (const key of [...demo.scenario.abilityUses.keys()]) {
-    const ability = demo.project.abilities.find((a) => key.endsWith(`/${a.id}`));
-    const per = ability?.uses?.per;
-    if (per === 'rest' || per === 'scene' || (per === 'longRest' && kind === 'long')) demo.scenario.abilityUses.delete(key);
-  }
-  refillTokens(demo, kind === 'long' ? ['rest', 'longRest', 'scene', 'session'] : ['rest', 'scene']);
-  // A marked spot lasts "before your next rest", and a rest is where it goes.
-  demo.world.forgetSpots();
-  const ended = demo.state.clearConditions('rest');
-  for (const { id, condition } of ended) note(demo, `${nameOf(demo, id)} is no longer ${demo.world.conditionName(condition)}.`, 'system');
-  syncPools(demo);
-
-  // "On a short rest, they gain 1d4 Shadow. On a long rest, 1d4 + the number of PCs."
-  const bad = demo.rng.die(4) + (kind === 'long' ? party.length : 0);
-  const gained = gain(demo.state.bad, bad);
-  demo.state.bad = gained.currency;
-  note(demo, `The GM gains ${gained.applied} Shadow.`, 'bad');
-  return { ok: true, badGained: gained.applied };
-}
 
 /** A card a stat block prints, as somebody looking at the creature reads it. */
 export interface PrintedCard {

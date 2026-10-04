@@ -20,7 +20,7 @@ import { fileURLToPath } from 'node:url';
 import { createRng } from '../core/rng';
 import { buildDemoScene } from '../../game/demo-scene';
 import { hollowVaultMap } from '../../game/demo-map';
-import { startEncounter } from '../../game/movement';
+import { startEncounter } from '../../../tests/fixtures/fight';
 import { hookReads, type TargetBindings } from './conditions';
 import { compileHooks, runHook, unfamiliarCode, type CodeSource, type HookContext, type HookFn } from './hooks';
 import type { SceneScriptWorld } from './world';

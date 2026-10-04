@@ -1,16 +1,14 @@
 /**
- * Dragging a card on the party HUD: where it may be dropped, and what a drop does.
+ * Dragging a card on the party HUD: where it may be dropped.
  *
  * The cards are a column, and a card picked up is put down in one of three places. To the
  * side of the column, and its character walks alone from now on. On top of another card, and
  * they walk with that character, their card falling in under theirs. Between two cards, and
  * the party is read in that order from now on - and where the two either side walk together,
- * so does the one put between them. Both halves are pure, so the HUD only measures its cards
- * and the tests need no DOM: `dropTargetAt` reads a pointer against the cards' boxes, and
- * `dropCard` tells the party what the drop meant.
+ * so does the one put between them. This half is pure, so the HUD only measures its cards and
+ * the tests need no DOM: `dropTargetAt` reads a pointer against the cards' boxes. What the drop
+ * means for the party is the game's (`dropCard`, the engine's).
  */
-
-import type { Party } from '../engine/scene/party';
 
 /** What a drop lands on. */
 export type Drop =
@@ -55,25 +53,4 @@ export function dropTargetAt(cards: readonly CardBox[], dragging: string, x: num
     return { kind: 'onto', id: card.id };
   }
   return { kind: 'between', above: others[others.length - 1]!.id, below: null };
-}
-
-/** Do what the drop meant. Returns whether anything changed: who walks with whom, or the order. */
-export function dropCard(party: Party, id: string, drop: Drop): boolean {
-  switch (drop.kind) {
-    case 'aside':
-      return party.unlink(id);
-    case 'onto': {
-      // With them, and under them.
-      const linked = party.link(id, drop.id);
-      const members = party.members().filter((other) => other !== id);
-      const under = members[members.indexOf(drop.id) + 1] ?? null;
-      return party.arrange(id, under) || linked;
-    }
-    case 'between': {
-      const moved = party.arrange(id, drop.below);
-      // Put between two who walk together, they walk with them.
-      const joins = drop.above !== null && drop.below !== null && party.linked(drop.above, drop.below) && party.link(id, drop.above);
-      return moved || joins;
-    }
-  }
 }

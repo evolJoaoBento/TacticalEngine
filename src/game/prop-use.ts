@@ -14,12 +14,9 @@
  */
 
 import { NO_TILE } from '../engine/grid/grid';
-import { containerItems, footprintOf, interactablesOf, objectsToProps, portalPartner } from '../engine/scene/prop-functions';
-import type { JournalEntry } from '../engine/script/runner';
-import { inCombat } from './moment';
-import { nameOf, note } from './log';
-import { freeTileNear, type DemoScene } from './demo-scene';
-import { buyFrom, shopContents, shopOf } from './shop';
+import { containerItems, interactablesOf, objectsToProps } from '../engine/scene/prop-functions';
+import { type DemoScene } from './demo-scene';
+import { shopContents, shopOf } from './shop';
 import { itemOf } from '../engine/content/equipment/catalogue';
 
 /** Everything usable in a room, props included: re-exported so the game reads it from where it acts on it. */
@@ -29,17 +26,6 @@ type Demo = Pick<DemoScene, 'project' | 'scene' | 'grid' | 'state' | 'party' | '
 
 /** The container whose window is open, by the demo it is open in. */
 const opened = new WeakMap<object, string>();
-/** Where the party is to step out after travelling through a portal to another room. */
-const arriving = new WeakMap<object, { scene: string; prop: string }>();
-
-/** Act on what a script did to the things in a room, and on where it sent the party. */
-export function reactToThings(demo: Demo, journal: readonly JournalEntry[]): void {
-  for (const entry of journal) {
-    if (entry.kind === 'goto') demo.destination = entry.scene;
-    else if (entry.kind === 'openContainer' || entry.kind === 'shop') opened.set(demo, entry.id);
-    else if (entry.kind === 'teleport') teleport(demo, entry.pair, entry.from);
-  }
-}
 
 /**
  * One thing in an open container: what it is, what it is called, and how many are left - and in a
@@ -90,56 +76,10 @@ export function containerContents(demo: Demo, id: string): ContainerLine[] {
     .filter((line) => line.count > 0);
 }
 
-/** Take one of something out of a container and into the party's pack. */
-export function takeFromContainer(demo: Demo, id: string, item: string): boolean {
-  // From a shop, taking is buying.
-  if (shopOf(demo, id) !== null) return buyFrom(demo, id, item);
-  const line = containerContents(demo, id).find((candidate) => candidate.item === item);
-  if (line === undefined) return false;
-  const state = demo.state.interactable(id);
-  state.data[`taken:${item}`] = takenOf(state.data, item) + 1;
-  demo.world.addItem(item, 1);
-  const who = demo.party.selected;
-  note(demo, `${who === null ? 'The party' : nameOf(demo, who)} takes ${line.name}.`, 'success');
-  return true;
-}
-
 const takenOf = (data: Readonly<Record<string, string | number | boolean>>, item: string): number => {
   const taken = data[`taken:${item}`];
   return typeof taken === 'number' ? taken : 0;
 };
-
-/**
- * Send whoever used a portal to its partner.
- *
- * In the same room they step out beside it; in another room the party travels there and steps out
- * beside it on arrival. Out of a fight the ones walking with them come too, the way they follow a
- * walk; in a fight a portal is one creature's move, and it takes only them.
- */
-function teleport(demo: Demo, pair: string, from: string | null): void {
-  const partner = portalPartner(demo.project, pair, from);
-  if (partner === null) {
-    note(demo, 'Nothing answers on the other side. This portal has no partner yet.', 'system');
-    return;
-  }
-  if (partner.scene !== demo.scene.id) {
-    demo.destination = partner.scene;
-    arriving.set(demo, { scene: partner.scene, prop: partner.prop.id });
-    return;
-  }
-  const actor = demo.scenario.actorId ?? demo.party.selected;
-  if (actor === null) return;
-  const going = inCombat(demo) ? [actor] : demo.party.groupOf(actor);
-  stepOutBeside(demo, partner.prop.id, going);
-}
-
-/** Once travel has settled, put the party beside the portal they came through, if they came through one. */
-export function arriveByPortal(demo: Demo): void {
-  const arrival = arriving.get(demo);
-  arriving.delete(demo);
-  if (arrival === undefined || arrival.scene !== demo.scene.id) return;
-  stepOutBeside(demo, arrival.prop, demo.party.members());
-}
 
 /** The tile a thing covers that is nearest to `here`: a prop drawn across a block is reached from any side of it. */
 export function nearestCovered(demo: Pick<DemoScene, 'grid' | 'state'>, id: string, here: number): number {
@@ -165,19 +105,4 @@ export function withinReach(demo: Pick<DemoScene, 'grid' | 'state' | 'party'>, i
   if (here === NO_TILE) return false;
   const there = nearestCovered(demo, id, here);
   return there !== NO_TILE && Math.max(Math.abs(demo.grid.xOf(there) - demo.grid.xOf(here)), Math.abs(demo.grid.yOf(there) - demo.grid.yOf(here))) <= reach;
-}
-
-/** Stand these on the nearest free tiles round a prop, nearest first, each one snapped rather than walked. */
-function stepOutBeside(demo: Demo, id: string, who: readonly string[]): void {
-  const around = footprintOf(demo.scene, id);
-  const at = around[0] ?? interactablesOf(demo.scene).find((thing) => thing.id === id)?.position;
-  if (at === undefined) return;
-  for (const member of who) {
-    const tile = freeTileNear(demo, demo.grid.indexOf(at.x, at.y));
-    if (tile === NO_TILE) continue;
-    demo.state.moveEntity(member, tile);
-    demo.state.placeEntity(member, demo.grid.xOf(tile), demo.grid.yOf(tile));
-    // A step through a portal is not a walk across the room: the view puts them down where they are.
-    demo.motions.push({ id: member, teleport: true });
-  }
 }

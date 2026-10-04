@@ -42,7 +42,7 @@ import { NO_TILE } from '../grid/grid';
 import { RANGE_BANDS } from '../rules/range';
 import { cardDefSchema } from '../content/pack/schema';
 import { hollowVaultMap } from '../../game/demo-map';
-import { startEncounter } from '../../game/movement';
+import { startEncounter } from '../../../tests/fixtures/fight';
 import { ScriptRunner, type Prompt, type Response, type RunStatus, type ScriptRunnerOptions, type ScriptWorld } from './runner';
 import { effectSchema, type Effect } from './schema';
 import { useInteractable, type UseResult } from '../scene/interact';

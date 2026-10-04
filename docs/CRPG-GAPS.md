@@ -98,7 +98,7 @@ node's effects — a reply that starts a conversation nobody wrote is an error b
 crash.
 
 **Talking to creatures (2026-09-24).** A placed creature can carry a conversation
-(`game/interaction.ts`): friendly ones stand on nobody's side and are talked to when clicked; a
+(the engine's game layer, `server/engine/src/game/`): friendly ones stand on nobody's side and are talked to when clicked; a
 threshold one stops the fight when a blow leaves it low enough, turns friendly, and talks - once.
 A consequence node does rather than says, and **Change sides** (`setAttitude`) turns a creature
 friendly or hostile from a reply or a consequence; a conversation opened with a creature binds it

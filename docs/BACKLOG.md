@@ -4,6 +4,14 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## Phase 5 (multiplayer), slice 0b: the rules deleted — done
+
+The page's own TypeScript play is gone: four modules whole, 53 play functions and everything only they reached,
+and the tests that played them (2,760 unit tests are 2,189) - each test cut where it reached a rule, the rest kept. The views that lost
+their tests with them are tested again, the shop and the chest on the engine. `GameClient` writes its intents'
+signatures out. The golden writers' fixtures are unchanged. Next: the page playing with the server in a build
+(slice 2).
+
 ## Phase 5 (multiplayer), slice 1: the server's game trusted alone — done
 
 The server's game is never told how a page's game stands: the page is stood where the server's board says -

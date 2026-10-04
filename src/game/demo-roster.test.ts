@@ -4,8 +4,6 @@ import { blankSheet, startingPools } from '../engine/character/sheet';
 import { characterSheetSchema } from '../engine/character/sheet-schema';
 import { NO_TILE } from '../engine/grid/grid';
 import { buildDemoScene, gatherParty, syncRoster, type DemoScene } from './demo-scene';
-import { startEncounter } from './movement';
-import { loadGameText, saveGame } from './save';
 
 /**
  * The party on the board keeping step with the party in the project.
@@ -59,30 +57,6 @@ describe('a character added to the project', () => {
     expect(demo.party.members().filter((id) => id === 'tamsin')).toHaveLength(1);
     expect(demo.log).toHaveLength(count);
   });
-
-  it('can walk into a fight and be ready in it', () => {
-    const demo = scene();
-    startEncounter(demo, demo.scene.encounters[0]!.id);
-    demo.project.party.push(tamsin());
-    expect(syncRoster(demo).joined).toEqual(['tamsin']);
-    expect(demo.encounter?.canAct('tamsin')).toBe(true);
-  });
-
-  it('is carried by a save', () => {
-    const demo = scene();
-    demo.project.party.push(tamsin());
-    syncRoster(demo);
-    const tile = demo.state.entity('tamsin')!.tile;
-
-    const fresh = scene();
-    expect(loadGameText(fresh, JSON.stringify(saveGame(demo))).ok).toBe(true);
-    expect(fresh.party.members()).toContain('tamsin');
-    expect(fresh.state.entity('tamsin')?.tile).toBe(tile);
-    expect(fresh.characters.get('tamsin')?.sheet.name).toBe('Tamsin');
-    // And into the document, or the next Play would send them away again.
-    expect(fresh.project.party.map((s) => s.id)).toContain('tamsin');
-    expect(syncRoster(fresh)).toEqual({ joined: [], left: [] });
-  });
 });
 
 describe('gathering the party at a tile', () => {
@@ -134,17 +108,5 @@ describe('a character removed from the project', () => {
     expect(demo.sheets.has(first!)).toBe(false);
     expect(demo.party.selected).toBe(rest[0]);
     expect(demo.log.at(-1)?.text).toMatch(/leaves the party\.$/);
-  });
-
-  it('waits for the fight to end', () => {
-    const demo = scene();
-    const first = demo.party.members()[0]!;
-    startEncounter(demo, demo.scene.encounters[0]!.id);
-    demo.project.party.splice(
-      demo.project.party.findIndex((s) => s.id === first),
-      1,
-    );
-    expect(syncRoster(demo)).toEqual({ joined: [], left: [] });
-    expect(demo.state.entity(first)).toBeDefined();
   });
 });

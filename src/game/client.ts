@@ -30,37 +30,28 @@ import { deriveCharacter } from '../engine/character/sheet';
 import type { SceneDoc } from '../engine/scene/schema';
 import type { TileGrid } from '../engine/grid/grid';
 import type { LogTone } from '../engine/script/schema';
-import { gatherParty, reachableInteractable, refreshWorld, setSheet, syncPools, syncRoster, type DemoScene } from './demo-scene';
-import type { answerPending, attackWithSelected, endTurn, moveSelectedTo, useSelectedOn } from './demo-scene';
+import type { Spot } from '../engine/grid/grid';
+import type { LevelUpPlan } from '../engine/character/progression';
+import type { Response } from '../engine/script/runner';
+import { gatherParty, reachableInteractable, refreshWorld, setSheet, syncPools, syncRoster, type DemoScene, type UseOutcome } from './demo-scene';
 import { inCombat, scriptPending } from './moment';
-import { aimedArc, jumpAim, jumpOffered, jumpReaches, previewWalk, reachableTiles, underPressureTiles } from './movement';
-import type { arrive, jumpTo, startEncounter } from './movement';
-import type { approachThenUse, arrived, cancelApproach } from './arrival';
+import { aimedArc, jumpAim, jumpOffered, jumpReaches, previewWalk, reachableTiles, underPressureTiles, type MoveResult } from './movement';
 import { characterContentFor, syncAuthoredEncounters, takeGround } from './room';
-import type { travelTo } from './room';
 import { reachRings } from './circle';
-import { nameOf } from './log';
-import type { note } from './log';
-import { awaitingLevel } from './level-up';
-import type { applyLevelUp } from './level-up';
-import { gearOf } from './equip';
-import type { equipItem, unequipItem } from './equip';
+import { nameOf, type LogLine } from './log';
+import { awaitingLevel, type LevelUpResult } from './level-up';
+import { gearOf, type EquipResult, type GearSlot } from './equip';
 import { gearView } from './gear';
-import type { useItem } from './use-item';
 import { inspection } from './inspect';
-import { abilitiesOf, abilityList, abilityTargets, loadoutView, pointTiles, shapeAt } from './demo-abilities';
-import type { rest, swapCard, useAbility } from './demo-abilities';
-import { saveBlockedBy, serialiseSave } from './save';
-import type { loadGameText } from './save';
+import { abilitiesOf, abilityList, abilityTargets, loadoutView, pointTiles, shapeAt, type RestPlan, type RestResult, type SwapResult } from './demo-abilities';
+import { saveBlockedBy, serialiseSave, type LoadResult } from './save';
 import { openContainer, withinReach } from './prop-use';
-import type { closeContainer, takeFromContainer } from './prop-use';
-import type { sellTo } from './shop';
-import type { syncTalks } from './talks';
 import { hoverLine } from './hover';
 import { steerStep } from './steer';
-import type { landWalkers } from './land';
-import type { dropCard, Drop } from './party-drop';
+import type { Walking } from './land';
+import type { Drop } from './party-drop';
 import { carriedItems, containerView, hudMembers, journalEntries, talkingTo, talkingView } from './ui/play-views';
+import type { OpenContainer } from './ui/PlayPanel';
 import type { Wire } from './wire';
 import type { WasmEngine } from './wasm-engine';
 
@@ -93,6 +84,11 @@ export type Board = Readonly<
 type After<F> = F extends (game: never, ...rest: infer A) => unknown ? A : never;
 /** What a game function answers. */
 type Answer<F> = F extends (...args: never[]) => infer R ? R : never;
+/** An intent's arguments, as the game is asked it: the engine's dispatcher (`dispatch.rs`) reads them so. */
+type Args<K extends keyof GameClient> = GameClient[K] extends (...args: infer A) => unknown ? A : never;
+
+/** What a swing at somebody comes to: hit or not, why it was refused, the Hit Points it marked, or a question asked. */
+export type SwingResult = { hit: boolean; refused: string | null; hitPointsMarked: number; waiting?: boolean } | null;
 
 /** The game as any page plays it - here, or over a socket. */
 export interface GameClient {
@@ -100,34 +96,37 @@ export interface GameClient {
   readonly board: Board;
 
   // ---- intents ------------------------------------------------------------------------------------------
-  moveSelectedTo(...args: After<typeof moveSelectedTo>): Answer<typeof moveSelectedTo>;
-  attackWithSelected(...args: After<typeof attackWithSelected>): Answer<typeof attackWithSelected>;
+  moveSelectedTo(destination: number, aimed?: Spot): MoveResult;
+  attackWithSelected(targetId: string): SwingResult;
   endTurn(): number;
-  useAbility(...args: After<typeof useAbility>): Answer<typeof useAbility>;
-  answerPending(...args: After<typeof answerPending>): Answer<typeof answerPending>;
-  useSelectedOn(...args: After<typeof useSelectedOn>): Answer<typeof useSelectedOn>;
-  approachThenUse(...args: After<typeof approachThenUse>): Answer<typeof approachThenUse>;
+  /** A card used: by whom, which, at whom - and, aimed at the ground, the tile it was aimed at. */
+  useAbility(characterId: string, abilityId: string, targets?: readonly string[], options?: { point?: number }): UseOutcome;
+  answerPending(response: Response): UseOutcome;
+  useSelectedOn(interactableId: string): UseOutcome;
+  /** Walk up to a thing and use it once there - the walk drawn first, when it is drawn - or use it now. */
+  approachThenUse(id: string): string;
   /** The walk an interaction waited for has been drawn: do what it was for. */
   arrived(): boolean;
   cancelApproach(): boolean;
   /** The last token has stopped: the fight a walk woke begins. */
   arrive(): boolean;
-  takeFromContainer(...args: After<typeof takeFromContainer>): boolean;
-  equipItem(...args: After<typeof equipItem>): Answer<typeof equipItem>;
-  unequipItem(...args: After<typeof unequipItem>): Answer<typeof unequipItem>;
-  useItem(...args: After<typeof useItem>): Answer<typeof useItem>;
-  swapCard(...args: After<typeof swapCard>): Answer<typeof swapCard>;
-  rest(...args: After<typeof rest>): Answer<typeof rest>;
-  applyLevelUp(...args: After<typeof applyLevelUp>): Answer<typeof applyLevelUp>;
-  travelTo(...args: After<typeof travelTo>): boolean;
+  takeFromContainer(id: string, item: string): boolean;
+  equipItem(characterId: string, itemId: string): EquipResult;
+  unequipItem(characterId: string, slot: GearSlot): EquipResult;
+  useItem(itemId: string): UseOutcome;
+  /** A card into the loadout from the vault, another out - a cost in Stress, unless resting. */
+  swapCard(characterId: string, cardIn: string, cardOut?: string, options?: { resting?: boolean }): SwapResult;
+  rest(kind: 'short' | 'long', plan: RestPlan): RestResult;
+  applyLevelUp(characterId: string, plan: LevelUpPlan): LevelUpResult;
+  travelTo(sceneId: string): boolean;
   /** A save loaded from its text - and its slot, which the server's game loads its own copy of (`wire.ts`). */
-  loadGameText(text: string, slot?: string): Answer<typeof loadGameText>;
-  jumpTo(...args: After<typeof jumpTo>): Answer<typeof jumpTo>;
-  startEncounter(...args: After<typeof startEncounter>): void;
+  loadGameText(text: string, slot?: string): LoadResult;
+  jumpTo(id: string, destination: number, aim?: Spot): MoveResult;
+  startEncounter(encounterId: string): void;
   /** Put the conversations where the selection says. */
   syncTalks(): boolean;
   /** A line in the log, from the page: a save made, a card with nowhere to aim. */
-  note(text: string, tone: LogTone): Answer<typeof note>;
+  note(text: string, tone: LogTone): LogLine[];
   select(id: string): boolean;
   selectNext(): string | null;
   link(id: string, withId: string): boolean;
@@ -139,7 +138,7 @@ export interface GameClient {
   /** One of something sold to a seller. */
   sellTo(id: string, item: string): boolean;
   /** A walk cut short: everyone still walking put down where they are drawn, and who was. */
-  landWalkers(view: Parameters<typeof landWalkers>[1]): string[];
+  landWalkers(view: Walking): string[];
   /** How everybody got where they are since the page last looked, taken off the queue. */
   takeMotions(): DemoScene['motions'];
   /** The numbers to rise over heads since the page last looked, taken off the queue. */
@@ -162,7 +161,8 @@ export interface GameClient {
   inCombat(): boolean;
   scriptPending(): Answer<typeof scriptPending>;
   reachableInteractable(): string | null;
-  containerView(...args: After<typeof containerView>): Answer<typeof containerView>;
+  /** The container window, when one is open and in reach (`reach`), its acts redrawing the page (`refresh`). */
+  containerView(reach: (id: string) => boolean, refresh: () => void): OpenContainer | null;
   withinReach(...args: After<typeof withinReach>): boolean;
   abilitiesOf(...args: After<typeof abilitiesOf>): Answer<typeof abilitiesOf>;
   abilityList(...args: After<typeof abilityList>): Answer<typeof abilityList>;
@@ -287,42 +287,42 @@ export abstract class GameTable implements GameClient, LocalPowers {
     return this.demo;
   }
 
-  moveSelectedTo(...args: After<typeof moveSelectedTo>) { return this.did('moveSelectedTo', args); }
-  attackWithSelected(...args: After<typeof attackWithSelected>) { return this.did('attackWithSelected', args); }
-  endTurn() { return this.did('endTurn', []); }
-  useAbility(...args: After<typeof useAbility>) { return this.did('useAbility', args); }
-  answerPending(...args: After<typeof answerPending>) { return this.did('answerPending', args); }
-  useSelectedOn(...args: After<typeof useSelectedOn>) { return this.did('useSelectedOn', args); }
-  approachThenUse(...args: After<typeof approachThenUse>) { return this.did('approachThenUse', args); }
+  moveSelectedTo(...args: Args<'moveSelectedTo'>) { return this.did<MoveResult>('moveSelectedTo', args); }
+  attackWithSelected(...args: Args<'attackWithSelected'>) { return this.did<SwingResult>('attackWithSelected', args); }
+  endTurn() { return this.did<number>('endTurn', []); }
+  useAbility(...args: Args<'useAbility'>) { return this.did<UseOutcome>('useAbility', args); }
+  answerPending(...args: Args<'answerPending'>) { return this.did<UseOutcome>('answerPending', args); }
+  useSelectedOn(...args: Args<'useSelectedOn'>) { return this.did<UseOutcome>('useSelectedOn', args); }
+  approachThenUse(...args: Args<'approachThenUse'>) { return this.did<string>('approachThenUse', args); }
   arrived() { return this.did('arrived', []); }
   cancelApproach() { return this.did('cancelApproach', []); }
   arrive() { return this.did('arrive', []); }
-  takeFromContainer(...args: After<typeof takeFromContainer>) { return this.did('takeFromContainer', args); }
-  equipItem(...args: After<typeof equipItem>) { return this.did('equipItem', args); }
-  unequipItem(...args: After<typeof unequipItem>) { return this.did('unequipItem', args); }
-  useItem(...args: After<typeof useItem>) { return this.did('useItem', args); }
-  swapCard(...args: After<typeof swapCard>) { return this.did('swapCard', args); }
-  rest(...args: After<typeof rest>) { return this.did('rest', args); }
-  applyLevelUp(...args: After<typeof applyLevelUp>) { return this.did('applyLevelUp', args); }
-  travelTo(...args: After<typeof travelTo>) { return this.did('travelTo', args); }
-  loadGameText(text: string, slot?: string) { return this.did<Answer<typeof loadGameText>>('loadGameText', slot === undefined ? [text] : [text, slot]); }
-  jumpTo(...args: After<typeof jumpTo>) {
+  takeFromContainer(...args: Args<'takeFromContainer'>) { return this.did<boolean>('takeFromContainer', args); }
+  equipItem(...args: Args<'equipItem'>) { return this.did<EquipResult>('equipItem', args); }
+  unequipItem(...args: Args<'unequipItem'>) { return this.did<EquipResult>('unequipItem', args); }
+  useItem(...args: Args<'useItem'>) { return this.did<UseOutcome>('useItem', args); }
+  swapCard(...args: Args<'swapCard'>) { return this.did<SwapResult>('swapCard', args); }
+  rest(...args: Args<'rest'>) { return this.did<RestResult>('rest', args); }
+  applyLevelUp(...args: Args<'applyLevelUp'>) { return this.did<LevelUpResult>('applyLevelUp', args); }
+  travelTo(...args: Args<'travelTo'>) { return this.did<boolean>('travelTo', args); }
+  loadGameText(text: string, slot?: string) { return this.did<LoadResult>('loadGameText', slot === undefined ? [text] : [text, slot]); }
+  jumpTo(...args: Args<'jumpTo'>) {
     // The player's "roll jumps automatically" is read inside the jump: the engine is told it.
     const [id, destination, aim] = args;
-    return this.did('jumpTo', [id, destination, aim ?? null, userSettings().autoRollJumps]);
+    return this.did<MoveResult>('jumpTo', [id, destination, aim ?? null, userSettings().autoRollJumps]);
   }
-  startEncounter(...args: After<typeof startEncounter>): void { this.did('startEncounter', args); }
+  startEncounter(...args: Args<'startEncounter'>): void { this.did('startEncounter', args); }
   syncTalks() { return this.did('syncTalks', []); }
-  note(text: string, tone: LogTone) { return this.did('note', [text, tone]); }
+  note(text: string, tone: LogTone) { return this.did<LogLine[]>('note', [text, tone]); }
   select(id: string) { return this.did('select', [id]); }
   selectNext() { return this.did('selectNext', []); }
   link(id: string, withId: string) { return this.did('link', [id, withId]); }
   unlink(id: string) { return this.did('unlink', [id]); }
   dropCard(id: string, drop: Drop) { return this.did('dropCard', [id, drop]); }
-  landWalkers(view: Parameters<typeof landWalkers>[1]) {
+  landWalkers(view: Walking) {
     // Where each walker is drawn is the page's to say: the engine is told every walker and the spot, at once.
     const drawn = this.demo.party.members().filter((id) => view.isGliding(id)).map((id) => [id, view.spotOf(id)] as const).filter(([, at]) => at !== null);
-    return this.did('landWalkers', [drawn]);
+    return this.did<string[]>('landWalkers', [drawn]);
   }
   closeContainer(): void { this.did('closeContainer', []); }
   sellTo(id: string, item: string) { return this.did('sellTo', [id, item]); }
@@ -346,31 +346,31 @@ export abstract class GameTable implements GameClient, LocalPowers {
   inCombat() { return inCombat(this.demo); }
   scriptPending() { return scriptPending(this.demo); }
   reachableInteractable() { return reachableInteractable(this.demo); }
-  containerView(...args: After<typeof containerView>) {
+  containerView(reach: (id: string) => boolean, refresh: () => void) {
     // What the window does is done through the seam - shut out of reach, a take, a sale, closing it - as a
     // game played elsewhere is told it; the view itself is the page's own.
-    const [reach, refresh] = args;
     const open = openContainer(this.demo);
-    if (open !== null && !reach(open)) this.closeContainer();
-    const view = containerView(this.demo, () => true, refresh);
-    if (view === null) return null;
+    if (open === null) return null;
+    if (!reach(open)) {
+      this.closeContainer();
+      return null;
+    }
     // Drawing the window read what is in it, which makes a seller's state: the engine reads it too.
-    this.did('readContainer', [view.id]);
-    return {
-      ...view,
-      onTake: (item: string) => {
-        this.takeFromContainer(view.id, item);
+    this.did('readContainer', [open]);
+    return containerView(this.demo, {
+      take: (item) => {
+        this.takeFromContainer(open, item);
         refresh();
       },
-      onClose: () => {
+      sell: (item) => {
+        this.sellTo(open, item);
+        refresh();
+      },
+      close: () => {
         this.closeContainer();
         refresh();
       },
-      ...(view.onSell === undefined ? {} : { onSell: (item: string) => {
-        this.sellTo(view.id, item);
-        refresh();
-      } }),
-    };
+    });
   }
   withinReach(...args: After<typeof withinReach>) { return withinReach(this.demo, ...args); }
   abilitiesOf(...args: After<typeof abilitiesOf>) { return abilitiesOf(this.demo, ...args); }

@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { hollowVaultMap } from './demo-map';
 import { buildDemoScene, type DemoScene } from './demo-scene';
 import { movementCircle } from './circle';
-import { startEncounter } from './movement';
+import { startEncounter } from '../../tests/fixtures/fight';
 import { WALK_PER_TILE } from '../engine/render/glide';
 import { STEER_MOST, STEER_STOP, steerStep } from './steer';
 

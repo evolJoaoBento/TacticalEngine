@@ -80,15 +80,19 @@ fn intents(session: &mut Session) -> Vec<(String, Value)> {
     out
 }
 
+/// Where the first game's dice stand when it opens: a GM's swing that lands, so the defender is asked.
+const DICE: u32 = 1;
+
 #[tokio::test]
 async fn a_game_on_the_server_plays_as_the_engine_plays() {
     let fixture = fixture();
     let shipped: Shipped = serde_json::from_value(fixture["shipped"].clone()).unwrap();
     let project = &fixture["projects"][1];
-    // The tests' tables: the intents below start a fight and put somebody beside a husk with the test driver's hands.
+    // The tests' tables: the intents below start a fight and put somebody beside a husk with the test driver's hands,
+    // and the dice are set where the test says, so the GM's swing lands and the defender is asked - whatever the seed.
     let tables = Tables::new(root("host")).for_tests();
 
-    let opened = tables.ask("kara", json!({ "id": 1, "op": "open", "project": project, "shipped": fixture["shipped"], "table": { "animated": true, "askDefender": true } })).await;
+    let opened = tables.ask("kara", json!({ "id": 1, "op": "open", "project": project, "shipped": fixture["shipped"], "table": { "animated": true, "askDefender": true }, "rng": DICE })).await;
     assert_eq!(opened["id"], 1, "{opened}");
     let seed = opened["ok"]["seed"].as_str().expect("the server's seed").to_string();
     assert_eq!(seed.len(), 16);
@@ -97,6 +101,7 @@ async fn a_game_on_the_server_plays_as_the_engine_plays() {
     let mut beside = Session::build(project, Rc::new(shipped), hooks_for(), &seed).unwrap();
     beside.animated = true;
     beside.ask_defender = true;
+    beside.dispatch("restoreRng", &[json!(DICE)]).unwrap();
     assert_eq!(opened["ok"]["board"], beside.board(), "stood up the same");
 
     let mut played = 0;

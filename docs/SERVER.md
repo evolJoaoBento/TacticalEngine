@@ -1418,5 +1418,25 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
       the page's engine afresh (`toldFromThePage`), so a walk cut short just after a stand is refused there
       and taken by the server - a parting on `landWalkers`, healed by the next stand. The shared game (slice
       3), which stands the page at every push, is to carry the lines across.
-  - **Next**: the rules themselves and the tests that play them deleted (slice 0b), which the bundle's guard,
-    once nothing names them, lists; then the page playing with the server in a build (slice 2).
+  - **The rules themselves deleted** (slice 0b, which closes slice 0). What the page's bundle no longer reaches
+    was listed by the bundler itself - a build whose plugin read each module's kept exports off rolldown - and
+    cut: four modules whole (`interaction.ts`, `arrival.ts`, `cues.ts`, `use-item.ts`), 53 play functions from
+    fifteen more (`demo-scene.ts` from 4,377 lines to 841), and, carried to a fixed point, the 50 declarations that
+    reached only them, and what those alone used. A second build held every export the page kept before to being kept still; the three
+    it lost were a container window's own Take and Sell, closures that played the rules beside the engine's
+    intents (`containerView` takes its acts from the game now). `GameClient` writes its intents' signatures out
+    (`Args`), no longer reading them off the rules. Of the tests, a test was cut where its body reached a cut
+    rule, directly or through a helper of its file's own - 11 files gone, 23 trimmed to what they still test -
+    and the views that lost their only tests with them were tested again: the shop, the chest and the window
+    over them on the engine (`shop.test.ts`, `WasmGame` over the `.wasm`), and the queries the pointer asks
+    (`shapeAt`, `statBlockCards`, `jumpArc`, `underPressureTiles`, `syncPools`). 2,760 unit tests are 2,189.
+    The engine core's golden writers begin their fights with a copy of the old `startEncounter`
+    (`tests/fixtures/fight.ts`), and the fixtures they write are byte for byte what they were. The bundle's
+    guard looks for the engine alone: the rules' words it looked for are nowhere now.
+    - **Lost with them**: some 570 rulings the TypeScript tests wrote down - the defence, the cards, the GM's
+      turn, an authored scenario's play. The Rust is held to the same behaviour by the frozen fixtures it
+      replays and its own tests; the rulings' honest home is Rust unit tests, ported as each is touched.
+    - **The engine core the page no longer reaches**: `engine/scene/interact.ts`, `engine/combat/area.ts`,
+      `engine/combat/adversary-features.ts` and `engine/script/thing-effects.ts` are bundled no more; they stay
+      while the Rust core's golden writers use them.
+  - **Next**: the page playing with the server in a build (slice 2).

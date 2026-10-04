@@ -3,15 +3,7 @@ import { hollowVaultMap } from './demo-map';
 import { blankScene, tileOf } from '../engine/scene/grid-from-scene';
 import { projectSchema, sceneSchema } from '../engine/scene/schema';
 import { SRD_CONDITIONS } from '../engine/content/conditions';
-import {
-  answerPending,
-  moveSelectedTo,
-  buildDemoScene,
-  reachableInteractable,
-  useSelectedOn,
-  type DemoScene,
-} from './demo-scene';
-import { scriptPending } from './moment';
+import { buildDemoScene, reachableInteractable, type DemoScene } from './demo-scene';
 import { worldOptions } from './room';
 import { interactablesOf } from '../engine/scene/prop-functions';
 
@@ -48,104 +40,11 @@ describe('using the demo vault', () => {
     expect(chest.check?.onFailureWithBad?.length).toBeGreaterThan(0);
   });
 
-  it('refuses a thing across the room', () => {
-    const demo = scene();
-    const result = useSelectedOn(demo, CHEST);
-    expect(result.status).toBe('unreachable');
-    expect(demo.log.at(-1)?.text).toBe('It is out of reach.');
-  });
-
-  it('stops for the roll when you are standing next to it', () => {
-    const demo = scene();
-    stand(demo, CHEST);
-    const result = useSelectedOn(demo, CHEST);
-    expect(result.status).toBe('waiting');
-    expect(demo.pending?.prompt.kind).toBe('check');
-    expect(scriptPending(demo)?.interactable).toBe(CHEST);
-    // The chest's own words reached the log before the roll was asked for.
-    expect(demo.log.some((l) => l.text.length > 0)).toBe(true);
-  });
-
-  it('resolves the roll and writes the authored outcome to the log', () => {
-    const demo = scene();
-    stand(demo, CHEST);
-    useSelectedOn(demo, CHEST);
-    const before = demo.log.length;
-    const result = answerPending(demo, { kind: 'roll' });
-
-    expect(result.status).toBe('done');
-    expect(demo.pending).toBeNull();
-    expect(demo.log.length).toBeGreaterThan(before);
-    // One of those lines is the outcome of the duality roll.
-    expect(demo.log.some((l) => /with (Light|Shadow)|critical/i.test(l.text))).toBe(true);
-  });
-
-  it('does not repeat the lines it already showed once the roll comes in', () => {
-    const demo = scene();
-    stand(demo, CHEST);
-    useSelectedOn(demo, CHEST);
-    answerPending(demo, { kind: 'roll' });
-
-    // A runner's journal is cumulative, so the flavour shown before the roll is
-    // in the journal again after it. The log should still hold it once.
-    const counts = new Map<string, number>();
-    for (const line of demo.log) counts.set(line.text, (counts.get(line.text) ?? 0) + 1);
-    const repeated = [...counts.entries()].filter(([, n]) => n > 1);
-    expect(repeated).toEqual([]);
-  });
-
-  it('marks the chest used, so it cannot be opened twice', () => {
-    const demo = scene();
-    stand(demo, CHEST);
-    useSelectedOn(demo, CHEST);
-    answerPending(demo, { kind: 'roll' });
-
-    expect(demo.world.interactableState(CHEST).used).toBe(true);
-    expect(useSelectedOn(demo, CHEST).status).toBe('refused');
-  });
-
-  it('holds the floor while a script is waiting on the player', () => {
-    const demo = scene();
-    stand(demo, CHEST);
-    const before = demo.state.entity(demo.party.selected!)!.tile;
-    useSelectedOn(demo, CHEST);
-    expect(demo.pending).not.toBeNull();
-
-    // Walking away from an open lock prompt and then rolling it would let a
-    // player pick the lock from across the room.
-    expect(moveSelectedTo(demo, before - 3).moved).toBe(false);
-    expect(demo.state.entity(demo.party.selected!)!.tile).toBe(before);
-    expect(useSelectedOn(demo, CHEST).status).toBe('busy');
-
-    answerPending(demo, { kind: 'roll' });
-    expect(demo.pending).toBeNull();
-  });
-
-  it('lets a player back out of the roll', () => {
-    const demo = scene();
-    stand(demo, CHEST);
-    useSelectedOn(demo, CHEST);
-    const result = answerPending(demo, { kind: 'cancel' });
-    expect(result.status).toBe('done');
-    expect(demo.pending).toBeNull();
-  });
-
   it('names what is within reach, and nothing when there is nothing', () => {
     const demo = scene();
     expect(reachableInteractable(demo)).toBeNull();
     stand(demo, CHEST);
     expect(reachableInteractable(demo)).toBe(CHEST);
-  });
-
-  it('is replayable: the same seed opens the chest the same way', () => {
-    const play = (): string => {
-      const demo = buildDemoScene(hollowVaultMap(), 'fixed-seed');
-      stand(demo, CHEST);
-      useSelectedOn(demo, CHEST);
-      answerPending(demo, { kind: 'roll' });
-      return JSON.stringify(demo.log);
-    };
-    expect(play()).toBe(play());
   });
 
   it('rolls against the party sheets rather than a bare die', () => {
