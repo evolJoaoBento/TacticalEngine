@@ -13,7 +13,7 @@
  */
 
 import { SaveSlots, browserStore, mintSlotId, type SaveShelf, type SaveSlot, type SlotStore } from './save-slots';
-import type { Wire } from './wire';
+import { KEPT_BY_HOST, type Wire } from './wire';
 
 export const SAVES_URL = '/__saves';
 const HEADER = 'x-tactical-save';
@@ -55,6 +55,11 @@ export class AccountSaves implements SaveShelf {
   /** The game saved by the server's game into a slot, listed at once; `null` when the server is not in step to. */
   write(text: string, name: string, where: string, id?: string, project?: string): SaveSlot | null {
     const slot: SaveSlot = { id: id ?? mintSlotId(this.now()), name, savedAt: this.now(), where, ...(project === undefined ? {} : { project }) };
+    // A shared game's saves are its host's: another's page sends nothing, which the server would refuse.
+    if (this.wire()?.keepsSaves() === false) {
+      this.refusal = KEPT_BY_HOST;
+      return null;
+    }
     const saving = this.wire()?.save(slot, text) ?? null;
     if (saving === null) {
       this.refusal = 'The game could not be saved: the server is not playing it in step just now.';

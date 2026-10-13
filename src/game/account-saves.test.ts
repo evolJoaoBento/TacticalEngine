@@ -42,6 +42,7 @@ function wire(answer: 'saves' | 'refuses' | 'not in step') {
   const told: { slot: { id: string }; text: string }[] = [];
   let resolve: (value: { slot: SaveSlot; text: string } | null) => void = () => undefined;
   const fake = {
+    keepsSaves: () => true,
     save: (s: SaveSlot, text: string) => {
       if (answer === 'not in step') return null;
       told.push({ slot: s, text });

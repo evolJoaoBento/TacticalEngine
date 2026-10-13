@@ -21,6 +21,7 @@ import type { GearCard } from '../gear';
 import './hud.css';
 import { ArtNote } from './AiNote';
 import { Players } from './Players';
+import { Lobby } from './Lobby';
 import { waitingOn } from '../shared-game';
 
 
@@ -172,6 +173,8 @@ export function PlayPanel(props: PlayPanelProps): preact.JSX.Element | null {
         onAnswer={props.onAnswer}
         onDone={props.onRollDone}
       />
+      {/* A game opened for others to join, over the board until its host starts it. */}
+      <Lobby />
       <SettingsModal games={(close) => (
         <>
           <Players />

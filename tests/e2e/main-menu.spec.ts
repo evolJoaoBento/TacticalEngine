@@ -107,7 +107,7 @@ test('New Game makes a character card by card and begins a camp, played; Load Ga
   await page.goto('/?menu');
   const menu = page.getByTestId('main-menu');
   // Signed in where the games are played on the server, the menu says who, offers to sign out, and has the Store.
-  await expect(menu.getByRole('button')).toHaveText(ON_SERVER ? [/Sign out/, /New Game/, /Load Game/, /Edit Game/, /Store/] : [/New Game/, /Load Game/, /Edit Game/]);
+  await expect(menu.getByRole('button')).toHaveText(ON_SERVER ? [/Sign out/, /New Game/, /Load Game/, /Edit Game/, /Play Together/, /Store/] : [/New Game/, /Load Game/, /Edit Game/]);
   await page.screenshot({ path: 'test-results/main-menu.png' });
 
   await page.getByTestId('menu-new').click();

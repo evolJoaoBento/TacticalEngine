@@ -67,21 +67,32 @@ export interface Transport {
   listen?(heard: (message: Record<string, unknown>) => void): void;
 }
 
-/** Who is at a shared game, and who plays whom - a character's id to an account's - as the server says. */
+/**
+ * Who is at a shared game, and who plays whom - a character's id to an account's - as the server says; and whether
+ * it has started, which a game opened as a lobby has not until its host says (slice 5).
+ */
 export interface SharedTable {
   game: string;
   host: string;
   invite: string;
   members: { id: string; name: string }[];
   seats: Record<string, string>;
+  started: boolean;
 }
 
-/** Whom a game plays for at a shared game: the account, the host, who plays whom (`engine::game::seats`). */
+/**
+ * Whom a game plays for at a shared game: the account, the host, who plays whom, and whether it has started - before
+ * then nobody plays anybody (`engine::game::seats`).
+ */
 export interface Seating {
   you: string;
   host: string;
   seats: Record<string, string>;
+  started?: boolean;
 }
+
+/** Why a page that is not the host's saves nothing: a shared game's saves are its host's (`play.rs`). */
+export const KEPT_BY_HOST = "The host keeps this game's saves.";
 
 /** What an intent gave the pages to draw: the walks, the numbers over heads, the dice (`DemoScene`'s queues). */
 export interface Views {
@@ -111,6 +122,8 @@ export interface WireOptions {
   resume?: boolean;
   /** Join the shared game this invitation is to rather than open one (`?join=`). */
   join?: string;
+  /** Open the game as a lobby, not started until the page's player starts it (`?host`). */
+  lobby?: boolean;
   /** The waits between tries to connect again (`RETRIES`), and how a wait is waited - for a test. */
   retries?: readonly number[];
   later?: (run: () => void, ms: number) => void;
@@ -229,7 +242,22 @@ export class Wire {
    */
   seating(): Seating | null {
     if (this.state === 'closed') return null;
-    return this.table === null || this.you === null ? null : { you: this.you, host: this.table.host, seats: this.table.seats };
+    return this.table === null || this.you === null ? null : { you: this.you, host: this.table.host, seats: this.table.seats, started: this.table.started };
+  }
+
+  /** Whether the page keeps this game's saves: the host's does, and a page at nobody's table. */
+  keepsSaves(): boolean {
+    return this.state === 'closed' || this.table === null || this.you === null || this.you === this.table.host;
+  }
+
+  /** A game opened as a lobby started, as its host says: whether the server took it. Nobody else may. */
+  async startGame(): Promise<boolean> {
+    if (this.state !== 'in' && this.state !== 'parted' && this.state !== 'asked') return false;
+    const said = await this.send({ op: 'start' });
+    const table = (said.ok as { table?: SharedTable } | undefined)?.table;
+    if (table === undefined) return false;
+    this.setTable(table);
+    return true;
   }
 
   /**
@@ -306,9 +334,9 @@ export class Wire {
     this.transport.close();
   }
 
-  /** A game opened over the page's project and table - and its dice, which only the tests' server takes. */
+  /** A game opened over the page's project and table - and its dice, which only the tests' server takes; as a lobby, if asked. */
   private opening(): Record<string, unknown> {
-    return { op: 'open', project: this.demo.project, shipped: this.shipped, table: { animated: this.demo.animated, askDefender: this.demo.askDefender }, rng: this.demo.rng.save() };
+    return { op: 'open', project: this.demo.project, shipped: this.shipped, table: { animated: this.demo.animated, askDefender: this.demo.askDefender }, rng: this.demo.rng.save(), ...(this.options.lobby === true ? { lobby: true } : {}) };
   }
 
   private async open(): Promise<void> {

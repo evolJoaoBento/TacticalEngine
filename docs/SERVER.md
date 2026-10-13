@@ -271,6 +271,7 @@ The slices:
    decided; a question asked of the player whose character it is, the others shown that it waits; a
    conversation its talker's player's.
 5. **The lobby** - opening a game, inviting, joining, taking seats, starting; a shared game's saves its host's.
+   Done 13 October 2026 (Progress, below).
 
 ## Running it
 
@@ -1544,4 +1545,43 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     - **Not yet**: one errand at a time in the game - a guest's walk up to something replaces the host's that is
       still walking; each player choosing their own downtime moves at a rest (the host rests the party, choosing for
       everybody); the lobby, and a shared game's saves its host's (slice 5).
-  - **Next**: the lobby (slice 5).
+  - **The lobby** (slice 5). A game is hosted as a lobby: the menu's Play Together opens any game Load Game lists, or
+    a save of it, with `?host`, and the page opens its game on the server as one (`{ op: "open", lobby: true }`,
+    `WireOptions.lobby`). A game so opened has not started (`Shared::started`, the table's `started`): friends join
+    it with its invitation - opened, or pasted into Play Together's Join (`inviteFrom`) - and take their seats
+    themselves, a seat nobody has taken or their own left again (`seat`, which before the start is anybody's for
+    themselves and after it the host's alone, as it was), and the host starts it (`{ op: "start" }`, the host's
+    alone, once; every page told). Until then nobody plays anybody, the host no more than the rest: the seating the
+    game is told carries whether it has started (`Seating::started`), and before then `may_play` is nobody's, so
+    every intent for a character is refused in its own shape and nobody is selected - on the server, whose game is
+    told so at the open (`play_for` after `open`) and before every message, and in each page, whose engine is told
+    from the table - so nothing parts. Started, each account's selection is chosen among its own at once, as when
+    the seats change. The host may load a save into the lobby (`?load=` with `?host`). The page draws the lobby over
+    the board until the start (`ui/Lobby.tsx`: the invitation, who is at the table, each seat with Take or Leave -
+    the host's a choice of anybody - and Start, or whom the others wait on). A game opened the ordinary way starts at
+    once, as before: solo play, the fixtures and every single-page test are unchanged.
+    - **A shared game's saves are its host's.** The server refuses a save from anybody but the game's host ("the
+      host keeps this game's saves"), as it already refused a load; the host's goes into the host's own folder, as it
+      did. A guest's page sends none: its game says why it may not save (`GameTable.saveBlockedBy`: `KEPT_BY_HOST`,
+      from `Wire.keepsSaves`), so the settings' Save buttons are shut with that reason and the autosave at a doorway
+      is skipped, and the shelf refuses a quick save without sending it (`AccountSaves.write`) - a refused save would
+      be a parting.
+    - Proved by the engine's tests (`seats.rs`: a game not started plays nobody, the host no more than a guest - every
+      refusal in its shape, the game unchanged, nobody selected - and each their own once started), the server's
+      (`play_routes.rs`: a game opened plainly started, a lobby not; nobody plays before the start, nothing pushed for
+      it; a guest takes a seat nobody has, is refused one somebody has and another's, leaves their own and takes it
+      again; only the host starts it, once, everybody told and the guest's own selected; the seats the host's again
+      after; the guest's save refused and nothing written, the host's written; a lobby opened with the host's save
+      loaded into it), the wire's (a lobby: nobody playing on either page with nothing parted, a seat taken, the start
+      refused the guest and taken from the host, each page's own selected at once; a guest's page saving nothing and
+      sending nothing), the page's (`shared-game.test.ts`: the seat rule with a game not started, `seatFor`, `start`,
+      `lobbyAsked`, `inviteFrom`; `start.test.ts`: `?host`) and the e2e on the server (`shared.spec.ts`: the host's
+      demo hosted from Play Together, a lobby, the host refused a selection; the guest's wrong link refused and the
+      right one joined from the menu, waiting on the host; a seat taken with the Take button and shown to the host;
+      Start, the lobby gone from both, each with their own selected; the guest's walk reaching the host; the guest's
+      Save shut with the reason; nothing parted).
+    - **Not yet**: a save keeps nobody's seats - hosting it again, the players take theirs again; a lobby hosted
+      from Play Together offers only the games and saves this browser and account have; a guest cannot see the
+      host's saves, nor ask for one to be loaded.
+  - **Next**: phase 5's slices are done. What it leaves: one errand at a time; each player's own downtime moves; a
+    shared game's seats kept in its saves.

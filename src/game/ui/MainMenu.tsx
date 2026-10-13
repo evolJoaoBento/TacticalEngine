@@ -7,6 +7,9 @@
  *   Edit Game   the project with the editor, as the app has always opened
  *   Store       art creators have published, with how they made it, and a vote on it (`Store.tsx`) -
  *               for whoever is signed in
+ *   Play Together  where the server plays the game: any game Load Game lists, or a save of it, hosted for
+ *               friends - opened as a lobby they gather in before it starts (`?host`, `Lobby.tsx`) - or
+ *               another's joined with the link its host sent (`?join=`)
  *
  * Every choice opens the page again with it written in the address, so a game starts on a clean
  * page. Saves are listed under the game they are of (`SaveSlot.project`), and are the signed-in
@@ -21,6 +24,7 @@ import type { SignedIn } from '../accounts';
 import { Store } from './Store';
 import { listAccountSaves } from '../account-saves';
 import { serverAllowed } from '../play-socket';
+import { inviteFrom } from '../shared-game';
 import './menu.css';
 
 /** Open the page again, on what was chosen. */
@@ -47,7 +51,9 @@ function Saves({ saves, open }: { saves: SaveSlot[]; open: (slot: string) => voi
 }
 
 export function MainMenu(props: { account?: SignedIn | null; onSignOut?: () => void }): preact.JSX.Element {
-  const [view, setView] = useState<'main' | 'load' | 'new' | 'store'>('main');
+  const [view, setView] = useState<'main' | 'load' | 'new' | 'store' | 'together'>('main');
+  const [joining, setJoining] = useState('');
+  const [joinRefused, setJoinRefused] = useState(false);
   const account = props.account ?? null;
   const games = new GameProjects(browserStore());
   // The browser's saves - or, signed in where the server plays the game, the account's, kept there.
@@ -58,6 +64,34 @@ export function MainMenu(props: { account?: SignedIn | null; onSignOut?: () => v
     void listAccountSaves(account.id).then((listed) => setSaves(listed ?? new SaveSlots(browserStore()).list()));
   }, [account?.id, onServer]);
   const savesOf = (project: string): SaveSlot[] => saves.filter((slot) => projectOfSlot(slot) === project);
+  // Every game, and the saves of each, opened as chosen - hosted for friends too (`?host`) from Play Together.
+  const gameList = (also: string): preact.JSX.Element[] => [
+    ...games.list().map((game) => (
+      <section key={game.id} className="menu-game" data-game={game.id}>
+        <header>
+          <h2>{game.name}</h2>
+          <button type="button" className="menu-go" data-testid="menu-continue" onClick={() => openPage(`play&project=${encodeURIComponent(game.id)}${also}`)}>
+            Continue
+          </button>
+        </header>
+        <Saves saves={savesOf(game.id)} open={(slot) => openPage(`play&project=${encodeURIComponent(game.id)}&load=${encodeURIComponent(slot)}${also}`)} />
+      </section>
+    )),
+    <section key={DEFAULT_SAVE_PROJECT} className="menu-game" data-game={DEFAULT_SAVE_PROJECT}>
+      <header>
+        <h2>The Demo Vault</h2>
+        <button type="button" className="menu-go" data-testid="menu-play-demo" onClick={() => openPage(`play${also}`)}>
+          From the start
+        </button>
+      </header>
+      <Saves saves={savesOf(DEFAULT_SAVE_PROJECT)} open={(slot) => openPage(`play&load=${encodeURIComponent(slot)}${also}`)} />
+    </section>,
+  ];
+  const join = (): void => {
+    const invite = inviteFrom(joining);
+    if (invite === null) setJoinRefused(true);
+    else openPage(`join=${encodeURIComponent(invite)}`);
+  };
 
   return (
     <div className="menu" data-testid="main-menu">
@@ -87,6 +121,11 @@ export function MainMenu(props: { account?: SignedIn | null; onSignOut?: () => v
                 <button type="button" className="menu-choice" data-testid="menu-edit" onClick={() => openPage('edit')}>
                   Edit Game<small>The editor: rooms, creatures, cards and all</small>
                 </button>
+                {onServer ? (
+                  <button type="button" className="menu-choice" data-testid="menu-together" onClick={() => setView('together')}>
+                    Play Together<small>Host a game for friends, or join theirs</small>
+                  </button>
+                ) : null}
                 {account === null ? null : (
                   <button type="button" className="menu-choice" data-testid="menu-store" onClick={() => setView('store')}>
                     Store<small>Art from its makers, and how they made it</small>
@@ -94,28 +133,43 @@ export function MainMenu(props: { account?: SignedIn | null; onSignOut?: () => v
                 )}
               </nav>
             </>
+          ) : view === 'together' ? (
+            <div className="menu-load" data-testid="menu-together-list">
+              <section className="menu-game menu-join">
+                <header>
+                  <h2>Join a game</h2>
+                </header>
+                <form
+                  className="menu-join-row"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    join();
+                  }}
+                >
+                  <input
+                    data-testid="menu-join-link"
+                    placeholder="The link your host sent"
+                    value={joining}
+                    onInput={(e) => {
+                      setJoining(e.currentTarget.value);
+                      setJoinRefused(false);
+                    }}
+                  />
+                  <button type="submit" className="menu-go" data-testid="menu-join">
+                    Join
+                  </button>
+                </form>
+                {joinRefused ? <p className="menu-join-refused" data-testid="menu-join-refused">That is not an invitation: paste the whole link your host sent.</p> : null}
+              </section>
+              <p className="menu-sub">Or host one: friends join it, take their seats, and you start it together.</p>
+              {gameList('&host')}
+              <button type="button" className="menu-back" data-testid="menu-back" onClick={() => setView('main')}>
+                Back
+              </button>
+            </div>
           ) : (
             <div className="menu-load" data-testid="menu-load-list">
-              {games.list().map((game) => (
-                <section key={game.id} className="menu-game" data-game={game.id}>
-                  <header>
-                    <h2>{game.name}</h2>
-                    <button type="button" className="menu-go" data-testid="menu-continue" onClick={() => openPage(`play&project=${encodeURIComponent(game.id)}`)}>
-                      Continue
-                    </button>
-                  </header>
-                  <Saves saves={savesOf(game.id)} open={(slot) => openPage(`play&project=${encodeURIComponent(game.id)}&load=${encodeURIComponent(slot)}`)} />
-                </section>
-              ))}
-              <section className="menu-game" data-game={DEFAULT_SAVE_PROJECT}>
-                <header>
-                  <h2>The Demo Vault</h2>
-                  <button type="button" className="menu-go" data-testid="menu-play-demo" onClick={() => openPage('play')}>
-                    From the start
-                  </button>
-                </header>
-                <Saves saves={savesOf(DEFAULT_SAVE_PROJECT)} open={(slot) => openPage(`play&load=${encodeURIComponent(slot)}`)} />
-              </section>
+              {gameList('')}
               <button type="button" className="menu-back" data-testid="menu-back" onClick={() => setView('main')}>
                 Back
               </button>

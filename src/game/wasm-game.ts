@@ -27,7 +27,7 @@ import { shippedContent } from './shipped';
 import { WasmEngine } from './wasm-engine';
 import { PlaySocket, serverAccount } from './play-socket';
 import { Wire } from './wire';
-import { invitationOf, tableOf } from './shared-game';
+import { invitationOf, lobbyAsked, tableOf } from './shared-game';
 import { nameOf } from './log';
 import { loadAccountSaves } from './account-saves';
 import { SaveSlots, browserStore, type SaveShelf } from './save-slots';
@@ -157,7 +157,8 @@ function wireUp(game: GameTable, demo: DemoScene, resume: boolean): void {
   tableOf(null);
   if (!serverOn) return;
   const invite = booting ? invitationOf() : null;
-  const wire = new Wire(() => new PlaySocket(), demo, shippedContent(), { resume, ...(invite === null ? {} : { join: invite }) });
+  const lobby = booting && lobbyAsked();
+  const wire = new Wire(() => new PlaySocket(), demo, shippedContent(), { resume, lobby, ...(invite === null ? {} : { join: invite }) });
   game.wireWith(wire);
   wired = wire;
   tableOf(wire, () => demo.party.members().map((id) => ({ id, name: nameOf(demo, id) })));

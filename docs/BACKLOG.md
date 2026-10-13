@@ -4,6 +4,17 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## Phase 5 (multiplayer), slice 5: the lobby — done
+
+A game is hosted from the menu (Play Together: any game or save, `?host`) as a lobby: friends join with the link
+the host sends - pasted into Play Together, or opened - take the seats nobody has (or leave their own), and the
+host starts it, everybody at once. Until then nobody plays anybody, the host no more than the rest: the engine's
+seat rule, told the game has not started, refuses every intent for a character in its own shape, on the server and
+in each page alike, so nothing parts. A shared game's saves are its host's: nobody else's page saves it (the
+buttons, the quick save and the autosave say so and send nothing), and the server refuses a guest's save. A game
+opened the ordinary way starts at once, as it always did. Phase 5's slices are done; what is left is in
+`docs/SERVER.md` under slice 5's "Not yet".
+
 ## Phase 5 (multiplayer), slice 4: who may act — done
 
 Each player acts with their own: the character they are seated in, and the host every one nobody is. The engine

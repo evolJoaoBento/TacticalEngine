@@ -20,7 +20,8 @@ import { firstDifference, replicaCount } from './shadow';
 import { shippedContent } from './shipped';
 import { WasmEngine } from './wasm-engine';
 import { WasmGame } from './wasm-game';
-import { LOCAL, Wire, type Said, type SharedTable, type Transport } from './wire';
+import { KEPT_BY_HOST, LOCAL, Wire, type Said, type SharedTable, type Transport } from './wire';
+import { AccountSaves } from './account-saves';
 import { talkingTo, talkingView } from './ui/play-views';
 import { interactablesOf } from '../engine/scene/prop-functions';
 import { act } from '../../tests/fixtures/random-play';
@@ -61,7 +62,7 @@ class EngineServer implements Transport {
   /** The account's saves, by slot, as the server's folder keeps them. */
   readonly saves = new Map<string, string>();
   /** Who is at the game and who plays whom, as the server keeps it; and each connection's ear, by its number. */
-  table: SharedTable = { game: 'g', host: 'host', invite: 'invite-1', members: [{ id: 'host', name: 'Host' }], seats: {} };
+  table: SharedTable = { game: 'g', host: 'host', invite: 'invite-1', members: [{ id: 'host', name: 'Host' }], seats: {}, started: true };
   private readonly ears = new Map<number, (message: Record<string, unknown>) => void>();
   /** Whose each connection is, and whom each account last had selected. */
   private readonly accounts = new Map<number, string>();
@@ -114,7 +115,7 @@ class EngineServer implements Transport {
 
   /** The game told whom it plays for, as `play.rs` tells it before anything of an account's is asked of it. */
   private playFor(account: string): void {
-    const seating: Record<string, unknown> = { you: account, host: this.table.host, seats: this.table.seats };
+    const seating: Record<string, unknown> = { you: account, host: this.table.host, seats: this.table.seats, started: this.table.started };
     if (this.selected.has(account)) seating['selected'] = this.selected.get(account);
     this.engine.call('restoreSeating', [seating]);
   }
@@ -182,7 +183,7 @@ class EngineServer implements Transport {
     if (m['op'] === 'join') this.accounts.set(from, `guest-${from}`);
     const you = this.accountOf(from);
     try {
-      if (m['op'] !== 'open' && m['op'] !== 'seat' && this.kept !== null) this.playFor(you);
+      if (m['op'] !== 'open' && m['op'] !== 'seat' && m['op'] !== 'start' && this.kept !== null) this.playFor(you);
       switch (m['op']) {
         case 'open': {
           const seed = `${this.seed}:${++this.opens}`;
@@ -193,6 +194,9 @@ class EngineServer implements Transport {
           this.played = 0;
           this.accounts.set(from, this.table.host);
           this.selected.clear();
+          // A lobby, not started until its host says; told whom it plays for at once, as `play.rs` tells it.
+          this.table = { ...this.table, started: m['lobby'] !== true };
+          this.playFor(this.table.host);
           this.chose(you);
           return { ok: { seed, board: engine.board(), table: this.table, game: this.table.game, invite: this.table.invite, seq: 0, you } };
         }
@@ -204,6 +208,14 @@ class EngineServer implements Transport {
           return { ok: { board: engine.board(), project: this.kept, table: this.table, seq: this.played, you } };
         }
         case 'seat': {
+          // The host's to say; before the start, anybody takes a seat nobody has or leaves their own.
+          const character = m['character'] as string;
+          if (you !== this.table.host) {
+            if (this.table.started) return { error: 'only the host says who plays whom' };
+            const taking = m['account'] === you && this.table.seats[character] === undefined;
+            const leaving = m['account'] === null && this.table.seats[character] === you;
+            if (!taking && !leaving) return { error: 'only a seat nobody has is yours to take' };
+          }
           const seats = { ...this.table.seats };
           if (m['account'] === null) delete seats[m['character'] as string];
           else seats[m['character'] as string] = m['account'] as string;
@@ -216,7 +228,19 @@ class EngineServer implements Transport {
           this.push(from, { table: this.table });
           return { ok: { table: this.table } };
         }
+        case 'start': {
+          if (you !== this.table.host) return { error: 'only the host starts the game' };
+          if (this.table.started) return { error: 'the game has started' };
+          this.table = { ...this.table, started: true };
+          for (const member of this.table.members) {
+            this.playFor(member.id);
+            this.chose(member.id);
+          }
+          this.push(from, { table: this.table });
+          return { ok: { table: this.table } };
+        }
         case 'save': {
+          if (you !== this.table.host) return { error: "the host keeps this game's saves" };
           // The game saves itself, as a game on the server does (`play.rs`), unless it may not now.
           const blocked = this.refuseSave ?? (engine.call('saveBlockedBy', []) as string | null);
           if (blocked !== null) return { error: blocked };
@@ -865,12 +889,12 @@ describe('a shared game, on the wire', () => {
    * The host's page and a guest's, each its own page and engine, at one game on the server - the guest seated in
    * one of the party (`theirs`), the host playing the rest.
    */
-  async function sharing(name: string, seated = true) {
+  async function sharing(name: string, seated = true, lobby = false) {
     const bytes = readFileSync(WASM);
     const server = new EngineServer(await WasmEngine.load(bytes));
     const hostDemo = buildProjectScene(project(), `wire:${name}:host`);
     const host = new WasmGame(hostDemo, await WasmEngine.load(bytes), shippedContent());
-    const hostWire = new Wire(() => server.connection(), hostDemo, shippedContent());
+    const hostWire = new Wire(() => server.connection(), hostDemo, shippedContent(), { lobby });
     host.wireWith(hostWire);
     await hostWire.ready;
     const guestDemo = buildProjectScene(project(), `wire:${name}:guest`);
@@ -879,7 +903,7 @@ describe('a shared game, on the wire', () => {
     guest.wireWith(guestWire);
     await guestWire.ready;
     await settle(server);
-    const theirs = hostDemo.party.members().find((id) => id !== hostDemo.party.selected)!;
+    const theirs = hostDemo.party.members().find((id) => id !== (hostDemo.party.selected ?? hostDemo.party.members()[0]))!;
     if (seated) {
       await hostWire.seat(theirs, guestWire.you!);
       await settle(server);
@@ -1044,6 +1068,69 @@ describe('a shared game, on the wire', () => {
     expect(guestWire.seating()).not.toBeNull();
     guestWire.close();
     expect(guestWire.seating()).toBeNull();
+  }, 120_000);
+
+  it.skipIf(!built)('gathers in a lobby: nobody plays before the host starts it, the guest takes a seat, nothing parted', async () => {
+    const { server, hostDemo, host, hostWire, guestDemo, guest, guestWire, theirs, before } = await sharing('lobby', false, true);
+    expect(server.sent.find((m) => m['op'] === 'open')!['lobby']).toBe(true);
+    expect(hostWire.table!.started).toBe(false);
+    expect(guestWire.table!.started).toBe(false);
+    // Nobody plays anybody yet, the host no more than the guest: nobody selected, everything refused on the page as
+    // on the server.
+    const kara = hostDemo.party.members()[0]!;
+    for (const [demo, game] of [[hostDemo, host], [guestDemo, guest]] as const) {
+      expect(demo.party.selected).toBeNull();
+      expect(game.select(kara)).toBe(false);
+      expect(game.endTurn()).toBe(0);
+    }
+    await settle(server);
+    expect(differ(hostDemo, server)).toBeNull();
+    expect(differ(guestDemo, server, guestWire.you!)).toBeNull();
+    // The guest takes a seat nobody has, and may not take one somebody has; nor start the game.
+    expect(await guestWire.seat(theirs, guestWire.you!)).toBe(true);
+    await settle(server);
+    expect(hostWire.table!.seats).toEqual({ [theirs]: guestWire.you });
+    expect(await hostWire.seat(kara, 'host')).toBe(true);
+    expect(await guestWire.seat(kara, guestWire.you!)).toBe(false);
+    expect(await guestWire.startGame()).toBe(false);
+    await settle(server);
+    expect(guestDemo.party.selected).toBeNull();
+    // The host starts it: both pages told, each with their own selected at once.
+    expect(await hostWire.startGame()).toBe(true);
+    await settle(server);
+    expect(guestWire.table!.started).toBe(true);
+    expect(hostDemo.party.selected).toBe(kara);
+    expect(guestDemo.party.selected).toBe(theirs);
+    expect(differ(hostDemo, server)).toBeNull();
+    expect(differ(guestDemo, server, guestWire.you!)).toBeNull();
+    // Started, the seats are the host's to say again.
+    expect(await guestWire.seat(theirs, null)).toBe(false);
+    // And played: the guest walks their own.
+    guest.moveSelectedTo(guestDemo.state.entity(theirs)!.tile + 1);
+    await settle(server);
+    expect(differ(hostDemo, server)).toBeNull();
+    expect(replicaCount().first.slice(before.first.length)).toEqual([]);
+  }, 120_000);
+
+  it.skipIf(!built)("keeps a shared game's saves the host's: a guest's page saves nothing, nor sends it", async () => {
+    const { server, host, guest, guestWire, hostWire } = await sharing('saves');
+    expect(guestWire.keepsSaves()).toBe(false);
+    expect(hostWire.keepsSaves()).toBe(true);
+    expect(guest.saveBlockedBy()).toBe(KEPT_BY_HOST);
+    expect(host.saveBlockedBy()).toBeNull();
+    const shelf = new AccountSaves([], new Map(), () => guestWire);
+    expect(shelf.write('{}', 'Quick save', 'here', 'quick')).toBeNull();
+    expect(shelf.refused()).toBe(KEPT_BY_HOST);
+    await settle(server);
+    expect(server.sent.filter((m) => m['op'] === 'save')).toEqual([]);
+    // The host's is written.
+    const hosts = new AccountSaves([], new Map(), () => hostWire);
+    expect(hosts.write(host.serialiseSave()!, 'Quick save', 'here', 'quick')).not.toBeNull();
+    await settle(server);
+    expect(server.saves.has('quick')).toBe(true);
+    // A page at nobody's table keeps its own.
+    hostWire.close();
+    expect(hostWire.keepsSaves()).toBe(true);
   }, 120_000);
 
   it.skipIf(!built)('puts a question to whoever plays the character it is about, and nobody else answers it', async () => {

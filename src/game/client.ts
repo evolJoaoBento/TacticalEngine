@@ -53,7 +53,7 @@ import type { Walking } from './land';
 import type { Drop } from './party-drop';
 import { carriedItems, containerView, hudMembers, journalEntries, talkingTo, talkingView } from './ui/play-views';
 import type { OpenContainer } from './ui/PlayPanel';
-import type { Wire } from './wire';
+import { KEPT_BY_HOST, type Wire } from './wire';
 import type { WasmEngine } from './wasm-engine';
 
 import { userSettings } from './user-settings';
@@ -362,7 +362,8 @@ export abstract class GameTable implements GameClient, LocalPowers {
   setDiceSpeed(millis: number): void { this.demo.diceMillis = Math.max(0, millis); }
 
   serialiseSave() { return serialiseSave(this.demo); }
-  saveBlockedBy() { return saveBlockedBy(this.demo); }
+  // A shared game's saves are its host's: nobody else's page saves it, nor autosaves it (`KEPT_BY_HOST`).
+  saveBlockedBy() { return this.wire?.keepsSaves() === false ? KEPT_BY_HOST : saveBlockedBy(this.demo); }
   nameOf(id: string) { return nameOf(this.demo, id); }
   inCombat() { return inCombat(this.demo); }
   scriptPending() { return scriptPending(this.demo); }

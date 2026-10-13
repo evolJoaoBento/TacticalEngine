@@ -17,19 +17,29 @@
 //! A question for nobody in particular is the host's. The fight's turns are the encounter's (`can_act`): the
 //! spotlight is the party's or the GM's, and while it is the party's each player acts with their own; handing it
 //! to the GM is for anybody who plays somebody. A rest is the whole party's, on the host's word.
+//!
+//! A game opened as a lobby is not started until its host says (slice 5): until then nobody plays anybody - every
+//! intent for a character refused, nobody selected - while the players gather and take their seats.
 
 use super::session::Session;
 use serde::Deserialize;
 use serde_json::{json, Value};
 use std::collections::HashMap;
 
-/// Whom the game plays for: the account, the game's host, and who plays whom (a character's id to an account's).
-#[derive(Clone, Debug, Default, Deserialize, PartialEq)]
+/// Whom the game plays for: the account, the game's host, who plays whom (a character's id to an account's), and
+/// whether the game has started - a lobby's has not.
+#[derive(Clone, Debug, Deserialize, PartialEq)]
 pub struct Seating {
     pub you: String,
     pub host: String,
     #[serde(default)]
     pub seats: HashMap<String, String>,
+    #[serde(default = "started")]
+    pub started: bool,
+}
+
+fn started() -> bool {
+    true
 }
 
 /// A card, a jump, the gear, a level, a place in the party: the intents that name their character first.
@@ -37,9 +47,12 @@ const NAMED_FIRST: [&str; 10] = ["useAbility", "jumpTo", "equipItem", "unequipIt
 
 impl Session {
     /// Whether the account the game plays for plays this character: the one seated in it, or the host for one
-    /// nobody is seated in. Everybody, told nobody.
+    /// nobody is seated in - once the game has started. Everybody, told nobody.
     pub fn may_play(&self, id: &str) -> bool {
         let Some(seating) = &self.seating else { return true };
+        if !seating.started {
+            return false;
+        }
         match seating.seats.get(id) {
             Some(account) => *account == seating.you,
             None => seating.you == seating.host,
@@ -144,9 +157,10 @@ impl Session {
         })
     }
 
-    /// Whether the account is the host, who plays every character nobody is seated in, and answers for nobody.
+    /// Whether the account is the host, who plays every character nobody is seated in, and answers for nobody -
+    /// once the game has started.
     fn may_play_unseated(&self) -> bool {
-        self.seating.as_ref().is_none_or(|seating| seating.you == seating.host)
+        self.seating.as_ref().is_none_or(|seating| seating.started && seating.you == seating.host)
     }
 
     /// The walkers a page put down that the account plays: nobody else's walk is cut short by another's click.

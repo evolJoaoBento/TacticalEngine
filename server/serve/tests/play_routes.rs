@@ -367,7 +367,8 @@ async fn nothing_more(said: &mut tokio::sync::mpsc::UnboundedReceiver<Value>) ->
 #[tokio::test]
 async fn a_game_is_shared_its_invitation_joins_it_and_each_intent_is_pushed_to_the_others() {
     let fixture = fixture();
-    let tables = Tables::new(root("shared")).for_tests();
+    let root = root("shared");
+    let tables = Tables::new(root.clone()).for_tests();
     let (host, mut to_host) = tables.connect();
     let (guest, mut to_guest) = tables.connect();
     tables.ask_on(host, "kara", json!({ "id": 1, "op": "open", "project": fixture["projects"][0], "shipped": fixture["shipped"], "table": {} }));
@@ -463,9 +464,16 @@ async fn a_game_is_shared_its_invitation_joins_it_and_each_intent_is_pushed_to_t
     assert_eq!(told(&mut to_host).await["ok"]["table"]["seats"], json!({ other.as_str(): "finn" }));
     told(&mut to_guest).await;
 
-    // A save loaded puts everybody somewhere else: not the guest's to do.
+    // A shared game's saves are its host's: the guest's save is refused, and nothing written in their folder.
     tables.ask_on(guest, "finn", json!({ "id": 11, "op": "save", "name": "Mine", "where": "here" }));
-    let slot = told(&mut to_guest).await["ok"]["slot"]["id"].as_str().expect("a slot").to_string();
+    assert_eq!(told(&mut to_guest).await["error"], "the host keeps this game's saves");
+    assert!(serve::saves::read_slots(&root, "finn").is_empty(), "nothing saved for the guest");
+    tables.ask_on(host, "kara", json!({ "id": 11, "op": "save", "name": "Ours", "where": "here" }));
+    assert!(told(&mut to_host).await["ok"]["slot"]["id"].is_string(), "the host's written");
+    // A save loaded puts everybody somewhere else: not the guest's to do, though the save be their own.
+    let slot = serve::saves::mint_id(1);
+    let theirs = serve::saves::Slot { id: slot.clone(), name: "Mine".into(), saved_at: 1, place: "here".into(), project: None };
+    serve::saves::write_save(&root, "finn", theirs, &serve::saves::read_save(&root, "kara", &serve::saves::read_slots(&root, "kara")[0].id).unwrap()).unwrap();
     tables.ask_on(guest, "finn", json!({ "id": 12, "op": "load", "slot": slot }));
     assert_eq!(told(&mut to_guest).await["error"], "only the host loads a save into a game others are at");
 
@@ -586,4 +594,108 @@ async fn each_player_acts_with_their_own_and_answers_the_questions_put_to_them()
     let answered = told(&mut to_other).await;
     assert_ne!(answered["ok"]["answer"]["status"], "refused", "{answered}");
     assert_ne!(answered["ok"]["board"]["pending"], asked);
+}
+
+#[tokio::test]
+async fn a_lobby_gathers_its_players_who_take_their_seats_and_the_host_starts_it() {
+    let fixture = fixture();
+    let tables = Tables::new(root("lobby")).for_tests();
+    let (host, mut to_host) = tables.connect();
+    let (guest, mut to_guest) = tables.connect();
+    // A game opened as nobody's lobby is played at once, as it always was.
+    let alone = tables.ask("solo", json!({ "id": 1, "op": "open", "project": fixture["projects"][0], "shipped": fixture["shipped"], "table": {} })).await;
+    assert_eq!(alone["ok"]["table"]["started"], true);
+    // Opened as a lobby: not started.
+    tables.ask_on(host, "kara", json!({ "id": 1, "op": "open", "project": fixture["projects"][0], "shipped": fixture["shipped"], "table": {}, "lobby": true }));
+    let opened = told(&mut to_host).await;
+    assert_eq!(opened["ok"]["table"]["started"], false, "{opened}");
+    let invite = opened["ok"]["invite"].as_str().unwrap().to_string();
+    tables.ask_on(guest, "finn", json!({ "id": 1, "op": "join", "invite": invite }));
+    assert_eq!(told(&mut to_guest).await["ok"]["table"]["started"], false);
+    told(&mut to_host).await;
+
+    // Nobody plays anybody before it starts, the host no more than the rest: nobody selected, nothing walked, the
+    // engine's refusals in their own shapes.
+    assert_eq!(opened["ok"]["board"]["replica"]["party"]["selected"], Value::Null, "nobody selected in a lobby");
+    let member = fixture["projects"][0]["party"][0]["id"].as_str().unwrap().to_string();
+    let entities = opened["ok"]["board"]["replica"]["state"]["entities"].as_object().unwrap().clone();
+    let other = entities.iter().filter(|(_, e)| e["faction"] == "party").map(|(id, _)| id.clone()).find(|id| *id != member).unwrap();
+    let tile = entities[&member]["tile"].as_i64().unwrap();
+    for (who, conn, to) in [("kara", host, &mut to_host), ("finn", guest, &mut to_guest)] {
+        tables.ask_on(conn, who, json!({ "id": 2, "op": "call", "call": "select", "args": [member] }));
+        assert_eq!(told(to).await["ok"]["answer"], false);
+        tables.ask_on(conn, who, json!({ "id": 3, "op": "call", "call": "moveSelectedTo", "args": [tile + 1] }));
+        let refused = told(to).await;
+        assert_eq!(refused["ok"]["board"]["replica"]["state"]["entities"][member.as_str()]["tile"], tile, "{refused}");
+        tables.ask_on(conn, who, json!({ "id": 4, "op": "call", "call": "endTurn", "args": [] }));
+        assert_eq!(told(to).await["ok"]["answer"], 0);
+    }
+    assert!(nothing_more(&mut to_host).await && nothing_more(&mut to_guest).await, "nothing pushed for refusals");
+    // Nor started by anybody but the host.
+    tables.ask_on(guest, "finn", json!({ "id": 5, "op": "start" }));
+    assert_eq!(told(&mut to_guest).await["error"], "only the host starts the game");
+
+    // A guest takes a seat nobody has: theirs, everybody told - though nobody is selected until it starts.
+    tables.ask_on(guest, "finn", json!({ "id": 5, "op": "seat", "character": other, "account": "finn" }));
+    assert_eq!(told(&mut to_guest).await["ok"]["table"]["seats"], json!({ other.as_str(): "finn" }));
+    assert_eq!(told(&mut to_host).await["table"]["seats"], json!({ other.as_str(): "finn" }));
+    let resumed = tables.ask("finn", json!({ "id": 6, "op": "resume" })).await;
+    assert_eq!(resumed["ok"]["board"]["replica"]["party"]["selected"], Value::Null);
+    // Not one somebody has, nor a seat for somebody else.
+    tables.ask_on(host, "kara", json!({ "id": 7, "op": "seat", "character": member, "account": "kara" }));
+    told(&mut to_host).await;
+    told(&mut to_guest).await;
+    tables.ask_on(guest, "finn", json!({ "id": 8, "op": "seat", "character": member, "account": "finn" }));
+    assert_eq!(told(&mut to_guest).await["error"], "only a seat nobody has is yours to take");
+    tables.ask_on(guest, "finn", json!({ "id": 9, "op": "seat", "character": member, "account": null }));
+    assert_eq!(told(&mut to_guest).await["error"], "only a seat nobody has is yours to take");
+    // Their own they leave, and take again.
+    tables.ask_on(guest, "finn", json!({ "id": 10, "op": "seat", "character": other, "account": null }));
+    assert_eq!(told(&mut to_guest).await["ok"]["table"]["seats"], json!({ member.as_str(): "kara" }));
+    told(&mut to_host).await;
+    tables.ask_on(guest, "finn", json!({ "id": 11, "op": "seat", "character": other, "account": "finn" }));
+    assert!(told(&mut to_guest).await["ok"].is_object());
+    told(&mut to_host).await;
+
+    // The host starts it: everybody told, and it is played.
+    tables.ask_on(host, "kara", json!({ "id": 12, "op": "start" }));
+    assert_eq!(told(&mut to_host).await["ok"]["table"]["started"], true);
+    let table = told(&mut to_guest).await;
+    assert_eq!(table["table"]["started"], true, "{table}");
+    // Each chosen their own at once: the very next board the guest is pushed, before they have asked anything, has theirs.
+    tables.ask_on(host, "kara", json!({ "id": 12, "op": "call", "call": "note", "args": ["Off we go.", "system"] }));
+    told(&mut to_host).await;
+    assert_eq!(told(&mut to_guest).await["push"]["board"]["replica"]["party"]["selected"], other.as_str(), "the guest's own selected once started");
+    assert_eq!(tables.ask("kara", json!({ "id": 13, "op": "resume" })).await["ok"]["board"]["replica"]["party"]["selected"], member.as_str(), "the host's own selected once started");
+    tables.ask_on(host, "kara", json!({ "id": 13, "op": "start" }));
+    assert_eq!(told(&mut to_host).await["error"], "the game has started");
+    let there = entities[&other]["tile"].as_i64().unwrap();
+    tables.ask_on(guest, "finn", json!({ "id": 14, "op": "call", "call": "moveSelectedTo", "args": [there + 1] }));
+    let walked = told(&mut to_guest).await;
+    assert_eq!(walked["ok"]["board"]["replica"]["state"]["entities"][other.as_str()]["tile"], there + 1, "{walked}");
+    assert!(told(&mut to_host).await["push"].is_object(), "the guest's walk pushed to the host");
+    // Started, the seats are the host's to say again.
+    tables.ask_on(guest, "finn", json!({ "id": 15, "op": "seat", "character": other, "account": null }));
+    assert_eq!(told(&mut to_guest).await["error"], "only the host says who plays whom");
+}
+
+#[tokio::test]
+async fn the_host_opens_a_lobby_with_a_save_of_their_own() {
+    let fixture = fixture();
+    let root = root("lobby-load");
+    let tables = Tables::new(root.clone());
+    let open = |lobby: bool| json!({ "id": 1, "op": "open", "project": fixture["projects"][0], "shipped": fixture["shipped"], "table": {}, "lobby": lobby });
+    let first = tables.ask("kara", open(false)).await;
+    let member = first["ok"]["board"]["replica"]["party"]["selected"].as_str().unwrap().to_string();
+    let tile = first["ok"]["board"]["replica"]["state"]["entities"][member.as_str()]["tile"].as_i64().unwrap();
+    tables.ask("kara", json!({ "id": 2, "op": "call", "call": "moveSelectedTo", "args": [tile + 1] })).await;
+    let saved = tables.ask("kara", json!({ "id": 3, "op": "save", "name": "Here", "where": "the vault" })).await;
+    let slot = saved["ok"]["slot"]["id"].as_str().expect("a slot").to_string();
+    let opened = tables.ask("kara", open(true)).await;
+    assert_eq!(opened["ok"]["table"]["started"], false);
+    let loaded = tables.ask("kara", json!({ "id": 4, "op": "load", "slot": slot })).await;
+    assert_eq!(loaded["ok"]["answer"], json!({ "ok": true }), "{loaded}");
+    let at = |board: &Value| board["replica"]["state"]["entities"][member.as_str()]["tile"].clone();
+    assert_eq!(at(&opened["ok"]["board"]), tile);
+    assert_eq!(at(&loaded["ok"]["board"]), tile + 1, "stood where it was saved");
 }

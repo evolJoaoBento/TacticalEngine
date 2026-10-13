@@ -1,17 +1,18 @@
 # Hosting the game for friends
 
 How to run Tactical Engine on your own machine so friends can play it over the internet
-(`docs/SERVER.md`, phase 5, slices 2 to 4).
+(`docs/SERVER.md`, phase 5, slices 2 to 5).
 
 **What this gives you today:** each friend signs in to an account on your server, and joins **your game**
-with its invitation. Everybody at it sees what everybody else does, and you say who plays which character.
+with its invitation. You host it from the menu, as a lobby: your friends join it, take their seats, and you start
+it together. Everybody at it sees what everybody else does, and you say who plays which character.
 Each friend plays the character you seated them in and nobody else, with a selection of their own; you play
 every character nobody is seated in. A question - a roll, how a hit lands, a death move, a line of a
 conversation - is put to whoever plays the character it is about, and the others see whom it waits on. The
 server's game is the one that counts (phase 5, slice 1), and saves are kept on your machine.
 
-**Not yet:** a rest is yours to call, and you choose everybody's downtime moves. The lobby, where a game is set
-up and started together, is slice 5.
+**Not yet:** a rest is yours to call, and you choose everybody's downtime moves. A save keeps nobody's seat:
+hosting it again, your friends take their seats again.
 
 ## What it is
 
@@ -54,20 +55,28 @@ You also need Rust installed (`rustup`; see `docs/SERVER.md`, "Running it").
    ```
 
    Anybody who has your tunnel's address can then make one. Use it for an evening and start the server
-   again without it. Invitations come with the lobby (slice 5).
+   again without it.
 
 3. **Start a tunnel to `http://127.0.0.1:8430`,** with whichever tunnel program you use. It gives you a
    public `https://...` address.
 
-4. **Open your game, and invite your friends.** Start or load a game. In the settings (Esc), **Players**
-   shows the invitation: a link to the address you opened the game at, ending in `?join=...`. If you opened
-   it at `http://127.0.0.1:8430`, send your friends the tunnel's address with the same `?join=...` on the
-   end. A friend who opens it, signed in, joins your game.
+4. **Host your game, and invite your friends.** In the menu, **Play Together** lists every game you can
+   load, and its saves: choose one to host. It opens as a lobby, **Gathering**, over the board, with the
+   invitation: a link to the address you opened the game at, ending in `?join=...`. If you opened it at
+   `http://127.0.0.1:8430`, send your friends the tunnel's address with the same `?join=...` on the end. A
+   friend signed in opens it, or pastes it into **Join a game** under Play Together, and joins your lobby.
 
-5. **Seat them.** Players lists everybody at the game, and each character with who plays it. Only you, the
-   host, can change who plays whom; your friends see it. A friend seated in nobody watches: they can select
-   nobody and do nothing until you seat them. Loading a save puts everybody somewhere else, so only the host may
-   load one into a game others are at.
+5. **Take your seats, and start.** The lobby lists everybody at the game, and each character with who plays
+   it. Each friend takes a character nobody has, or leaves their own; you choose for anybody. Whoever nobody
+   takes, you play. Nobody plays anybody until you press **Start**, and then everybody starts at once.
+
+6. **Play.** Once the game has started only you, the host, change who plays whom (the settings' **Players**,
+   Esc); your friends see it. A friend seated in nobody watches: they can select nobody and do nothing until you
+   seat them. A friend who comes late, with the link, joins the game as it is. The game's saves are yours: only
+   you save it, into your saves, and only you load a save into it.
+
+A game opened the ordinary way - New Game, Load Game - is still yours alone until somebody joins it with the
+link in the settings: it starts at once, with no lobby.
 
 ## What the server needs from the tunnel
 

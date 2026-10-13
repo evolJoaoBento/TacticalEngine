@@ -228,3 +228,30 @@ fn an_errand_is_finished_or_called_off_by_its_walkers_player_alone() {
     assert_eq!(play(&mut session, "arrived", json!([])).0, json!(true));
     assert!(session.approaching.is_none());
 }
+
+#[test]
+fn a_game_not_started_plays_nobody_the_host_no_more_than_the_rest() {
+    let mut session = demo();
+    let party = members(&session);
+    let (hosts, guests) = (&party[0], &party[1]);
+    for you in ["host", "guest"] {
+        session.dispatch("restoreSeating", &[json!({ "you": you, "host": "host", "seats": { guests: "guest" }, "started": false, "selected": hosts })]).unwrap();
+        assert_eq!(session.party.selected(), None, "{you}: nobody selected");
+        let before = session.board();
+        for (call, args, refused) in [
+            ("select", json!([hosts]), json!(false)),
+            ("select", json!([guests]), json!(false)),
+            ("selectNext", json!([]), json!(null)),
+            ("useAbility", json!([guests, "anything", []]), json!({ "status": "refused", "lines": [] })),
+            ("endTurn", json!([]), json!(0)),
+            ("rest", json!(["short", {}]), json!({ "ok": false, "reason": "the party rests on the host's word" })),
+        ] {
+            let (answer, board) = play(&mut session, call, args);
+            assert_eq!(answer, refused, "{you}: {call}");
+            assert_eq!(board, before, "{you}: {call}: the game unchanged");
+        }
+    }
+    // Started, each plays their own at once.
+    session.dispatch("restoreSeating", &[json!({ "you": "guest", "host": "host", "seats": { guests: "guest" }, "started": true })]).unwrap();
+    assert_eq!(session.party.selected(), Some(guests.as_str()));
+}

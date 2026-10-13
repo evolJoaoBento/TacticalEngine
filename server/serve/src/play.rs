@@ -1,4 +1,4 @@
-//! The games, on the server (`docs/SERVER.md`, phase 3, slice 3c; phase 5, slices 1, 3 and 4).
+//! The games, on the server (`docs/SERVER.md`, phase 3, slice 3c; phase 5, slices 1, 3, 4 and 5).
 //!
 //! A signed-in player plays at `/__play`: a websocket, opened only with the session cookie the accounts gave
 //! them and from the page's own origin. A game is **shared** (phase 5, slice 3): it has an id of its own, the
@@ -10,10 +10,11 @@
 //!
 //! Messages are JSON, each with an `id` the answer carries back:
 //!
-//! - `{ id, op: "open", project, shipped, table: { animated, askDefender }, rng? }` - a game stood up, its host
-//!   the one who opened it, the seed the server's own: `{ id, ok: { seed, board, game, invite, table } }`. A
+//! - `{ id, op: "open", project, shipped, table: { animated, askDefender }, rng?, lobby? }` - a game stood up, its
+//!   host the one who opened it, the seed the server's own: `{ id, ok: { seed, board, game, invite, table } }`. A
 //!   server started for the tests (`--for-tests`) sets its game's dice where the page's are (`rng`), so a suite
-//!   written against the page's own seeds rolls what it was written for; any other ignores it;
+//!   written against the page's own seeds rolls what it was written for; any other ignores it. Opened as a
+//!   `lobby`, it is not started: the players gather and take their seats first (slice 5);
 //! - `{ id, op: "join", invite }` - the game that invitation is to, joined: `{ id, ok: { board, project, table, you } }`,
 //!   `you` the account the page is signed in as, as an opened or resumed game says it too;
 //! - `{ id, op: "call", call, args }` - an intent: `{ id, ok: { answer, board, views, seq } }`, `views` what it gave
@@ -24,21 +25,24 @@
 //!   one: as a `call`. The text is the server's own, never one the page sends; the host's alone at a game others
 //!   have joined;
 //! - `{ id, op: "seat", character, account }` - who plays a character (`null`: nobody), the host's to say, and a
-//!   member of the game: `{ id, ok: { table } }`;
+//!   member of the game: `{ id, ok: { table } }`. Before the game has started, anybody at it takes a seat nobody
+//!   has, or leaves their own;
+//! - `{ id, op: "start" }` - a game opened as a lobby started, the host's to say: `{ id, ok: { table } }`. Until
+//!   then nobody plays anybody (`engine::game::seats`), though the host may load a save;
 //! - `{ id, op: "ask", ask, ... }` - what the pointer asks: `{ id, ok: <answer> }`;
 //! - `{ id, op: "save", slot?, name, where, project? }` - the game saved by itself into the account's own
 //!   folder (`saves.rs`): its own text, in the slot named or a fresh one, `{ id, ok: { slot, text } }`, or why
-//!   it may not be saved now;
+//!   it may not be saved now. A shared game's saves are its host's: nobody else saves it;
 //! - `{ id, op: "resume" }` - the game the account is at, kept since its socket last closed:
 //!   `{ id, ok: { board, project, table } }`;
 //!
 //! and `{ id, error }` for anything refused. Without an `id`, what the server **pushes** to every other page at
 //! the game: `{ push: { board, views, by, seq } }` after an intent that changed the board or gave something to draw,
-//! and `{ table }` when who is at the game, or who plays whom, changes. `seq` counts the intents the game has
+//! and `{ table }` when who is at the game, or who plays whom, changes, or it starts. `seq` counts the intents the game has
 //! played - in an intent's answer, a push, and the board a page is stood at when it opens, joins or comes back -
 //! so a page holds an answer to what it predicted only when no other page's intent came in between. A connection's answers and pushes leave
 //! the game's thread into one queue, so a page is told them in the order the game played them. A table says
-//! `{ game, host, invite, members: [{ id, name }], seats: { character: account } }`.
+//! `{ game, host, invite, members: [{ id, name }], seats: { character: account }, started }`.
 //!
 //! A game outlives the last socket at it for a while (`KEPT_FOR`), so a page that lost its connection comes back
 //! to it; past that it goes. A guest's page opens over the game's project, read before it is built
@@ -157,6 +161,8 @@ struct Shared {
     watching: Vec<(Conn, String, queue::UnboundedSender<Value>)>,
     /// Since when nobody has been at it.
     left: Option<Instant>,
+    /// Whether it is played yet: a game opened as a lobby is not, until its host starts it.
+    started: bool,
     /// The board last handed on, so an intent that changed nothing pushes nothing.
     seen: String,
 }
@@ -226,6 +232,7 @@ fn table_of(shared: &Shared, root: &Path) -> Value {
         "invite": shared.invite,
         "members": shared.members.iter().map(|id| json!({ "id": id, "name": name(id) })).collect::<Vec<_>>(),
         "seats": shared.seats,
+        "started": shared.started,
     })
 }
 
@@ -262,7 +269,7 @@ fn play_for(slot: &mut Option<Session>, shared: &Arc<Mutex<Shared>>, account: &s
     }
     let seating = {
         let held = shared.lock().expect("the game");
-        let mut seating = json!({ "you": account, "host": held.host, "seats": held.seats });
+        let mut seating = json!({ "you": account, "host": held.host, "seats": held.seats, "started": held.started });
         if let Some(chosen) = held.selected.get(account) {
             seating["selected"] = chosen.clone();
         }
@@ -283,17 +290,23 @@ fn play_thread(shared: Arc<Mutex<Shared>>, root: PathBuf) -> mpsc::Sender<Job> {
         let mut played: u64 = 0;
         while let Ok(job) = jobs.recv() {
             let op = job.message["op"].as_str().unwrap_or("").to_string();
-            if !matches!(op.as_str(), "open" | "seat") {
+            if !matches!(op.as_str(), "open" | "seat" | "start") {
                 play_for(&mut slot, &shared, &job.account, &hooks);
             }
             let mut said = match op.as_str() {
                 "seat" => seat(&shared, &job.account, &job.message, &root),
+                "start" => start(&shared, &job.account, &root),
                 // A page that joined, or came back: where the game is, as for one resumed.
                 "join" => respond(&mut slot, &json!({ "op": "resume" }), &hooks),
                 _ => respond(&mut slot, &job.message, &hooks),
             };
             if op == "call" && said["ok"].is_object() {
                 played += 1;
+            }
+            // Opened, the game told whom it plays for at once: in a lobby, nobody yet.
+            if op == "open" && said["ok"].is_object() {
+                play_for(&mut slot, &shared, &job.account, &hooks);
+                said["ok"]["board"] = slot.as_mut().map_or(Value::Null, |session| session.board());
             }
             if matches!(op.as_str(), "call" | "open" | "join" | "resume") && said["ok"].is_object() {
                 said["ok"]["seq"] = json!(played);
@@ -318,8 +331,8 @@ fn play_thread(shared: Arc<Mutex<Shared>>, root: PathBuf) -> mpsc::Sender<Job> {
             said["id"] = job.message["id"].clone();
             let from = job.reply.conn();
             job.reply.send(said.clone());
-            // Who plays whom changed: each account's selection kept among its own, as it is pushed.
-            if op == "seat" && said["ok"].is_object() {
+            // Who plays whom changed, or the game started: each account's selection kept among its own, as it is pushed.
+            if matches!(op.as_str(), "seat" | "start") && said["ok"].is_object() {
                 let members = shared.lock().expect("the game").members.clone();
                 for member in members {
                     play_for(&mut slot, &shared, &member, &hooks);
@@ -341,7 +354,7 @@ fn play_thread(shared: Arc<Mutex<Shared>>, root: PathBuf) -> mpsc::Sender<Job> {
                         }
                     }
                 }
-                "join" | "seat" if said["ok"].is_object() => push(&held, from, &json!({ "table": table_of(&held, &root) })),
+                "join" | "seat" | "start" if said["ok"].is_object() => push(&held, from, &json!({ "table": table_of(&held, &root) })),
                 _ => {}
             }
         }
@@ -399,13 +412,21 @@ fn answer(slot: &mut Option<Session>, message: &Value, hooks: &HooksFor) -> Resu
     }
 }
 
-/// Who plays a character, set by the host: a member of the game, or nobody (`null`).
+/// Who plays a character, set by the host: a member of the game, or nobody (`null`). Before the game has started,
+/// anybody at it takes a seat nobody has, or leaves their own.
 fn seat(shared: &Arc<Mutex<Shared>>, account: &str, message: &Value, root: &Path) -> Value {
     let mut held = shared.lock().expect("the game");
-    if held.host != account {
-        return json!({ "error": "only the host says who plays whom" });
-    }
     let Some(character) = message["character"].as_str().filter(|c| !c.is_empty()) else { return json!({ "error": "no character" }) };
+    if held.host != account {
+        if held.started {
+            return json!({ "error": "only the host says who plays whom" });
+        }
+        let taking = message["account"].as_str() == Some(account) && !held.seats.contains_key(character);
+        let leaving = message["account"].is_null() && held.seats.get(character).is_some_and(|seated| seated == account);
+        if !taking && !leaving {
+            return json!({ "error": "only a seat nobody has is yours to take" });
+        }
+    }
     match message["account"].as_str() {
         None => {
             held.seats.shift_remove(character);
@@ -415,6 +436,19 @@ fn seat(shared: &Arc<Mutex<Shared>>, account: &str, message: &Value, root: &Path
         }
         Some(_) => return json!({ "error": "not at this game" }),
     }
+    json!({ "ok": { "table": table_of(&held, root) } })
+}
+
+/// A game opened as a lobby started, by its host: played from now on, by everybody at it.
+fn start(shared: &Arc<Mutex<Shared>>, account: &str, root: &Path) -> Value {
+    let mut held = shared.lock().expect("the game");
+    if held.host != account {
+        return json!({ "error": "only the host starts the game" });
+    }
+    if held.started {
+        return json!({ "error": "the game has started" });
+    }
+    held.started = true;
     json!({ "ok": { "table": table_of(&held, root) } })
 }
 
@@ -566,6 +600,7 @@ impl Tables {
                     watching: Vec::new(),
                     left: None,
                     seen: String::new(),
+                    started: message["lobby"] != true,
                 }));
                 let door = play_thread(Arc::clone(&shared), self.root.clone());
                 inner.games.insert(game.clone(), Game { door, shared });
@@ -586,9 +621,14 @@ impl Tables {
                 _ => return refuse(reply, "no game: open one"),
             },
         };
-        // Loading a save puts every page at the game somewhere else: the host's to do.
-        if loading && inner.games[&game].shared.lock().expect("the game").host != account {
+        // Loading a save puts every page at the game somewhere else: the host's to do. A shared game's saves are its
+        // host's.
+        let hosting = inner.games[&game].shared.lock().expect("the game").host == account;
+        if loading && !hosting {
             return refuse(reply, "only the host loads a save into a game others are at");
+        }
+        if message["op"] == "save" && !hosting {
+            return refuse(reply, "the host keeps this game's saves");
         }
         inner.at.insert(account.to_string(), game.clone());
         if let Some(conn) = reply.conn() {

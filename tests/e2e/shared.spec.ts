@@ -2,12 +2,14 @@ import { test, expect, type Page } from './fixtures';
 import { ON_SERVER } from './server-mode';
 
 /**
- * A shared game (`docs/SERVER.md`, phase 5, slices 3 and 4), played on the server by two pages: the host's, which
+ * A shared game (`docs/SERVER.md`, phase 5, slices 3 to 5), played on the server by two pages: the host's, which
  * opened it, and a guest's, opened with its invitation (`?join=`) in a browser of its own, signed in to an account
  * of its own. Each page's intents are played on the server's one game and pushed to the other, which is stood
  * where it says, the walk drawn; the host says who plays whom, and the guest is told. Each plays their own: the
  * guest nobody until seated, then the one they were seated in, each with a selection of their own; a question is
- * put to whoever plays the character it is about, and the other page says whom it waits on. Nothing parts.
+ * put to whoever plays the character it is about, and the other page says whom it waits on. Nothing parts. And a
+ * game hosted from the menu's Play Together, a lobby: the guest joins with the link pasted there, takes a seat,
+ * and the host starts it; the game's saves the host's alone.
  * Played on the server alone: the ordinary run has no server to share a game on.
  */
 
@@ -125,6 +127,91 @@ test('two pages share one game on the server: each plays their own, and each one
   await expect(guest.locator(`[data-testid="seat"][data-character="${guestWalker}"]`)).toBeDisabled();
 
   // Nothing parted on either page: every answer held to what the page predicted, or another's intent between.
+  for (const each of [page, guest]) {
+    expect(await each.evaluate(() => window.__replica!.server())).toBe('in');
+    expect(await each.evaluate(() => window.__replica!.count().parted)).toBe(0);
+  }
+  await guestContext.close();
+});
+
+/** A page opened on a game, ready: its game on the server, and the dice not waited for. */
+async function ready(page: Page): Promise<void> {
+  await page.waitForFunction(() => window.__engine !== undefined && window.__engine.frames > 2, null, { timeout: 60_000 });
+  await page.waitForFunction(() => window.__replica?.server() === 'in' && window.__table?.table() !== null, null, { timeout: 30_000 });
+  await page.evaluate(() => window.__engine!.setDiceSpeed(0));
+}
+
+test('a game hosted from the menu is a lobby: friends join with the link, take their seats, and it starts together', async ({ page, browser, baseURL }) => {
+  // The host: Play Together, the demo hosted.
+  await page.goto('/?menu');
+  await page.getByTestId('menu-together').click();
+  await page.locator('[data-testid="menu-together-list"]').getByTestId('menu-play-demo').click();
+  await page.waitForURL(/\?play&host$/);
+  await ready(page);
+  const lobby = page.getByTestId('lobby');
+  await expect(lobby).toBeVisible();
+  await expect(lobby.getByTestId('lobby-start')).toBeVisible();
+  const link = await lobby.getByTestId('invite-link').inputValue();
+  expect(link).toMatch(/\?join=[0-9a-f]{32}$/);
+  // Nobody plays anybody before it starts: the host no more than anybody.
+  const party = await page.evaluate(() => window.__engine!.party());
+  expect(await page.evaluate(() => window.__engine!.selected())).toBeNull();
+  expect(await page.evaluate((id) => window.__engine!.select(id), party[0]!)).toBe(false);
+
+  // The guest: an account of their own, the link pasted into Play Together - a wrong one refused first.
+  const guestContext = await browser.newContext();
+  const made = await guestContext.request.post('/__accounts/register', {
+    headers: { 'x-tactical-save': '1', origin: baseURL! },
+    data: { name: `guest${Date.now().toString(36).slice(-6)}`, password: 'played-on-the-server' },
+  });
+  expect(made.status(), await made.text()).toBe(200);
+  const guestId = ((await made.json()) as { id: string }).id;
+  const guest = await guestContext.newPage();
+  await guest.goto('/?menu');
+  await guest.getByTestId('menu-together').click();
+  await guest.getByTestId('menu-join-link').fill('https://example.com/?play');
+  await guest.getByTestId('menu-join').click();
+  await expect(guest.getByTestId('menu-join-refused')).toBeVisible();
+  await guest.screenshot({ path: 'test-results/menu-together.png' });
+  await guest.getByTestId('menu-join-link').fill(link);
+  await guest.getByTestId('menu-join').click();
+  await guest.waitForURL(/\?join=/);
+  await ready(guest);
+  const guestLobby = guest.getByTestId('lobby');
+  await expect(guestLobby.getByTestId('lobby-waiting')).toContainText('to start the game');
+  await expect(guestLobby.getByTestId('lobby-start')).toHaveCount(0);
+  await expect(lobby.getByTestId('lobby-members')).toContainText('(host)');
+  await expect.poll(() => page.evaluate(() => window.__table!.table()!.members.length), { timeout: 15_000 }).toBe(2);
+
+  // The guest takes a seat nobody has: the host sees it; the guest may leave it, but take none of another's.
+  const theirs = party[1]!;
+  await guestLobby.locator(`[data-testid="lobby-seat"][data-character="${theirs}"]`).getByTestId('lobby-take').click();
+  await expect.poll(() => page.evaluate(() => window.__table!.table()!.seats), { timeout: 15_000 }).toEqual({ [theirs]: guestId });
+  await expect(guestLobby.locator(`[data-testid="lobby-seat"][data-character="${theirs}"]`).getByTestId('lobby-leave')).toBeVisible();
+  await expect(lobby.locator(`[data-testid="lobby-seat"][data-character="${theirs}"] [data-testid="seat"]`)).toHaveValue(guestId);
+  expect(await guest.evaluate(() => window.__engine!.selected())).toBeNull();
+  await page.screenshot({ path: 'test-results/lobby-host.png' });
+  await guest.screenshot({ path: 'test-results/lobby-guest.png' });
+
+  // The host starts it: the lobby gone from both, each with their own selected.
+  await page.bringToFront();
+  await lobby.getByTestId('lobby-start').click();
+  await expect(lobby).toHaveCount(0);
+  await expect(guestLobby).toHaveCount(0, { timeout: 15_000 });
+  await expect.poll(() => page.evaluate(() => window.__engine!.selected()), { timeout: 15_000 }).toBe(party[0]);
+  await expect.poll(() => guest.evaluate(() => window.__engine!.selected()), { timeout: 15_000 }).toBe(theirs);
+
+  // Played: the guest walks their own, and the host's page is stood where it leaves the game.
+  const moved = await walked(guest, theirs);
+  await expect.poll(() => page.evaluate((id) => window.__engine!.tileOf(id), theirs), { timeout: 15_000 }).toBe(moved);
+
+  // The host keeps the game's saves: the guest's page saves nothing.
+  expect(await guest.evaluate(() => window.__engine!.saveBlocked())).toBe("The host keeps this game's saves.");
+  expect(await page.evaluate(() => window.__engine!.saveBlocked())).toBeNull();
+  await guest.keyboard.press('Escape');
+  await expect(guest.getByTestId('save')).toBeDisabled();
+  await expect(guest.getByTestId('save')).toHaveAttribute('title', "The host keeps this game's saves.");
+
   for (const each of [page, guest]) {
     expect(await each.evaluate(() => window.__replica!.server())).toBe('in');
     expect(await each.evaluate(() => window.__replica!.count().parted)).toBe(0);

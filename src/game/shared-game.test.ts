@@ -4,17 +4,22 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { answers, hosting, invitationLink, invitationOf, onSharedTable, playsFor, seat, seatable, sharedTable, tableOf, waitingOn } from './shared-game';
+import { answers, hosting, invitationLink, invitationOf, inviteFrom, lobbyAsked, onSharedTable, plays, playsFor, seat, seatFor, seatable, sharedTable, start, started, tableOf, waitingOn } from './shared-game';
 import type { SharedTable, Wire } from './wire';
 
-const TABLE: SharedTable = { game: 'g', host: 'kara', invite: 'ab12', members: [{ id: 'kara', name: 'Kara' }], seats: {} };
+const TABLE: SharedTable = { game: 'g', host: 'kara', invite: 'ab12', members: [{ id: 'kara', name: 'Kara' }], seats: {}, started: true };
 
 /** As much of a wire as the table reads: told the table, and asked to seat. */
-function wireTelling(you = 'kara'): { wire: Wire; tell: (table: SharedTable) => void; seated: [string, string | null][] } {
+function wireTelling(you = 'kara'): { wire: Wire; tell: (table: SharedTable) => void; seated: [string, string | null][]; starts: number[] } {
   let heard: (table: SharedTable) => void = () => undefined;
   const seated: [string, string | null][] = [];
+  const starts: number[] = [];
   const wire = {
     you,
+    startGame: () => {
+      starts.push(1);
+      return Promise.resolve(true);
+    },
     onTable: (listener: (table: SharedTable) => void) => {
       heard = listener;
     },
@@ -23,7 +28,7 @@ function wireTelling(you = 'kara'): { wire: Wire; tell: (table: SharedTable) => 
       return Promise.resolve(true);
     },
   } as unknown as Wire;
-  return { wire, tell: (table) => heard(table), seated };
+  return { wire, tell: (table) => heard(table), seated, starts };
 }
 
 describe('the shared game, as the page shows it', () => {
@@ -61,7 +66,7 @@ describe('the shared game, as the page shows it', () => {
     expect(invitationOf('?play')).toBeNull();
   });
   it("says what the page plays and which questions are its to answer, as the engine's seats do", () => {
-    const party = { game: 'g', host: 'kara', invite: 'i', members: [{ id: 'kara', name: 'Kara' }, { id: 'finn', name: 'Finn' }], seats: { mira: 'finn' } };
+    const party = { game: 'g', host: 'kara', invite: 'i', members: [{ id: 'kara', name: 'Kara' }, { id: 'finn', name: 'Finn' }], seats: { mira: 'finn' }, started: true };
     // No table: everything is the page's.
     tableOf(null);
     expect(playsFor('mira')).toBe(true);
@@ -88,5 +93,52 @@ describe('the shared game, as the page shows it', () => {
     expect(waitingOn({ for: null }, (id) => id)).toBe('Waiting for Kara.');
     expect(waitingOn({ for: 'mira' }, (id) => id)).toBeNull();
     tableOf(null);
+  });
+
+  it('gathers in a lobby before the host starts it: nobody plays anybody, and the players take their own seats', async () => {
+    const lobby: SharedTable = { game: 'g', host: 'kara', invite: 'i', members: [{ id: 'kara', name: 'Kara' }, { id: 'finn', name: 'Finn' }], seats: { mira: 'finn' }, started: false };
+    expect(plays({ you: 'kara', host: 'kara', seats: {}, started: false }, 'arty')).toBe(false);
+    expect(plays({ you: 'kara', host: 'kara', seats: {} }, 'arty')).toBe(true);
+    // At no table the game has always started, and no seat is anybody's to take.
+    tableOf(null);
+    expect(started()).toBe(true);
+    expect(seatFor('arty')).toBeNull();
+    expect(await start()).toBe(false);
+    // The guest: a seat nobody has to take, their own to leave, another's neither.
+    const guest = wireTelling('finn');
+    tableOf(guest.wire);
+    guest.tell(lobby);
+    expect(started()).toBe(false);
+    expect(playsFor('mira')).toBe(false);
+    expect(answers({ for: 'mira' })).toBe(false);
+    expect(seatFor('arty')).toBe('take');
+    expect(seatFor('mira')).toBe('leave');
+    guest.tell({ ...lobby, seats: { mira: 'kara' } });
+    expect(seatFor('mira')).toBeNull();
+    // Started: the host's to say again, and the guest plays their own.
+    guest.tell({ ...lobby, started: true });
+    expect(started()).toBe(true);
+    expect(seatFor('arty')).toBeNull();
+    expect(playsFor('mira')).toBe(true);
+    // The host chooses for anybody, at any time, and starts it through the wire.
+    const host = wireTelling('kara');
+    tableOf(host.wire);
+    host.tell(lobby);
+    expect(seatFor('mira')).toBe('choose');
+    expect(seatFor('arty')).toBe('choose');
+    expect(await start()).toBe(true);
+    expect(host.starts).toEqual([1]);
+    tableOf(null);
+  });
+
+  it('is hosted by asking at the address, and joined with the link the host sent or the invitation alone', () => {
+    expect(lobbyAsked('?play&host')).toBe(true);
+    expect(lobbyAsked('?play')).toBe(false);
+    const invite = '0123456789abcdef0123456789abcdef';
+    expect(inviteFrom(` https://friends.example/?join=${invite} `)).toBe(invite);
+    expect(inviteFrom(invite)).toBe(invite);
+    expect(inviteFrom('https://friends.example/?play')).toBeNull();
+    expect(inviteFrom('not an invitation')).toBeNull();
+    expect(inviteFrom('')).toBeNull();
   });
 });
