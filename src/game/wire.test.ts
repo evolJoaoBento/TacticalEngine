@@ -20,7 +20,7 @@ import { firstDifference, replicaCount } from './shadow';
 import { shippedContent } from './shipped';
 import { WasmEngine } from './wasm-engine';
 import { WasmGame } from './wasm-game';
-import { Wire, type Said, type Transport } from './wire';
+import { LOCAL, Wire, type Said, type SharedTable, type Transport } from './wire';
 import { talkingTo, talkingView } from './ui/play-views';
 import { interactablesOf } from '../engine/scene/prop-functions';
 import { act } from '../../tests/fixtures/random-play';
@@ -30,12 +30,14 @@ const WASM = resolve(here, '../../public/wasm/engine.wasm');
 const built = existsSync(WASM);
 
 /** What the server's game is never told (`serve::play::NEVER_TOLD`): how another game stands, or a save's text. */
-const NEVER_TOLD = ['restoreRng', 'restoreWalk', 'restoreLog', 'restoreViews', 'loadGameText'];
+const NEVER_TOLD = ['restoreRng', 'restoreWalk', 'restoreLog', 'restoreViews', 'restoreWalked', 'loadGameText'];
 
 /**
  * The server's game, answering a tick late and in order, a seed of its own at every open as the server's are;
  * `meddle` changes its game behind the page's back, `reword` what it answers, `refuse` an intent outright, and
  * `noisy` has a game opened with lines already in its log. Its saves are the account's, kept across its games.
+ * Its game is shared, as the server's are: each intent's answer carries what it gave to draw, taken off the
+ * game's queues (`views`), and is pushed to every other connection that listens; `join` and `seat` as `play.rs`.
  */
 class EngineServer implements Transport {
   readonly sent: Record<string, unknown>[] = [];
@@ -55,12 +57,18 @@ class EngineServer implements Transport {
   refuse: ((call: string, calls: number) => boolean) | null = null;
   /** The account's saves, by slot, as the server's folder keeps them. */
   readonly saves = new Map<string, string>();
+  /** Who is at the game and who plays whom, as the server keeps it; and each connection's ear, by its number. */
+  table: SharedTable = { game: 'g', host: 'host', invite: 'invite-1', members: [{ id: 'host', name: 'Host' }], seats: {} };
+  private readonly ears = new Map<number, (message: Record<string, unknown>) => void>();
+  private connections = 0;
+  /** The intents the game has played, as the server numbers them (`seq`). */
+  private played = 0;
   private calls = 0;
   private opens = 0;
 
   constructor(readonly engine: WasmEngine, private readonly seed = 'the-server') {}
 
-  send(message: Record<string, unknown>): Promise<Said> {
+  send(message: Record<string, unknown>, from = 0): Promise<Said> {
     if (this.closed) {
       this.refused++;
       return Promise.reject(new Error('closed'));
@@ -71,9 +79,29 @@ class EngineServer implements Transport {
     return new Promise((answered) =>
       setTimeout(() => {
         this.out--;
-        answered(this.answer(JSON.parse(text) as Record<string, unknown>));
+        answered(this.answer(JSON.parse(text) as Record<string, unknown>, from));
       }, 0),
     );
+  }
+
+  listen(heard: (message: Record<string, unknown>) => void): void {
+    this.ears.set(0, heard);
+  }
+
+  /**
+   * Something told every listening connection but the one whose message it answers, as the game plays it: before
+   * any answer to a message the game plays after, as each connection's one queue on the server keeps them.
+   */
+  private push(from: number, message: Record<string, unknown>): void {
+    for (const [connection, heard] of this.ears) {
+      if (connection !== from) heard(JSON.parse(JSON.stringify(message)) as Record<string, unknown>);
+    }
+  }
+
+  /** What an intent gave to draw, taken off the game's queues, as the server takes it. */
+  private views(call = ''): Record<string, unknown> {
+    const take = (name: string) => (call === name ? [] : this.engine.call(name, []));
+    return { motions: take('takeMotions'), floaters: take('takeFloaters'), rolls: take('takeRolls') };
   }
 
   close(): void {
@@ -84,12 +112,16 @@ class EngineServer implements Transport {
   connection(): Transport & { drop: () => void } {
     let dropped = false;
     const waiting = new Set<(why: Error) => void>();
+    const number = ++this.connections;
     return {
+      listen: (heard) => this.ears.set(number, (message) => {
+        if (!dropped) heard(message);
+      }),
       send: (message) => {
         if (dropped) return Promise.reject(new Error('dropped'));
         return new Promise<Said>((answer, fail) => {
           waiting.add(fail);
-          void this.send(message).then(
+          void this.send(message, number).then(
             (said) => {
               waiting.delete(fail);
               if (!dropped) answer(said);
@@ -104,13 +136,14 @@ class EngineServer implements Transport {
       close: () => undefined,
       drop: () => {
         dropped = true;
+        this.ears.delete(number);
         for (const fail of waiting) fail(new Error('dropped'));
         waiting.clear();
       },
     };
   }
 
-  private answer(m: Record<string, unknown>): Said {
+  private answer(m: Record<string, unknown>, from: number): Said {
     this.sent.push(m);
     const engine = this.engine;
     try {
@@ -121,7 +154,22 @@ class EngineServer implements Transport {
           // A rest writes its lines; what else it does, the page's game told after puts back.
           if (this.noisy) engine.call('rest', ['short']);
           this.kept = (m['project'] as ProjectDoc).id;
-          return { ok: { seed, board: engine.board() } };
+          this.played = 0;
+          return { ok: { seed, board: engine.board(), table: this.table, game: this.table.game, invite: this.table.invite, seq: 0 } };
+        }
+        case 'join': {
+          if (m['invite'] !== this.table.invite || this.kept === null) return { error: 'no game for that invitation' };
+          this.table = { ...this.table, members: [...this.table.members, { id: `guest-${from}`, name: `Guest ${from}` }] };
+          this.push(from, { table: this.table });
+          return { ok: { board: engine.board(), project: this.kept, table: this.table, seq: this.played } };
+        }
+        case 'seat': {
+          const seats = { ...this.table.seats };
+          if (m['account'] === null) delete seats[m['character'] as string];
+          else seats[m['character'] as string] = m['account'] as string;
+          this.table = { ...this.table, seats };
+          this.push(from, { table: this.table });
+          return { ok: { table: this.table } };
         }
         case 'save': {
           // The game saves itself, as a game on the server does (`play.rs`), unless it may not now.
@@ -133,24 +181,28 @@ class EngineServer implements Transport {
           return { ok: { slot, text: this.rewordSave === null ? text : this.rewordSave(text) } };
         }
         case 'resume':
-          return this.kept === null ? { error: 'no game: open one' } : { ok: { board: engine.board(), project: this.kept } };
+          return this.kept === null ? { error: 'no game: open one' } : { ok: { board: engine.board(), project: this.kept, table: this.table, seq: this.played } };
         case 'load': {
           // The account's save, loaded by the server's game from its own copy.
           const text = this.saves.get(m['slot'] as string);
           if (text === undefined) return { error: 'no such save' };
-          return { ok: { answer: engine.call('loadGameText', [text]), board: engine.board() } };
+          const answer = engine.call('loadGameText', [text]);
+          const views = this.views();
+          const seq = ++this.played;
+          this.push(from, { push: { board: engine.board(), views, by: from, seq } });
+          return { ok: { answer, board: engine.board(), views, seq } };
         }
         case 'call': {
           const call = m['call'] as string;
           if (NEVER_TOLD.includes(call)) return { error: `"${call}" is never told to the server's game` };
-          // The page's intents counted, not what the game is drained of when the page is stood where it is.
-          if (!['takeMotions', 'takeFloaters'].includes(call)) {
-            this.calls++;
-            this.meddle?.(engine, this.calls);
-          }
+          this.calls++;
+          this.meddle?.(engine, this.calls);
           if (this.refuse?.(call, this.calls) === true) return { error: `"${call}" refused` };
           const answer = engine.call(call, m['args'] as unknown[]);
-          return { ok: { answer: this.reword === null ? answer : this.reword(answer, this.calls), board: engine.board() } };
+          const views = this.views(call);
+          const seq = ++this.played;
+          this.push(from, { push: { board: engine.board(), views, by: from, seq } });
+          return { ok: { answer: this.reword === null ? answer : this.reword(answer, this.calls), board: engine.board(), views, seq } };
         }
         default:
           return { error: `no op ${String(m['op'])}` };
@@ -170,16 +222,20 @@ async function settle(server: EngineServer): Promise<void> {
 
 const project = (): ProjectDoc => projectSchema.parse(migrateDocument(JSON.parse(readFileSync(resolve(here, '../../projects/default.json'), 'utf8'))));
 
-/** Nothing of the page's game told to the server's: no replica, none of its dice, walk, log, views, or save text. */
+/**
+ * Nothing of the page's game told to the server's: no replica, none of its dice, walk, log, views, or save text;
+ * and nothing of its own views' reads of its own engine sent at all.
+ */
 function neverTold(server: EngineServer): void {
-  expect(server.sent.filter((m) => m['op'] === 'restore' || NEVER_TOLD.includes(m['call'] as string))).toEqual([]);
+  expect(server.sent.filter((m) => m['op'] === 'restore' || NEVER_TOLD.includes(m['call'] as string) || LOCAL.includes(m['call'] as string))).toEqual([]);
 }
 
 /** The two games, as the page and the server have them: the same, past their logs' start. */
 function differ(demo: DemoScene, server: EngineServer): string | null {
   const ours = boardOf(demo);
   const theirs = server.engine.board() as BoardSnapshot;
-  const parted = firstDifference({ ...ours, log: null }, { ...theirs, log: null }, 'board');
+  // The dice left out: each page shows its own, and is handed the others'.
+  const parted = firstDifference({ ...ours, log: null, rolls: null }, { ...theirs, log: null, rolls: null }, 'board');
   return parted === null ? null : `${parted.path}: ${JSON.stringify(parted.game)?.slice(0, 200)} / ${JSON.stringify(parted.replica)?.slice(0, 200)}`;
 }
 
@@ -401,7 +457,7 @@ describe('the wire to the server\'s game', () => {
     expect(wire.status()).toBe('opening');
     await wire.ready;
     await settle(server);
-    expect(server.sent.map((m) => m['op'] === 'call' ? m['call'] : m['op'])).toEqual(['open', 'selectNext', 'selectNext', 'takeMotions', 'takeFloaters']);
+    expect(server.sent.map((m) => m['op'] === 'call' ? m['call'] : m['op'])).toEqual(['open', 'selectNext', 'selectNext']);
     expect(wire.status()).toBe('in');
     expect(differ(demo, server)).toBeNull();
     expect(replicaCount().first.slice(before.first.length)).toEqual([]);
@@ -752,5 +808,128 @@ describe('the wire to the server\'s game', () => {
     expect(wire.status()).toBe('in');
     expect(differ(demo, server)).toBeNull();
     expect(replicaCount().first.slice(before.first.length).length).toBe(1);
+  }, 120_000);
+});
+
+describe('a shared game, on the wire', () => {
+  /** The host's page and a guest's, each its own page and engine, at one game on the server. */
+  async function sharing(name: string) {
+    const bytes = readFileSync(WASM);
+    const server = new EngineServer(await WasmEngine.load(bytes));
+    const hostDemo = buildProjectScene(project(), `wire:${name}:host`);
+    const host = new WasmGame(hostDemo, await WasmEngine.load(bytes), shippedContent());
+    const hostWire = new Wire(() => server.connection(), hostDemo, shippedContent());
+    host.wireWith(hostWire);
+    await hostWire.ready;
+    const guestDemo = buildProjectScene(project(), `wire:${name}:guest`);
+    const guest = new WasmGame(guestDemo, await WasmEngine.load(bytes), shippedContent());
+    const guestWire = new Wire(() => server.connection(), guestDemo, shippedContent(), { join: hostWire.table!.invite });
+    guest.wireWith(guestWire);
+    await guestWire.ready;
+    await settle(server);
+    return { server, hostDemo, host, hostWire, guestDemo, guest, guestWire, before: replicaCount() };
+  }
+
+  it.skipIf(!built)('joins with an invitation, stood where the game is, and both pages are told who is at it', async () => {
+    const { server, hostWire, guestDemo, guestWire } = await sharing('join');
+    expect(guestWire.joined).toBe(true);
+    expect(guestWire.status()).toBe('in');
+    expect(differ(guestDemo, server)).toBeNull();
+    expect(guestWire.table?.members.length).toBe(2);
+    expect(hostWire.table?.members.length).toBe(2);
+    // A wrong invitation joins nothing, and the wire closes.
+    const stranger = new Wire(() => server.connection(), buildProjectScene(project(), 'wire:stranger'), shippedContent(), { join: 'nope' });
+    await stranger.ready;
+    expect(stranger.status()).toBe('closed');
+  }, 120_000);
+
+  it.skipIf(!built)('stands an idle page where another page\'s intent leaves the game, with the walk it gave to draw', async () => {
+    const { server, hostDemo, host, guestDemo, before } = await sharing('pushed');
+    const kara = hostDemo.party.selected!;
+    const from = hostDemo.state.entity(kara)!.tile;
+    host.moveSelectedTo(from + 3);
+    await settle(server);
+    // The guest's page: the host's walk, as the server played it, and the walk to draw.
+    expect(guestDemo.state.entity(kara)!.tile).toBe(hostDemo.state.entity(kara)!.tile);
+    expect(guestDemo.state.entity(kara)!.tile).not.toBe(from);
+    expect(differ(guestDemo, server)).toBeNull();
+    expect(guestDemo.motions.some((motion) => motion.id === kara)).toBe(true);
+    expect(replicaCount().first.slice(before.first.length)).toEqual([]);
+  }, 120_000);
+
+  it.skipIf(!built)('lets another page\'s intent in between the page\'s own without a parting, and stands it where the last answer leaves it', async () => {
+    const { server, hostDemo, host, guestDemo, guest, before } = await sharing('between');
+    const g = createRng('wire:between');
+    // Both pages playing at once, the guest's intents on their way up when the host's pushes land.
+    for (let burst = 0; burst < 10; burst++) {
+      for (let n = 0; n < 3; n++) {
+        guest.selectNext();
+        act(host, hostDemo, g);
+      }
+      await settle(server);
+      while (hostDemo.pending !== null) {
+        host.answerPending({ kind: 'continue' });
+        await settle(server);
+      }
+    }
+    expect(differ(hostDemo, server)).toBeNull();
+    expect(differ(guestDemo, server)).toBeNull();
+    const partings = replicaCount().first.slice(before.first.length);
+    expect(partings, JSON.stringify(partings.slice(0, 2), null, 1)).toEqual([]);
+  }, 300_000);
+
+  it.skipIf(!built)("keeps the page's own intent drawn when another page's lands while it is on its way up", async () => {
+    const { server, hostDemo, host, guestDemo, guest, before } = await sharing('in-flight');
+    const kara = hostDemo.party.selected!;
+    const tile = hostDemo.state.entity(kara)!.tile;
+    // The host's walk goes up first, then the guest's own selection: the game plays them in that order.
+    host.moveSelectedTo(tile + 2);
+    guest.selectNext();
+    const mine = guestDemo.party.selected;
+    expect(mine).not.toBe(kara);
+    // The host's walk is played, and pushed to the guest, before the guest's own selection is answered: the
+    // guest's page keeps what it played, waiting for its answer, rather than going back to before it.
+    await new Promise((tick) => setTimeout(tick, 0));
+    expect(guestDemo.party.selected).toBe(mine);
+    await settle(server);
+    // Its answer back: stood where the game is, the host's walk and its own selection both - and the host's
+    // walk, handed on while the guest waited, given to its views to draw then.
+    expect(guestDemo.party.selected).toBe(mine);
+    expect(guestDemo.state.entity(kara)!.tile).toBe(hostDemo.state.entity(kara)!.tile);
+    expect(guestDemo.motions.some((motion) => motion.id === kara)).toBe(true);
+    expect(differ(guestDemo, server)).toBeNull();
+    expect(replicaCount().first.slice(before.first.length)).toEqual([]);
+  }, 120_000);
+
+  it.skipIf(!built)('seats a character as the host says, and the guest is told', async () => {
+    const { server, hostWire, guestWire } = await sharing('seats');
+    const guestId = guestWire.table!.members[1]!.id;
+    expect(await hostWire.seat('kara', guestId)).toBe(true);
+    await settle(server);
+    expect(guestWire.table?.seats).toEqual({ kara: guestId });
+    expect(await hostWire.seat('kara', null)).toBe(true);
+    await settle(server);
+    expect(guestWire.table?.seats).toEqual({});
+  }, 120_000);
+
+  it.skipIf(!built)('cuts a walk short where it is drawn after another page\'s intent stood the page, as the server does', async () => {
+    const { server, hostDemo, host, guest, before } = await sharing('landed');
+    const kara = hostDemo.party.selected!;
+    const from = hostDemo.state.entity(kara)!.tile;
+    host.moveSelectedTo(from + 4);
+    // The host's views drain the walk, as a frame does, and start drawing it.
+    const walk = host.takeMotions().find((motion: { id: string }) => motion.id === kara)! as { route?: { x: number; y: number }[] };
+    await settle(server);
+    // The guest plays, and the host's page is stood where that leaves the game, mid-glide.
+    guest.selectNext();
+    await settle(server);
+    // The host clicks again: the walk cut short where it is drawn, part-way along it.
+    const route = walk.route!;
+    const halfway = { x: (route[0]!.x + route.at(-1)!.x) / 2, y: (route[0]!.y + route.at(-1)!.y) / 2 };
+    const landed = host.landWalkers({ isGliding: (id) => id === kara, spotOf: () => halfway, land: () => true, layout: undefined as never });
+    expect(landed).toEqual([kara]);
+    await settle(server);
+    expect(differ(hostDemo, server)).toBeNull();
+    expect(replicaCount().first.slice(before.first.length)).toEqual([]);
   }, 120_000);
 });

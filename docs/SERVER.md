@@ -1457,4 +1457,35 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     path: admin's first password and a new account refused, the art withheld, a locally made account signed
     in, the game opened over the websocket, an intent played on the server with nothing parted.
     `docs/HOSTING.md` says how to run it for friends; each plays their own game until slice 3.
-  - **Next**: the shared game (slice 3).
+  - **A shared game** (slice 3). A game on the server has an id of its own, a host - who opened it - and an
+    invitation (`play.rs`, `Tables`): a page opened with it (`?join=<invitation>`) reads the game's project from
+    the server before it is built (`GET /__play/join/<invitation>`, `project-store.ts`), then joins
+    (`{ op: "join", invite }`) and is stood where the game is. Each player is at one game at a time; a game is
+    kept until ten minutes after the last socket at it closes. Every intent's answer carries what it gave to
+    draw - the walks, the numbers over heads, the dice - taken off the game's queues as it is played (`views`,
+    through `takeMotions`, which keeps the walked lines, `takeFloaters` and `takeRolls`), and the board and
+    those views are pushed to every other page at the game (`{ push }`), which is stood there with them
+    (`wire.ts`). A page's own walks, numbers and dice are its own engine's: never sent up (`LOCAL`), and the
+    dice not held to the server's board. Answers and pushes leave the game's own thread into each connection's
+    one queue, so a page is told them in the order the game played them; the server numbers the intents it
+    plays (`seq`), and a page holds an answer to what it predicted only when no other page's intent came in
+    between - one that did is no parting, only the page stood where the game is. What a page sends as it draws
+    itself - the bar's read of the cards, a thing or a container looked at, the conversations put where the
+    selection says (`DRAWN`) - is played and numbered but not pushed: each page's drawing pushed to the other,
+    which drew again and pushed back, without end. Who plays whom (`seats`) is the host's to say
+    (`{ op: "seat" }`), of somebody at the game, and every page is told the table (`{ table }`: the host, the
+    members, the seats, the invitation) and who it plays as (`you`); the settings show it (`ui/Players.tsx`,
+    `shared-game.ts`). Loading a save is the host's alone at a game others are at. The page's engine, built
+    again whenever the page is stood, is handed the lines its walkers were given (`walkedLines`,
+    `restoreWalked`, never told to the server's game), so a walk cut short after another page's intent is held
+    to the same line on both - slice 1's gap, closed. Proved by the server's tests (a game opened, joined with
+    its invitation and not with another, each intent pushed to the other connection only, the seats, a guest's
+    resume and load, kept while anybody is at it, the guest's project read), the wire's (joined, pushed, two
+    pages playing at once with no parting, seated, a walk cut short after a push) and the e2e on the server
+    (`shared.spec.ts`: two browsers, two accounts, each one's walk reaching the other, the host seating the
+    guest, the guest refused, the Players section, nothing parted on either).
+    - **Not yet**: who may act - any page moves any character, seated or not, and the selection and the bar's
+      reading are the game's one each, shared by every page (slice 4); the lobby, and a shared game's saves its
+      host's (slice 5). A page corrected after its own prediction parted keeps its own dice to show, not the
+      server's.
+  - **Next**: who may act (slice 4).

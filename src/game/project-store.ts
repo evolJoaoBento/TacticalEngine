@@ -51,6 +51,9 @@ export interface BootOptions {
 
 const builtin = (): DemoScene => buildDemoScene(hollowVaultMap());
 
+/** Where a page joining another's game reads its project, with the invitation (`play.rs`, `GET /__play/join/<invite>`). */
+export const JOIN_URL = '/__play/join';
+
 /** Which way to open: what the address asks for, or what the server was started with. */
 export function bootMode(search: string, fallback: 'file' | 'builtin' = BOOT): 'file' | 'builtin' {
   const asked = new URLSearchParams(search).get('boot');
@@ -66,6 +69,19 @@ export async function bootDemo(options: BootOptions = {}): Promise<Booted> {
 
 async function open(options: BootOptions): Promise<Booted> {
   const search = options.search ?? globalThis.location?.search ?? '';
+  const fetcher = options.fetcher ?? ((url: string, init?: RequestInit) => fetch(url, init));
+  // Another's game, joined with its invitation: opened over the project it is played over, which the server keeps.
+  const invite = new URLSearchParams(search).get('join');
+  if (invite !== null) {
+    try {
+      const response = await fetcher(`${JOIN_URL}/${encodeURIComponent(invite)}`, { cache: 'no-store' });
+      if (!response.ok) return { demo: builtin(), source: 'invalid', problem: 'That invitation is to no game on the server now, so the demo opened instead.' };
+      const { project } = (await response.json()) as { project: unknown };
+      return fromText(JSON.stringify(project), options, 'game');
+    } catch (failure) {
+      return { demo: builtin(), source: 'invalid', problem: `The game could not be joined (${reasonOf(failure)}), so the demo opened instead.` };
+    }
+  }
   // A game New Game began is opened from the browser, whatever the server would open.
   const game = new URLSearchParams(search).get('project');
   if (game !== null) {
@@ -75,7 +91,6 @@ async function open(options: BootOptions): Promise<Booted> {
   }
   if (bootMode(search, options.boot ?? BOOT) === 'builtin') return { demo: builtin(), source: 'builtin', problem: null };
 
-  const fetcher = options.fetcher ?? ((url: string, init?: RequestInit) => fetch(url, init));
   let text: string;
   try {
     const response = await fetcher(PROJECT_URL, { cache: 'no-store' });

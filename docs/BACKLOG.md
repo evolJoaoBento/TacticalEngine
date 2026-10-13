@@ -4,6 +4,13 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## Phase 5 (multiplayer), slice 3: a shared game — done
+
+A game on the server is shared: its host opens it, friends join with its invitation (`?join=`), every intent is
+pushed to every other page - the board and what it gave to draw - and the host says who plays whom (Settings,
+Players). The server numbers what it plays, so a page tells another's intent from a parting. Next: who may act
+(slice 4) - today anybody moves anybody, and the selection is shared.
+
 ## Phase 5 (multiplayer), slice 2: in a build, through a tunnel — done
 
 The build the Rust server serves plays with it, and the server is ready to be reached through a tunnel: the

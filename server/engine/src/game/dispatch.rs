@@ -158,6 +158,14 @@ impl Session {
                 }
                 Value::Null
             }
+            // The lines walkers were given, read - and handed back to an engine built again under the page.
+            "walkedLines" => self.walked_lines(),
+            "restoreWalked" => {
+                self.restore_walked(&a.get(0).clone())?;
+                Value::Null
+            }
+            // The dice still to be shown, taken off the queue: what a server hands the other pages at a shared game.
+            "takeRolls" => Value::Array(std::mem::take(&mut self.rolls).into_iter().map(|r| json!({ "who": r.who, "what": r.what, "roll": r.roll })).collect()),
             "clearRolls" => {
                 self.rolls.clear();
                 Value::Null

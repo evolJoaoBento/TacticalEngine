@@ -4,8 +4,9 @@
  *
  * Each message is written out the moment it is given - a game told how it stands must be told how it stood
  * then, not after the intent that follows - and held until the socket is open; answers come back in the order
- * the messages went, each found by its `id`. A socket that closes fails whatever is still waiting, and the
- * wire with it.
+ * the messages went, each found by its `id`. What the server says unasked - another page's intent at a shared
+ * game, the table changed - carries no `id`, and is given to whoever listens (`listen`). A socket that closes
+ * fails whatever is still waiting, and the wire with it.
  */
 
 import { whoAmI, type SignedIn } from './accounts';
@@ -18,6 +19,7 @@ export class PlaySocket implements Transport {
   private next = 1;
   private readonly waiting = new Map<number, { answer: (said: Said) => void; fail: (why: Error) => void }>();
   private held: string[] | null = [];
+  private heard: ((message: Record<string, unknown>) => void) | null = null;
 
   constructor(url: string = `${location.origin.replace(/^http/, 'ws')}${PLAY_URL}`) {
     this.socket = new WebSocket(url);
@@ -27,7 +29,8 @@ export class PlaySocket implements Transport {
     });
     this.socket.addEventListener('message', (event) => {
       const said = JSON.parse(String(event.data)) as Said & { id?: number };
-      const waiter = typeof said.id === 'number' ? this.waiting.get(said.id) : undefined;
+      if (typeof said.id !== 'number') return this.heard?.(said as Record<string, unknown>);
+      const waiter = this.waiting.get(said.id);
       if (waiter === undefined) return;
       this.waiting.delete(said.id!);
       waiter.answer(said);
@@ -49,6 +52,10 @@ export class PlaySocket implements Transport {
   close(): void {
     this.socket.close();
     this.failAll();
+  }
+
+  listen(heard: (message: Record<string, unknown>) => void): void {
+    this.heard = heard;
   }
 
   private failAll(): void {

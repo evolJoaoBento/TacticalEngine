@@ -73,6 +73,22 @@ describe('the socket to the server\'s game', () => {
     expect(fake.out.length).toBe(3);
   });
 
+  it('gives what the server says unasked - no id - to whoever listens, and nothing waiting is answered by it', async () => {
+    vi.stubGlobal('WebSocket', FakeSocket);
+    const socket = new PlaySocket('ws://page/__play');
+    const fake = FakeSocket.last!;
+    fake.fire('open');
+    const heard: unknown[] = [];
+    // Nobody listening yet: dropped.
+    fake.fire('message', JSON.stringify({ table: { game: 'g' } }));
+    socket.listen((message) => heard.push(message));
+    const waiting = socket.send({ op: 'call', call: 'endTurn', args: [] });
+    fake.fire('message', JSON.stringify({ push: { board: { log: [] }, by: 'finn' } }));
+    fake.fire('message', JSON.stringify({ id: 1, ok: { answer: 2 } }));
+    await expect(waiting).resolves.toEqual({ id: 1, ok: { answer: 2 } });
+    expect(heard).toEqual([{ push: { board: { log: [] }, by: 'finn' } }]);
+  });
+
   it('fails what still waits when it closes, and whatever is sent after', async () => {
     vi.stubGlobal('WebSocket', FakeSocket);
     const socket = new PlaySocket('ws://page/__play');

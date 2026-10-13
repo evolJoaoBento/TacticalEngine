@@ -32,6 +32,10 @@ describe('what the page opens on', () => {
     expect(startOf('?play', 'file')).toEqual({ menu: false, locked: true, edit: false, load: null });
     expect(startOf('?play&project=camp-ash-1&load=s1', 'file')).toEqual({ menu: false, locked: true, edit: false, load: 's1' });
   });
+
+  it('opens another\'s game, joined with its invitation, played only', () => {
+    expect(startOf('?join=ab12', 'file')).toEqual({ menu: false, locked: true, edit: false, load: null });
+  });
 });
 
 describe('the games New Game begins', () => {

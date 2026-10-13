@@ -26,6 +26,30 @@ describe('which project opens', () => {
     expect(booted.demo.project.name).toBe('From the file');
   });
 
+  it('opens another\'s game over the project the server keeps for it, asked with the invitation', async () => {
+    const project = JSON.parse(demoText);
+    project.name = 'The host\'s';
+    const asked: string[] = [];
+    const booted = await bootDemo({
+      boot: 'builtin',
+      search: '?join=ab%2012',
+      fetcher: (url) => {
+        asked.push(url);
+        return answer(200, JSON.stringify({ project }));
+      },
+    });
+    expect(asked).toEqual(['/__play/join/ab%2012']);
+    expect(booted.source).toBe('game');
+    expect(booted.problem).toBeNull();
+    expect(booted.demo.project.name).toBe('The host\'s');
+    // An invitation to no game: the demo, and why.
+    const gone = await bootDemo({ boot: 'file', search: '?join=nope', fetcher: () => answer(404) });
+    expect(gone.source).toBe('invalid');
+    expect(gone.problem).toMatch(/invitation is to no game/);
+    const down = await bootDemo({ boot: 'file', search: '?join=nope', fetcher: () => Promise.reject(new Error('offline')) });
+    expect(down.problem).toMatch(/could not be joined \(offline\)/);
+  });
+
   it('opens the demo from code when there is no file yet, and says nothing is wrong', async () => {
     const booted = await bootDemo({ boot: 'file', search: '', fetcher: () => answer(404) });
     expect(booted.source).toBe('missing');

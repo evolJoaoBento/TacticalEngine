@@ -27,6 +27,8 @@ import { shippedContent } from './shipped';
 import { WasmEngine } from './wasm-engine';
 import { PlaySocket, serverAccount } from './play-socket';
 import { Wire } from './wire';
+import { invitationOf, tableOf } from './shared-game';
+import { nameOf } from './log';
 import { loadAccountSaves } from './account-saves';
 import { SaveSlots, browserStore, type SaveShelf } from './save-slots';
 
@@ -42,14 +44,25 @@ export class WasmGame extends GameTable {
     publishCount('wasm');
   }
 
-  /** The engine built from the project and told the page's game: at the start, and after the editor's changes. */
+  /**
+   * The engine built from the project and told the page's game: at the start, after the editor's changes, and
+   * when the page is stood where the server's game is. The lines its walkers were last given are handed to the
+   * engine built again, so a walk the page cuts short after is held to the same line as the server holds it.
+   */
   private toldFromThePage(): void {
+    let walked: unknown = {};
+    try {
+      walked = this.engine.call('walkedLines', []);
+    } catch {
+      // Nothing built yet: no lines.
+    }
     this.engine.build(this.demo.project, this.shipped, 'wasm', { animated: this.demo.animated, askDefender: this.demo.askDefender });
     this.engine.restore(replicaOf(this.demo));
     this.engine.call('restoreRng', [this.demo.rng.save()]);
     this.engine.call('restoreWalk', [this.demo.ambush, this.demo.approaching, openContainer(this.demo), rollsOf(this.demo)]);
     this.engine.call('restoreLog', [this.demo.log]);
     this.engine.call('restoreViews', [this.demo.motions, this.demo.floaters]);
+    this.engine.call('restoreWalked', [walked]);
     this.filled = this.engine.boardText();
   }
 
@@ -124,14 +137,21 @@ export function savesFor(): SaveShelf {
   return shelf;
 }
 
-/** The game held to one on the server, when it is to be: a socket of its own, the last game's closed. */
+/**
+ * The game held to one on the server, when it is to be: a socket of its own, the last game's closed. The game
+ * the page boots with joins another's, when the page was opened with its invitation (`?join=`); any other opens
+ * its own, which others may join. Who is at it is shown from its table (`shared-game.ts`).
+ */
 function wireUp(game: GameTable, demo: DemoScene, resume: boolean): void {
   wired?.close();
   wired = null;
+  tableOf(null);
   if (!serverOn) return;
-  const wire = new Wire(() => new PlaySocket(), demo, shippedContent(), { resume });
+  const invite = booting ? invitationOf() : null;
+  const wire = new Wire(() => new PlaySocket(), demo, shippedContent(), { resume, ...(invite === null ? {} : { join: invite }) });
   game.wireWith(wire);
   wired = wire;
+  tableOf(wire, () => demo.party.members().map((id) => ({ id, name: nameOf(demo, id) })));
   publishCount(undefined, () => wire.status());
 }
 

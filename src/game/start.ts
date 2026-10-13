@@ -8,6 +8,7 @@
  *   ?play                    Load Game: the same, played - no editor, no Ctrl+E
  *   ?project=<id>            a game New Game began, from this browser (`game-projects.ts`), played
  *   ?load=<slot>             and a save of it loaded as it opens
+ *   ?join=<invitation>       another's game on the server, joined: its project, played (`shared-game.ts`)
  *   ?menu                    the menu, whatever else is asked
  *
  * A server started for the tests (`TACTICAL_BOOT=builtin`) opens straight on the game, as every
@@ -37,10 +38,10 @@ export interface Start {
 
 export function startOf(search: string = globalThis.location?.search ?? '', boot: 'file' | 'builtin' = BOOT): Start {
   const asked = new URLSearchParams(search);
-  const chosen = ['edit', 'play', 'project', 'load', 'boot'].some((key) => asked.has(key));
+  const chosen = ['edit', 'play', 'project', 'load', 'boot', 'join'].some((key) => asked.has(key));
   return {
     menu: asked.has('menu') || (boot !== 'builtin' && !chosen),
-    locked: asked.has('play') || asked.has('project'),
+    locked: asked.has('play') || asked.has('project') || asked.has('join'),
     edit: asked.has('edit'),
     load: asked.get('load'),
   };

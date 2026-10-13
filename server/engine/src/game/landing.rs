@@ -11,6 +11,7 @@
 use super::session::Session;
 use crate::grid::tile_grid::Spot;
 use serde_json::Value;
+use std::collections::HashMap;
 
 /// How far from the line a walker may be put down, in tiles.
 pub const SLACK: f64 = 0.75;
@@ -75,6 +76,22 @@ impl Session {
             return said;
         }
         self.walked.get(id).filter(|(room, _)| *room == self.room).map(|(_, line)| line.clone())
+    }
+
+    /// The lines the walkers in this room were last given, as a view drained them: what a page's engine, built
+    /// again under it, is handed back (`walkedLines`, `restoreWalked`), so a walk it cut short is held to the same.
+    pub fn walked_lines(&self) -> Value {
+        let lines: serde_json::Map<String, Value> = self.walked.iter().filter(|(_, (room, _))| *room == self.room).map(|(id, (_, line))| (id.clone(), serde_json::to_value(line).expect("a line writes"))).collect();
+        Value::Object(lines)
+    }
+
+    /// The lines a page's engine was handed back, for the room it is in now.
+    pub fn restore_walked(&mut self, lines: &Value) -> Result<(), String> {
+        let lines: HashMap<String, Vec<Spot>> = serde_json::from_value(lines.clone()).map_err(|e| format!("the lines: {e}"))?;
+        for (id, line) in lines {
+            self.walked.insert(id, (self.room, line));
+        }
+        Ok(())
     }
 
     /// A walker put down where the page draws them, if that is on the line they were walking: whether they were.

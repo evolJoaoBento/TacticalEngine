@@ -3,10 +3,13 @@
 How to run Tactical Engine on your own machine so friends can play it over the internet
 (`docs/SERVER.md`, phase 5, slice 2).
 
-**What this gives you today:** each friend signs in to an account on your server and plays **their own
-game** there. The server's game is the one that counts (phase 5, slice 1), and their saves are kept on your
-machine. **Several people playing one game together is not here yet.** That is the shared game, slice 3 of
-phase 5.
+**What this gives you today:** each friend signs in to an account on your server, and joins **your game**
+with its invitation. Everybody at it sees what everybody else does, and you say who plays which character.
+The server's game is the one that counts (phase 5, slice 1), and saves are kept on your machine.
+
+**Not yet:** nothing stops anybody from moving any character, whoever you seated in it - who may act, and
+when, is slice 4. The selection is shared too: a friend selecting somebody selects them on your screen. The
+lobby, where a game is set up and started together, is slice 5.
 
 ## What it is
 
@@ -52,7 +55,16 @@ You also need Rust installed (`rustup`; see `docs/SERVER.md`, "Running it").
    again without it. Invitations come with the lobby (slice 5).
 
 3. **Start a tunnel to `http://127.0.0.1:8430`,** with whichever tunnel program you use. It gives you a
-   public `https://...` address: send that to your friends.
+   public `https://...` address.
+
+4. **Open your game, and invite your friends.** Start or load a game. In the settings (Esc), **Players**
+   shows the invitation: a link to the address you opened the game at, ending in `?join=...`. If you opened
+   it at `http://127.0.0.1:8430`, send your friends the tunnel's address with the same `?join=...` on the
+   end. A friend who opens it, signed in, joins your game.
+
+5. **Seat them.** Players lists everybody at the game, and each character with who plays it. Only you, the
+   host, can change who plays whom; your friends see it. Loading a save puts everybody somewhere else, so
+   only the host may load one into a game others are at.
 
 ## What the server needs from the tunnel
 

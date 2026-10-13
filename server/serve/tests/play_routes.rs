@@ -109,9 +109,15 @@ async fn a_game_on_the_server_plays_as_the_engine_plays() {
     for (n, (call, args)) in intents(&mut beside).into_iter().enumerate() {
         let said = tables.ask("kara", json!({ "id": n + 2, "op": "call", "call": call, "args": args })).await;
         let answer = beside.dispatch(&call, args.as_array().unwrap()).unwrap();
+        // What it gave the pages to draw, taken off the queues as the server takes them, and handed on with it.
+        let mut views = json!({});
+        for (name, take) in [("motions", "takeMotions"), ("floaters", "takeFloaters"), ("rolls", "takeRolls")] {
+            views[name] = if call == take { json!([]) } else { beside.dispatch(take, &[]).unwrap() };
+        }
         assert_eq!(said["id"], n + 2);
         assert_eq!(said["ok"]["answer"], answer, "{call}: the answer");
         assert_eq!(said["ok"]["board"], beside.board(), "{call}: the board");
+        assert_eq!(said["ok"]["views"], views, "{call}: what it gave to draw");
         defended |= said["ok"]["board"]["pending"]["kind"] == "defense";
         played += 1;
     }
@@ -125,8 +131,7 @@ async fn a_game_on_the_server_plays_as_the_engine_plays() {
     let asked = tables.ask("kara", json!({ "id": 99, "op": "ask", "ask": "pressure" })).await;
     assert_eq!(asked["ok"], json!(beside.under_pressure_tiles()));
 
-    // The socket goes; the game is kept, and comes back.
-    tables.left("kara");
+    // The game is kept, and comes back.
     assert!(tables.has_game("kara"));
     let resumed = tables.ask("kara", json!({ "id": 100, "op": "resume" })).await;
     assert_eq!(resumed["ok"]["board"], beside.board());
@@ -211,10 +216,12 @@ async fn the_play_route_is_a_websocket_for_a_signed_in_page() {
 async fn a_game_left_longer_than_it_is_kept_goes() {
     let fixture = fixture();
     let tables = Tables::keeping(root("swept"), std::time::Duration::ZERO);
-    let opened = tables.ask("kara", json!({ "id": 1, "op": "open", "project": fixture["projects"][0], "shipped": fixture["shipped"], "table": {} })).await;
+    let (conn, mut said) = tables.connect();
+    tables.ask_on(conn, "kara", json!({ "id": 1, "op": "open", "project": fixture["projects"][0], "shipped": fixture["shipped"], "table": {} }));
+    let opened = said.recv().await.unwrap();
     assert!(opened["ok"].is_object(), "{opened}");
     assert!(tables.has_game("kara"));
-    tables.left("kara");
+    tables.left(conn);
     assert!(!tables.has_game("kara"), "kept for no time, it goes when its socket does");
     assert_eq!(tables.ask("kara", json!({ "id": 2, "op": "resume" })).await["error"], "no game: open one");
 }
@@ -293,7 +300,8 @@ async fn a_walk_cut_short_puts_its_walker_down_only_on_the_line_it_walked() {
     let tile = board["state"]["entities"][member.as_str()]["tile"].as_i64().expect("the member's tile");
     let walked = call(3, "moveSelectedTo", json!([tile + 3])).await;
     assert_eq!(walked["ok"]["answer"]["moved"], true, "{walked}");
-    let motions = call(4, "takeMotions", json!([])).await["ok"]["answer"].clone();
+    // The walk to draw comes with the walk's own answer, taken off the game's queue as it was played.
+    let motions = walked["ok"]["views"]["motions"].clone();
     let route: Vec<Value> = motions.as_array().unwrap().iter().find(|m| m["id"] == member.as_str()).expect("the walk drawn")["route"].as_array().unwrap().clone();
     let (start, end) = (&route[0], &route[route.len() - 1]);
     let half = json!({ "x": (start["x"].as_f64().unwrap() + end["x"].as_f64().unwrap()) / 2.0, "y": (start["y"].as_f64().unwrap() + end["y"].as_f64().unwrap()) / 2.0 });
@@ -343,4 +351,155 @@ async fn the_play_route_takes_a_page_a_tunnel_brings_from_its_public_host() {
     // A page from another site, through the same tunnel; and a public origin no proxy vouches for.
     assert_eq!(status(connect("https://elsewhere.example", Some("friends.example")).await.unwrap_err()), 403);
     assert_eq!(status(connect("https://friends.example", None).await.unwrap_err()), 403);
+}
+
+/// The next thing a connection is told, answer or push - or a failure, when nothing comes.
+async fn told(said: &mut tokio::sync::mpsc::UnboundedReceiver<Value>) -> Value {
+    tokio::time::timeout(std::time::Duration::from_secs(5), said.recv()).await.expect("told something in time").expect("the connection open")
+}
+
+/// Whether a connection has been told anything more, once whatever was on its way has come.
+async fn nothing_more(said: &mut tokio::sync::mpsc::UnboundedReceiver<Value>) -> bool {
+    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    said.try_recv().is_err()
+}
+
+#[tokio::test]
+async fn a_game_is_shared_its_invitation_joins_it_and_each_intent_is_pushed_to_the_others() {
+    let fixture = fixture();
+    let tables = Tables::new(root("shared")).for_tests();
+    let (host, mut to_host) = tables.connect();
+    let (guest, mut to_guest) = tables.connect();
+    tables.ask_on(host, "kara", json!({ "id": 1, "op": "open", "project": fixture["projects"][0], "shipped": fixture["shipped"], "table": {} }));
+    let opened = told(&mut to_host).await;
+    let invite = opened["ok"]["invite"].as_str().expect("an invitation").to_string();
+    assert_eq!(invite.len(), 32);
+    assert_eq!(opened["ok"]["table"]["host"], "kara");
+    assert_eq!(opened["ok"]["you"], "kara");
+    assert_eq!(opened["ok"]["seq"], 0, "nothing played yet");
+    assert_eq!(opened["ok"]["table"]["members"], json!([{ "id": "kara", "name": "kara" }]));
+
+    // A wrong invitation joins nothing.
+    tables.ask_on(guest, "finn", json!({ "id": 1, "op": "join", "invite": "nope" }));
+    assert_eq!(told(&mut to_guest).await["error"], "no game for that invitation");
+    // The right one: the guest stood where the game is, and the host told who is at it now.
+    tables.ask_on(guest, "finn", json!({ "id": 2, "op": "join", "invite": invite }));
+    let joined = told(&mut to_guest).await;
+    assert_eq!(joined["id"], 2);
+    assert_eq!(joined["ok"]["board"], opened["ok"]["board"]);
+    assert_eq!(joined["ok"]["project"], fixture["projects"][0]["id"]);
+    assert_eq!(joined["ok"]["table"]["members"].as_array().unwrap().len(), 2);
+    assert_eq!(joined["ok"]["you"], "finn");
+    assert_eq!(told(&mut to_host).await["table"]["members"][1]["id"], "finn");
+
+    // The host's intent: answered to the host, pushed to the guest - the board it left, and the walk to draw.
+    let member = opened["ok"]["board"]["replica"]["party"]["selected"].as_str().unwrap().to_string();
+    let tile = opened["ok"]["board"]["replica"]["state"]["entities"][member.as_str()]["tile"].as_i64().unwrap();
+    tables.ask_on(host, "kara", json!({ "id": 3, "op": "call", "call": "moveSelectedTo", "args": [tile + 2] }));
+    let walked = told(&mut to_host).await;
+    assert_eq!(walked["id"], 3);
+    let pushed = told(&mut to_guest).await;
+    assert!(pushed["id"].is_null(), "{pushed}");
+    assert_eq!(pushed["push"]["board"], walked["ok"]["board"]);
+    assert_eq!(pushed["push"]["views"], walked["ok"]["views"]);
+    assert!(!pushed["push"]["views"]["motions"].as_array().unwrap().is_empty(), "the walk to draw");
+    assert_eq!(pushed["push"]["by"], "kara");
+    // Numbered as the game played it: the first intent, in the answer and the push alike.
+    assert_eq!((walked["ok"]["seq"].clone(), pushed["push"]["seq"].clone()), (json!(1), json!(1)));
+    assert!(nothing_more(&mut to_host).await, "the host is not pushed its own intent");
+    // The guest's intent is pushed to the host the same way.
+    tables.ask_on(guest, "finn", json!({ "id": 4, "op": "call", "call": "selectNext", "args": [] }));
+    let selected = told(&mut to_guest).await;
+    assert_eq!(selected["ok"]["seq"], 2);
+    assert_eq!(told(&mut to_host).await["push"]["board"], selected["ok"]["board"]);
+    // A question the pointer asks changes nothing, and is pushed to nobody.
+    tables.ask_on(host, "kara", json!({ "id": 5, "op": "ask", "ask": "pressure" }));
+    told(&mut to_host).await;
+    assert!(nothing_more(&mut to_guest).await, "nothing pushed for a question");
+    // Nor is what a page sends as it draws itself, whatever mark it leaves (`DRAWN`): it reaches the others with
+    // the next intent that is pushed.
+    for call in serve::play::DRAWN {
+        let args = if *call == "abilityList" { json!([member]) } else if call.starts_with("read") { json!(["nothing"]) } else { json!([]) };
+        tables.ask_on(host, "kara", json!({ "id": 6, "op": "call", "call": call, "args": args }));
+        told(&mut to_host).await;
+    }
+    assert!(nothing_more(&mut to_guest).await, "nothing pushed for drawing");
+    // Nor an intent that leaves the board as it was and gives nothing to draw.
+    tables.ask_on(host, "kara", json!({ "id": 7, "op": "call", "call": "selectNext", "args": [] }));
+    told(&mut to_host).await;
+    told(&mut to_guest).await;
+    tables.ask_on(host, "kara", json!({ "id": 8, "op": "call", "call": "select", "args": [member] }));
+    told(&mut to_host).await;
+    told(&mut to_guest).await;
+    tables.ask_on(host, "kara", json!({ "id": 9, "op": "call", "call": "select", "args": [member] }));
+    told(&mut to_host).await;
+    assert!(nothing_more(&mut to_guest).await, "nothing pushed when nothing changed");
+
+    // Who plays whom: the host's to say, of somebody at the game; the others told.
+    tables.ask_on(guest, "finn", json!({ "id": 7, "op": "seat", "character": member, "account": "finn" }));
+    assert_eq!(told(&mut to_guest).await["error"], "only the host says who plays whom");
+    tables.ask_on(host, "kara", json!({ "id": 8, "op": "seat", "character": member, "account": "stranger" }));
+    assert_eq!(told(&mut to_host).await["error"], "not at this game");
+    tables.ask_on(host, "kara", json!({ "id": 9, "op": "seat", "character": member, "account": "finn" }));
+    assert_eq!(told(&mut to_host).await["ok"]["table"]["seats"], json!({ member.as_str(): "finn" }));
+    assert_eq!(told(&mut to_guest).await["table"]["seats"], json!({ member.as_str(): "finn" }));
+    tables.ask_on(host, "kara", json!({ "id": 10, "op": "seat", "character": member, "account": null }));
+    assert_eq!(told(&mut to_host).await["ok"]["table"]["seats"], json!({}));
+    told(&mut to_guest).await;
+
+    // A save loaded puts everybody somewhere else: not the guest's to do.
+    tables.ask_on(guest, "finn", json!({ "id": 11, "op": "save", "name": "Mine", "where": "here" }));
+    let slot = told(&mut to_guest).await["ok"]["slot"]["id"].as_str().expect("a slot").to_string();
+    tables.ask_on(guest, "finn", json!({ "id": 12, "op": "load", "slot": slot }));
+    assert_eq!(told(&mut to_guest).await["error"], "only the host loads a save into a game others are at");
+
+    // The guest's page reloaded: back at the shared game, not one of its own.
+    let resumed = tables.ask("finn", json!({ "id": 13, "op": "resume" })).await;
+    assert_eq!(resumed["ok"]["table"]["game"], opened["ok"]["table"]["game"]);
+}
+
+#[tokio::test]
+async fn a_shared_game_is_kept_while_anybody_is_at_it() {
+    let fixture = fixture();
+    let tables = Tables::keeping(root("kept-shared"), std::time::Duration::ZERO);
+    let (host, mut to_host) = tables.connect();
+    let (guest, mut to_guest) = tables.connect();
+    tables.ask_on(host, "kara", json!({ "id": 1, "op": "open", "project": fixture["projects"][0], "shipped": fixture["shipped"], "table": {} }));
+    let invite = told(&mut to_host).await["ok"]["invite"].as_str().unwrap().to_string();
+    tables.ask_on(guest, "finn", json!({ "id": 1, "op": "join", "invite": invite }));
+    told(&mut to_guest).await;
+    // The host goes; the guest is still at it, so it is kept, for the host to come back to.
+    tables.left(host);
+    assert!(tables.has_game("kara") && tables.has_game("finn"));
+    // The last goes: kept for no time, it goes.
+    tables.left(guest);
+    assert!(!tables.has_game("finn") && !tables.has_game("kara"));
+}
+
+#[tokio::test]
+async fn a_guests_page_reads_the_games_project_with_its_invitation() {
+    let root = root("join-route");
+    let account = Account { id: "finn".into(), name: "Finn".into(), salt: "s".into(), hash: "h".into(), admin: false, created: 0, rest: IndexMap::new() };
+    write_accounts(&root, &[account]).unwrap();
+    let mut sessions = IndexMap::new();
+    sessions.insert("good-token".to_string(), Signed { account: "finn".into(), expires: i64::MAX });
+    write_sessions(&root, &sessions).unwrap();
+    let fixture = fixture();
+    let tables = Tables::new(root);
+    let opened = tables.ask("kara", json!({ "id": 1, "op": "open", "project": fixture["projects"][0], "shipped": fixture["shipped"], "table": {} })).await;
+    let invite = opened["ok"]["invite"].as_str().unwrap().to_string();
+    let app = serve::play::router_for(tables);
+    let get = |path: String, cookie: Option<&str>| {
+        let mut request = axum::http::Request::builder().uri(path);
+        if let Some(cookie) = cookie {
+            request = request.header("cookie", format!("{SESSION_COOKIE}={cookie}"));
+        }
+        tower::ServiceExt::oneshot(app.clone(), request.body(axum::body::Body::empty()).unwrap())
+    };
+    let read = get(format!("/__play/join/{invite}"), Some("good-token")).await.unwrap();
+    assert_eq!(read.status(), 200);
+    let body: Value = serde_json::from_slice(&http_body_util::BodyExt::collect(read.into_body()).await.unwrap().to_bytes()).unwrap();
+    assert_eq!(body["project"], fixture["projects"][0]);
+    assert_eq!(get(format!("/__play/join/{invite}"), None).await.unwrap().status(), 401);
+    assert_eq!(get("/__play/join/nope".into(), Some("good-token")).await.unwrap().status(), 404);
 }

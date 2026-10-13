@@ -33,10 +33,23 @@
  * and the answer is not played on the page but sent up (`asked`) without predicting it; the server's game plays
  * it, and the page is stood where its board says after - the next question shown the same way, or none. A
  * conversation set aside is known by who is having it (`asideFrom`), and the server's game plays it on.
+ *
+ * A game is shared (phase 5, slice 3): its host opened it, others join it with its invitation (`join`), and
+ * each page is told the table - who is at it, who plays whom (`SharedTable`; `seat`, the host's). What another
+ * page's intent did is pushed to this one (`Transport.listen`): its board, and what it gave to draw - the walks,
+ * the numbers over heads, the dice (`Views`) - and the page is stood there with them, at once when nothing of its
+ * own is on its way up; else when the last of that is answered, nothing counted as a parting, since the server
+ * played the other page's intent between this page's own. The page's own walks, numbers and dice are its own
+ * engine's to give its views (`LOCAL`): the server takes its own queues off as it plays (`views` in an answer)
+ * and hands them to the others, so they are never sent up, and the dice are not held to the server's board.
+ * The server numbers the intents it plays (`seq`), and an answer is held to what the page predicted only when
+ * its number says no other page's intent came in between since the board the page predicted on - one that did
+ * is no parting, only the page stood where the server's game is.
  */
 
 import { boardOf, restoreFromBoard, shownFrom, type BoardSnapshot } from './board';
 import type { DemoScene } from './demo-scene';
+import { showRoll } from './log';
 import { firstDifference, recordAsked, recordParting, since } from './shadow';
 import type { SaveSlot } from './save-slots';
 
@@ -50,7 +63,31 @@ export interface Said {
 export interface Transport {
   send(message: Record<string, unknown>): Promise<Said>;
   close(): void;
+  /** What the server says unasked - another page's intent, the table changed - given to `heard` as it comes. */
+  listen?(heard: (message: Record<string, unknown>) => void): void;
 }
+
+/** Who is at a shared game, and who plays whom - a character's id to an account's - as the server says. */
+export interface SharedTable {
+  game: string;
+  host: string;
+  invite: string;
+  members: { id: string; name: string }[];
+  seats: Record<string, string>;
+}
+
+/** What an intent gave the pages to draw: the walks, the numbers over heads, the dice (`DemoScene`'s queues). */
+export interface Views {
+  motions: DemoScene['motions'];
+  floaters: DemoScene['floaters'];
+  rolls: BoardSnapshot['rolls'];
+}
+
+/**
+ * The intents that only read the page's own engine for its views - its walks, numbers and dice to draw, the
+ * dice shown - which the server's game, taking its own queues off as it plays, is never sent.
+ */
+export const LOCAL: readonly string[] = ['takeMotions', 'takeFloaters', 'rollShownAt', 'clearRolls'];
 
 /**
  * Where the wire stands: `opening` the server's game, `in` step, `parted` (waiting for what is on its way up,
@@ -65,30 +102,41 @@ export const RETRIES: readonly number[] = [500, 1000, 2000, 4000, 8000, 15000, 3
 export interface WireOptions {
   /** Come back to the game the server kept rather than open one: the page was reloaded. */
   resume?: boolean;
+  /** Join the shared game this invitation is to rather than open one (`?join=`). */
+  join?: string;
   /** The waits between tries to connect again (`RETRIES`), and how a wait is waited - for a test. */
   retries?: readonly number[];
   later?: (run: () => void, ms: number) => void;
 }
 
-/** An intent's answer from the server, and its board after. */
+/** An intent's answer from the server, its board after, and how many intents the game has played (`seq`). */
 interface Played {
   answer: unknown;
   board: BoardSnapshot;
+  seq?: number;
 }
 
-/** The game the server kept, and the id of the project it was opened over. */
+/** The game the server kept, the id of the project it was opened over, and who is at it. */
 interface Kept {
   board: BoardSnapshot;
   project: unknown;
+  table?: SharedTable;
+  seq?: number;
+  you?: string;
 }
 
 const copy = (value: unknown): unknown => JSON.parse(JSON.stringify(value ?? null));
+
+/** A board as it is held to another: its dice left out, since each page shows its own and is handed the others'. */
+const held = (board: Partial<BoardSnapshot>): unknown => ({ ...board, rolls: null });
 
 export class Wire {
   private state: WireState = 'opening';
   /** Bumped when the page lets go of the server's game: answers to what was sent before it are held to nothing. */
   private epoch = 0;
   private inFlight = 0;
+  /** How many intents the server's game had played at the board the page last stood at, or was in step with. */
+  private known = 0;
   private logs = { ours: 0, theirs: 0 };
   private retell: () => void = () => undefined;
   private transport: Transport;
@@ -100,17 +148,107 @@ export class Wire {
   private answering = false;
   /** Whether the page came back to the game the server kept (a reload). */
   resumed = false;
+  /** Whether the page joined another's game (`?join=`), rather than opening its own. */
+  joined = false;
+  /** Who is at the game and who plays whom, as the server last said; nobody's told until it is opened. */
+  table: SharedTable | null = null;
+  /** The account the page plays as, as the server says it. */
+  you: string | null = null;
+  private tableHeard: (table: SharedTable) => void = () => undefined;
+  /** What other pages' intents gave to draw while this page's own were on their way up, drawn when it is stood. */
+  private waiting: Views[] = [];
   /** The server's game opened, and the page stood where it is - or the page come back to the game kept. */
   readonly ready: Promise<void>;
 
   constructor(private readonly connect: () => Transport, private readonly demo: DemoScene, private readonly shipped: unknown, private readonly options: WireOptions = {}) {
     this.transport = connect();
+    this.hear();
     this.ready = this.start();
   }
 
   private async start(): Promise<void> {
+    if (this.options.join !== undefined) return this.join(this.options.join);
     if (this.options.resume === true && (await this.comeBack())) return;
     if (this.state === 'opening') await this.open();
+  }
+
+  /** What the server says unasked, heard on the connection there is now. */
+  private hear(): void {
+    const connection = this.connection;
+    this.transport.listen?.((message) => {
+      if (connection === this.connection) this.heard(message);
+    });
+  }
+
+  /** A page joining a shared game with its invitation: stood where the game is, and told who is at it. */
+  private async join(invite: string): Promise<void> {
+    let said: Said;
+    try {
+      said = await this.transport.send({ op: 'join', invite });
+    } catch {
+      this.state = 'closed';
+      return;
+    }
+    if (this.state !== 'opening') return;
+    const joined = said.ok as Kept | undefined;
+    if (joined === undefined) {
+      recordParting('server: join', null, null, { failed: said.error ?? 'no game' });
+      this.close();
+      return;
+    }
+    this.joined = true;
+    this.you = joined.you ?? null;
+    if (joined.table !== undefined) this.setTable(joined.table);
+    this.known = joined.seq ?? 0;
+    this.opened(joined.board);
+  }
+
+  /** Told who is at the game, and who plays whom, whenever that changes. */
+  onTable(heard: (table: SharedTable) => void): void {
+    this.tableHeard = heard;
+    if (this.table !== null) heard(this.table);
+  }
+
+  private setTable(table: SharedTable): void {
+    this.table = table;
+    this.tableHeard(table);
+  }
+
+  /**
+   * Who plays a character - an account at the game, or nobody (`null`) - as the host says: whether the server
+   * took it. Nobody else may, and the server says so.
+   */
+  async seat(character: string, account: string | null): Promise<boolean> {
+    if (this.state !== 'in' && this.state !== 'parted' && this.state !== 'asked') return false;
+    const said = await this.send({ op: 'seat', character, account });
+    const table = (said.ok as { table?: SharedTable } | undefined)?.table;
+    if (table === undefined) return false;
+    this.setTable(table);
+    return true;
+  }
+
+  /**
+   * What the server says unasked. The table changed: told. Another page's intent: the page stood where its board
+   * says, with what it gave to draw - at once when nothing of this page's own is on its way up, else when the
+   * last of that is answered, the boards the answers bring held to nothing (the server played the other page's
+   * intent between this page's own, which the page did not).
+   */
+  private heard(message: Record<string, unknown>): void {
+    if (message['table'] !== undefined) this.setTable(message['table'] as SharedTable);
+    const pushed = message['push'] as { board: BoardSnapshot; views: Views; seq?: number } | undefined;
+    if (pushed === undefined || this.state === 'opening' || this.state === 'closed' || this.state === 'lost') return;
+    if (this.inFlight > 0) {
+      this.waiting.push(pushed.views);
+      this.state = 'parted';
+      return;
+    }
+    this.standAt(pushed.board, [...this.takeWaiting(), pushed.views]);
+    this.known = pushed.seq ?? this.known;
+  }
+
+  /** What other pages gave to draw while this page waited, taken. */
+  private takeWaiting(): Views[] {
+    return this.waiting.splice(0);
   }
 
   /** A page reloaded: stood where the game the server kept is, if it can be. Whether there is nothing more to do. */
@@ -126,6 +264,9 @@ export class Wire {
     const kept = said.ok as Kept | undefined;
     if (kept === undefined || kept.project !== this.demo.project.id) return false;
     this.resumed = true;
+    this.you = kept.you ?? null;
+    if (kept.table !== undefined) this.setTable(kept.table);
+    this.known = kept.seq ?? 0;
     this.opened(kept.board);
     return true;
   }
@@ -161,12 +302,15 @@ export class Wire {
       return;
     }
     if (this.state !== 'opening') return;
-    const opened = said.ok as { seed: string; board: BoardSnapshot } | undefined;
+    const opened = said.ok as { seed: string; board: BoardSnapshot; table?: SharedTable; seq?: number; you?: string } | undefined;
     if (opened === undefined) {
       recordParting('server: open', null, null, { failed: said.error ?? 'no game' });
       this.close();
       return;
     }
+    this.you = opened.you ?? null;
+    if (opened.table !== undefined) this.setTable(opened.table);
+    this.known = opened.seq ?? 0;
     this.opened(opened.board);
   }
 
@@ -218,7 +362,11 @@ export class Wire {
       if (epoch !== this.epoch || this.state !== 'asked') return;
       this.answering = false;
       const played = said.ok as Played | undefined;
-      if (played !== undefined) return this.standAt(played.board);
+      if (played !== undefined) {
+        this.standAt(played.board);
+        this.known = played.seq ?? this.known;
+        return;
+      }
       recordParting(`server ${call}: refused`, args, null, { failed: said.error });
       this.state = 'parted';
       this.standWhereTheServerIs();
@@ -229,18 +377,25 @@ export class Wire {
   /**
    * The page stood where a board of the server's says the game is: a question it holds shown, not played
    * (`asked`); none, and in step. The conversations set aside known by who is having them - the server's game
-   * plays them on.
+   * plays them on. What other pages' intents gave to draw (`views`) given to the page's views to draw; the walks
+   * and numbers the page's own engine had still to draw dropped, its own dice still to be shown kept.
    */
-  private standAt(board: BoardSnapshot): void {
+  private standAt(board: BoardSnapshot, views: readonly Views[] = []): void {
     const demo = this.demo;
+    const own = demo.rolls.slice();
     // The question the server's game holds, if one: shown from its board (`restoreFromBoard`, `shownFrom`).
     restoreFromBoard(demo, board);
     this.showing = board.pending !== null;
     this.answering = false;
-    // What either side had still to draw is the other's no longer: the page's dropped, the server's drained.
     demo.motions.length = 0;
     demo.floaters.length = 0;
-    this.drain();
+    demo.rolls.length = 0;
+    demo.rolls.push(...own);
+    for (const drawn of views) {
+      demo.motions.push(...drawn.motions);
+      demo.floaters.push(...drawn.floaters);
+      for (const { who, what, roll } of drawn.rolls) showRoll(demo, who, what, roll);
+    }
     this.logs = { ours: demo.log.length, theirs: board.log.length };
     this.state = board.pending === null ? 'in' : 'asked';
     this.retell();
@@ -262,7 +417,10 @@ export class Wire {
         this.close();
         return;
       }
-      if (this.inFlight === 0) this.standAt(kept.board);
+      if (this.inFlight === 0) {
+        this.standAt(kept.board, this.takeWaiting());
+        this.known = kept.seq ?? this.known;
+      }
     });
   }
 
@@ -308,10 +466,18 @@ export class Wire {
     }
     if (this.state !== 'lost') return;
     this.tries = 0;
+    this.hear();
     const kept = said.ok as Kept | undefined;
-    if (kept !== undefined && kept.project === this.demo.project.id) return this.standAt(kept.board);
-    // Gone - the server started again - or another project's: a fresh game, and the page stood where it is.
+    if (kept !== undefined && kept.project === this.demo.project.id) {
+      if (kept.table !== undefined) this.setTable(kept.table);
+      this.standAt(kept.board);
+      this.known = kept.seq ?? this.known;
+      return;
+    }
+    // Gone - the server started again - or another project's. Another's game, joined, has ended; this page's
+    // own: a fresh game, and the page stood where it is.
     this.release();
+    if (this.joined) return this.close();
     let fresh: Said;
     try {
       fresh = await this.transport.send(this.opening());
@@ -320,27 +486,20 @@ export class Wire {
       return;
     }
     if (this.state !== 'lost') return;
-    const opened = fresh.ok as { board: BoardSnapshot } | undefined;
+    const opened = fresh.ok as { board: BoardSnapshot; table?: SharedTable; seq?: number } | undefined;
     if (opened === undefined) {
       recordParting('server: open', null, null, { failed: fresh.error ?? 'no game' });
       this.close();
       return;
     }
+    if (opened.table !== undefined) this.setTable(opened.table);
     this.standAt(opened.board);
+    this.known = opened.seq ?? 0;
   }
 
   /** Before an intent: whether it is to be sent up - behind the opening, too, while the server's game opens. */
   before(): boolean {
     return this.state === 'in' || this.state === 'parted' || this.state === 'opening';
-  }
-
-  /**
-   * What the server's game holds for a view to draw - the walks to show, the numbers to float - drained: the
-   * board does not carry it, and the page's views, stood where its board says rather than having played it,
-   * never will.
-   */
-  private drain(): Promise<Said>[] {
-    return [this.send({ op: 'call', call: 'takeMotions', args: [] }), this.send({ op: 'call', call: 'takeFloaters', args: [] })];
   }
 
   /**
@@ -354,19 +513,27 @@ export class Wire {
 
   /** An intent the page has played, sent up, and its answer held to the page's, and the board just after. */
   after(call: string, args: readonly unknown[], answer: unknown, compare: { answer: boolean }): void {
+    // The page's own views' reads of its own engine: never the server's.
+    if (LOCAL.includes(call)) return;
     const epoch = this.epoch;
-    const ours = this.state === 'in' ? { answer: compare.answer ? copy(answer) : undefined, board: since(boardOf(this.demo), this.logs.ours) } : null;
+    const ours = this.state === 'in' ? { answer: compare.answer ? copy(answer) : undefined, board: held(since(boardOf(this.demo), this.logs.ours)) } : null;
+    // The number the server's game will give this intent if nothing of another page's comes in between.
+    const expected = this.known + this.inFlight + 1;
     this.inFlight++;
     void this.send(this.message(call, args)).then((said) => {
       if (epoch !== this.epoch || this.state === 'closed' || this.state === 'lost') return;
       this.inFlight--;
       const played = said.ok as Played | undefined;
+      // Another page's intent came in between: the page predicted on a board the server's game had moved on
+      // from - no parting, only the page stood where the game is once the last of its own is answered.
+      if (this.state === 'in' && played?.seq !== undefined && played.seq !== expected) this.state = 'parted';
+      if (played?.seq !== undefined) this.known = played.seq;
       if (this.state === 'in' && ours !== null) {
         recordAsked();
         const parted =
           played === undefined
             ? { path: 'refused', game: null, replica: said.error }
-            : (compare.answer ? firstDifference(ours.answer, played.answer, 'answer') : null) ?? firstDifference(ours.board, since(played.board, this.logs.theirs), 'board');
+            : (compare.answer ? firstDifference(ours.answer, played.answer, 'answer') : null) ?? firstDifference(ours.board, held(since(played.board, this.logs.theirs)), 'board');
         if (parted !== null) {
           recordParting(`server ${call}: ${parted.path}`, args, parted.game, parted.replica);
           this.state = 'parted';
@@ -405,7 +572,7 @@ export class Wire {
    * where its board says, or, the last intent refused, where the server says its game is when asked.
    */
   private restoreFrom(board: BoardSnapshot | null): void {
-    if (board !== null) this.standAt(board);
+    if (board !== null) this.standAt(board, this.takeWaiting());
     else this.standWhereTheServerIs();
   }
 

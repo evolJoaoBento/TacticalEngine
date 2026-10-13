@@ -20,6 +20,7 @@ import { GearFace } from './GearBinder';
 import type { GearCard } from '../gear';
 import './hud.css';
 import { ArtNote } from './AiNote';
+import { Players } from './Players';
 
 
 /**
@@ -171,6 +172,7 @@ export function PlayPanel(props: PlayPanelProps): preact.JSX.Element | null {
       />
       <SettingsModal games={(close) => (
         <>
+          <Players />
           <div data-testid="save-row" className="panel-saves">
             <button
               type="button"

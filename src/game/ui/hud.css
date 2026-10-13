@@ -327,6 +327,10 @@
 .panel-box.is-log{flex:1 1 auto;min-height:80px}
 .panel-saves{display:flex;justify-content:flex-start;gap:6px;margin:2px 0 4px}
 .settings-saves{max-height:38vh;overflow-y:auto;margin-top:6px;padding-right:2px;scrollbar-color:#b9a684 transparent}
+/* Who is at a shared game (`Players.tsx`): the invitation, the members, a seat a character. */
+.settings-players{margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid rgba(185,166,132,.35)}
+.players-invite{flex:1;min-width:0;font:inherit;font-size:11px;padding:3px 6px;border:1px solid #b9a684;border-radius:3px;background:transparent;color:inherit}
+.players-seat{font-size:12px;align-items:center;gap:6px;margin-top:3px}
 .panel-saves .play-btn{font-size:11px;padding:3px 9px}
 /* The player's own settings: a sheet of paper over a dimmed table, opened by Escape and by nothing else. A
    heading a section, a row a setting - the name over what it does - and a switch drawn in ink. */
