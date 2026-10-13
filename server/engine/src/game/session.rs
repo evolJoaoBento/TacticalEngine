@@ -167,6 +167,9 @@ pub struct Session {
     /// A replica's word that a question is open where the game is played (`game/replica.rs`): it cannot hold
     /// the question - a script paused mid-run has no form to send - only that one waits.
     pub question_open: bool,
+    /// Whom the game plays for at a shared game - the account, its host, who plays whom - or everybody
+    /// (`game::seats`).
+    pub seating: Option<super::seats::Seating>,
 }
 
 /// What a walk is for (`Approach`): the thing to use, or the creature to talk to, and who walks there.
@@ -297,6 +300,7 @@ impl Session {
             ambush: None,
             approaching: None,
             asked: None,
+            seating: None,
         })
         .map(|mut session: Session| {
             session.bind_turn();

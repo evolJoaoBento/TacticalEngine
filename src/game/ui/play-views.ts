@@ -17,6 +17,7 @@ import type { JournalQuest, OpenContainer } from './PlayPanel';
 import { containerContents, openContainer, shopOpen } from '../prop-use';
 import { talkingAside } from '../talks';
 import { nameOf } from '../log';
+import { waitingOn } from '../shared-game';
 import { purse, sellables, shopOf } from '../shop';
 import { interactablesOf } from '../../engine/scene/prop-functions';
 import type { Spot } from '../../engine/grid/grid';
@@ -137,6 +138,9 @@ export function carriedItems(demo: Pick<DemoScene, 'project' | 'scenario'>): { i
 export function talkingView(demo: DemoScene): TalkingView | null {
   const pending = demo.pending;
   const view = pending !== null && pending.kind === 'script' ? (pending.dialogue?.view ?? null) : null;
+  // Somebody else's conversation, at a shared game: heard, not answered (`shared-game.ts`).
+  const waiting = waitingOn(pending, (id) => nameOf(demo, id));
+  if (view !== null && waiting !== null) return { ...view, held: waiting };
   return view === null || !shopOpen(demo) ? view : { ...view, held: 'Close the shop to go on.' };
 }
 

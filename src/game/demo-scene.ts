@@ -173,7 +173,11 @@ export interface GmTurn {
  * on. That nesting is why this is one object rather than two fields — the outer
  * runner has to be kept alive across the whole conversation.
  */
-export type Pending = PendingScript | PendingDefense | PendingReaction | PendingDeath;
+/**
+ * A question open. `for` is whom it is put to, as the engine's board says (`pending_for`): the character it is
+ * about, whose player answers it at a shared game - nobody in particular, the host (`shared-game.ts`).
+ */
+export type Pending = (PendingScript | PendingDefense | PendingReaction | PendingDeath) & { for?: string | null };
 
 /**
  * "When a PC marks their last Hit Point, they must make a death move by

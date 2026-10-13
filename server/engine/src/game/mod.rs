@@ -21,6 +21,7 @@ pub mod play;
 pub mod replica;
 pub mod rules;
 pub mod save;
+pub mod seats;
 pub mod session;
 pub mod swing;
 pub mod turn;

@@ -41,6 +41,7 @@ import { reachRings } from './circle';
 import { nameOf, type LogLine } from './log';
 import { awaitingLevel, type LevelUpResult } from './level-up';
 import { gearOf, type EquipResult, type GearSlot } from './equip';
+import { plays } from './shared-game';
 import { gearView } from './gear';
 import { inspection } from './inspect';
 import { abilitiesOf, abilityList, abilityTargets, loadoutView, pointTiles, shapeAt, type RestPlan, type RestResult, type SwapResult } from './demo-abilities';
@@ -242,14 +243,29 @@ export abstract class GameTable implements GameClient, LocalPowers {
     void projectChanged;
   }
 
-  /** Held to the game on the server: told of every intent, and telling this game when the server's restores it. */
+  /**
+   * Held to the game on the server: told of every intent, and telling this game when the server's restores it -
+   * and whom it plays for, whenever who plays whom changes (`seated`).
+   */
   wireWith(wire: Wire): void {
     this.wire = wire;
     wire.attach(() => {
       this.edited(false);
       this.behind = true;
     });
+    wire.onTable(() => {
+      this.seated();
+      this.behind = true;
+    });
   }
+
+  /** Whom this game plays for at a shared game, as its wire last heard (`Wire.seating`); everybody without one. */
+  protected seating(): unknown {
+    return this.wire?.seating() ?? null;
+  }
+
+  /** Who plays whom changed: this game told whom it plays for now. */
+  protected seated(): void {}
 
   changedBehind(): boolean {
     const was = this.behind;
@@ -294,7 +310,12 @@ export abstract class GameTable implements GameClient, LocalPowers {
   answerPending(...args: Args<'answerPending'>) { return this.did<UseOutcome>('answerPending', args); }
   useSelectedOn(...args: Args<'useSelectedOn'>) { return this.did<UseOutcome>('useSelectedOn', args); }
   approachThenUse(...args: Args<'approachThenUse'>) { return this.did<string>('approachThenUse', args); }
-  arrived() { return this.did('arrived', []); }
+  arrived() {
+    // Every page draws the walk, and only the walker's player's finishes what it was for (`engine::game::seats`):
+    // another's is not sent at all, rather than refused at every frame the walk stands still.
+    if (!plays(this.wire?.seating() ?? null, this.demo.approaching?.who)) return false;
+    return this.did('arrived', []);
+  }
   cancelApproach() { return this.did('cancelApproach', []); }
   arrive() { return this.did('arrive', []); }
   takeFromContainer(...args: Args<'takeFromContainer'>) { return this.did<boolean>('takeFromContainer', args); }

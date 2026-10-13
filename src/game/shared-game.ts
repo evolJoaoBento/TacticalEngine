@@ -1,13 +1,15 @@
 /**
- * The shared game, as the page shows it (`docs/SERVER.md`, phase 5, slice 3): who is at the game the page plays
- * on the server, who plays whom, and the invitation others join it with - the table the wire is told
- * (`wire.ts`, `SharedTable`) - and the host's word on who plays whom (`seat`).
+ * The shared game, as the page shows it (`docs/SERVER.md`, phase 5, slices 3 and 4): who is at the game the page
+ * plays on the server, who plays whom, and the invitation others join it with - the table the wire is told
+ * (`wire.ts`, `SharedTable`) - and the host's word on who plays whom (`seat`). Whether a question open is the
+ * page's to answer (`answers`): the engine refuses an answer from anybody else, so the panels show it only to
+ * whoever plays the character it is put to, and the others whom it waits on (`waitingOn`).
  *
  * The Players section of the settings reads it (`ui/Players.tsx`); a test reads it too (`window.__table`). A page
  * that plays with no server has no table.
  */
 
-import type { SharedTable, Wire } from './wire';
+import type { Seating, SharedTable, Wire } from './wire';
 
 /** A character the table can seat: its id and the name the page shows. */
 export interface Seatable {
@@ -52,6 +54,39 @@ export function tableOf(wire: Wire | null, members: () => Seatable[] = () => [])
 /** Whether the page plays as the host of its game, as the server says who it plays as. */
 export function hosting(): boolean {
   return table !== null && you() === table.host;
+}
+
+/**
+ * Whether the page plays a character at its game: the one seated in it, or the host for one nobody is seated in -
+ * and, for nobody in particular, the host. Every one, at no table. The engine's own rule (`engine::game::seats`),
+ * which refuses the rest; this only decides what the page shows.
+ */
+export function playsFor(character: string | null | undefined): boolean {
+  return plays(table === null ? null : { you: you() ?? '', host: table.host, seats: table.seats }, character);
+}
+
+/** Whether an account plays a character, as a seating says: the rule `playsFor` reads the page's table with. */
+export function plays(seating: Seating | null, character: string | null | undefined): boolean {
+  if (seating === null) return true;
+  const seated = character === null || character === undefined ? undefined : seating.seats[character];
+  return seated === undefined ? seating.you === seating.host : seated === seating.you;
+}
+
+/** Whether a question open is the page's to answer: put to a character it plays. */
+export function answers(pending: { for?: string | null } | null): boolean {
+  return pending === null || playsFor(pending.for);
+}
+
+/**
+ * Whom a question the page does not answer waits on, as the panels say it: the character's player by name, or the
+ * host for a question about nobody in particular. `null` when it is the page's own.
+ */
+export function waitingOn(pending: { for?: string | null } | null, nameOf: (character: string) => string): string | null {
+  if (pending === null || table === null || answers(pending)) return null;
+  const character = pending.for ?? null;
+  const account = (character === null ? undefined : table.seats[character]) ?? table.host;
+  const player = table.members.find((member) => member.id === account)?.name ?? account;
+  return character === null ? `Waiting for ${player}.` : `Waiting for ${player} to answer for ${nameOf(character)}.`;
 }
 
 /** The characters the host may seat players in. */

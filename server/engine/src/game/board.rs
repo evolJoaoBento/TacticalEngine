@@ -14,14 +14,14 @@ impl Session {
     /// whom or what it is with.
     fn board_pending(&self) -> Value {
         if let Some(asked) = &self.asked {
-            return json!({ "kind": asked.kind(), "prompt": asked.prompt() });
+            return json!({ "kind": asked.kind(), "prompt": asked.prompt(), "for": self.pending_for() });
         }
         let Some(pending) = &self.pending else { return Value::Null };
         let dialogue = pending.dialogue.as_ref().map_or(Value::Null, |d| {
             let view = d.view.as_ref().map_or(Value::Null, |v| json!({ "node": d.runner.node_id(v), "options": v.options }));
             json!({ "id": d.runner.id(), "view": view, "prompt": d.prompt, "by": d.by })
         });
-        json!({ "kind": "script", "prompt": pending.prompt, "interactable": pending.interactable, "with": pending.with, "dialogue": dialogue })
+        json!({ "kind": "script", "prompt": pending.prompt, "interactable": pending.interactable, "with": pending.with, "dialogue": dialogue, "for": self.pending_for() })
     }
 
     /// How the game stands, as the page reads it (`boardOf`).

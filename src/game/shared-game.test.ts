@@ -4,17 +4,17 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { hosting, invitationLink, invitationOf, onSharedTable, seat, seatable, sharedTable, tableOf } from './shared-game';
+import { answers, hosting, invitationLink, invitationOf, onSharedTable, playsFor, seat, seatable, sharedTable, tableOf, waitingOn } from './shared-game';
 import type { SharedTable, Wire } from './wire';
 
 const TABLE: SharedTable = { game: 'g', host: 'kara', invite: 'ab12', members: [{ id: 'kara', name: 'Kara' }], seats: {} };
 
 /** As much of a wire as the table reads: told the table, and asked to seat. */
-function wireTelling(): { wire: Wire; tell: (table: SharedTable) => void; seated: [string, string | null][] } {
+function wireTelling(you = 'kara'): { wire: Wire; tell: (table: SharedTable) => void; seated: [string, string | null][] } {
   let heard: (table: SharedTable) => void = () => undefined;
   const seated: [string, string | null][] = [];
   const wire = {
-    you: 'kara',
+    you,
     onTable: (listener: (table: SharedTable) => void) => {
       heard = listener;
     },
@@ -59,5 +59,34 @@ describe('the shared game, as the page shows it', () => {
     expect(invitationOf('?join=ab%2012')).toBe('ab 12');
     expect(invitationOf('?join=')).toBeNull();
     expect(invitationOf('?play')).toBeNull();
+  });
+  it("says what the page plays and which questions are its to answer, as the engine's seats do", () => {
+    const party = { game: 'g', host: 'kara', invite: 'i', members: [{ id: 'kara', name: 'Kara' }, { id: 'finn', name: 'Finn' }], seats: { mira: 'finn' } };
+    // No table: everything is the page's.
+    tableOf(null);
+    expect(playsFor('mira')).toBe(true);
+    expect(answers({ for: 'mira' })).toBe(true);
+    expect(waitingOn({ for: 'mira' }, (id) => id)).toBeNull();
+    // The host: whoever nobody is seated in, and a question about nobody in particular - not the guest's.
+    const host = wireTelling('kara');
+    tableOf(host.wire);
+    host.tell(party);
+    expect(playsFor('arty')).toBe(true);
+    expect(playsFor('mira')).toBe(false);
+    expect(answers({ for: null })).toBe(true);
+    expect(answers(null)).toBe(true);
+    expect(answers({ for: 'mira' })).toBe(false);
+    expect(waitingOn({ for: 'mira' }, (id) => `the ${id}`)).toBe('Waiting for Finn to answer for the mira.');
+    // The guest: their own, and nothing else - a question about nobody in particular waits on the host.
+    const guest = wireTelling('finn');
+    tableOf(guest.wire);
+    guest.tell(party);
+    expect(playsFor('mira')).toBe(true);
+    expect(playsFor('arty')).toBe(false);
+    expect(answers({ for: 'arty' })).toBe(false);
+    expect(waitingOn({ for: 'arty' }, (id) => id)).toBe('Waiting for Kara to answer for arty.');
+    expect(waitingOn({ for: null }, (id) => id)).toBe('Waiting for Kara.');
+    expect(waitingOn({ for: 'mira' }, (id) => id)).toBeNull();
+    tableOf(null);
   });
 });

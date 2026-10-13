@@ -1,15 +1,17 @@
 # Hosting the game for friends
 
 How to run Tactical Engine on your own machine so friends can play it over the internet
-(`docs/SERVER.md`, phase 5, slice 2).
+(`docs/SERVER.md`, phase 5, slices 2 to 4).
 
 **What this gives you today:** each friend signs in to an account on your server, and joins **your game**
 with its invitation. Everybody at it sees what everybody else does, and you say who plays which character.
-The server's game is the one that counts (phase 5, slice 1), and saves are kept on your machine.
+Each friend plays the character you seated them in and nobody else, with a selection of their own; you play
+every character nobody is seated in. A question - a roll, how a hit lands, a death move, a line of a
+conversation - is put to whoever plays the character it is about, and the others see whom it waits on. The
+server's game is the one that counts (phase 5, slice 1), and saves are kept on your machine.
 
-**Not yet:** nothing stops anybody from moving any character, whoever you seated in it - who may act, and
-when, is slice 4. The selection is shared too: a friend selecting somebody selects them on your screen. The
-lobby, where a game is set up and started together, is slice 5.
+**Not yet:** a rest is yours to call, and you choose everybody's downtime moves. The lobby, where a game is set
+up and started together, is slice 5.
 
 ## What it is
 
@@ -63,8 +65,9 @@ You also need Rust installed (`rustup`; see `docs/SERVER.md`, "Running it").
    end. A friend who opens it, signed in, joins your game.
 
 5. **Seat them.** Players lists everybody at the game, and each character with who plays it. Only you, the
-   host, can change who plays whom; your friends see it. Loading a save puts everybody somewhere else, so
-   only the host may load one into a game others are at.
+   host, can change who plays whom; your friends see it. A friend seated in nobody watches: they can select
+   nobody and do nothing until you seat them. Loading a save puts everybody somewhere else, so only the host may
+   load one into a game others are at.
 
 ## What the server needs from the tunnel
 

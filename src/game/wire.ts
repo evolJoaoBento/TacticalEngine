@@ -76,6 +76,13 @@ export interface SharedTable {
   seats: Record<string, string>;
 }
 
+/** Whom a game plays for at a shared game: the account, the host, who plays whom (`engine::game::seats`). */
+export interface Seating {
+  you: string;
+  host: string;
+  seats: Record<string, string>;
+}
+
 /** What an intent gave the pages to draw: the walks, the numbers over heads, the dice (`DemoScene`'s queues). */
 export interface Views {
   motions: DemoScene['motions'];
@@ -154,7 +161,7 @@ export class Wire {
   table: SharedTable | null = null;
   /** The account the page plays as, as the server says it. */
   you: string | null = null;
-  private tableHeard: (table: SharedTable) => void = () => undefined;
+  private tableHeard: ((table: SharedTable) => void)[] = [];
   /** What other pages' intents gave to draw while this page's own were on their way up, drawn when it is stood. */
   private waiting: Views[] = [];
   /** The server's game opened, and the page stood where it is - or the page come back to the game kept. */
@@ -203,15 +210,26 @@ export class Wire {
     this.opened(joined.board);
   }
 
-  /** Told who is at the game, and who plays whom, whenever that changes. */
+  /** Told who is at the game, and who plays whom, whenever that changes - each that asks. */
   onTable(heard: (table: SharedTable) => void): void {
-    this.tableHeard = heard;
+    this.tableHeard.push(heard);
     if (this.table !== null) heard(this.table);
   }
 
   private setTable(table: SharedTable): void {
     this.table = table;
-    this.tableHeard(table);
+    for (const heard of this.tableHeard) heard(table);
+  }
+
+  /**
+   * Whom the page's own engine plays for (`restoreSeating`, `engine::game::seats`): the account the page plays as,
+   * the host, who plays whom - as the server last said - so it refuses what the server's game refuses, and keeps
+   * the selection among the page's own. Everybody, `null`, until the table is told, and once the wire is closed:
+   * a game nobody shares, the editor's playtest among them.
+   */
+  seating(): Seating | null {
+    if (this.state === 'closed') return null;
+    return this.table === null || this.you === null ? null : { you: this.you, host: this.table.host, seats: this.table.seats };
   }
 
   /**

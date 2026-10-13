@@ -386,7 +386,10 @@ async fn a_game_is_shared_its_invitation_joins_it_and_each_intent_is_pushed_to_t
     tables.ask_on(guest, "finn", json!({ "id": 2, "op": "join", "invite": invite }));
     let joined = told(&mut to_guest).await;
     assert_eq!(joined["id"], 2);
-    assert_eq!(joined["ok"]["board"], opened["ok"]["board"]);
+    // Where the game is - but the guest plays nobody yet, so has nobody selected (`engine::game::seats`).
+    let mut theirs = opened["ok"]["board"].clone();
+    theirs["replica"]["party"]["selected"] = Value::Null;
+    assert_eq!(joined["ok"]["board"], theirs);
     assert_eq!(joined["ok"]["project"], fixture["projects"][0]["id"]);
     assert_eq!(joined["ok"]["table"]["members"].as_array().unwrap().len(), 2);
     assert_eq!(joined["ok"]["you"], "finn");
@@ -400,18 +403,31 @@ async fn a_game_is_shared_its_invitation_joins_it_and_each_intent_is_pushed_to_t
     assert_eq!(walked["id"], 3);
     let pushed = told(&mut to_guest).await;
     assert!(pushed["id"].is_null(), "{pushed}");
-    assert_eq!(pushed["push"]["board"], walked["ok"]["board"]);
+    // The board the walk left, with the guest's own selection on it: nobody, yet.
+    let mut theirs = walked["ok"]["board"].clone();
+    theirs["replica"]["party"]["selected"] = Value::Null;
+    assert_eq!(pushed["push"]["board"], theirs);
     assert_eq!(pushed["push"]["views"], walked["ok"]["views"]);
     assert!(!pushed["push"]["views"]["motions"].as_array().unwrap().is_empty(), "the walk to draw");
     assert_eq!(pushed["push"]["by"], "kara");
     // Numbered as the game played it: the first intent, in the answer and the push alike.
     assert_eq!((walked["ok"]["seq"].clone(), pushed["push"]["seq"].clone()), (json!(1), json!(1)));
     assert!(nothing_more(&mut to_host).await, "the host is not pushed its own intent");
-    // The guest's intent is pushed to the host the same way.
-    tables.ask_on(guest, "finn", json!({ "id": 4, "op": "call", "call": "selectNext", "args": [] }));
-    let selected = told(&mut to_guest).await;
-    assert_eq!(selected["ok"]["seq"], 2);
-    assert_eq!(told(&mut to_host).await["push"]["board"], selected["ok"]["board"]);
+    // Seated in another, the guest's intent is pushed to the host the same way - with the host's own selection.
+    let other = walked["ok"]["board"]["replica"]["party"]["order"].as_array().map(|o| o.to_vec()).unwrap_or_default();
+    let other = other.iter().filter_map(Value::as_str).chain(walked["ok"]["board"]["replica"]["state"]["entities"].as_object().unwrap().iter().filter(|(_, e)| e["faction"] == "party").map(|(id, _)| id.as_str())).find(|id| *id != member).expect("another in the party").to_string();
+    tables.ask_on(host, "kara", json!({ "id": 4, "op": "seat", "character": other, "account": "finn" }));
+    told(&mut to_host).await;
+    told(&mut to_guest).await;
+    let there = walked["ok"]["board"]["replica"]["state"]["entities"][other.as_str()]["tile"].as_i64().unwrap();
+    tables.ask_on(guest, "finn", json!({ "id": 4, "op": "call", "call": "moveSelectedTo", "args": [there + 1] }));
+    let moved = told(&mut to_guest).await;
+    assert_eq!(moved["ok"]["seq"], 2);
+    assert_eq!(moved["ok"]["board"]["replica"]["party"]["selected"], other.as_str(), "the guest walks their own");
+    let mut pushed = told(&mut to_host).await["push"]["board"].clone();
+    assert_eq!(pushed["replica"]["party"]["selected"], member.as_str(), "the host's selection is the host's");
+    pushed["replica"]["party"]["selected"] = json!(other);
+    assert_eq!(pushed, moved["ok"]["board"]);
     // A question the pointer asks changes nothing, and is pushed to nobody.
     tables.ask_on(host, "kara", json!({ "id": 5, "op": "ask", "ask": "pressure" }));
     told(&mut to_host).await;
@@ -424,15 +440,13 @@ async fn a_game_is_shared_its_invitation_joins_it_and_each_intent_is_pushed_to_t
         told(&mut to_host).await;
     }
     assert!(nothing_more(&mut to_guest).await, "nothing pushed for drawing");
-    // Nor an intent that leaves the board as it was and gives nothing to draw.
+    // The next intent that is pushed carries what the drawing marked.
     tables.ask_on(host, "kara", json!({ "id": 7, "op": "call", "call": "selectNext", "args": [] }));
-    told(&mut to_host).await;
-    told(&mut to_guest).await;
+    assert_ne!(told(&mut to_host).await["ok"]["board"]["replica"]["party"]["selected"], member.as_str());
+    assert!(told(&mut to_guest).await["push"].is_object());
+    // Nor an intent that leaves the board as it was and gives nothing to draw: a selection, each page's own, among it.
     tables.ask_on(host, "kara", json!({ "id": 8, "op": "call", "call": "select", "args": [member] }));
-    told(&mut to_host).await;
-    told(&mut to_guest).await;
-    tables.ask_on(host, "kara", json!({ "id": 9, "op": "call", "call": "select", "args": [member] }));
-    told(&mut to_host).await;
+    assert_eq!(told(&mut to_host).await["ok"]["board"]["replica"]["party"]["selected"], member.as_str());
     assert!(nothing_more(&mut to_guest).await, "nothing pushed when nothing changed");
 
     // Who plays whom: the host's to say, of somebody at the game; the others told.
@@ -441,10 +455,12 @@ async fn a_game_is_shared_its_invitation_joins_it_and_each_intent_is_pushed_to_t
     tables.ask_on(host, "kara", json!({ "id": 8, "op": "seat", "character": member, "account": "stranger" }));
     assert_eq!(told(&mut to_host).await["error"], "not at this game");
     tables.ask_on(host, "kara", json!({ "id": 9, "op": "seat", "character": member, "account": "finn" }));
-    assert_eq!(told(&mut to_host).await["ok"]["table"]["seats"], json!({ member.as_str(): "finn" }));
-    assert_eq!(told(&mut to_guest).await["table"]["seats"], json!({ member.as_str(): "finn" }));
+    assert_eq!(told(&mut to_host).await["ok"]["table"]["seats"], json!({ other.as_str(): "finn", member.as_str(): "finn" }));
+    let table = told(&mut to_guest).await;
+    assert_eq!(table["table"]["seats"], json!({ other.as_str(): "finn", member.as_str(): "finn" }));
+    assert_eq!(table.as_object().map(|told| told.keys().cloned().collect::<Vec<_>>()), Some(vec!["table".to_string()]), "a table and nothing else: {table}");
     tables.ask_on(host, "kara", json!({ "id": 10, "op": "seat", "character": member, "account": null }));
-    assert_eq!(told(&mut to_host).await["ok"]["table"]["seats"], json!({}));
+    assert_eq!(told(&mut to_host).await["ok"]["table"]["seats"], json!({ other.as_str(): "finn" }));
     told(&mut to_guest).await;
 
     // A save loaded puts everybody somewhere else: not the guest's to do.
@@ -502,4 +518,72 @@ async fn a_guests_page_reads_the_games_project_with_its_invitation() {
     assert_eq!(body["project"], fixture["projects"][0]);
     assert_eq!(get(format!("/__play/join/{invite}"), None).await.unwrap().status(), 401);
     assert_eq!(get("/__play/join/nope".into(), Some("good-token")).await.unwrap().status(), 404);
+}
+
+#[tokio::test]
+async fn each_player_acts_with_their_own_and_answers_the_questions_put_to_them() {
+    let fixture = fixture();
+    let tables = Tables::new(root("seats")).for_tests();
+    let (host, mut to_host) = tables.connect();
+    let (guest, mut to_guest) = tables.connect();
+    let open = json!({ "id": 1, "op": "open", "project": fixture["projects"][1], "shipped": fixture["shipped"], "table": { "animated": false, "askDefender": true }, "rng": DICE });
+    tables.ask_on(host, "kara", open);
+    let opened = told(&mut to_host).await;
+    let invite = opened["ok"]["invite"].as_str().unwrap().to_string();
+    tables.ask_on(guest, "finn", json!({ "id": 1, "op": "join", "invite": invite }));
+    told(&mut to_guest).await;
+    told(&mut to_host).await;
+    let hosts = opened["ok"]["board"]["replica"]["party"]["selected"].as_str().unwrap().to_string();
+    let entities = opened["ok"]["board"]["replica"]["state"]["entities"].as_object().unwrap().clone();
+    let guests = entities.iter().filter(|(_, e)| e["faction"] == "party").map(|(id, _)| id.clone()).find(|id| *id != hosts).unwrap();
+    tables.ask_on(host, "kara", json!({ "id": 2, "op": "seat", "character": guests, "account": "finn" }));
+    told(&mut to_host).await;
+    told(&mut to_guest).await;
+    // Seated, the guest has their own selected at once: on the next board they are pushed.
+    tables.ask_on(host, "kara", json!({ "id": 3, "op": "call", "call": "note", "args": ["The table is set.", "system"] }));
+    told(&mut to_host).await;
+    assert_eq!(told(&mut to_guest).await["push"]["board"]["replica"]["party"]["selected"], guests.as_str());
+
+    // The guest's own, and theirs alone to choose.
+    tables.ask_on(guest, "finn", json!({ "id": 2, "op": "call", "call": "select", "args": [hosts] }));
+    let refused = told(&mut to_guest).await;
+    assert_eq!(refused["ok"]["answer"], false, "another's is not selected");
+    assert_eq!(refused["ok"]["board"]["replica"]["party"]["selected"], guests.as_str());
+    // Nor is anything done with another's: refused in its own shape, nothing changed, nothing pushed.
+    tables.ask_on(guest, "finn", json!({ "id": 3, "op": "call", "call": "useAbility", "args": [hosts, "anything", []] }));
+    assert_eq!(told(&mut to_guest).await["ok"]["answer"], json!({ "status": "refused", "lines": [] }));
+    assert!(nothing_more(&mut to_host).await, "nothing pushed for a refusal");
+    // And no page tells the server's game whom it plays for: the server does.
+    tables.ask_on(guest, "finn", json!({ "id": 4, "op": "call", "call": "restoreSeating", "args": [null] }));
+    assert_eq!(told(&mut to_guest).await["error"], "\"restoreSeating\" is never told to the server's game");
+
+    // The host plays on with theirs; the guest's selection is still the guest's after.
+    let tile = entities[&hosts]["tile"].as_i64().unwrap();
+    tables.ask_on(host, "kara", json!({ "id": 3, "op": "call", "call": "moveSelectedTo", "args": [tile + 1] }));
+    assert_eq!(told(&mut to_host).await["ok"]["board"]["replica"]["party"]["selected"], hosts.as_str());
+    assert_eq!(told(&mut to_guest).await["push"]["board"]["replica"]["party"]["selected"], guests.as_str());
+    let resumed = tables.ask("finn", json!({ "id": 5, "op": "resume" })).await;
+    assert_eq!(resumed["ok"]["board"]["replica"]["party"]["selected"], guests.as_str());
+
+    // A fight, and the host's beside a husk when the GM's turn comes: the defender is asked, and only its player answers.
+    let husk = entities["group-1-husk-16-8"]["tile"].as_i64().unwrap();
+    for (n, (call, args)) in [("startEncounter", json!(["group-1"])), ("placeAt", json!([hosts, husk - 1])), ("placeAt", json!([guests, husk - 3])), ("endTurn", json!([]))].into_iter().enumerate() {
+        tables.ask_on(host, "kara", json!({ "id": 10 + n, "op": "call", "call": call, "args": args }));
+        told(&mut to_host).await;
+    }
+    let asked = tables.ask("kara", json!({ "id": 20, "op": "resume" })).await["ok"]["board"]["pending"].clone();
+    assert_eq!(asked["kind"], "defense", "{asked}");
+    let defender = asked["for"].as_str().expect("whom it is put to").to_string();
+    let (answers, other) = if defender == hosts { (("kara", host), ("finn", guest)) } else { (("finn", guest), ("kara", host)) };
+    while to_guest.try_recv().is_ok() {}
+    tables.ask_on(other.1, other.0, json!({ "id": 21, "op": "call", "call": "answerPending", "args": [{ "kind": "continue" }] }));
+    let mut to_other = if other.0 == "kara" { &mut to_host } else { &mut to_guest };
+    let not_theirs = told(&mut to_other).await;
+    assert_eq!(not_theirs["ok"]["answer"]["status"], "refused", "{not_theirs}");
+    assert_eq!(not_theirs["ok"]["board"]["pending"], asked);
+    to_other = if answers.0 == "kara" { &mut to_host } else { &mut to_guest };
+    tables.ask_on(answers.1, answers.0, json!({ "id": 22, "op": "call", "call": "answerPending", "args": [{ "kind": "continue" }] }));
+    let answered = told(&mut to_other).await;
+    assert_ne!(answered["ok"]["answer"]["status"], "refused", "{answered}");
+    assert_ne!(answered["ok"]["board"]["pending"], asked);
 }

@@ -63,7 +63,16 @@ export class WasmGame extends GameTable {
     this.engine.call('restoreLog', [this.demo.log]);
     this.engine.call('restoreViews', [this.demo.motions, this.demo.floaters]);
     this.engine.call('restoreWalked', [walked]);
+    // Whom it plays for, last: the selection kept among the page's own, and the page's game filled if it moved.
     this.filled = this.engine.boardText();
+    this.engine.call('restoreSeating', [this.seating()]);
+    this.fill();
+  }
+
+  /** Whom the engine plays for, told again when who plays whom changes: the selection kept among the page's own. */
+  protected override seated(): void {
+    this.engine.call('restoreSeating', [this.seating()]);
+    this.fill();
   }
 
   /** The page's game stood where the engine's board says, if it has changed since the page's last was. */

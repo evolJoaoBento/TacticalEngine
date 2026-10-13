@@ -4,12 +4,22 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## Phase 5 (multiplayer), slice 4: who may act — done
+
+Each player acts with their own: the character they are seated in, and the host every one nobody is. The engine
+refuses another's intent in its own answer's shape, told whom it plays for - by the server's game thread before
+each message, and by the page from the table, so the page's engine refuses the same and nothing parts
+(`engine::game::seats`, `restoreSeating`). The selection is each player's own, kept by the server between their
+intents and put on every board they are handed. A question is put to whoever plays its character (`pending.for`),
+and the other pages say whom it waits on. In a fight the party's spotlight is shared, each with their own, as
+decided. Next: the lobby (slice 5).
+
 ## Phase 5 (multiplayer), slice 3: a shared game — done
 
 A game on the server is shared: its host opens it, friends join with its invitation (`?join=`), every intent is
 pushed to every other page - the board and what it gave to draw - and the host says who plays whom (Settings,
 Players). The server numbers what it plays, so a page tells another's intent from a parting. Next: who may act
-(slice 4) - today anybody moves anybody, and the selection is shared.
+(slice 4).
 
 ## Phase 5 (multiplayer), slice 2: in a build, through a tunnel — done
 

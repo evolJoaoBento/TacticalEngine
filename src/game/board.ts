@@ -35,7 +35,7 @@ export interface BoardSnapshot {
 function pendingOf(demo: DemoScene): unknown {
   const pending = demo.pending;
   if (pending === null) return null;
-  if (pending.kind !== 'script') return { kind: pending.kind, prompt: pending.prompt };
+  if (pending.kind !== 'script') return { kind: pending.kind, prompt: pending.prompt, for: pending.for ?? null };
   const d = pending.dialogue;
   return {
     kind: 'script',
@@ -43,6 +43,7 @@ function pendingOf(demo: DemoScene): unknown {
     interactable: pending.interactable,
     with: pending.with ?? null,
     dialogue: d === null ? null : { id: d.id, view: d.view === null ? null : { node: d.view.node.id, options: d.view.options }, prompt: d.prompt, by: d.by ?? null },
+    for: pending.for ?? null,
   };
 }
 
@@ -74,6 +75,8 @@ interface Projected {
   interactable?: string | null;
   with?: string | null;
   dialogue?: { id: string; view: { node: string; options: unknown[] } | null; prompt: unknown; by: string | null } | null;
+  /** Whom it is put to (`pending_for`). */
+  for?: string | null;
 }
 
 /**
@@ -82,7 +85,7 @@ interface Projected {
  * page's own project, its options as the server gave them. No runner: the page does not play the answer.
  */
 export function shownFrom(demo: DemoScene, projected: Projected): Pending {
-  if (projected.kind !== 'script') return { kind: projected.kind, prompt: projected.prompt } as unknown as Pending;
+  if (projected.kind !== 'script') return { kind: projected.kind, prompt: projected.prompt, for: projected.for ?? null } as unknown as Pending;
   const d = projected.dialogue ?? null;
   const node = d?.view === null || d === null ? undefined : demo.dialogues.get(d.id)?.nodes.find((n) => n.id === d.view!.node);
   const dialogue =
@@ -95,6 +98,7 @@ export function shownFrom(demo: DemoScene, projected: Projected): Pending {
     interactable: projected.interactable ?? null,
     ...(projected.with === null || projected.with === undefined ? {} : { with: projected.with }),
     dialogue,
+    for: projected.for ?? null,
   } as unknown as Pending;
 }
 

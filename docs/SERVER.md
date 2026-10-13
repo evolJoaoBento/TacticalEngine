@@ -1484,8 +1484,64 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     pages playing at once with no parting, seated, a walk cut short after a push) and the e2e on the server
     (`shared.spec.ts`: two browsers, two accounts, each one's walk reaching the other, the host seating the
     guest, the guest refused, the Players section, nothing parted on either).
-    - **Not yet**: who may act - any page moves any character, seated or not, and the selection and the bar's
-      reading are the game's one each, shared by every page (slice 4); the lobby, and a shared game's saves its
-      host's (slice 5). A page corrected after its own prediction parted keeps its own dice to show, not the
-      server's.
-  - **Next**: who may act (slice 4).
+    - **Not yet** (then): who may act - slice 4, below. The lobby, and a shared game's saves its host's
+      (slice 5). A page corrected after its own prediction parted keeps its own dice to show, not the server's.
+  - **Who may act** (slice 4). Each player acts with their own characters: the one they are seated in, and the
+    host whoever nobody is (`engine::game::seats`). The rule is the engine's, written once and played on both
+    sides: a game is told whom it plays for (`restoreSeating` - the account, the host, who plays whom, and whom the
+    account last had selected), and an intent for a character that account does not play is refused as the engine
+    refuses anything, in the answer's own shape, nothing changed and nothing written in the log (`not_yours`):
+    another's selected, a card, a jump, the gear, a level, a swap, a place in the party (`link`, `unlink`,
+    `dropCard`), a walker put down (`landWalkers` puts down the account's own and nobody else's), another's errand
+    finished or called off (`arrived`, `cancelApproach`), a rest (the host's word), the turn handed over by somebody
+    who plays nobody. On the server the game's own thread tells it before every message of an account's
+    (`play.rs`, `play_for`) - never a page, which is refused it (`NEVER_TOLD`); in the page the page tells its own
+    engine from the table the server told it (`Wire.seating`, at every stand and every change of seats), so the
+    engine in the page refuses what the server's refuses, the page's prediction and the server's answer agree, and
+    nothing parts. Told nobody - a game nobody shares, the engine's own tests and fixtures - the game plays for
+    everybody, as before.
+    - **The selection each player's own.** The game holds one selection at a time, so the server keeps each
+      account's between its intents (`Shared::selected`) and selects it before the account's next; the engine keeps
+      it among the account's own (`keep_selection_own`: theirs, else the first of theirs standing, else nobody -
+      a guest seated in nobody has nobody selected), and the next is chosen among them (`selectNext`). Every board
+      an account is handed - an answer, a push, the game it joins or comes back to - carries its own selection, a
+      change of selection alone is pushed to nobody (`unselected`), and when the seats change every account's is
+      kept among its own at once. Every intent that acts through the selection - a walk, a swing, a thing used or
+      taken, a sale, an errand begun - is so the account's own. (The first run of the two browsers found the
+      rewriting writing `"push": null` into every table it handed on - serde_json's indexing inserts what it does
+      not find - which the page's wire took for a push; it reads the push now, and a table is asserted to carry
+      nothing else.)
+    - **The turn, as decided.** Out of a fight, anybody acts with their own at any time, the server putting the
+      intents in order. In one, the encounter's turns are the engine's as they were (`can_act`): the party's
+      spotlight shared - each player acts with their own - and the GM's turn after; handing the spotlight to the GM
+      is for anybody who plays somebody.
+    - **A question put to its character's player.** Every question says whom it is put to (`pending_for`, the
+      board's `pending.for`): the defender asked how a hit lands, the one a reaction is offered to, the one making a
+      death move, the one having a conversation, the one a script rolls as. Only that character's player's answer is
+      taken (`answerPending`); a question about nobody in particular is the host's. The page shows it to them alone
+      (`shared-game.ts`: `playsFor`, `answers`), and the others whom it waits on (`waitingOn`: "Waiting for Finn to
+      answer for Kara.", the panel's `waiting-on`); a conversation another is having is heard and held, not
+      answered (`talkingView`).
+    - Proved by the engine's tests (`server/hooks/tests/seats.rs`: everybody played for when told nobody; another's
+      refused in each shape, the game unchanged; the host's unseated and nobody else's; the account's own choice;
+      only the account's walkers put down; the defender's question answered by its player alone; an errand its
+      walker's; the spotlight in a fight handed over only by somebody who plays somebody; a save loaded with
+      another's selected leaving the account's own), the server's (`play_routes.rs`: a guest seated and pushed their
+      own selection at once, a guest selecting another's refused, refusals pushed to nobody, a
+      page refused `restoreSeating`, each account's selection kept through the other's intents and on every board
+      it is handed, the defender's question answered only by its player), the wire's (another's refused on the
+      page as on the server with nothing parted, each page's selection kept through the other's intents, kept
+      among its own as the seats change, another's errand not even sent, a question shown to both and answered by
+      its player alone), the board's (`for` carried for every kind of question) and the e2e on the server
+      (`shared.spec.ts`: the guest selecting nobody until seated and refused the host's, seated and walking their
+      own with the host's selection kept, the host refused the guest's, the host's roll at a door shown to the host
+      and waited on by the guest). Every one of the 24 deliberate mutations - the seats ignored seated or unseated,
+      the named intents or the answer unchecked, the selection not kept own or not chosen among the account's, a
+      walker or an errand anybody's, the defender put to nobody, the turn anybody's, the game never told whom it
+      plays for, a pusher's selection pushed, a selection alone pushed, a page telling the server's game, the
+      selections not kept as the seats change, the page's engine not told at a stand or a change of seats, a
+      question shown for nobody, another's errand sent, the wait said by an account's id - fails a test.
+    - **Not yet**: one errand at a time in the game - a guest's walk up to something replaces the host's that is
+      still walking; each player choosing their own downtime moves at a rest (the host rests the party, choosing for
+      everybody); the lobby, and a shared game's saves its host's (slice 5).
+  - **Next**: the lobby (slice 5).

@@ -1,4 +1,4 @@
-//! The games, on the server (`docs/SERVER.md`, phase 3, slice 3c; phase 5, slices 1 and 3).
+//! The games, on the server (`docs/SERVER.md`, phase 3, slice 3c; phase 5, slices 1, 3 and 4).
 //!
 //! A signed-in player plays at `/__play`: a websocket, opened only with the session cookie the accounts gave
 //! them and from the page's own origin. A game is **shared** (phase 5, slice 3): it has an id of its own, the
@@ -44,6 +44,15 @@
 //! to it; past that it goes. A guest's page opens over the game's project, read before it is built
 //! (`GET /__play/join/<invite>`: `{ project }`, for anybody signed in who holds the invitation).
 //!
+//! Each player acts with their own (phase 5, slice 4): before anything of an account's is asked of its game, the
+//! game is told whom it plays for (`restoreSeating`, which no page may send) - the account, the host, who plays
+//! whom, and whom the account last had selected - and refuses an intent for a character that account does not
+//! play, in that intent's own answer, nothing changed (`engine::game::seats`). Each account's selection is its
+//! own, kept here between its intents (`Shared::selected`): every board an account is handed - an answer, a push,
+//! the game it joins or comes back to - has its own selection on it, and a change of selection alone is pushed to
+//! nobody. A question is put to whoever plays the character it is about (the board's `pending.for`), and answered
+//! by them alone.
+//!
 //! The server's game is trusted alone (phase 5, slice 1): once opened it is never told how a page's game stands -
 //! a page out of step is stood where the server's board says - and a walk cut short is held to the line the
 //! game gave it (`engine::game::landing`). The project and the content a game is played over come from its host's
@@ -80,7 +89,7 @@ pub const KEPT_FOR: Duration = Duration::from_secs(10 * 60);
 /// The intents that tell a game how another stands - its dice, its walk, its log, its views' queues - which the
 /// page's own engine is told after the editor's changes, and the server's game never is. And a save's text,
 /// which the server loads from the account's own folder (`load`).
-pub const NEVER_TOLD: &[&str] = &["restoreRng", "restoreWalk", "restoreLog", "restoreViews", "restoreWalked", "loadGameText"];
+pub const NEVER_TOLD: &[&str] = &["restoreRng", "restoreWalk", "restoreLog", "restoreViews", "restoreWalked", "restoreSeating", "loadGameText"];
 
 /// The test driver's hands (`window.__engine`): somebody put somewhere, wounded, handed a card or a level, a
 /// fight started or a room entered by fiat. Only a server started for the tests (`--for-tests`) takes them.
@@ -93,8 +102,7 @@ const VIEWS: [(&str, &str); 3] = [("motions", "takeMotions"), ("floaters", "take
 /// The intents a page sends as it draws itself - the bar's read of the cards, a container or a thing looked at,
 /// the conversations put where the selection says - whose marks on the game are the drawing page's: played and
 /// numbered, never pushed, or each page's drawing would push to the other, which draws again and pushes back.
-/// What they changed reaches the others with the next intent that is pushed. Each page's own selection and
-/// reading are slice 4's.
+/// What they changed reaches the others with the next intent that is pushed.
 pub const DRAWN: &[&str] = &["abilityList", "readContainer", "readThing", "syncTalks"];
 
 /// A connection: one socket, its answers and the pushes it is given leaving through one queue.
@@ -143,8 +151,10 @@ struct Shared {
     document: Value,
     members: Vec<String>,
     seats: IndexMap<String, String>,
+    /// Whom each account last had selected: its own, the game holding one at a time (`engine::game::seats`).
+    selected: HashMap<String, Value>,
     /// The sockets at it now, and whose.
-    watching: Vec<(Conn, queue::UnboundedSender<Value>)>,
+    watching: Vec<(Conn, String, queue::UnboundedSender<Value>)>,
     /// Since when nobody has been at it.
     left: Option<Instant>,
     /// The board last handed on, so an intent that changed nothing pushes nothing.
@@ -219,13 +229,46 @@ fn table_of(shared: &Shared, root: &Path) -> Value {
     })
 }
 
-/// Something handed on to every page at the game but the one whose message it answers.
+/// Something handed on to every page at the game but the one whose message it answers: a board with each
+/// page's own selection on it.
 fn push(shared: &Shared, except: Option<Conn>, message: &Value) {
-    for (conn, to) in &shared.watching {
+    for (conn, account, to) in &shared.watching {
         if Some(*conn) != except {
-            let _ = to.send(message.clone());
+            let mut message = message.clone();
+            // Read, not indexed: indexing a message that has no push writes `"push": null` into it.
+            if let (Some(board), Some(chosen)) = (message.get_mut("push").and_then(|pushed| pushed.get_mut("board")), shared.selected.get(account)) {
+                board["replica"]["party"]["selected"] = chosen.clone();
+            }
+            let _ = to.send(message);
         }
     }
+}
+
+/// A board as it is compared with the last one handed on: whoever is selected is each page's own.
+fn unselected(board: &Value) -> String {
+    let mut board = board.clone();
+    if let Some(party) = board["replica"].get_mut("party") {
+        party["selected"] = Value::Null;
+    }
+    board.to_string()
+}
+
+/// The game told whom it plays for, before it is asked anything of an account's (`restoreSeating`): the account,
+/// the host, who plays whom, and whom the account last had selected - so it refuses what that account does not
+/// play, and acts through the account's own selection.
+fn play_for(slot: &mut Option<Session>, shared: &Arc<Mutex<Shared>>, account: &str, hooks: &HooksFor) {
+    if slot.is_none() {
+        return;
+    }
+    let seating = {
+        let held = shared.lock().expect("the game");
+        let mut seating = json!({ "you": account, "host": held.host, "seats": held.seats });
+        if let Some(chosen) = held.selected.get(account) {
+            seating["selected"] = chosen.clone();
+        }
+        seating
+    };
+    let _ = face::respond(slot, &json!({ "op": "call", "call": "restoreSeating", "args": [seating] }), Rc::clone(hooks));
 }
 
 /// A game's thread: messages answered, one after another, until the way in is dropped; each answer, and what
@@ -240,6 +283,9 @@ fn play_thread(shared: Arc<Mutex<Shared>>, root: PathBuf) -> mpsc::Sender<Job> {
         let mut played: u64 = 0;
         while let Ok(job) = jobs.recv() {
             let op = job.message["op"].as_str().unwrap_or("").to_string();
+            if !matches!(op.as_str(), "open" | "seat") {
+                play_for(&mut slot, &shared, &job.account, &hooks);
+            }
             let mut said = match op.as_str() {
                 "seat" => seat(&shared, &job.account, &job.message, &root),
                 // A page that joined, or came back: where the game is, as for one resumed.
@@ -251,6 +297,9 @@ fn play_thread(shared: Arc<Mutex<Shared>>, root: PathBuf) -> mpsc::Sender<Job> {
             }
             if matches!(op.as_str(), "call" | "open" | "join" | "resume") && said["ok"].is_object() {
                 said["ok"]["seq"] = json!(played);
+                // Whom the account has selected now, kept for its next intent and the boards it is pushed.
+                let chosen = said["ok"]["board"]["replica"]["party"]["selected"].clone();
+                shared.lock().expect("the game").selected.insert(job.account.clone(), chosen);
             }
             match op.as_str() {
                 "save" => said = saved(&root, &job.account, &job.message, said),
@@ -269,11 +318,20 @@ fn play_thread(shared: Arc<Mutex<Shared>>, root: PathBuf) -> mpsc::Sender<Job> {
             said["id"] = job.message["id"].clone();
             let from = job.reply.conn();
             job.reply.send(said.clone());
+            // Who plays whom changed: each account's selection kept among its own, as it is pushed.
+            if op == "seat" && said["ok"].is_object() {
+                let members = shared.lock().expect("the game").members.clone();
+                for member in members {
+                    play_for(&mut slot, &shared, &member, &hooks);
+                    let chosen = slot.as_ref().map_or(Value::Null, |session| json!(session.party.selected()));
+                    shared.lock().expect("the game").selected.insert(member, chosen);
+                }
+            }
             // What the others are told: the board an intent left and what it gave them to draw; who is at the game.
             let mut held = shared.lock().expect("the game");
             match op.as_str() {
                 "call" | "open" if said["ok"].is_object() && !DRAWN.contains(&job.message["call"].as_str().unwrap_or("")) => {
-                    let board = said["ok"]["board"].to_string();
+                    let board = unselected(&said["ok"]["board"]);
                     let views = &said["ok"]["views"];
                     let drawn = VIEWS.iter().any(|(name, _)| views[name].as_array().is_some_and(|queue| !queue.is_empty()));
                     if board != held.seen || drawn {
@@ -432,7 +490,7 @@ impl Tables {
     }
 
     /// A connection now at `game`: no longer at the one it was at, which nobody may be at any more.
-    fn watch(inner: &mut Inner, conn: Conn, game: &str) {
+    fn watch(inner: &mut Inner, conn: Conn, account: &str, game: &str) {
         let Some((to, was)) = inner.conns.get(&conn).cloned() else { return };
         if was.as_deref() == Some(game) {
             return;
@@ -442,7 +500,7 @@ impl Tables {
         }
         if let Some(found) = inner.games.get(game) {
             let mut held = found.shared.lock().expect("the game");
-            held.watching.push((conn, to.clone()));
+            held.watching.push((conn, account.to_string(), to.clone()));
             held.left = None;
         }
         inner.conns.insert(conn, (to, Some(game.to_string())));
@@ -451,7 +509,7 @@ impl Tables {
     fn unwatch(inner: &mut Inner, conn: Conn, game: &str) {
         if let Some(found) = inner.games.get(game) {
             let mut held = found.shared.lock().expect("the game");
-            held.watching.retain(|(watcher, _)| *watcher != conn);
+            held.watching.retain(|(watcher, _, _)| *watcher != conn);
             if held.watching.is_empty() {
                 held.left = Some(Instant::now());
             }
@@ -504,6 +562,7 @@ impl Tables {
                     document: message["project"].clone(),
                     members: vec![account.to_string()],
                     seats: IndexMap::new(),
+                    selected: HashMap::new(),
                     watching: Vec::new(),
                     left: None,
                     seen: String::new(),
@@ -533,7 +592,7 @@ impl Tables {
         }
         inner.at.insert(account.to_string(), game.clone());
         if let Some(conn) = reply.conn() {
-            Tables::watch(&mut inner, conn, &game);
+            Tables::watch(&mut inner, conn, account, &game);
         }
         let door = inner.games[&game].door.clone();
         drop(inner);

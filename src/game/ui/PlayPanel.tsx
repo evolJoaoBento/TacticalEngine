@@ -21,6 +21,7 @@ import type { GearCard } from '../gear';
 import './hud.css';
 import { ArtNote } from './AiNote';
 import { Players } from './Players';
+import { waitingOn } from '../shared-game';
 
 
 /**
@@ -156,6 +157,7 @@ export function PlayPanel(props: PlayPanelProps): preact.JSX.Element | null {
   const talking = pending !== null && pending.kind === 'script' ? pending.dialogue : null;
   const asking = asked(pending);
   const choice = asking !== null && asking.kind === 'choice' ? asking : null;
+  const waiting = waitingOn(pending, props.nameOf);
 
   return (
     <div className="play panel">
@@ -336,6 +338,13 @@ export function PlayPanel(props: PlayPanelProps): preact.JSX.Element | null {
               {option.detail === undefined ? null : <span className="panel-detail"> — {option.detail}</span>}
             </button>
           ))}
+        </div>
+      ) : null}
+
+      {/* A question put to a character another plays, at a shared game: whom it waits on, not its choices. */}
+      {waiting !== null && talking === null ? (
+        <div data-testid="waiting-on" className="play-box panel-box panel-detail">
+          {waiting}
         </div>
       ) : null}
 

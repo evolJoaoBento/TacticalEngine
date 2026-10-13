@@ -55,8 +55,19 @@ impl Args<'_> {
 }
 
 impl Session {
-    /// Do what an intent names, and answer as the TypeScript would.
+    /// Do what an intent names, and answer as the TypeScript would - unless it is for a character the account the
+    /// game plays for does not play, when it is refused in its answer's shape (`seats.rs`). The selection is kept
+    /// among the account's own after.
     pub fn dispatch(&mut self, call: &str, args: &[Value]) -> Result<Value, String> {
+        if let Some(refused) = self.not_yours(call, args) {
+            return Ok(refused);
+        }
+        let answer = self.play_intent(call, args);
+        self.keep_selection_own();
+        answer
+    }
+
+    fn play_intent(&mut self, call: &str, args: &[Value]) -> Result<Value, String> {
         let a = Args(args);
         Ok(match call {
             // ---- walking, swinging, the turn ----
@@ -102,15 +113,15 @@ impl Session {
             },
             // ---- the party's control ----
             "select" => json!(self.party.select(&self.world.state, a.text(0)?)),
-            "selectNext" => json!(self.party.select_next(&self.world.state)),
+            "selectNext" => json!(self.select_next_own()),
             "link" => json!(self.party.link(&self.world.state, a.text(0)?, a.text(1)?)),
             "unlink" => json!(self.party.unlink(&self.world.state, a.text(0)?)),
             "dropCard" => json!(self.drop_card(a.text(0)?, a.get(1))?),
             "landWalkers" => {
                 // Everyone a cut-short walk put down, at once, each where the page drew them - on the line they
-                // were walking (`landing.rs`): who was landed.
+                // were walking (`landing.rs`), the account's own: who was landed.
                 let mut landed = Vec::new();
-                for walker in a.get(0).as_array().map_or(&[][..], Vec::as_slice) {
+                for walker in self.own_walkers(a.get(0).as_array().map_or(&[][..], Vec::as_slice)) {
                     let (Some(id), Ok(at)) = (walker[0].as_str(), serde_json::from_value::<Spot>(walker[1].clone())) else { continue };
                     if self.land_walker(id, at) {
                         landed.push(id.to_string());
@@ -160,6 +171,11 @@ impl Session {
             }
             // The lines walkers were given, read - and handed back to an engine built again under the page.
             "walkedLines" => self.walked_lines(),
+            // Whom the game plays for at a shared game (`seats.rs`): never told to the server's game by a page.
+            "restoreSeating" => {
+                self.restore_seating(a.get(0))?;
+                Value::Null
+            }
             "restoreWalked" => {
                 self.restore_walked(&a.get(0).clone())?;
                 Value::Null

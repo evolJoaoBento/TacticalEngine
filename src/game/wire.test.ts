@@ -30,7 +30,7 @@ const WASM = resolve(here, '../../public/wasm/engine.wasm');
 const built = existsSync(WASM);
 
 /** What the server's game is never told (`serve::play::NEVER_TOLD`): how another game stands, or a save's text. */
-const NEVER_TOLD = ['restoreRng', 'restoreWalk', 'restoreLog', 'restoreViews', 'restoreWalked', 'loadGameText'];
+const NEVER_TOLD = ['restoreRng', 'restoreWalk', 'restoreLog', 'restoreViews', 'restoreWalked', 'restoreSeating', 'loadGameText'];
 
 /**
  * The server's game, answering a tick late and in order, a seed of its own at every open as the server's are;
@@ -38,6 +38,9 @@ const NEVER_TOLD = ['restoreRng', 'restoreWalk', 'restoreLog', 'restoreViews', '
  * `noisy` has a game opened with lines already in its log. Its saves are the account's, kept across its games.
  * Its game is shared, as the server's are: each intent's answer carries what it gave to draw, taken off the
  * game's queues (`views`), and is pushed to every other connection that listens; `join` and `seat` as `play.rs`.
+ * And as `play.rs`, its game is told whom it plays for before each message (`restoreSeating`): the connection's
+ * account - the host's for the one that opened it, a guest's for each that joined - and that account's own
+ * selection, kept between its messages and put on every board it is pushed.
  */
 class EngineServer implements Transport {
   readonly sent: Record<string, unknown>[] = [];
@@ -60,6 +63,9 @@ class EngineServer implements Transport {
   /** Who is at the game and who plays whom, as the server keeps it; and each connection's ear, by its number. */
   table: SharedTable = { game: 'g', host: 'host', invite: 'invite-1', members: [{ id: 'host', name: 'Host' }], seats: {} };
   private readonly ears = new Map<number, (message: Record<string, unknown>) => void>();
+  /** Whose each connection is, and whom each account last had selected. */
+  private readonly accounts = new Map<number, string>();
+  private readonly selected = new Map<string, unknown>();
   private connections = 0;
   /** The intents the game has played, as the server numbers them (`seq`). */
   private played = 0;
@@ -94,8 +100,35 @@ class EngineServer implements Transport {
    */
   private push(from: number, message: Record<string, unknown>): void {
     for (const [connection, heard] of this.ears) {
-      if (connection !== from) heard(JSON.parse(JSON.stringify(message)) as Record<string, unknown>);
+      if (connection === from) continue;
+      const told = JSON.parse(JSON.stringify(message)) as { push?: { board: BoardSnapshot } };
+      const account = this.accountOf(connection);
+      if (told.push !== undefined && this.selected.has(account)) (told.push.board.replica.party as { selected: unknown }).selected = this.selected.get(account);
+      heard(told as Record<string, unknown>);
     }
+  }
+
+  private accountOf(connection: number): string {
+    return this.accounts.get(connection) ?? 'host';
+  }
+
+  /** The game told whom it plays for, as `play.rs` tells it before anything of an account's is asked of it. */
+  private playFor(account: string): void {
+    const seating: Record<string, unknown> = { you: account, host: this.table.host, seats: this.table.seats };
+    if (this.selected.has(account)) seating['selected'] = this.selected.get(account);
+    this.engine.call('restoreSeating', [seating]);
+  }
+
+  /** The game's board as an account's page is handed it: with that account's own selection on it. */
+  boardFor(account: string): BoardSnapshot {
+    const board = this.engine.board() as BoardSnapshot;
+    if (this.selected.has(account)) (board.replica.party as { selected: unknown }).selected = this.selected.get(account);
+    return board;
+  }
+
+  /** Whom the account has selected after a message, kept for its next. */
+  private chose(account: string): void {
+    this.selected.set(account, (this.engine.board() as BoardSnapshot).replica.party.selected);
   }
 
   /** What an intent gave to draw, taken off the game's queues, as the server takes it. */
@@ -146,7 +179,10 @@ class EngineServer implements Transport {
   private answer(m: Record<string, unknown>, from: number): Said {
     this.sent.push(m);
     const engine = this.engine;
+    if (m['op'] === 'join') this.accounts.set(from, `guest-${from}`);
+    const you = this.accountOf(from);
     try {
+      if (m['op'] !== 'open' && m['op'] !== 'seat' && this.kept !== null) this.playFor(you);
       switch (m['op']) {
         case 'open': {
           const seed = `${this.seed}:${++this.opens}`;
@@ -155,19 +191,28 @@ class EngineServer implements Transport {
           if (this.noisy) engine.call('rest', ['short']);
           this.kept = (m['project'] as ProjectDoc).id;
           this.played = 0;
-          return { ok: { seed, board: engine.board(), table: this.table, game: this.table.game, invite: this.table.invite, seq: 0 } };
+          this.accounts.set(from, this.table.host);
+          this.selected.clear();
+          this.chose(you);
+          return { ok: { seed, board: engine.board(), table: this.table, game: this.table.game, invite: this.table.invite, seq: 0, you } };
         }
         case 'join': {
           if (m['invite'] !== this.table.invite || this.kept === null) return { error: 'no game for that invitation' };
           this.table = { ...this.table, members: [...this.table.members, { id: `guest-${from}`, name: `Guest ${from}` }] };
           this.push(from, { table: this.table });
-          return { ok: { board: engine.board(), project: this.kept, table: this.table, seq: this.played } };
+          this.chose(you);
+          return { ok: { board: engine.board(), project: this.kept, table: this.table, seq: this.played, you } };
         }
         case 'seat': {
           const seats = { ...this.table.seats };
           if (m['account'] === null) delete seats[m['character'] as string];
           else seats[m['character'] as string] = m['account'] as string;
           this.table = { ...this.table, seats };
+          // Each account's selection kept among its own, as `play.rs` keeps it when who plays whom changes.
+          for (const member of this.table.members) {
+            this.playFor(member.id);
+            this.chose(member.id);
+          }
           this.push(from, { table: this.table });
           return { ok: { table: this.table } };
         }
@@ -181,7 +226,9 @@ class EngineServer implements Transport {
           return { ok: { slot, text: this.rewordSave === null ? text : this.rewordSave(text) } };
         }
         case 'resume':
-          return this.kept === null ? { error: 'no game: open one' } : { ok: { board: engine.board(), project: this.kept, table: this.table, seq: this.played } };
+          if (this.kept === null) return { error: 'no game: open one' };
+          this.chose(you);
+          return { ok: { board: engine.board(), project: this.kept, table: this.table, seq: this.played, you } };
         case 'load': {
           // The account's save, loaded by the server's game from its own copy.
           const text = this.saves.get(m['slot'] as string);
@@ -189,6 +236,7 @@ class EngineServer implements Transport {
           const answer = engine.call('loadGameText', [text]);
           const views = this.views();
           const seq = ++this.played;
+          this.chose(you);
           this.push(from, { push: { board: engine.board(), views, by: from, seq } });
           return { ok: { answer, board: engine.board(), views, seq } };
         }
@@ -201,6 +249,7 @@ class EngineServer implements Transport {
           const answer = engine.call(call, m['args'] as unknown[]);
           const views = this.views(call);
           const seq = ++this.played;
+          this.chose(you);
           this.push(from, { push: { board: engine.board(), views, by: from, seq } });
           return { ok: { answer: this.reword === null ? answer : this.reword(answer, this.calls), board: engine.board(), views, seq } };
         }
@@ -230,13 +279,13 @@ function neverTold(server: EngineServer): void {
   expect(server.sent.filter((m) => m['op'] === 'restore' || NEVER_TOLD.includes(m['call'] as string) || LOCAL.includes(m['call'] as string))).toEqual([]);
 }
 
-/** The two games, as the page and the server have them: the same, past their logs' start. */
-function differ(demo: DemoScene, server: EngineServer): string | null {
+/** The two games, as the page and the server have them - the page's own selection, its account's - the same, past their logs' start. */
+function differ(demo: DemoScene, server: EngineServer, account = 'host'): string | null {
   const ours = boardOf(demo);
-  const theirs = server.engine.board() as BoardSnapshot;
+  const theirs = server.boardFor(account);
   // The dice left out: each page shows its own, and is handed the others'.
   const parted = firstDifference({ ...ours, log: null, rolls: null }, { ...theirs, log: null, rolls: null }, 'board');
-  return parted === null ? null : `${parted.path}: ${JSON.stringify(parted.game)?.slice(0, 200)} / ${JSON.stringify(parted.replica)?.slice(0, 200)}`;
+  return parted === null ? null : `${parted.path}: ${String(JSON.stringify(parted.game)).slice(0, 200)} / ${String(JSON.stringify(parted.replica)).slice(0, 200)}`;
 }
 
 describe('the wire to the server\'s game', () => {
@@ -812,8 +861,11 @@ describe('the wire to the server\'s game', () => {
 });
 
 describe('a shared game, on the wire', () => {
-  /** The host's page and a guest's, each its own page and engine, at one game on the server. */
-  async function sharing(name: string) {
+  /**
+   * The host's page and a guest's, each its own page and engine, at one game on the server - the guest seated in
+   * one of the party (`theirs`), the host playing the rest.
+   */
+  async function sharing(name: string, seated = true) {
     const bytes = readFileSync(WASM);
     const server = new EngineServer(await WasmEngine.load(bytes));
     const hostDemo = buildProjectScene(project(), `wire:${name}:host`);
@@ -827,14 +879,19 @@ describe('a shared game, on the wire', () => {
     guest.wireWith(guestWire);
     await guestWire.ready;
     await settle(server);
-    return { server, hostDemo, host, hostWire, guestDemo, guest, guestWire, before: replicaCount() };
+    const theirs = hostDemo.party.members().find((id) => id !== hostDemo.party.selected)!;
+    if (seated) {
+      await hostWire.seat(theirs, guestWire.you!);
+      await settle(server);
+    }
+    return { server, hostDemo, host, hostWire, guestDemo, guest, guestWire, theirs, before: replicaCount() };
   }
 
   it.skipIf(!built)('joins with an invitation, stood where the game is, and both pages are told who is at it', async () => {
     const { server, hostWire, guestDemo, guestWire } = await sharing('join');
     expect(guestWire.joined).toBe(true);
     expect(guestWire.status()).toBe('in');
-    expect(differ(guestDemo, server)).toBeNull();
+    expect(differ(guestDemo, server, guestWire.you!)).toBeNull();
     expect(guestWire.table?.members.length).toBe(2);
     expect(hostWire.table?.members.length).toBe(2);
     // A wrong invitation joins nothing, and the wire closes.
@@ -844,7 +901,7 @@ describe('a shared game, on the wire', () => {
   }, 120_000);
 
   it.skipIf(!built)('stands an idle page where another page\'s intent leaves the game, with the walk it gave to draw', async () => {
-    const { server, hostDemo, host, guestDemo, before } = await sharing('pushed');
+    const { server, hostDemo, host, guestDemo, guestWire, before } = await sharing('pushed');
     const kara = hostDemo.party.selected!;
     const from = hostDemo.state.entity(kara)!.tile;
     host.moveSelectedTo(from + 3);
@@ -852,13 +909,13 @@ describe('a shared game, on the wire', () => {
     // The guest's page: the host's walk, as the server played it, and the walk to draw.
     expect(guestDemo.state.entity(kara)!.tile).toBe(hostDemo.state.entity(kara)!.tile);
     expect(guestDemo.state.entity(kara)!.tile).not.toBe(from);
-    expect(differ(guestDemo, server)).toBeNull();
+    expect(differ(guestDemo, server, guestWire.you!)).toBeNull();
     expect(guestDemo.motions.some((motion) => motion.id === kara)).toBe(true);
     expect(replicaCount().first.slice(before.first.length)).toEqual([]);
   }, 120_000);
 
   it.skipIf(!built)('lets another page\'s intent in between the page\'s own without a parting, and stands it where the last answer leaves it', async () => {
-    const { server, hostDemo, host, guestDemo, guest, before } = await sharing('between');
+    const { server, hostDemo, host, guestDemo, guest, guestWire, before } = await sharing('between');
     const g = createRng('wire:between');
     // Both pages playing at once, the guest's intents on their way up when the host's pushes land.
     for (let burst = 0; burst < 10; burst++) {
@@ -873,13 +930,13 @@ describe('a shared game, on the wire', () => {
       }
     }
     expect(differ(hostDemo, server)).toBeNull();
-    expect(differ(guestDemo, server)).toBeNull();
+    expect(differ(guestDemo, server, guestWire.you!)).toBeNull();
     const partings = replicaCount().first.slice(before.first.length);
     expect(partings, JSON.stringify(partings.slice(0, 2), null, 1)).toEqual([]);
   }, 300_000);
 
   it.skipIf(!built)("keeps the page's own intent drawn when another page's lands while it is on its way up", async () => {
-    const { server, hostDemo, host, guestDemo, guest, before } = await sharing('in-flight');
+    const { server, hostDemo, host, guestDemo, guest, guestWire, before } = await sharing('in-flight');
     const kara = hostDemo.party.selected!;
     const tile = hostDemo.state.entity(kara)!.tile;
     // The host's walk goes up first, then the guest's own selection: the game plays them in that order.
@@ -897,12 +954,12 @@ describe('a shared game, on the wire', () => {
     expect(guestDemo.party.selected).toBe(mine);
     expect(guestDemo.state.entity(kara)!.tile).toBe(hostDemo.state.entity(kara)!.tile);
     expect(guestDemo.motions.some((motion) => motion.id === kara)).toBe(true);
-    expect(differ(guestDemo, server)).toBeNull();
+    expect(differ(guestDemo, server, guestWire.you!)).toBeNull();
     expect(replicaCount().first.slice(before.first.length)).toEqual([]);
   }, 120_000);
 
   it.skipIf(!built)('seats a character as the host says, and the guest is told', async () => {
-    const { server, hostWire, guestWire } = await sharing('seats');
+    const { server, hostWire, guestWire } = await sharing('seats', false);
     const guestId = guestWire.table!.members[1]!.id;
     expect(await hostWire.seat('kara', guestId)).toBe(true);
     await settle(server);
@@ -931,5 +988,88 @@ describe('a shared game, on the wire', () => {
     await settle(server);
     expect(differ(hostDemo, server)).toBeNull();
     expect(replicaCount().first.slice(before.first.length)).toEqual([]);
+  }, 120_000);
+  it.skipIf(!built)("acts with the page's own: another's refused by the page's engine as the server's refuses it, nothing parted", async () => {
+    const { server, hostDemo, host, guestDemo, guest, guestWire, theirs, before } = await sharing('own');
+    const kara = hostDemo.party.selected!;
+    // The guest's own is selected for them; the host's is not theirs to select, or to play.
+    expect(guestDemo.party.selected).toBe(theirs);
+    expect(guest.select(kara)).toBe(false);
+    expect(guestDemo.party.selected).toBe(theirs);
+    const card = host.abilityList(kara)[0]?.ability.id ?? 'anything';
+    expect(guest.useAbility(kara, card, [])).toEqual({ status: 'refused', lines: [] });
+    expect(guest.equipItem(kara, 'anything').ok).toBe(false);
+    expect(guest.unlink(kara)).toBe(false);
+    await settle(server);
+    expect(differ(guestDemo, server, guestWire.you!)).toBeNull();
+    // Each keeps their own selection through the other's intents.
+    host.moveSelectedTo(hostDemo.state.entity(kara)!.tile + 2);
+    guest.selectNext();
+    await settle(server);
+    expect(hostDemo.party.selected).toBe(kara);
+    expect(guestDemo.party.selected).toBe(theirs);
+    expect(differ(hostDemo, server)).toBeNull();
+    expect(differ(guestDemo, server, guestWire.you!)).toBeNull();
+    // The host's walks up to a door to use it: the errand is the host's to finish - the guest's page, drawing the
+    // same walk, does not even send it.
+    host.placeAt(kara, hostDemo.state.entity(kara)!.tile);
+    expect(host.approachThenUse('door-12-7')).toBe('walking');
+    await settle(server);
+    expect(guestDemo.approaching?.who).toBe(kara);
+    const sent = server.sent.length;
+    expect(guest.arrived()).toBe(false);
+    await settle(server);
+    expect(server.sent.length).toBe(sent);
+    expect(host.arrived()).toBe(true);
+    await settle(server);
+    expect(differ(guestDemo, server, guestWire.you!)).toBeNull();
+    expect(replicaCount().first.slice(before.first.length)).toEqual([]);
+  }, 120_000);
+
+  it.skipIf(!built)("keeps the selection among the page's own as the seats change", async () => {
+    const { server, hostWire, guestDemo, guestWire, theirs, before } = await sharing('reseated');
+    expect(guestDemo.party.selected).toBe(theirs);
+    // Unseated, the guest plays nobody: nobody selected, on the page as on the server.
+    expect(await hostWire.seat(theirs, null)).toBe(true);
+    await settle(server);
+    expect(guestDemo.party.selected).toBeNull();
+    expect(differ(guestDemo, server, guestWire.you!)).toBeNull();
+    // Seated again: theirs again.
+    expect(await hostWire.seat(theirs, guestWire.you!)).toBe(true);
+    await settle(server);
+    expect(guestDemo.party.selected).toBe(theirs);
+    expect(differ(guestDemo, server, guestWire.you!)).toBeNull();
+    expect(replicaCount().first.slice(before.first.length)).toEqual([]);
+    // The wire closed - the editor's playtest - the page's game is its own: it plays for everybody.
+    expect(guestWire.seating()).not.toBeNull();
+    guestWire.close();
+    expect(guestWire.seating()).toBeNull();
+  }, 120_000);
+
+  it.skipIf(!built)('puts a question to whoever plays the character it is about, and nobody else answers it', async () => {
+    const { server, hostDemo, host, guestDemo, guest, guestWire } = await sharing('question');
+    const kara = hostDemo.party.selected!;
+    // The host's walks up to a door and tries it: a roll is asked, of the host's.
+    const door = interactablesOf(hostDemo.scene).find((i) => i.id === 'door-12-7')!.position;
+    host.placeAt(kara, door.y * hostDemo.grid.width + door.x - 1);
+    host.useSelectedOn('door-12-7');
+    await settle(server);
+    const asked = (server.engine.board() as BoardSnapshot).pending as { for?: string } | null;
+    expect(asked?.for).toBe(kara);
+    // Both pages show it, and know whom it is put to.
+    expect((guestDemo.pending as { for?: string } | null)?.for).toBe(kara);
+    expect(guestWire.status()).toBe('asked');
+    // The guest's answer is refused by the server's game: the question still open, still the host's.
+    expect(guest.answerPending({ kind: 'roll' }).status).toBe('waiting');
+    await settle(server);
+    expect((server.engine.board() as BoardSnapshot).pending).toEqual(asked);
+    expect(guestWire.status()).toBe('asked');
+    // The host's answer is taken.
+    for (let n = 0; n < 10 && hostDemo.pending !== null; n++) {
+      host.answerPending(n === 0 ? { kind: 'roll' } : { kind: 'choose', index: 0 });
+      await settle(server);
+    }
+    expect((server.engine.board() as BoardSnapshot).pending).toBeNull();
+    expect(guestDemo.pending).toBeNull();
   }, 120_000);
 });

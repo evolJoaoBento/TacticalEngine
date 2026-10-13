@@ -242,6 +242,11 @@ impl Party {
         true
     }
 
+    /// Nobody selected: an account at a shared game that plays nobody (`game::seats`).
+    pub fn deselect(&mut self) {
+        self.selected = None;
+    }
+
     /// The next living member, wrapping: the Tab key. Nothing when nobody is standing.
     pub fn select_next(&mut self, state: &SceneState) -> Option<String> {
         let living = self.living(state);

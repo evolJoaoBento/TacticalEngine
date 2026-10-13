@@ -147,4 +147,16 @@ describe('a board filled into the page\'s game', () => {
     restoreFromBoard(demo, board);
     expect(demo.state.entity('kara')!.armorSlots).toEqual(kara.armorSlots);
   });
+
+  it('shows a question as put to whom the board says, whatever its kind, and writes it back the same', () => {
+    const demo = buildProjectScene(project(), 'fill-for');
+    const prompt = { kind: 'choice', title: 'How does it land?', options: [] };
+    for (const kind of ['defense', 'reaction', 'death', 'script'] as const) {
+      const board = JSON.parse(JSON.stringify(boardOf(demo))) as BoardSnapshot;
+      board.pending = { kind, prompt, ...(kind === 'script' ? { interactable: null, with: null, dialogue: null } : {}), for: 'kara' };
+      restoreFromBoard(demo, board);
+      expect(demo.pending?.for, kind).toBe('kara');
+      expect((boardOf(demo).pending as { for?: string }).for, kind).toBe('kara');
+    }
+  });
 });

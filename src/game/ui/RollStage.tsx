@@ -14,6 +14,7 @@
  */
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { Pending } from '../demo-scene';
+import { answers } from '../shared-game';
 import type { DualityRoll } from '../../engine/rules/duality';
 import type { Prompt, Response } from '../../engine/script/runner';
 import type { RollShow } from '../log';
@@ -41,6 +42,8 @@ export interface RollStageProps {
  * a reply that calls for a roll raises its check *inside* the conversation.
  */
 export function asked(pending: Pending | null): Prompt | null {
+  // A question put to a character another plays is theirs to answer (`shared-game.ts`).
+  if (!answers(pending)) return null;
   const talking = pending !== null && pending.kind === 'script' ? pending.dialogue : null;
   return talking?.prompt ?? (talking === null ? (pending?.prompt ?? null) : null);
 }
