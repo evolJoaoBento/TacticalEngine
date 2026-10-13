@@ -109,14 +109,15 @@ export function playingAs(): string | null {
 
 /**
  * What the page's player may do about a seat, as the server rules it (`play.rs`): the host says who plays whom, at
- * any time; before the game starts anybody takes a seat nobody has (`take`), or leaves their own (`leave`).
+ * any time; before the game starts anybody takes a seat nobody has (`take`) - and that a save hosted again does not
+ * keep for a player not back yet (`kept`) - or leaves their own (`leave`).
  */
 export function seatFor(character: string): 'choose' | 'take' | 'leave' | null {
   if (table === null) return null;
   if (hosting()) return 'choose';
   if (table.started !== false) return null;
   const seated = table.seats[character];
-  if (seated === undefined) return 'take';
+  if (seated === undefined) return table.kept?.[character] === undefined ? 'take' : null;
   return seated === you() ? 'leave' : null;
 }
 

@@ -33,6 +33,12 @@ export interface SaveSlot {
    * saves written before it was recorded, which were all of the demo (`DEFAULT_SAVE_PROJECT`).
    */
   project?: string;
+  /**
+   * Who played whom when a shared game was saved (a character's id to an account's): the server keeps it, and seats
+   * each player in their own again as they come back to the game hosted from it (`play.rs`). None at a game nobody
+   * shared.
+   */
+  seats?: Record<string, string>;
 }
 
 /** The project a save that does not say is of: the only one there was when saves did not say. */

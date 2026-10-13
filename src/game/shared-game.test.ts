@@ -115,6 +115,10 @@ describe('the shared game, as the page shows it', () => {
     expect(seatFor('mira')).toBe('leave');
     guest.tell({ ...lobby, seats: { mira: 'kara' } });
     expect(seatFor('mira')).toBeNull();
+    // A seat a save hosted again keeps for a player not back yet is nobody else's to take.
+    guest.tell({ ...lobby, kept: { arty: { id: 'pip', name: 'Pip' } } });
+    expect(seatFor('arty')).toBeNull();
+    expect(seatFor('scarlet')).toBe('take');
     // Started: the host's to say again, and the guest plays their own.
     guest.tell({ ...lobby, started: true });
     expect(started()).toBe(true);

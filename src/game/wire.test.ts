@@ -220,7 +220,9 @@ class EngineServer implements Transport {
           if (m['account'] === null) delete seats[m['character'] as string];
           else seats[m['character'] as string] = m['account'] as string;
           this.table = { ...this.table, seats };
-          // Each account's selection kept among its own, as `play.rs` keeps it when who plays whom changes.
+          // Each account's selection kept among its own, as `play.rs` keeps it when who plays whom changes - and
+          // numbered as an intent is.
+          this.played++;
           for (const member of this.table.members) {
             this.playFor(member.id);
             this.chose(member.id);
@@ -232,6 +234,7 @@ class EngineServer implements Transport {
           if (you !== this.table.host) return { error: 'only the host starts the game' };
           if (this.table.started) return { error: 'the game has started' };
           this.table = { ...this.table, started: true };
+          this.played++;
           for (const member of this.table.members) {
             this.playFor(member.id);
             this.chose(member.id);

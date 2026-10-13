@@ -2,7 +2,8 @@
  * The lobby (`docs/SERVER.md`, phase 5, slice 5): a game opened for others to join (`?host`), shown over the board
  * until its host starts it. The invitation to send; who has come; each character and who plays it - a seat nobody
  * has taken, by whoever wants it, their own left again, and anybody's by the host's word - and the host's Start,
- * which the others wait on. Until then nobody plays anybody (`engine::game::seats`). Nothing at a game nobody shares,
+ * which the others wait on. A save hosted again keeps each player's seat for them until they are back (`kept`).
+ * Until then nobody plays anybody (`engine::game::seats`). Nothing at a game nobody shares,
  * or once it has started (`shared-game.ts`).
  */
 
@@ -40,14 +41,22 @@ export function Lobby(): preact.JSX.Element | null {
           {seatable().map((character) => {
             const seated = table.seats[character.id];
             const may = seatFor(character.id);
+            const kept = seated === undefined ? table.kept?.[character.id] : undefined;
             return (
               <div key={character.id} className="panel-row players-seat" data-testid="lobby-seat" data-character={character.id}>
                 <span style={{ flex: 1 }}>{character.name}</span>
                 {may === 'choose' ? (
-                  <SeatSelect character={character.id} table={table} host />
+                  <>
+                    {kept === undefined ? null : (
+                      <span className="panel-sub" data-testid="lobby-kept">
+                        Kept for {kept.name}
+                      </span>
+                    )}
+                    <SeatSelect character={character.id} table={table} host />
+                  </>
                 ) : (
                   <span className="panel-sub" data-testid="lobby-seated">
-                    {seated === undefined ? nameOf(table.host) : seated === you ? 'You' : nameOf(seated)}
+                    {seated !== undefined ? (seated === you ? 'You' : nameOf(seated)) : table.kept?.[character.id] !== undefined ? `Kept for ${table.kept[character.id]!.name}` : nameOf(table.host)}
                   </span>
                 )}
                 {may === 'take' ? (

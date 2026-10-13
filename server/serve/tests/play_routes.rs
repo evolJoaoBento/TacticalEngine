@@ -423,7 +423,8 @@ async fn a_game_is_shared_its_invitation_joins_it_and_each_intent_is_pushed_to_t
     let there = walked["ok"]["board"]["replica"]["state"]["entities"][other.as_str()]["tile"].as_i64().unwrap();
     tables.ask_on(guest, "finn", json!({ "id": 4, "op": "call", "call": "moveSelectedTo", "args": [there + 1] }));
     let moved = told(&mut to_guest).await;
-    assert_eq!(moved["ok"]["seq"], 2);
+    // The second intent, after the seat - which is numbered too, since what the guest's game answers changed with it.
+    assert_eq!(moved["ok"]["seq"], 3);
     assert_eq!(moved["ok"]["board"]["replica"]["party"]["selected"], other.as_str(), "the guest walks their own");
     let mut pushed = told(&mut to_host).await["push"]["board"].clone();
     assert_eq!(pushed["replica"]["party"]["selected"], member.as_str(), "the host's selection is the host's");
@@ -472,7 +473,7 @@ async fn a_game_is_shared_its_invitation_joins_it_and_each_intent_is_pushed_to_t
     assert!(told(&mut to_host).await["ok"]["slot"]["id"].is_string(), "the host's written");
     // A save loaded puts everybody somewhere else: not the guest's to do, though the save be their own.
     let slot = serve::saves::mint_id(1);
-    let theirs = serve::saves::Slot { id: slot.clone(), name: "Mine".into(), saved_at: 1, place: "here".into(), project: None };
+    let theirs = serve::saves::Slot { id: slot.clone(), name: "Mine".into(), saved_at: 1, place: "here".into(), project: None, seats: Default::default() };
     serve::saves::write_save(&root, "finn", theirs, &serve::saves::read_save(&root, "kara", &serve::saves::read_slots(&root, "kara")[0].id).unwrap()).unwrap();
     tables.ask_on(guest, "finn", json!({ "id": 12, "op": "load", "slot": slot }));
     assert_eq!(told(&mut to_guest).await["error"], "only the host loads a save into a game others are at");
@@ -698,4 +699,80 @@ async fn the_host_opens_a_lobby_with_a_save_of_their_own() {
     let at = |board: &Value| board["replica"]["state"]["entities"][member.as_str()]["tile"].clone();
     assert_eq!(at(&opened["ok"]["board"]), tile);
     assert_eq!(at(&loaded["ok"]["board"]), tile + 1, "stood where it was saved");
+}
+
+#[tokio::test]
+async fn a_shared_games_save_keeps_who_plays_whom_and_hosting_it_again_seats_each_player_as_they_come_back() {
+    let fixture = fixture();
+    let root = root("kept-seats");
+    let tables = Tables::new(root.clone()).for_tests();
+    let open = |lobby: bool| json!({ "id": 1, "op": "open", "project": fixture["projects"][0], "shipped": fixture["shipped"], "table": {}, "lobby": lobby });
+    // An evening: Finn and Mira at Kara's game, each seated in one of the party.
+    let (host, mut to_host) = tables.connect();
+    let (finn, mut to_finn) = tables.connect();
+    let (mira, mut to_mira) = tables.connect();
+    tables.ask_on(host, "kara", open(false));
+    let opened = told(&mut to_host).await;
+    let invite = opened["ok"]["invite"].as_str().unwrap().to_string();
+    let party: Vec<String> = opened["ok"]["board"]["replica"]["state"]["entities"].as_object().unwrap().iter().filter(|(_, e)| e["faction"] == "party").map(|(id, _)| id.clone()).collect();
+    let (finns, miras) = (party[1].clone(), party[2].clone());
+    for (conn, who, to) in [(finn, "finn", &mut to_finn), (mira, "mira", &mut to_mira)] {
+        tables.ask_on(conn, who, json!({ "id": 1, "op": "join", "invite": invite }));
+        told(to).await;
+        told(&mut to_host).await;
+    }
+    for (character, account) in [(&finns, "finn"), (&miras, "mira")] {
+        tables.ask_on(host, "kara", json!({ "id": 2, "op": "seat", "character": character, "account": account }));
+        told(&mut to_host).await;
+    }
+    // Saved: the slot keeps who played whom.
+    tables.ask_on(host, "kara", json!({ "id": 3, "op": "save", "name": "The evening", "where": "the vault" }));
+    let slot = told(&mut to_host).await["ok"]["slot"].clone();
+    assert_eq!(slot["seats"], json!({ finns.as_str(): "finn", miras.as_str(): "mira" }), "{slot}");
+    let id = slot["id"].as_str().unwrap().to_string();
+    assert_eq!(serve::saves::read_slots(&root, "kara").iter().find(|s| s.id == id).unwrap().seats.len(), 2);
+    for conn in [host, finn, mira] {
+        tables.left(conn);
+    }
+
+    // Next week: Kara hosts it again, as a lobby, before anybody is back. Their seats are kept for them.
+    let (host, mut to_host) = tables.connect();
+    tables.ask_on(host, "kara", open(true));
+    let invite = told(&mut to_host).await["ok"]["invite"].as_str().unwrap().to_string();
+    tables.ask_on(host, "kara", json!({ "id": 4, "op": "load", "slot": id }));
+    assert_eq!(told(&mut to_host).await["ok"]["answer"], json!({ "ok": true }));
+    let table = told(&mut to_host).await["table"].clone();
+    assert_eq!(table["seats"], json!({}), "nobody back yet: {table}");
+    assert_eq!(table["kept"], json!({ finns.as_str(): { "id": "finn", "name": "finn" }, miras.as_str(): { "id": "mira", "name": "mira" } }));
+    // Saved before they are back, the kept seats are still in it.
+    tables.ask_on(host, "kara", json!({ "id": 5, "op": "save", "slot": id, "name": "The evening", "where": "the vault" }));
+    assert_eq!(told(&mut to_host).await["ok"]["slot"]["seats"], json!({ finns.as_str(): "finn", miras.as_str(): "mira" }));
+    // The host's word over a kept seat: Mira's given to Kara.
+    tables.ask_on(host, "kara", json!({ "id": 6, "op": "seat", "character": miras, "account": "kara" }));
+    assert_eq!(told(&mut to_host).await["ok"]["table"]["kept"], json!({ finns.as_str(): { "id": "finn", "name": "finn" } }));
+    // Mira comes back: not seated in what the host gave away, and not to take Finn's, kept for him.
+    let (mira, mut to_mira) = tables.connect();
+    tables.ask_on(mira, "mira", json!({ "id": 1, "op": "join", "invite": invite }));
+    assert_eq!(told(&mut to_mira).await["ok"]["table"]["seats"], json!({ miras.as_str(): "kara" }));
+    told(&mut to_host).await;
+    tables.ask_on(mira, "mira", json!({ "id": 2, "op": "seat", "character": finns, "account": "mira" }));
+    assert_eq!(told(&mut to_mira).await["error"], "only a seat nobody has is yours to take");
+    // Finn comes back: seated in his own at once, everybody told.
+    let (finn, mut to_finn) = tables.connect();
+    tables.ask_on(finn, "finn", json!({ "id": 1, "op": "join", "invite": invite }));
+    let joined = told(&mut to_finn).await;
+    assert_eq!(joined["ok"]["table"]["seats"], json!({ miras.as_str(): "kara", finns.as_str(): "finn" }));
+    assert_eq!(joined["ok"]["table"]["kept"], json!({}));
+    assert_eq!(told(&mut to_host).await["table"]["seats"][finns.as_str()], "finn");
+    // Started, Finn has his own selected.
+    tables.ask_on(host, "kara", json!({ "id": 7, "op": "start" }));
+    told(&mut to_host).await;
+    assert_eq!(tables.ask("finn", json!({ "id": 2, "op": "resume" })).await["ok"]["board"]["replica"]["party"]["selected"], finns.as_str());
+    // A save loaded with them all at the game seats them at once.
+    tables.ask_on(host, "kara", json!({ "id": 8, "op": "seat", "character": finns, "account": null }));
+    told(&mut to_host).await;
+    tables.ask_on(host, "kara", json!({ "id": 9, "op": "load", "slot": id }));
+    told(&mut to_host).await;
+    let table = told(&mut to_host).await["table"].clone();
+    assert_eq!(table["seats"], json!({ finns.as_str(): "finn", miras.as_str(): "mira" }), "{table}");
 }

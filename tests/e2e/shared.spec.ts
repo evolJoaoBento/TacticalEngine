@@ -216,5 +216,32 @@ test('a game hosted from the menu is a lobby: friends join with the link, take t
     expect(await each.evaluate(() => window.__replica!.server())).toBe('in');
     expect(await each.evaluate(() => window.__replica!.count().parted)).toBe(0);
   }
+
+  // The host saves: the save keeps who played whom, on the server.
+  await page.bringToFront();
+  const slot = await page.evaluate(() => window.__engine!.saveAs('Our evening'));
+  expect(slot).not.toBeNull();
+  const seatsSaved = async (): Promise<unknown> => ((await (await page.request.get('/__saves')).json()) as { id: string; seats?: Record<string, string> }[]).find((s) => s.id === slot)?.seats;
+  await expect.poll(seatsSaved, { timeout: 15_000 }).toEqual({ [theirs]: guestId });
+  await guest.close();
+
+  // Next time: the host hosts that save. The guest's seat is kept for them until they are back.
+  await page.goto(`/?play&load=${slot}&host`);
+  await ready(page);
+  await expect(lobby).toBeVisible();
+  await expect(lobby.locator(`[data-testid="lobby-seat"][data-character="${theirs}"]`).getByTestId('lobby-kept')).toContainText('Kept for');
+  await page.screenshot({ path: 'test-results/lobby-kept.png' });
+  const again = new URL(await lobby.getByTestId('invite-link').inputValue());
+  // The guest back, with the new link: seated in their own at once, nothing to take.
+  const back = await guestContext.newPage();
+  await back.goto(`/${again.search}`);
+  await ready(back);
+  await expect.poll(() => back.evaluate(() => window.__table!.table()!.seats), { timeout: 15_000 }).toEqual({ [theirs]: guestId });
+  await expect(back.getByTestId('lobby').locator(`[data-testid="lobby-seat"][data-character="${theirs}"]`).getByTestId('lobby-leave')).toBeVisible();
+  await expect(lobby.getByTestId('lobby-kept')).toHaveCount(0);
+  await page.bringToFront();
+  await lobby.getByTestId('lobby-start').click();
+  await expect.poll(() => back.evaluate(() => window.__engine!.selected()), { timeout: 15_000 }).toBe(theirs);
+  for (const each of [page, back]) expect(await each.evaluate(() => window.__replica!.count().parted)).toBe(0);
   await guestContext.close();
 });

@@ -30,7 +30,7 @@ fn fixture() -> Value {
 }
 
 fn slot(id: &str, name: &str) -> Slot {
-    Slot { id: id.into(), name: name.into(), saved_at: 1, place: "The Husk Vault".into(), project: None }
+    Slot { id: id.into(), name: name.into(), saved_at: 1, place: "The Husk Vault".into(), project: None, seats: Default::default() }
 }
 
 async fn send(root: &Path, method: &str, path: &str, body: &str, cookie: Option<&str>, page: bool) -> (StatusCode, Value, String) {

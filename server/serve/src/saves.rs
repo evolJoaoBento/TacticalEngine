@@ -18,6 +18,7 @@ use crate::files::{read_json, write_json};
 use axum::body::{to_bytes, Body};
 use axum::http::{header, HeaderMap, HeaderValue, Method, Response, StatusCode, Uri};
 use axum::extract::State;
+use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::fs;
@@ -44,6 +45,10 @@ pub struct Slot {
     pub place: String,
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub project: Option<String>,
+    /// Who played whom at a shared game when it was saved (a character's id to an account's), so that hosting it
+    /// again seats each player in their own as they come back (`play.rs`). Left out of a game nobody shared.
+    #[serde(skip_serializing_if = "IndexMap::is_empty", default)]
+    pub seats: IndexMap<String, String>,
 }
 
 /// An id a slot may have: a file's name, nothing that climbs out of the folder, and not the index's.

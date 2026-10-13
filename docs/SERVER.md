@@ -1580,7 +1580,8 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
       right one joined from the menu, waiting on the host; a seat taken with the Take button and shown to the host;
       Start, the lobby gone from both, each with their own selected; the guest's walk reaching the host; the guest's
       Save shut with the reason; nothing parted).
-    - **Not yet**: a save keeps nobody's seats - hosting it again, the players take theirs again; a lobby hosted
+    - **Not yet**: a save keeps nobody's seats - hosting it again, the players take theirs again (since done, below);
+      a lobby hosted
       from Play Together offers only the games and saves this browser and account have; a guest cannot see the
       host's saves, nor ask for one to be loaded.
   - **An errand for each player** (after slice 5, 13 October 2026). A walk up to something to use it, or to somebody
@@ -1599,5 +1600,22 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     (both errands on both pages and the server, the guest's finished when the guest's walker stops while the host's
     still walks, the host's left standing, nothing parted). The e2e drives errands through the driver's `approach`,
     which finishes them at once, so the two at once are proved in the engine and the wire alone.
-  - **Next**: phase 5's slices are done. What it leaves: each player's own downtime moves; a shared game's seats kept
-    in its saves.
+  - **A shared game's saves keep who plays whom** (13 October 2026). The host's save writes the table's seats into its
+    slot (`saves.rs`, `Slot::seats`; left out of a game nobody shared, so every slot written before reads the same),
+    the seats kept for players not back yet among them - not into the game's own save text, whose format is the
+    engine's and frozen. Loading a slot with seats (`load`, the `keep` the server reads off the slot) seats each
+    player at the game in their own at once and keeps the others' (`Shared::kept`, the table's `kept`: character to
+    `{ id, name }`): a kept seat is its player's the moment they join (`seat_the_kept`), and nobody else's to take
+    in the lobby; the host's word over one ends the keeping. Every page is told the table after such a load, the
+    loader's too. So the host hosts last week's save from Play Together, the lobby says whose each seat is ("Kept for
+    Finn"), and Finn, opening the new link, is seated in his own and has it selected when the host starts. A seat
+    change, the start, and the seats a load gives are numbered as an intent is (`seq`): what an account's game
+    answers changes with them, so an answer to an intent a page sent before it heard is no parting (the e2e found
+    this - a guest's drawing answered just after the start, with their own selected). Proved by the server's tests
+    (`play_routes.rs`: the seats saved, the kept ones too; a lobby loading the save keeping both players' seats;
+    the host giving one away; the other refused a kept seat and not seated in the one given away; the first seated
+    on joining and selected once started; a load with everybody at the game seating them at once; the seat change
+    numbered), the page's (`seatFor`: a kept seat nobody else's to take) and the e2e on the server (`shared.spec.ts`:
+    the host's save carrying the guest's seat, hosted again, the lobby saying it is kept, the guest back with the new
+    link seated in their own and selected at the start, nothing parted).
+  - **Next**: phase 5's slices are done. What it leaves: each player's own downtime moves at a rest.

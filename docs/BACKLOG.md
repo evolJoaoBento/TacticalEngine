@@ -4,6 +4,13 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## Phase 5 (multiplayer): a shared game's saves keep who plays whom — done
+
+The host's save records who played whom, in its slot on the server. Hosting it again keeps each friend's character
+for them - the lobby says "Kept for Finn", nobody else may take it, the host may give it away - and seats them in
+it the moment they join with the new link. A seat change and the start are numbered like intents, so a page's
+answer that crosses one is no parting.
+
 ## Phase 5 (multiplayer): an errand for each player — done
 
 A walk up to something to use it, or to talk, is an errand, and each player has their own: a friend's walk up to a

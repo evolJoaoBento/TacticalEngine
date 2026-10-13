@@ -78,6 +78,8 @@ export interface SharedTable {
   members: { id: string; name: string }[];
   seats: Record<string, string>;
   started: boolean;
+  /** The seats a save hosted again keeps for players not back yet: theirs as they join, nobody else's to take. */
+  kept?: Record<string, { id: string; name: string }>;
 }
 
 /**
