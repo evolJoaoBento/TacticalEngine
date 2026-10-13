@@ -4,6 +4,13 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## Phase 5 (multiplayer): an errand for each player — done
+
+A walk up to something to use it, or to talk, is an errand, and each player has their own: a friend's walk up to a
+chest no longer calls off the host's to a door. A new errand replaces only its player's last, so a player alone still
+has one at a time (the frozen walk fixtures hold). Each page finishes its own errand when its own walkers are drawn
+stopping, whoever else's still walk; a walk that wakes a fight calls every errand off.
+
 ## Phase 5 (multiplayer), slice 5: the lobby — done
 
 A game is hosted from the menu (Play Together: any game or save, `?host`) as a lobby: friends join with the link

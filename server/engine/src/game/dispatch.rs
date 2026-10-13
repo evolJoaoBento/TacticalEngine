@@ -245,8 +245,9 @@ impl Session {
                 }
                 self.ambush = a.opt_text(0).map(str::to_string);
                 self.approaching = match a.get(1) {
-                    Value::Null => None,
-                    held => Some(serde_json::from_value(held.clone()).map_err(|e| format!("an errand: {e}"))?),
+                    Value::Null => Vec::new(),
+                    Value::Array(_) => serde_json::from_value(a.get(1).clone()).map_err(|e| format!("the errands: {e}"))?,
+                    held => vec![serde_json::from_value(held.clone()).map_err(|e| format!("an errand: {e}"))?],
                 };
                 Value::Null
             }

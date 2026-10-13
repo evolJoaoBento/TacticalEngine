@@ -9,7 +9,8 @@
 //! The selection is the account's own: kept among the characters it plays (`keep_selection_own`), the next one
 //! chosen among them (`selectNext`), and nobody for an account that plays nobody. Every intent that acts through
 //! the selection - a walk, a swing, a thing used or taken, an errand begun - is then the account's own, and an
-//! errand is finished or called off by its walker's player alone (`arrived`, `cancelApproach`). Each account's
+//! errand is finished or called off by its walker's player alone (`arrived`, `cancelApproach`), each player's
+//! beside the others' (`movement.rs`, `errand`). Each account's
 //! choice is the server's to keep between its intents (`serve::play`), the game holding one at a time.
 //!
 //! A question is put to whoever's character it is (`pending_for`): the defender asked how a hit lands, the one a
@@ -135,8 +136,6 @@ impl Session {
         let yours = match call {
             "select" => first.is_some_and(|id| self.may_play(id)),
             "answerPending" => self.pending_for().map_or_else(|| self.may_play_unseated(), |id| self.may_play(&id)),
-            // An errand - a walk up to something, to use it or to talk - is its walker's to finish or call off.
-            "cancelApproach" | "arrived" => self.approaching.as_ref().is_none_or(|errand| self.may_play(&errand.who)),
             "endTurn" => self.plays_anybody(),
             "rest" => self.may_play_unseated(),
             _ if NAMED_FIRST.contains(&call) => first.is_some_and(|id| self.may_play(id)),

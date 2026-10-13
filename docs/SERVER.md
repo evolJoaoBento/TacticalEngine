@@ -1543,7 +1543,7 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
       selections not kept as the seats change, the page's engine not told at a stand or a change of seats, a
       question shown for nobody, another's errand sent, the wait said by an account's id - fails a test.
     - **Not yet**: one errand at a time in the game - a guest's walk up to something replaces the host's that is
-      still walking; each player choosing their own downtime moves at a rest (the host rests the party, choosing for
+      still walking (since done: an errand for each player, below); each player choosing their own downtime moves at a rest (the host rests the party, choosing for
       everybody); the lobby, and a shared game's saves its host's (slice 5).
   - **The lobby** (slice 5). A game is hosted as a lobby: the menu's Play Together opens any game Load Game lists, or
     a save of it, with `?host`, and the page opens its game on the server as one (`{ op: "open", lobby: true }`,
@@ -1583,5 +1583,21 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     - **Not yet**: a save keeps nobody's seats - hosting it again, the players take theirs again; a lobby hosted
       from Play Together offers only the games and saves this browser and account have; a guest cannot see the
       host's saves, nor ask for one to be loaded.
-  - **Next**: phase 5's slices are done. What it leaves: one errand at a time; each player's own downtime moves; a
-    shared game's seats kept in its saves.
+  - **An errand for each player** (after slice 5, 13 October 2026). A walk up to something to use it, or to somebody
+    to talk to them, is an errand (`Session::approaching`, now a list): a new one replaces the errands of the walkers
+    the account plays and leaves the others' (`movement.rs`, `errand`), so a friend's walk up to a chest no longer
+    calls off the host's to a door - and a player alone, who plays everybody, still has one at a time, which keeps
+    the frozen walk fixtures true (`golden_walk.rs` reads the first). `arrived` and `cancelApproach` act on the
+    account's own errands alone (the seats' refusal of another's is no longer needed: there is nothing of another's
+    for them to touch). A walk that wakes a fight calls every errand off as the fight begins (`arrive`). The board's
+    `approaching` is the list, and `restoreWalk` takes it. In the page, an errand finishes when every walker its player plays is
+    drawn stopping - the party that followed too, as a player alone always waited for - whoever else's still walk,
+    and not while a walk has woken a fight (`GameTable.arrivedWhereDrawn`,
+    in place of waiting for every token to stop); a page with no errand of its own sends nothing. Proved by the
+    engine's tests (`seats.rs`: the host's and the guest's errands side by side, each called off and finished by its
+    own player alone; one at a time for a player alone; a fight a walk wakes calling off everybody's) and the wire's
+    (both errands on both pages and the server, the guest's finished when the guest's walker stops while the host's
+    still walks, the host's left standing, nothing parted). The e2e drives errands through the driver's `approach`,
+    which finishes them at once, so the two at once are proved in the engine and the wire alone.
+  - **Next**: phase 5's slices are done. What it leaves: each player's own downtime moves; a shared game's seats kept
+    in its saves.

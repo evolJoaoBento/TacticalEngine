@@ -1039,11 +1039,28 @@ describe('a shared game, on the wire', () => {
     host.placeAt(kara, hostDemo.state.entity(kara)!.tile);
     expect(host.approachThenUse('door-12-7')).toBe('walking');
     await settle(server);
-    expect(guestDemo.approaching?.who).toBe(kara);
+    expect(guestDemo.approaching.map((errand) => errand.who)).toEqual([kara]);
     const sent = server.sent.length;
     expect(guest.arrived()).toBe(false);
     await settle(server);
     expect(server.sent.length).toBe(sent);
+    // The guest's walks up to the door too, while the host's is still on its way: both errands stand, on both pages
+    // and the server, each its own player's to finish once their own walkers are drawn stopping, whoever else's walk.
+    expect(guest.approachThenUse('door-12-7')).toBe('walking');
+    await settle(server);
+    const walkers = (errands: { who: string }[]) => errands.map((errand) => errand.who);
+    for (const demo of [hostDemo, guestDemo]) expect(walkers(demo.approaching)).toEqual([kara, theirs]);
+    expect(walkers((server.engine.board() as BoardSnapshot).approaching)).toEqual([kara, theirs]);
+    const hostStillWalking = { isGliding: (id: string) => id === kara };
+    expect(host.arrivedWhereDrawn(hostStillWalking)).toBe(false);
+    // Not while a walk has woken a fight, whose beginning calls every errand off.
+    guestDemo.ambush = 'group-1';
+    expect(guest.arrivedWhereDrawn(hostStillWalking)).toBe(false);
+    guestDemo.ambush = null;
+    expect(guest.arrivedWhereDrawn(hostStillWalking)).toBe(true);
+    await settle(server);
+    expect(walkers((server.engine.board() as BoardSnapshot).approaching)).toEqual([kara]);
+    expect(walkers(hostDemo.approaching)).toEqual([kara]);
     expect(host.arrived()).toBe(true);
     await settle(server);
     expect(differ(guestDemo, server, guestWire.you!)).toBeNull();

@@ -2389,7 +2389,7 @@ function frame(now = performance.now()): void {
   view.tick(dt);
   // The last token stops: the ambush the walk woke begins.
   if (game.board.ambush !== null && view.glidingCount === 0 && game.arrive()) { game.cancelApproach(); refreshPlay(); } // a walk that woke a fight is not a walk to use something
-  if (game.board.approaching !== null && view.glidingCount === 0 && game.arrived()) refreshPlay(); // there: now what it was for
+  if (game.arrivedWhereDrawn(view)) refreshPlay(); // the page's own walkers there, whoever else's still walk: now what it was for
   followSelected(now); if (game.changedBehind()) refreshPlay(); // the server's board stood the game elsewhere: drawn again
   focus.tick();
   // The line is drawn from the figure, so a figure that is walking changes it even though the

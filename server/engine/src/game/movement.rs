@@ -5,7 +5,8 @@
 //! draws before the click.
 //!
 //! Headless there is nobody drawing the walk, so what it wakes begins at once: the TypeScript's `ambush` and
-//! `approaching`, which hold a fight or a use until the tokens stop, are the client's. So is steering, which
+//! `approaching`, which hold a fight or a use until the tokens stop, are the client's. A use or a talk walked up
+//! to is an errand, one for each player at a shared game (`errand`). So is steering, which
 //! turns a held button into a stream of clicks at the pace a token is drawn walking. A push past the circle
 //! and a jump are the rolled moves (`leap`).
 
@@ -434,38 +435,60 @@ impl Session {
     pub fn approach_then_use(&mut self, id: &str) -> Result<&'static str, String> {
         if let Some(who) = self.party.selected().map(str::to_string) {
             if !self.busy() && self.party.can_command(&self.world.state, Some(&who)) && self.close_to_use(&who, id, DEMO_REACH) == "closed" && self.animated {
-                self.approaching = Some(Approach { kind: "use".into(), id: id.into(), who });
+                self.errand(Approach { kind: "use".into(), id: id.into(), who });
                 return Ok("walking");
             }
         }
         Ok(self.use_selected_on(id)?.status)
     }
 
-    /// The walkers are where the board put them (`arrive`): whatever the walk woke begins now. Whether it did.
+    /// The walkers are where the board put them (`arrive`): whatever the walk woke begins now - and a walk that
+    /// woke a fight is no walk to use something, anybody's. Whether it did.
     pub fn arrive(&mut self) -> bool {
         let Some(encounter) = self.ambush.take() else { return false };
+        self.approaching.clear();
         self.start_encounter(&encounter);
         true
     }
 
-    /// The walkers have stopped (`arrived`): do what the walk was for, with whoever walked - nothing when the
-    /// one who walked is no longer who is selected, given another order the interaction does not outlive.
-    pub fn arrived(&mut self) -> Result<bool, String> {
-        let Some(waiting) = self.approaching.take() else { return Ok(false) };
-        if self.party.selected() != Some(waiting.who.as_str()) {
-            return Ok(false);
-        }
-        if waiting.kind == "use" {
-            self.use_selected_on(&waiting.id)?;
-        } else {
-            self.talk_now(&waiting.who, &waiting.id)?;
-        }
-        Ok(true)
+    /// A walk up to something given what it is for: it replaces whatever the account's own walkers were walking up
+    /// to, and leaves the others' - one errand for each player at a shared game, so a friend's walk up to a chest
+    /// does not call off the host's to a door; one at a time for a player alone, who plays everybody.
+    fn errand(&mut self, errand: Approach) {
+        self.take_own_errands();
+        self.approaching.push(errand);
     }
 
-    /// Stop wanting to get there (`cancelApproach`): whether anything was waiting.
+    /// The errands of the walkers the account plays, taken; the others' left.
+    fn take_own_errands(&mut self) -> Vec<Approach> {
+        let all = std::mem::take(&mut self.approaching);
+        let (own, others): (Vec<Approach>, Vec<Approach>) = all.into_iter().partition(|errand| self.may_play(&errand.who));
+        self.approaching = others;
+        own
+    }
+
+    /// The account's walkers have stopped (`arrived`): do what the walk was for, with whoever walked - nothing when
+    /// the one who walked is no longer who is selected, given another order the interaction does not outlive.
+    /// Another player's errand is theirs to finish.
+    pub fn arrived(&mut self) -> Result<bool, String> {
+        let mut done = false;
+        for waiting in self.take_own_errands() {
+            if self.party.selected() != Some(waiting.who.as_str()) {
+                continue;
+            }
+            if waiting.kind == "use" {
+                self.use_selected_on(&waiting.id)?;
+            } else {
+                self.talk_now(&waiting.who, &waiting.id)?;
+            }
+            done = true;
+        }
+        Ok(done)
+    }
+
+    /// Stop wanting to get there (`cancelApproach`): the account's own errands; whether any was waiting.
     pub fn cancel_approach(&mut self) -> bool {
-        self.approaching.take().is_some()
+        !self.take_own_errands().is_empty()
     }
 
     /// Walk up to a creature on nobody's side and talk to it (`talkTo`); a walk that falls short is the move,
@@ -480,7 +503,7 @@ impl Session {
             return Ok(UseOutcome { status: "unreachable", lines: Vec::new() });
         }
         if walk == "closed" && self.animated {
-            self.approaching = Some(Approach { kind: "talk".into(), id: id.into(), who: actor.into() });
+            self.errand(Approach { kind: "talk".into(), id: id.into(), who: actor.into() });
             return Ok(UseOutcome { status: "done", lines: Vec::new() });
         }
         self.talk_now(actor, id)

@@ -108,6 +108,8 @@ export interface GameClient {
   approachThenUse(id: string): string;
   /** The walk an interaction waited for has been drawn: do what it was for. */
   arrived(): boolean;
+  /** Every walker the page's player plays drawn stopping (`view.isGliding`), and no fight waking: what they walked up for. */
+  arrivedWhereDrawn(view: Pick<Walking, 'isGliding'>): boolean;
   cancelApproach(): boolean;
   /** The last token has stopped: the fight a walk woke begins. */
   arrive(): boolean;
@@ -311,10 +313,23 @@ export abstract class GameTable implements GameClient, LocalPowers {
   useSelectedOn(...args: Args<'useSelectedOn'>) { return this.did<UseOutcome>('useSelectedOn', args); }
   approachThenUse(...args: Args<'approachThenUse'>) { return this.did<string>('approachThenUse', args); }
   arrived() {
-    // Every page draws the walk, and only the walker's player's finishes what it was for (`engine::game::seats`):
-    // another's is not sent at all, rather than refused at every frame the walk stands still.
-    if (!plays(this.wire?.seating() ?? null, this.demo.approaching?.who)) return false;
+    // Every page draws the walks, and only the walker's player's finishes what it was for (`engine::game::seats`):
+    // another's is not sent at all, rather than answered nothing at every frame the walk stands still.
+    if (this.ownErrands().length === 0) return false;
     return this.did('arrived', []);
+  }
+  arrivedWhereDrawn(view: Pick<Walking, 'isGliding'>) {
+    // Each player's errand finishes when every walker of theirs is drawn stopping - the party that followed too -
+    // whoever else's still walk; not while a walk has woken a fight, which calls every errand off as it begins.
+    const seating = this.wire?.seating() ?? null;
+    const walking = this.demo.party.members().some((id) => plays(seating, id) && view.isGliding(id));
+    if (this.ownErrands().length === 0 || this.demo.ambush !== null || walking) return false;
+    return this.arrived();
+  }
+  /** The errands of the walkers this page's player plays: each player's own, at a shared game. */
+  private ownErrands() {
+    const seating = this.wire?.seating() ?? null;
+    return this.demo.approaching.filter((errand) => plays(seating, errand.who));
   }
   cancelApproach() { return this.did('cancelApproach', []); }
   arrive() { return this.did('arrive', []); }

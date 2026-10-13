@@ -162,8 +162,9 @@ pub struct Session {
     pub animated: bool,
     /// The fight a walk woke, held until the walkers are drawn arriving.
     pub ambush: Option<String>,
-    /// What a walk is for, held until it is drawn ending.
-    pub approaching: Option<Approach>,
+    /// What each walk is for, held until it is drawn ending: one for each player at a shared game, whose new one
+    /// replaces their last (`movement.rs`, `errand`) - and so one at a time for a player alone.
+    pub approaching: Vec<Approach>,
     /// A replica's word that a question is open where the game is played (`game/replica.rs`): it cannot hold
     /// the question - a script paused mid-run has no form to send - only that one waits.
     pub question_open: bool,
@@ -298,7 +299,7 @@ impl Session {
             question_open: false,
             animated: false,
             ambush: None,
-            approaching: None,
+            approaching: Vec::new(),
             asked: None,
             seating: None,
         })

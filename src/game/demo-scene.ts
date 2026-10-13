@@ -115,8 +115,11 @@ export interface DemoScene {
    * swings in between.
    */
   ambush: string | null;
-  /** A thing to use or somebody to talk to once the walk up to them ends (the engine's, `approachThenUse`). */
-  approaching: Approach | null;
+  /**
+   * The things to use or somebody to talk to once the walks up to them end (the engine's, `approachThenUse`): one
+   * for each player at a shared game, and so one at a time for a player alone.
+   */
+  approaching: Approach[];
   /** Waiting on the player: a script's roll or choice, or a defender's answer. */
   pending: Pending | null;
   /** Set while a fight is running. */
@@ -741,7 +744,7 @@ export function buildProjectScene(project: ProjectDoc, seed = 'project'): DemoSc
     motions: [],
     animated: false,
     ambush: null,
-    approaching: null,
+    approaching: [],
     pending: null,
     encounter: null,
     gmTurn: null,

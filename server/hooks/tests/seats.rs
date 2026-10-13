@@ -206,27 +206,60 @@ fn a_question_is_put_to_whoever_plays_the_character_it_is_about() {
 }
 
 #[test]
-fn an_errand_is_finished_or_called_off_by_its_walkers_player_alone() {
+fn each_player_has_an_errand_of_their_own_finished_or_called_off_by_them_alone() {
+    let errands = |session: &Session| session.approaching.iter().map(|a| a.who.clone()).collect::<Vec<_>>();
+    // Each time from the start: the host's walker walks up to a door to use it, held until the walk is drawn
+    // ending, and then the guest's walks up to it too - theirs beside the host's, not in its place.
+    let both = || {
+        let mut session = demo();
+        session.animated = true;
+        let party = members(&session);
+        let (hosts, guests) = (party[0].clone(), party[1].clone());
+        let door = engine::scene::prop_functions::interactables_of(&session.scene).into_iter().filter_map(|t| t["id"].as_str().map(str::to_string)).find(|id| id.contains("door")).expect("a door");
+        seat(&mut session, "host", json!({ guests.clone(): "guest" }));
+        session.dispatch("select", &[json!(hosts)]).unwrap();
+        assert_eq!(play(&mut session, "approachThenUse", json!([door])).0, "walking");
+        seat(&mut session, "guest", json!({ guests.clone(): "guest" }));
+        assert_eq!(play(&mut session, "approachThenUse", json!([door])).0, "walking");
+        (session, hosts, guests)
+    };
+    let (mut session, hosts, guests) = both();
+    assert_eq!(errands(&session), [hosts.clone(), guests.clone()]);
+    // The guest calls off their own alone, and does not finish the host's.
+    assert_eq!(play(&mut session, "cancelApproach", json!([])).0, json!(true));
+    assert_eq!(errands(&session), [hosts.clone()]);
+    assert_eq!(play(&mut session, "cancelApproach", json!([])).0, json!(false));
+    assert_eq!(play(&mut session, "arrived", json!([])).0, json!(false), "the host's is not the guest's to finish");
+    assert_eq!(errands(&session), [hosts.clone()]);
+    // The host finishes theirs.
+    seat(&mut session, "host", json!({ guests.clone(): "guest" }));
+    assert_eq!(play(&mut session, "arrived", json!([])).0, json!(true));
+    assert!(session.approaching.is_empty());
+    // And the guest theirs, the host's left standing.
+    let (mut session, hosts, _) = both();
+    assert_eq!(play(&mut session, "arrived", json!([])).0, json!(true));
+    assert_eq!(errands(&session), [hosts]);
+}
+
+#[test]
+fn a_player_alone_has_one_errand_at_a_time_and_a_fight_a_walk_wakes_calls_off_every_one() {
     let mut session = demo();
     session.animated = true;
     let party = members(&session);
-    let walker = party[0].clone();
-    session.dispatch("select", &[json!(walker)]).unwrap();
-    // A walk up to a door, to use it: held until the walk is drawn ending.
     let door = engine::scene::prop_functions::interactables_of(&session.scene).into_iter().filter_map(|t| t["id"].as_str().map(str::to_string)).find(|id| id.contains("door")).expect("a door");
-    let (status, _) = play(&mut session, "approachThenUse", json!([door]));
-    assert_eq!(status, "walking", "{status}");
-    let errand = session.approaching.as_ref().map(|a| a.who.clone());
-    assert_eq!(errand.as_deref(), Some(walker.as_str()));
-    // Another's player neither finishes it nor calls it off: the errand stands.
-    seat(&mut session, "guest", json!({ party[1].clone(): "guest" }));
-    assert_eq!(play(&mut session, "arrived", json!([])).0, json!(false));
-    assert_eq!(play(&mut session, "cancelApproach", json!([])).0, json!(false));
-    assert!(session.approaching.is_some(), "the walker's errand still stands");
-    // Its walker's player finishes it.
-    seat(&mut session, "host", json!({ party[1].clone(): "guest" }));
-    assert_eq!(play(&mut session, "arrived", json!([])).0, json!(true));
-    assert!(session.approaching.is_none());
+    // Told nobody, the game plays for everybody: a second walker's errand replaces the first's, as it always did.
+    for who in [&party[0], &party[1]] {
+        session.dispatch("select", &[json!(who)]).unwrap();
+        assert_eq!(play(&mut session, "approachThenUse", json!([door])).0, "walking");
+    }
+    assert_eq!(session.approaching.iter().map(|a| a.who.as_str()).collect::<Vec<_>>(), [party[1].as_str()]);
+    // Two players' errands, and a walk that wakes a fight: no walk to use something, anybody's.
+    seat(&mut session, "guest", json!({ party[0].clone(): "guest" }));
+    assert_eq!(play(&mut session, "approachThenUse", json!([door])).0, "walking");
+    assert_eq!(session.approaching.len(), 2);
+    session.ambush = Some("group-1".into());
+    assert_eq!(play(&mut session, "arrive", json!([])).0, json!(true));
+    assert!(session.approaching.is_empty());
 }
 
 #[test]

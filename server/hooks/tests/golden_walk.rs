@@ -93,7 +93,8 @@ fn view(session: &mut Session, since: usize) -> Value {
         "things": state.snapshot()["interactables"],
         "scenario": session.world.scenario.snapshot(),
         "ambush": session.ambush,
-        "approaching": session.approaching,
+        // One errand at a time for a player alone, as the TypeScript held it.
+        "approaching": session.approaching.first(),
     });
     session.floaters.clear();
     session.motions.clear();
