@@ -11,7 +11,9 @@ every character nobody is seated in. A question - a roll, how a hit lands, a dea
 conversation - is put to whoever plays the character it is about, and the others see whom it waits on. The
 server's game is the one that counts (phase 5, slice 1), and saves are kept on your machine.
 
-**Not yet:** a rest is yours to call, and you choose everybody's downtime moves.
+**A rest is the party's:** anybody who plays a character calls one from the Rest button, everybody agrees to it
+or not - one "Not now" calls it off - and each chooses their own characters' two downtime moves. It is taken once
+everybody is ready.
 
 ## What it is
 

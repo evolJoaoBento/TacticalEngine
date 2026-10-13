@@ -205,6 +205,27 @@ test('a game hosted from the menu is a lobby: friends join with the link, take t
   const moved = await walked(guest, theirs);
   await expect.poll(() => page.evaluate((id) => window.__engine!.tileOf(id), theirs), { timeout: 15_000 }).toBe(moved);
 
+  // A rest is the party's: the guest calls one with their own character's moves; the host's page asks the host to
+  // agree, then to choose their own; once the host is ready it is taken on both.
+  await guest.bringToFront();
+  await guest.getByTestId('open-rest').click();
+  const guestRest = guest.getByTestId('rest');
+  await expect(guestRest.getByTestId('take-rest')).toHaveText('Call a rest');
+  await expect(guestRest.locator('[data-rest-member]')).toHaveCount(1);
+  await guestRest.getByTestId('take-rest').click();
+  await expect(guestRest.getByTestId('rest-waiting')).toBeVisible();
+  await page.bringToFront();
+  const hostRest = page.getByTestId('rest');
+  await expect(hostRest.getByTestId('rest-called')).toContainText('called a short rest', { timeout: 15_000 });
+  await page.screenshot({ path: 'test-results/rest-vote.png' });
+  await hostRest.getByTestId('rest-agree').click();
+  await expect(hostRest.locator(`[data-rest-status="${theirs}"]`)).not.toContainText('choosing');
+  await expect(hostRest.locator('[data-rest-member]')).toHaveCount(party.length - 1);
+  await hostRest.getByTestId('rest-ready').click();
+  await expect(hostRest).toHaveCount(0);
+  await expect(guestRest).toHaveCount(0, { timeout: 15_000 });
+  expect(await guest.evaluate(() => window.__engine!.log().map((l) => l.text).join('\n'))).toMatch(/The GM gains \d+ Shadow/);
+
   // The host keeps the game's saves: the guest's page saves nothing.
   expect(await guest.evaluate(() => window.__engine!.saveBlocked())).toBe("The host keeps this game's saves.");
   expect(await page.evaluate(() => window.__engine!.saveBlocked())).toBeNull();
@@ -213,7 +234,8 @@ test('a game hosted from the menu is a lobby: friends join with the link, take t
   await expect(guest.getByTestId('save')).toHaveAttribute('title', "The host keeps this game's saves.");
 
   for (const each of [page, guest]) {
-    expect(await each.evaluate(() => window.__replica!.server())).toBe('in');
+    // Stood where the game is once whatever crossed the rest is answered - a page part-way there is no parting.
+    await expect.poll(() => each.evaluate(() => window.__replica!.server()), { timeout: 15_000 }).toBe('in');
     expect(await each.evaluate(() => window.__replica!.count().parted)).toBe(0);
   }
 

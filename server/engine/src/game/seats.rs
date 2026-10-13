@@ -61,7 +61,7 @@ impl Session {
     }
 
     /// Whether the account plays anybody in the party.
-    fn plays_anybody(&self) -> bool {
+    pub(super) fn plays_anybody(&self) -> bool {
         self.party.members(&self.world.state).iter().any(|id| self.may_play(id))
     }
 
@@ -158,7 +158,7 @@ impl Session {
 
     /// Whether the account is the host, who plays every character nobody is seated in, and answers for nobody -
     /// once the game has started.
-    fn may_play_unseated(&self) -> bool {
+    pub(super) fn may_play_unseated(&self) -> bool {
         self.seating.as_ref().is_none_or(|seating| seating.started && seating.you == seating.host)
     }
 

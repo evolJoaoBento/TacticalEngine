@@ -33,6 +33,8 @@ impl Session {
             self.world.state.entity_mut(&id).expect("standing").truce = None;
             self.world.state.set_attitude(&id, "hostile");
         }
+        // A fight is no time for the rest anybody called.
+        self.rest_call = None;
         let mut runner = EncounterRunner::new(encounter_id, None, None);
         runner.start(&mut self.world.state);
         self.encounter = Some(runner);

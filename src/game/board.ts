@@ -24,6 +24,7 @@ export interface BoardSnapshot {
   pending: unknown;
   ambush: string | null;
   approaching: DemoScene['approaching'];
+  rest: DemoScene['restCall'];
   log: LogLine[];
   rolls: { who: string; what: string; roll: DualityRoll }[];
   opened: string | null;
@@ -60,6 +61,7 @@ export function boardOf(demo: DemoScene): BoardSnapshot {
     pending: pendingOf(demo),
     ambush: demo.ambush,
     approaching: demo.approaching,
+    rest: demo.restCall,
     log: demo.log,
     rolls: rollsOf(demo),
     opened: openContainer(demo),
@@ -133,6 +135,7 @@ export function restoreFromBoard(demo: DemoScene, board: BoardSnapshot): void {
   demo.rng.restore(board.rng);
   demo.ambush = board.ambush;
   demo.approaching = board.approaching;
+  demo.restCall = board.rest ?? null;
   if (board.opened === null) closeContainer(demo);
   else showContainer(demo, board.opened);
   demo.log.length = 0;

@@ -36,6 +36,7 @@ import { LoadoutPanel } from './game/ui/LoadoutPanel';
 import { liftCurtainWhenReady } from './game/ui/curtain';
 import { CardPreview } from './game/ui/CardPreview';
 import { RestPanel } from './game/ui/RestPanel';
+import { restPanelProps } from './game/rest-call';
 import type { RestPlan } from './game/demo-abilities';
 import type { LevelUpIssue, LevelUpPlan } from './engine/character/progression';
 import { OrbitCamera } from './engine/render/camera';
@@ -1458,20 +1459,8 @@ function renderPlayPanel(): void {
           gear: game.gearView(loadoutOpen), onEquip: (item: string) => gearDone(game.equipItem(loadoutOpen!, item)),
           onUnequip: (slot: GearSlot) => gearDone(game.unequipItem(loadoutOpen!, slot)), onUseItem: (item: string) => { game.useItem(item); refreshPlay(); },
         })
-      : null, restOpen
-      ? h(RestPanel, {
-          party: game.board.party.members().map((id) => ({ id, name: game.nameOf(id) })),
-          onRest: (kind: 'short' | 'long', plan: RestPlan) => {
-            const result = game.rest(kind, plan);
-            if (!result.ok) game.note(`Cannot rest: ${result.reason}.`, 'system');
-            restOpen = false;
-            refreshPlay();
-          },
-          onClose: () => {
-            restOpen = false;
-            refreshPlay();
-          },
-        })
+      : null, restOpen || game.board.restCall !== null // a rest called is on every page until it is taken or called off
+      ? h(RestPanel, restPanelProps(game, () => { restOpen = false; }, refreshPlay))
       : null, levelling !== null && game.board.sheets.has(levelling) && game.awaitingLevel().includes(levelling)
       ? h(LevelUpPanel, {
           sheet: game.board.sheets.get(levelling)!,

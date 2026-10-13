@@ -20,6 +20,11 @@ fn ok_or<T: serde::Serialize>(result: Result<T, String>, key: &str) -> Value {
     }
 }
 
+/// A rest call's answer as it is given (`{ ok, rested }`), or why not (`{ ok: false, reason }`).
+fn called(result: Result<Value, String>) -> Value {
+    result.unwrap_or_else(|reason| json!({ "ok": false, "reason": reason }))
+}
+
 fn to(value: impl serde::Serialize) -> Value {
     serde_json::to_value(value).expect("an answer writes")
 }
@@ -100,6 +105,11 @@ impl Session {
             "useItem" => to(self.use_item(a.text(0)?)?),
             "swapCard" => ok_or(self.swap_card(a.text(0)?, a.text(1)?, a.opt_text(2), a.get(3)["resting"] == true), "stress"),
             "rest" => ok_or(self.rest(a.text(0)? == "long", a.get(1)), "badGained"),
+            // A rest called, voted on and each player's own moves chosen (`rest_call.rs`).
+            "callRest" => called(self.call_rest(a.text(0)?, a.get(1))),
+            "voteRest" => called(self.vote_rest(a.get(0) == &json!(true))),
+            "chooseRest" => called(self.choose_rest(a.get(0))),
+            "cancelRest" => called(self.cancel_rest()),
             "applyLevelUp" => {
                 let plan: LevelUpPlan = serde_json::from_value(a.get(1).clone()).map_err(|e| format!("a plan: {e}"))?;
                 match self.apply_level_up(a.text(0)?, &plan) {
@@ -244,6 +254,10 @@ impl Session {
                     self.rolls = serde_json::from_value(a.get(3).clone()).map_err(|e| format!("the rolls: {e}"))?;
                 }
                 self.ambush = a.opt_text(0).map(str::to_string);
+                self.rest_call = match a.get(4) {
+                    Value::Null => None,
+                    held => Some(serde_json::from_value(held.clone()).map_err(|e| format!("a rest called: {e}"))?),
+                };
                 self.approaching = match a.get(1) {
                     Value::Null => Vec::new(),
                     Value::Array(_) => serde_json::from_value(a.get(1).clone()).map_err(|e| format!("the errands: {e}"))?,

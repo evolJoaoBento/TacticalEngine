@@ -22,6 +22,7 @@ import { WasmEngine } from './wasm-engine';
 import { WasmGame } from './wasm-game';
 import { KEPT_BY_HOST, LOCAL, Wire, type Said, type SharedTable, type Transport } from './wire';
 import { AccountSaves } from './account-saves';
+import type { RestMove } from './demo-abilities';
 import { talkingTo, talkingView } from './ui/play-views';
 import { interactablesOf } from '../engine/scene/prop-functions';
 import { act } from '../../tests/fixtures/random-play';
@@ -1151,6 +1152,37 @@ describe('a shared game, on the wire', () => {
     // A page at nobody's table keeps its own.
     hostWire.close();
     expect(hostWire.keepsSaves()).toBe(true);
+  }, 120_000);
+
+  it.skipIf(!built)('rests as the party agrees: a rest called, voted on, each page choosing its own, taken once all are in', async () => {
+    const { server, hostDemo, host, guestDemo, guest, guestWire, theirs, before } = await sharing('rest');
+    const hosts = hostDemo.party.members().filter((id) => id !== theirs);
+    const two = (ids: readonly string[], kind: RestMove['kind']) => Object.fromEntries(ids.map((id) => [id, [{ kind }, { kind }] as RestMove[]]));
+    host.wound(hosts[0]!, 2);
+    await settle(server);
+    // The host calls a short rest with their own characters' moves: both pages see it, waiting on the guest.
+    expect(host.callRest('short', two(hosts, 'prepare'))).toEqual({ ok: true, rested: false });
+    await settle(server);
+    for (const demo of [hostDemo, guestDemo]) expect(demo.restCall?.agreed).toEqual(['host']);
+    expect(guestDemo.restCall?.voters).toContain(guestWire.you);
+    // The guest may not choose for the host's; agrees, and chooses their own: taken, on both pages and the server.
+    expect(guest.chooseRest(two(hosts, 'clearStress')).ok).toBe(false);
+    expect(guest.voteRest(true)).toEqual({ ok: true, rested: false });
+    await settle(server);
+    const rested = guest.chooseRest(two([theirs], 'prepare'));
+    expect(rested.ok && rested.rested).toBe(true);
+    await settle(server);
+    for (const demo of [hostDemo, guestDemo]) expect(demo.restCall).toBeNull();
+    expect(guestDemo.log.some((line) => line.text.endsWith('prepares: 2 Light.'))).toBe(true);
+    expect(differ(hostDemo, server)).toBeNull();
+    expect(differ(guestDemo, server, guestWire.you!)).toBeNull();
+    // Called again and declined: off, on both.
+    host.callRest('long', {});
+    await settle(server);
+    expect(guest.voteRest(false)).toEqual({ ok: true, rested: false });
+    await settle(server);
+    expect(hostDemo.restCall).toBeNull();
+    expect(replicaCount().first.slice(before.first.length)).toEqual([]);
   }, 120_000);
 
   it.skipIf(!built)('puts a question to whoever plays the character it is about, and nobody else answers it', async () => {

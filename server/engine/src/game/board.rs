@@ -35,6 +35,7 @@ impl Session {
             "pending": self.board_pending(),
             "ambush": self.ambush,
             "approaching": self.approaching,
+            "rest": self.rest_call,
             "log": self.log,
             "rolls": rolls,
             "opened": opened,

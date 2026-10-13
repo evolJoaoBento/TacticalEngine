@@ -412,6 +412,21 @@ export interface RestPlan {
 
 export type RestResult = { ok: true; badGained: number } | { ok: false; reason: string };
 
+/**
+ * A rest called and not yet taken (the engine's `rest_call.rs`): its kind, who called it, everybody who votes on it
+ * and who has agreed - accounts, `''` for a player alone - and the moves chosen so far, by character.
+ */
+export interface RestCall {
+  kind: 'short' | 'long';
+  by: string;
+  voters: string[];
+  agreed: string[];
+  moves: Record<string, RestMove[]>;
+}
+
+/** What calling, agreeing to or choosing for a rest came to: whether it was taken then, or why not. */
+export type RestCallResult = { ok: true; rested: boolean; badGained?: number } | { ok: false; reason: string };
+
 /** A card a stat block prints, as somebody looking at the creature reads it. */
 export interface PrintedCard {
   id: string;

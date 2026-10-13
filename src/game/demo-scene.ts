@@ -53,6 +53,7 @@ import { Party } from '../engine/scene/party';
 import type { SceneDoc } from '../engine/scene/schema';
 import { createPartyEntity, type SceneState } from '../engine/scene/state';
 import { TriggerIndex } from '../engine/scene/triggers';
+import type { RestCall } from './demo-abilities';
 
 export interface DemoScene {
   scene: SceneDoc;
@@ -120,6 +121,8 @@ export interface DemoScene {
    * for each player at a shared game, and so one at a time for a player alone.
    */
   approaching: Approach[];
+  /** A rest called and not yet taken: voted on, then each player's own moves (the engine's, `callRest`). */
+  restCall: RestCall | null;
   /** Waiting on the player: a script's roll or choice, or a defender's answer. */
   pending: Pending | null;
   /** Set while a fight is running. */
@@ -745,6 +748,7 @@ export function buildProjectScene(project: ProjectDoc, seed = 'project'): DemoSc
     animated: false,
     ambush: null,
     approaching: [],
+    restCall: null,
     pending: null,
     encounter: null,
     gmTurn: null,

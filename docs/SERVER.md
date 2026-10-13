@@ -1544,7 +1544,7 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
       question shown for nobody, another's errand sent, the wait said by an account's id - fails a test.
     - **Not yet**: one errand at a time in the game - a guest's walk up to something replaces the host's that is
       still walking (since done: an errand for each player, below); each player choosing their own downtime moves at a rest (the host rests the party, choosing for
-      everybody); the lobby, and a shared game's saves its host's (slice 5).
+      everybody - since done: a rest the party agrees to, below); the lobby, and a shared game's saves its host's (slice 5).
   - **The lobby** (slice 5). A game is hosted as a lobby: the menu's Play Together opens any game Load Game lists, or
     a save of it, with `?host`, and the page opens its game on the server as one (`{ op: "open", lobby: true }`,
     `WireOptions.lobby`). A game so opened has not started (`Shared::started`, the table's `started`): friends join
@@ -1618,4 +1618,34 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     numbered), the page's (`seatFor`: a kept seat nobody else's to take) and the e2e on the server (`shared.spec.ts`:
     the host's save carrying the guest's seat, hosted again, the lobby saying it is kept, the guest back with the new
     link seated in their own and selected at the start, nothing parted).
-  - **Next**: phase 5's slices are done. What it leaves: each player's own downtime moves at a rest.
+  - **A rest the party agrees to** (13 October 2026). A rest is called, voted on, and each player's own (`engine::game::
+    rest_call`, `Session::rest_call`, the board's `rest`). Anybody who plays a character calls one, short or long, with
+    their own characters' two downtime moves (`callRest`); everybody who plays a character - fixed when it is called:
+    each member's player, the account seated in them or the host - agrees or not (`voteRest`), all of them, one who
+    would rather not calling it off ("The party does not rest: not everybody is ready."); each chooses their own
+    characters' moves (`chooseRest`, refused for anybody else's), before or after agreeing; and once everybody has
+    agreed and every one of the party standing has their moves, the rest is taken as it always was (`kit.rs`,
+    `rest`) - the moves gathered in the party's order, whoever chose first, so the dice fall alike on the server and
+    every page - Prepare together counting across players. Its caller or the host calls it off (`cancelRest`); a
+    fight beginning or a save loaded drops it; it is refused in a fight, in a conversation, to a watcher, and before a
+    lobby's game starts; if the party can no longer rest when the last choice lands, it is dropped with a word in the
+    log. The page's engine is told it with the walk (`restoreWalk`'s fifth argument) as it is stood. A player alone,
+    or one who plays everybody, has one voter - themselves - so calling a rest with everybody's moves takes it at
+    once, exactly as `rest` did (the engine's test holds the two to the same board); `rest` itself stays, the host's
+    word, for the test driver. The rest panel (`ui/RestPanel.tsx`, read through `rest-call.ts`) is on every page while
+    a rest is called, and only its buttons put it away: with none, the kind and the page's own characters' moves and
+    Rest - or Call a rest, when others play; called, Agree and Not now for whoever has not agreed, then Ready over
+    their own characters' moves, with what the others chose ("Violet: Prepare, Prepare" - so two can prepare
+    together), whom it waits on, and Call it off for its caller or the host. Proved by the engine's tests
+    (`rest_call.rs`: a player alone's call the same board as `rest`; the vote, the refusal of another's character, a
+    no calling it off, agreeing then choosing taking it and the GM's Shadow; moves chosen before agreeing; preparing
+    together across players; a watcher and a lobby refused, the caller and the host calling it off and nobody else; a
+    fight dropping it and refusing it; the call told to another engine and dropped by a load), the page's
+    (`rest-call.test.ts`: alone or not, asked to agree or not, may call it off or not, whose each character is), the
+    wire's (a call on two pages, the guest refused the host's characters, agreeing and choosing, taken on both with
+    Prepare together, declined; nothing parted) and the e2e (the solo rests through the panel unchanged; on the
+    server, the guest calling a rest with their character's moves, the host's panel up by itself asking them to
+    agree, then their own characters' moves, Ready, the rest taken and the panels gone from both).
+    - **Not yet**: the SRD's limit of three short rests before a long one, and a long rest's Work on a Project - neither
+      is in the engine yet, called or not.
+  - **Next**: phase 5's slices are done, and what they left with them.

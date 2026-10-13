@@ -19,6 +19,7 @@ pub mod log;
 pub mod movement;
 pub mod play;
 pub mod replica;
+pub mod rest_call;
 pub mod rules;
 pub mod save;
 pub mod seats;

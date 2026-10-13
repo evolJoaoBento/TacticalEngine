@@ -44,7 +44,7 @@ import { gearOf, type EquipResult, type GearSlot } from './equip';
 import { plays } from './shared-game';
 import { gearView } from './gear';
 import { inspection } from './inspect';
-import { abilitiesOf, abilityList, abilityTargets, loadoutView, pointTiles, shapeAt, type RestPlan, type RestResult, type SwapResult } from './demo-abilities';
+import { abilitiesOf, abilityList, abilityTargets, loadoutView, pointTiles, shapeAt, type RestCallResult, type RestPlan, type RestResult, type SwapResult } from './demo-abilities';
 import { saveBlockedBy, serialiseSave, type LoadResult } from './save';
 import { openContainer, withinReach } from './prop-use';
 import { hoverLine } from './hover';
@@ -78,6 +78,7 @@ export type Board = Readonly<
     | 'diceMillis'
     | 'ambush'
     | 'approaching'
+    | 'restCall'
   >
 >;
 
@@ -120,6 +121,14 @@ export interface GameClient {
   /** A card into the loadout from the vault, another out - a cost in Stress, unless resting. */
   swapCard(characterId: string, cardIn: string, cardOut?: string, options?: { resting?: boolean }): SwapResult;
   rest(kind: 'short' | 'long', plan: RestPlan): RestResult;
+  /** A rest called, with the caller's own characters' moves: taken at once by a player alone (`rest_call.rs`). */
+  callRest(kind: 'short' | 'long', moves: RestPlan['moves']): RestCallResult;
+  /** Agree to the rest called, or not - which calls it off. */
+  voteRest(agree: boolean): RestCallResult;
+  /** The page's own characters' moves for the rest called; it is taken once everybody's are in and all agree. */
+  chooseRest(moves: RestPlan['moves']): RestCallResult;
+  /** The rest called, called off by whoever called it or the host. */
+  cancelRest(): RestCallResult;
   applyLevelUp(characterId: string, plan: LevelUpPlan): LevelUpResult;
   travelTo(sceneId: string): boolean;
   /** A save loaded from its text - and its slot, which the server's game loads its own copy of (`wire.ts`). */
@@ -339,6 +348,10 @@ export abstract class GameTable implements GameClient, LocalPowers {
   useItem(...args: Args<'useItem'>) { return this.did<UseOutcome>('useItem', args); }
   swapCard(...args: Args<'swapCard'>) { return this.did<SwapResult>('swapCard', args); }
   rest(...args: Args<'rest'>) { return this.did<RestResult>('rest', args); }
+  callRest(...args: Args<'callRest'>) { return this.did<RestCallResult>('callRest', args); }
+  voteRest(...args: Args<'voteRest'>) { return this.did<RestCallResult>('voteRest', args); }
+  chooseRest(...args: Args<'chooseRest'>) { return this.did<RestCallResult>('chooseRest', args); }
+  cancelRest() { return this.did<RestCallResult>('cancelRest', []); }
   applyLevelUp(...args: Args<'applyLevelUp'>) { return this.did<LevelUpResult>('applyLevelUp', args); }
   travelTo(...args: Args<'travelTo'>) { return this.did<boolean>('travelTo', args); }
   loadGameText(text: string, slot?: string) { return this.did<LoadResult>('loadGameText', slot === undefined ? [text] : [text, slot]); }

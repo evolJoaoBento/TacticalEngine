@@ -242,6 +242,8 @@ impl Session {
             }
         }
         self.rng.restore(crate::rng::to_uint32(save["rng"].as_f64().unwrap_or(0.0)));
+        // A rest called is the table's, not the save's.
+        self.rest_call = None;
         self.log = save["log"].as_array().map_or(Vec::new(), |lines| lines.iter().map(LogLine::read).collect());
         if let Some(selected) = save["selected"].as_str() {
             if self.party.members(&self.world.state).iter().any(|m| m == selected) {

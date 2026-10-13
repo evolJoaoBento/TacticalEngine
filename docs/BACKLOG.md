@@ -4,6 +4,14 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## Phase 5 (multiplayer): a rest the party agrees to — done
+
+A rest is called, voted on, and each player's own: anybody who plays a character calls one with their own
+characters' moves, everybody who plays a character agrees (one "Not now" calls it off), each chooses their own
+characters' two downtime moves, and it is taken once all are in - Prepare together counting across players. The
+panel comes up on every page while a rest is called. A player alone still rests in one click, the same rest as
+before. Not built, called or not: the three-short-rests limit and a long rest's Work on a Project.
+
 ## Phase 5 (multiplayer): a shared game's saves keep who plays whom — done
 
 The host's save records who played whom, in its slot on the server. Hosting it again keeps each friend's character
