@@ -4,13 +4,19 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## Rests: three short ones, then a long one — done
+
+The SRD's limit: after three short rests the party's next must be long. The panel says how many have been taken and
+then offers only a long one; the count is kept in a save (written only once there is one, so older saves read the
+same). The bare `rest` the test driver and the recorded games use is not held to it.
+
 ## Phase 5 (multiplayer): a rest the party agrees to — done
 
 A rest is called, voted on, and each player's own: anybody who plays a character calls one with their own
 characters' moves, everybody who plays a character agrees (one "Not now" calls it off), each chooses their own
 characters' two downtime moves, and it is taken once all are in - Prepare together counting across players. The
 panel comes up on every page while a rest is called. A player alone still rests in one click, the same rest as
-before. Not built, called or not: the three-short-rests limit and a long rest's Work on a Project.
+before. Not built, called or not: a long rest's Work on a Project (the three-short-rests limit is, above).
 
 ## Phase 5 (multiplayer): a shared game's saves keep who plays whom — done
 

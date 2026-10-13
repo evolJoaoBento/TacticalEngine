@@ -1646,6 +1646,20 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     Prepare together, declined; nothing parted) and the e2e (the solo rests through the panel unchanged; on the
     server, the guest calling a rest with their character's moves, the host's panel up by itself asking them to
     agree, then their own characters' moves, Ready, the rest taken and the panels gone from both).
-    - **Not yet**: the SRD's limit of three short rests before a long one, and a long rest's Work on a Project - neither
-      is in the engine yet, called or not.
+    - **Not yet**: the SRD's limit of three short rests before a long one (since done, below), and a long rest's Work
+      on a Project - neither is in the engine yet, called or not.
+  - **Three short rests, then a long one** (13 October 2026). The SRD's limit: after three short rests the party's next
+    must be long. The engine counts the short rests since the last long one (`Session::short_rests`), taken through a
+    rest called (`rest_call.rs`, `SHORT_RESTS`): a fourth short one is refused when it is called, and a long one begins
+    the count again. The count is the save's (`shortRests`, written only once it is more than none, so every save
+    written before - and every one the recorded games make - reads the same; both save schemas take it, the engine's
+    and the page's, which writes the same text as the server's game), the board's (`shortRests`), and told to an engine
+    brought into step with the walk (`restoreWalk`'s sixth argument). The bare `rest` - the host's word, the test
+    driver's, and the recorded games the engine is held to, which took up to 41 short rests in a row - neither counts
+    nor is held to it. The panel says how many have been taken ("Short rests since the last long one: 2 of 3."), and
+    after three offers only a long one. Proved by the engine's tests (three taken and the fourth refused; the count in
+    a save and loaded elsewhere; a long rest beginning it again; a save from before reading as none; the bare rest
+    neither counting nor held; the count told to an engine in step), the page's (`save.test.ts`: the count saved and
+    parsed, and absent before there is one), the wire's (counted on both pages; the page's save the server's) and the
+    e2e (three short rests through the panel, the fourth offered only long, a long one beginning the count again).
   - **Next**: phase 5's slices are done, and what they left with them.

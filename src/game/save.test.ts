@@ -63,6 +63,15 @@ describe('saving a game', () => {
     expect(saveBlockedBy(demo)).toBeNull();
     expect(saveGame(demo)).not.toBeNull();
   });
+
+  it('keeps the short rests since the last long one - and none, as a save always was, before there is one', () => {
+    const demo = scene();
+    expect('shortRests' in saveGame(demo)!).toBe(false);
+    demo.shortRests = 2;
+    const save = saveGame(demo)!;
+    expect(save.shortRests).toBe(2);
+    expect(saveSchema.parse(JSON.parse(JSON.stringify(save))).shortRests).toBe(2);
+  });
 });
 
 describe('the scrollback a save carries', () => {

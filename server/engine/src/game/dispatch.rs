@@ -254,6 +254,7 @@ impl Session {
                     self.rolls = serde_json::from_value(a.get(3).clone()).map_err(|e| format!("the rolls: {e}"))?;
                 }
                 self.ambush = a.opt_text(0).map(str::to_string);
+                self.short_rests = a.get(5).as_u64().map_or(0, |n| n as u32);
                 self.rest_call = match a.get(4) {
                     Value::Null => None,
                     held => Some(serde_json::from_value(held.clone()).map_err(|e| format!("a rest called: {e}"))?),

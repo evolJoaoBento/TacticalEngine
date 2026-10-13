@@ -36,6 +36,7 @@ impl Session {
             "ambush": self.ambush,
             "approaching": self.approaching,
             "rest": self.rest_call,
+            "shortRests": self.short_rests,
             "log": self.log,
             "rolls": rolls,
             "opened": opened,

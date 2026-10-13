@@ -65,6 +65,11 @@ export const saveSchema = z.object({
    * up wants: where they were and what just happened.
    */
   log: z.array(z.object({ text: z.string(), tone: logToneSchema })),
+  /**
+   * Short rests since the party's last long one: after three the next must be long (the engine's `rest_call.rs`).
+   * Written only once there has been one, so a save from before reads as none.
+   */
+  shortRests: z.number().int().min(0).optional(),
 });
 
 /**
@@ -109,6 +114,7 @@ export function saveGame(demo: DemoScene): SaveGame | null {
     // Parsed rather than spread: a deep copy in the save's own shape.
     sheets: [...demo.sheets.values()].map((sheet) => characterSheetSchema.parse(sheet)),
     log: demo.log.slice(-SAVED_LOG_LINES).map((line) => ({ ...line })),
+    ...(demo.shortRests > 0 ? { shortRests: demo.shortRests } : {}),
   };
 }
 

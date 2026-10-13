@@ -5,12 +5,13 @@
  * characters' moves, and the button that calls it - which, for a player alone, is the rest taken. With a rest
  * called, whoever has not agreed is asked to (Agree, or Not now, which calls it off); then each chooses their own
  * characters' moves (Ready), seeing what the others chose - so two can Prepare together - and whose are still to
- * come. It stays up while a rest is called: its buttons are the way out, not Escape.
+ * come. After three short rests the next must be long, and only a long one is offered. It stays up while a rest is
+ * called: its buttons are the way out, not Escape.
  */
 
 import { useState } from 'preact/hooks';
 import type { RestMove } from '../demo-abilities';
-import type { RestPanelProps } from '../rest-call';
+import { SHORT_RESTS, type RestPanelProps } from '../rest-call';
 import './hud.css';
 
 export type { RestPanelProps };
@@ -29,7 +30,9 @@ const said = (pair: readonly RestMove[]): string => pair.map((move) => MOVES.fin
 
 export function RestPanel(props: RestPanelProps): preact.JSX.Element {
   const call = props.call;
-  const [kind, setKind] = useState<'short' | 'long'>('short');
+  // After three short rests the next must be long: only a long one is offered.
+  const owed = props.shortRests >= SHORT_RESTS;
+  const [kind, setKind] = useState<'short' | 'long'>(owed ? 'long' : 'short');
   const mine = props.party.filter((member) => member.mine);
   const [moves, setMoves] = useState<Record<string, [RestMove, RestMove]>>(() =>
     Object.fromEntries(mine.map((m) => [m.id, (call?.moves[m.id] as [RestMove, RestMove] | undefined) ?? FIRST])),
@@ -85,7 +88,7 @@ export function RestPanel(props: RestPanelProps): preact.JSX.Element {
         {call === null ? (
           <span className="rest-kind">
             <label>
-              <input type="radio" name="rest-kind" checked={kind === 'short'} onChange={() => setKind('short')} data-testid="rest-short" /> Short (1d4 + tier)
+              <input type="radio" name="rest-kind" checked={kind === 'short'} disabled={owed} onChange={() => setKind('short')} data-testid="rest-short" /> Short (1d4 + tier)
             </label>
             <label>
               <input type="radio" name="rest-kind" checked={kind === 'long'} onChange={() => setKind('long')} data-testid="rest-long" /> Long (everything)
@@ -100,6 +103,11 @@ export function RestPanel(props: RestPanelProps): preact.JSX.Element {
       <div className="rest-note">
         Two downtime moves each. Preparing together gives 2 Light each. The GM gains {shownKind === 'short' ? '1d4' : `1d4 + ${props.party.length}`} Shadow.
         {props.alone ? null : ' Everybody who plays a character agrees to it, then chooses their own characters’ moves.'}
+      </div>
+      <div className="rest-note" data-testid="rest-count">
+        {owed
+          ? `${SHORT_RESTS} short rests since the last long one: this one must be long.`
+          : `Short rests since the last long one: ${props.shortRests} of ${SHORT_RESTS}.`}
       </div>
       {call !== null && props.toVote ? (
         <div className="rest-actions" data-testid="rest-vote">

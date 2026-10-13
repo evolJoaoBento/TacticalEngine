@@ -6,6 +6,11 @@
 //! always was (`kit.rs`, `rest`), the moves in the party's order so the dice fall alike on every engine. Its caller
 //! or the host calls it off (`cancelRest`), and a fight beginning or a save loaded drops it.
 //!
+//! The SRD's limit holds here: after three short rests the party's next must be a long one (`SHORT_RESTS`, counted
+//! in `Session::short_rests`, kept in a save, and a long rest begins the count again). The bare `rest` - the host's
+//! word, the test driver's, and the recorded games the engine is held to, which took short rests by the dozen -
+//! neither counts nor is held to it.
+//!
 //! Who votes is fixed when it is called: the players of the party's members, each the account seated in one or the
 //! host for one nobody is (`engine::game::seats`). A game nobody shares has one player, who agrees in calling it:
 //! a player alone calls a rest with everybody's moves and it is taken at once.
@@ -15,6 +20,9 @@ use super::session::Session;
 use crate::scene::state::Faction;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
+
+/// How many short rests the party takes before its next rest must be long.
+pub const SHORT_RESTS: u32 = 3;
 
 /// A rest called and not yet taken: what kind, by whom, who votes on it, who has agreed, and the moves chosen so
 /// far (a character's id to its two moves).
@@ -73,6 +81,9 @@ impl Session {
         }
         if kind != "short" && kind != "long" {
             return Err("a rest is short or long".into());
+        }
+        if kind == "short" && self.short_rests >= SHORT_RESTS {
+            return Err("the party has had three short rests since its last long one: the next must be long".into());
         }
         if !self.plays_anybody() {
             return Err("only somebody who plays a character calls a rest".into());
@@ -162,7 +173,10 @@ impl Session {
             moves.insert(id.clone(), call.moves[id].clone());
         }
         match self.rest(call.kind == "long", &json!({ "moves": moves })) {
-            Ok(bad) => Ok(json!({ "ok": true, "rested": true, "badGained": bad })),
+            Ok(bad) => {
+                self.short_rests = if call.kind == "long" { 0 } else { self.short_rests + 1 };
+                Ok(json!({ "ok": true, "rested": true, "badGained": bad }))
+            }
             Err(why) => {
                 note(self, &format!("The party cannot rest: {why}."), "system");
                 Err(why)

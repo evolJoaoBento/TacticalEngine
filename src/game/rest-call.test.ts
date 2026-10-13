@@ -37,6 +37,7 @@ describe('a rest, as the page offers it', () => {
     tableOf(null);
     expect(playersOf(party)).toEqual(['']);
     expect(restView(null, party, nameOf)).toMatchObject({ alone: true, toVote: false, party: party.map((id) => ({ id, name: id.toUpperCase(), mine: true })) });
+    expect(restView(null, party, nameOf, 2).shortRests).toBe(2);
     at('kara', { ...TABLE, seats: {} });
     expect(restView(null, party, nameOf).alone).toBe(true);
     tableOf(null);

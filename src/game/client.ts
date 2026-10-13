@@ -79,6 +79,7 @@ export type Board = Readonly<
     | 'ambush'
     | 'approaching'
     | 'restCall'
+    | 'shortRests'
   >
 >;
 

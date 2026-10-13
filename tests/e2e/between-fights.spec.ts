@@ -139,6 +139,30 @@ test('a rest is taken from the panel, and puts something back', async ({ page })
   expect(errors, `console errors: ${errors.join(' | ')}`).toEqual([]);
 });
 
+test('after three short rests the panel offers only a long one, and a long rest begins the count again', async ({ page }) => {
+  const errors = await ready(page);
+  await throughTheCampaign(page);
+  const panel = page.locator('[data-testid="rest"]');
+  for (let n = 0; n < 3; n++) {
+    await page.locator('[data-testid="open-rest"]').click();
+    await expect(panel.getByTestId('rest-count')).toHaveText(`Short rests since the last long one: ${n} of 3.`);
+    await panel.getByTestId('take-rest').click();
+    await expect(panel).toHaveCount(0);
+  }
+  // The fourth must be long: short is not on offer.
+  await page.locator('[data-testid="open-rest"]').click();
+  await expect(panel.getByTestId('rest-count')).toHaveText('3 short rests since the last long one: this one must be long.');
+  await expect(panel.getByTestId('rest-short')).toBeDisabled();
+  await expect(panel.getByTestId('rest-long')).toBeChecked();
+  await page.screenshot({ path: 'test-results/rest-must-be-long.png' });
+  await panel.getByTestId('take-rest').click();
+  await expect(panel).toHaveCount(0);
+  await page.locator('[data-testid="open-rest"]').click();
+  await expect(panel.getByTestId('rest-count')).toHaveText('Short rests since the last long one: 0 of 3.');
+  await expect(panel.getByTestId('rest-short')).toBeEnabled();
+  expect(errors, `console errors: ${errors.join(' | ')}`).toEqual([]);
+});
+
 test('what the strongbox paid out can be put on', async ({ page }) => {
   const errors = await ready(page);
   await throughTheCampaign(page);

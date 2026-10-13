@@ -4,13 +4,16 @@
  * character agrees to it or not - one who would rather not calls it off - and chooses their own characters' moves;
  * once all have agreed and every one of the party has their moves, it is taken. A player alone - a game nobody
  * shares, or one where they play everybody - calls it with everybody's moves and it is taken at once, as it always
- * was. The rest panel (`ui/RestPanel.tsx`) draws what `restPanelProps` reads here; the panel shows itself to every
+ * was. After three short rests the next must be long (`SHORT_RESTS`): the panel offers only a long one. The rest panel (`ui/RestPanel.tsx`) draws what `restPanelProps` reads here; the panel shows itself to every
  * page while a rest is called, and only its buttons put it away.
  */
 
 import type { GameClient } from './client';
 import type { RestCall, RestCallResult, RestPlan } from './demo-abilities';
 import { hosting, playingAs, playsFor, sharedTable } from './shared-game';
+
+/** How many short rests the party takes before its next rest must be long (the SRD's; the engine's `SHORT_RESTS`). */
+export const SHORT_RESTS = 3;
 
 /** One of the party, as the panel lists it: whether the page's player plays them. */
 export interface RestMember {
@@ -23,6 +26,8 @@ export interface RestMember {
 export interface RestPanelProps {
   /** The rest called, if one is. */
   call: RestCall | null;
+  /** Short rests since the last long one: at `SHORT_RESTS`, the next must be long. */
+  shortRests: number;
   party: RestMember[];
   /** Whether the page's player is the only one who plays a character: a rest is called and taken at once. */
   alone: boolean;
@@ -50,12 +55,13 @@ export function playersOf(party: readonly string[]): string[] {
 }
 
 /** What the rest panel reads off the game and the table. */
-export function restView(call: RestCall | null, party: readonly string[], nameOf: (id: string) => string): Omit<RestPanelProps, 'onCall' | 'onVote' | 'onChoose' | 'onCancel' | 'onClose'> {
+export function restView(call: RestCall | null, party: readonly string[], nameOf: (id: string) => string, shortRests = 0): Omit<RestPanelProps, 'onCall' | 'onVote' | 'onChoose' | 'onCancel' | 'onClose'> {
   const table = sharedTable();
   const you = playingAs() ?? '';
   const players = playersOf(party);
   return {
     call,
+    shortRests,
     party: party.map((id) => ({ id, name: nameOf(id), mine: playsFor(id) })),
     alone: players.length === 1 && players[0] === you,
     toVote: call !== null && call.voters.includes(you) && !call.agreed.includes(you),
@@ -75,7 +81,7 @@ export function restPanelProps(game: GameClient, close: () => void, refresh: () 
     refresh();
   };
   return {
-    ...restView(game.board.restCall, party, (id) => game.nameOf(id)),
+    ...restView(game.board.restCall, party, (id) => game.nameOf(id), game.board.shortRests),
     onCall: (kind, moves) => done(game.callRest(kind, moves)),
     onVote: (agree) => done(game.voteRest(agree)),
     onChoose: (moves) => done(game.chooseRest(moves)),

@@ -120,6 +120,9 @@ pub fn save_schema() -> &'static Schema {
             req("selected", nullable(string())),
             def("sheets", array(lazy(sheet_schema)), || json!([])),
             req("log", array(object(vec![req("text", string()), req("tone", one_of(LOG_TONES))]))),
+            // Short rests since the last long one: written only once there has been one, so a save from before
+            // reads as none.
+            opt("shortRests", int().min(0.0)),
         ])
     })
 }
@@ -173,7 +176,7 @@ impl Session {
             .map(|(_, sheet)| sheet_schema().parse(&serde_json::to_value(sheet).expect("a sheet writes")).expect("a sheet in play is a sheet"))
             .collect();
         let from = self.log.len().saturating_sub(SAVED_LOG_LINES);
-        Some(json!({
+        let mut save = json!({
             "formatVersion": CURRENT_FORMAT_VERSION,
             "projectId": self.project["id"],
             "sceneId": self.scene["id"],
@@ -183,7 +186,11 @@ impl Session {
             "selected": self.party.selected(),
             "sheets": sheets,
             "log": serde_json::to_value(&self.log[from..]).expect("lines write"),
-        }))
+        });
+        if self.short_rests > 0 {
+            save["shortRests"] = json!(self.short_rests);
+        }
+        Some(save)
     }
 
     /// The save as text, as `JSON.stringify` writes it (`serialiseSave`).
@@ -242,8 +249,9 @@ impl Session {
             }
         }
         self.rng.restore(crate::rng::to_uint32(save["rng"].as_f64().unwrap_or(0.0)));
-        // A rest called is the table's, not the save's.
+        // A rest called is the table's, not the save's; the short rests taken since the last long one are the save's.
         self.rest_call = None;
+        self.short_rests = save["shortRests"].as_f64().map_or(0, |n| n as u32);
         self.log = save["log"].as_array().map_or(Vec::new(), |lines| lines.iter().map(LogLine::read).collect());
         if let Some(selected) = save["selected"].as_str() {
             if self.party.members(&self.world.state).iter().any(|m| m == selected) {

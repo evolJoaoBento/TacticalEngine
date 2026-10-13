@@ -59,7 +59,11 @@ fn a_player_alone_calls_a_rest_with_everybodys_moves_and_it_is_taken_at_once_as_
     assert_eq!(answer["rested"], true, "{answer}");
     let answer_rest = call(&mut rested, "rest", json!(["short", { "moves": plan }]));
     assert_eq!(answer["badGained"], answer_rest["badGained"]);
-    assert_eq!(called.board(), rested.board(), "the same dice, the same rest");
+    // The same dice, the same rest - but the call counts it towards the long rest the party will owe.
+    let (mut theirs, ours) = (called.board(), rested.board());
+    assert_eq!((theirs["shortRests"].clone(), ours["shortRests"].clone()), (json!(1), json!(0)));
+    theirs["shortRests"] = json!(0);
+    assert_eq!(theirs, ours, "the same dice, the same rest");
     assert!(called.rest_call.is_none());
 }
 
@@ -167,4 +171,45 @@ fn a_rest_called_is_told_to_an_engine_brought_into_step_and_dropped_by_a_save_lo
     // A save loaded: no rest called.
     call(&mut session, "loadGameText", json!([save]));
     assert!(session.rest_call.is_none());
+}
+
+#[test]
+fn after_three_short_rests_the_next_must_be_long_and_a_save_keeps_the_count() {
+    let mut session = demo();
+    let everybody = party(&session);
+    let short = |session: &mut Session| call(session, "callRest", json!(["short", moves(&everybody, "clearStress")]));
+    let fresh_save = session.serialise_save().unwrap();
+    assert!(!fresh_save.contains("shortRests"), "none taken: a save as it always was");
+    for n in 1..=3 {
+        assert_eq!(short(&mut session)["rested"], true, "short rest {n}");
+        assert_eq!(session.board()["shortRests"], n);
+    }
+    // The fourth is refused, and nothing called.
+    let refused = short(&mut session);
+    assert_eq!(refused["ok"], false);
+    assert!(refused["reason"].as_str().unwrap().contains("the next must be long"), "{refused}");
+    assert!(session.rest_call.is_none());
+    // Saved, the count goes with it; loaded elsewhere, it holds there.
+    let save = session.serialise_save().unwrap();
+    assert!(save.contains("\"shortRests\":3"), "{save}");
+    let mut other = demo();
+    call(&mut other, "loadGameText", json!([save]));
+    assert_eq!(other.short_rests, 3);
+    assert_eq!(call(&mut other, "callRest", json!(["short", moves(&everybody, "clearStress")]))["ok"], false);
+    // A long rest begins the count again.
+    assert_eq!(call(&mut session, "callRest", json!(["long", moves(&everybody, "clearStress")]))["rested"], true);
+    assert_eq!(session.short_rests, 0);
+    assert_eq!(short(&mut session)["rested"], true);
+    // A save from before there was a count reads as none.
+    call(&mut other, "loadGameText", json!([fresh_save]));
+    assert_eq!(other.short_rests, 0);
+    // The bare rest - the host's word, the test driver's - neither counts nor is held to it.
+    let mut bare = demo();
+    for _ in 0..5 {
+        assert_eq!(call(&mut bare, "rest", json!(["short", { "moves": {} }]))["ok"], true);
+    }
+    assert_eq!(bare.short_rests, 0);
+    // And an engine brought into step is told the count with the walk.
+    bare.dispatch("restoreWalk", &[Value::Null, json!([]), Value::Null, Value::Null, Value::Null, json!(2)]).unwrap();
+    assert_eq!(bare.board()["shortRests"], 2);
 }

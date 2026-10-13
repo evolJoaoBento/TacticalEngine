@@ -1174,6 +1174,12 @@ describe('a shared game, on the wire', () => {
     await settle(server);
     for (const demo of [hostDemo, guestDemo]) expect(demo.restCall).toBeNull();
     expect(guestDemo.log.some((line) => line.text.endsWith('prepares: 2 Light.'))).toBe(true);
+    // Counted towards the long rest owed, on both pages; and a save written by the page as the server's game writes it.
+    for (const demo of [hostDemo, guestDemo]) expect(demo.shortRests).toBe(1);
+    // (Its selection aside: each page's own, the server's game holding the last account's.)
+    const unselected = (text: string): unknown => ({ ...(JSON.parse(text) as object), selected: null });
+    expect(unselected(host.serialiseSave()!)).toEqual(unselected(server.engine.call('serialiseSave', []) as string));
+    expect(host.serialiseSave()).toContain('"shortRests":1');
     expect(differ(hostDemo, server)).toBeNull();
     expect(differ(guestDemo, server, guestWire.you!)).toBeNull();
     // Called again and declined: off, on both.

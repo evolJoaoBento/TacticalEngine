@@ -123,6 +123,8 @@ export interface DemoScene {
   approaching: Approach[];
   /** A rest called and not yet taken: voted on, then each player's own moves (the engine's, `callRest`). */
   restCall: RestCall | null;
+  /** Short rests since the last long one: after three, the next must be long (the engine's, kept in a save). */
+  shortRests: number;
   /** Waiting on the player: a script's roll or choice, or a defender's answer. */
   pending: Pending | null;
   /** Set while a fight is running. */
@@ -749,6 +751,7 @@ export function buildProjectScene(project: ProjectDoc, seed = 'project'): DemoSc
     ambush: null,
     approaching: [],
     restCall: null,
+    shortRests: 0,
     pending: null,
     encounter: null,
     gmTurn: null,

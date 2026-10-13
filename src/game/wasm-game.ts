@@ -59,7 +59,7 @@ export class WasmGame extends GameTable {
     this.engine.build(this.demo.project, this.shipped, 'wasm', { animated: this.demo.animated, askDefender: this.demo.askDefender });
     this.engine.restore(replicaOf(this.demo));
     this.engine.call('restoreRng', [this.demo.rng.save()]);
-    this.engine.call('restoreWalk', [this.demo.ambush, this.demo.approaching, openContainer(this.demo), rollsOf(this.demo), this.demo.restCall]);
+    this.engine.call('restoreWalk', [this.demo.ambush, this.demo.approaching, openContainer(this.demo), rollsOf(this.demo), this.demo.restCall, this.demo.shortRests]);
     this.engine.call('restoreLog', [this.demo.log]);
     this.engine.call('restoreViews', [this.demo.motions, this.demo.floaters]);
     this.engine.call('restoreWalked', [walked]);

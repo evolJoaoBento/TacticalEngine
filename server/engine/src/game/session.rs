@@ -173,6 +173,8 @@ pub struct Session {
     pub seating: Option<super::seats::Seating>,
     /// A rest called and not yet taken: voted on, then each player's own moves (`game::rest_call`).
     pub rest_call: Option<super::rest_call::RestCall>,
+    /// Short rests the party has taken since its last long one: after three, the next must be long (`rest_call`).
+    pub short_rests: u32,
 }
 
 /// What a walk is for (`Approach`): the thing to use, or the creature to talk to, and who walks there.
@@ -305,6 +307,7 @@ impl Session {
             asked: None,
             seating: None,
             rest_call: None,
+            short_rests: 0,
         })
         .map(|mut session: Session| {
             session.bind_turn();
