@@ -50,6 +50,8 @@ import { AbilityPanel } from './AbilityPanel';
 import { ItemPanel } from './ItemPanel';
 import { CodePanel } from './CodePanel';
 import { QuestsWorkspace } from './QuestsWorkspace';
+import { ProjectsWorkspace } from './ProjectsWorkspace';
+import { PlanIds } from './plans-context';
 import { ModelsWorkspace } from './ModelsWorkspace';
 import { TilesWorkspace } from './TilesWorkspace';
 import { memory, restoreInto } from '../model-memory';
@@ -405,6 +407,9 @@ export function EditorShell(props: EditorShellProps): preact.JSX.Element {
     case 'quests':
       workspaceBody = <QuestsWorkspace session={session} onChange={bump} onClose={closeWorkspace} />;
       break;
+    case 'projects':
+      workspaceBody = <ProjectsWorkspace session={session} hookIds={hookIds} encounterIds={ids.encounterIds} onChange={bump} onClose={closeWorkspace} />;
+      break;
     case 'tiles':
       workspaceBody = (
         <TilesWorkspace
@@ -436,6 +441,8 @@ export function EditorShell(props: EditorShellProps): preact.JSX.Element {
   }
 
   return (
+    // Every effect list under the shell offers the project's plans to a "Teach a project plan" effect.
+    <PlanIds.Provider value={(session.project.projectPlans ?? []).map((p) => p.id)}>
     <div class="ph-editor" data-testid="editor-shell" data-version={version}>
       <ArtMarkLayer />
       <TopBar
@@ -492,5 +499,6 @@ export function EditorShell(props: EditorShellProps): preact.JSX.Element {
         <ProblemsPopover problems={problems} onClose={() => setShowProblems(false)} />
       ) : null}
     </div>
+    </PlanIds.Provider>
   );
 }

@@ -1646,8 +1646,8 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     Prepare together, declined; nothing parted) and the e2e (the solo rests through the panel unchanged; on the
     server, the guest calling a rest with their character's moves, the host's panel up by itself asking them to
     agree, then their own characters' moves, Ready, the rest taken and the panels gone from both).
-    - **Not yet**: the SRD's limit of three short rests before a long one (since done, below), and a long rest's Work
-      on a Project - neither is in the engine yet, called or not.
+    - **Not yet**: the SRD's limit of three short rests before a long one, and a long rest's Work on a Project (both
+      since done: below, and `docs/CRPG-GAPS.md`'s project plans, `game/projects.rs`).
   - **Three short rests, then a long one** (13 October 2026). The SRD's limit: after three short rests the party's next
     must be long. The engine counts the short rests since the last long one (`Session::short_rests`), taken through a
     rest called (`rest_call.rs`, `SHORT_RESTS`): a fourth short one is refused when it is called, and a long one begins

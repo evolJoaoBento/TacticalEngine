@@ -194,6 +194,9 @@ impl ScriptWorld for SceneScriptWorld<'_> {
     fn start_quest(&mut self, quest: &str) -> bool {
         SceneScriptWorld::start_quest(self, quest)
     }
+    fn learn_plan(&mut self, plan: &str) -> bool {
+        SceneScriptWorld::learn_plan(self, plan)
+    }
     fn complete_objective(&mut self, quest: &str, objective: &str) -> bool {
         SceneScriptWorld::complete_objective(self, quest, objective)
     }

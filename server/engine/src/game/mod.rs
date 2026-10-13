@@ -18,6 +18,7 @@ pub mod leap;
 pub mod log;
 pub mod movement;
 pub mod play;
+pub mod projects;
 pub mod replica;
 pub mod rest_call;
 pub mod rules;

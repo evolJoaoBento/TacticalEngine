@@ -648,6 +648,8 @@ export const effectSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('goto'), scene: contentIdSchema }),
   z.object({ kind: z.literal('startDialogue'), dialogue: contentIdSchema }),
   z.object({ kind: z.literal('startQuest'), quest: contentIdSchema }),
+  /** A project plan learned (`content/projects.ts`): the party may work at it on a long rest. */
+  z.object({ kind: z.literal('learnPlan'), plan: contentIdSchema }),
   /** Ticks one step off. Starts the quest if nothing has yet. */
   z.object({
     kind: z.literal('completeObjective'),

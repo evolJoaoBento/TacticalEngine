@@ -99,6 +99,9 @@ pub struct ScenarioState {
     pub countdowns: CountdownBoard,
     /// Patches of ground that mean something, by zone id.
     pub zones: Ordered<RunningZone>,
+    /// The project plans the party has learned, by plan id, with the work done on each (`content/projects.ts`): a
+    /// plan whose work is all done is finished, and stays.
+    pub projects: Ordered<f64>,
 }
 
 /// The key `abilityUses` and `abilityTokens` file a card under.
@@ -119,6 +122,7 @@ impl Default for ScenarioState {
             ability_tokens: Ordered::default(),
             countdowns: CountdownBoard::default(),
             zones: Ordered::default(),
+            projects: Ordered::default(),
         }
     }
 }
@@ -144,7 +148,7 @@ impl ScenarioState {
     /// A JSON-safe snapshot, as `scenarioSnapshot` writes it.
     pub fn snapshot(&self) -> Value {
         let pairs = |map: &Ordered<f64>| map.entries().iter().map(|(k, v)| json!([k, v])).collect::<Vec<_>>();
-        json!({
+        let mut snapshot = json!({
             "variables": self.variables.to_json(),
             "flags": self.flags,
             "items": pairs(&self.items),
@@ -155,7 +159,12 @@ impl ScenarioState {
             "abilityTokens": pairs(&self.ability_tokens),
             "countdowns": self.countdowns.entries().iter().map(|(_, c)| c).collect::<Vec<_>>(),
             "zones": self.zones.values().collect::<Vec<_>>(),
-        })
+        });
+        // Written only once a plan is learned, so a scenario without one reads exactly as it always did.
+        if !self.projects.entries().is_empty() {
+            snapshot["projects"] = json!(pairs(&self.projects));
+        }
+        snapshot
     }
 
     /// Refill from a snapshot, in place - `restoreScenario`. The snapshot is trusted, as a parsed save is;
@@ -198,6 +207,7 @@ impl ScenarioState {
             let countdown: RunningCountdown = serde_json::from_value(countdown).map_err(|e| e.to_string())?;
             self.countdowns.set(countdown);
         }
+        self.projects = pairs("projects")?;
         self.zones.clear();
         for zone in list("zones") {
             let zone: RunningZone = serde_json::from_value(zone).map_err(|e| e.to_string())?;

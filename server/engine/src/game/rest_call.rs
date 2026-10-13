@@ -150,6 +150,18 @@ impl Session {
                 return Err(format!("{} is not yours to play", name_of(self, id)));
             }
         }
+        // Work on a project: a long rest's, on a plan the party has learned and not finished.
+        let long = self.rest_call.as_ref().is_some_and(|call| call.kind == "long");
+        for chosen in moves.values() {
+            for one in chosen.as_array().map_or(&[][..], Vec::as_slice).iter().take(2).filter(|one| one["kind"] == "workOnProject") {
+                if !long {
+                    return Err("work on a project is a long rest's".into());
+                }
+                if !self.plan_open(one["project"].as_str().unwrap_or_default()) {
+                    return Err("that is no project the party can work on".into());
+                }
+            }
+        }
         let call = self.rest_call.as_mut().expect("a rest called");
         for (id, chosen) in moves {
             let two: Vec<Value> = chosen.as_array().map_or(Vec::new(), |pair| pair.iter().take(2).cloned().collect());

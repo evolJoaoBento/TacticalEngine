@@ -16,11 +16,13 @@ import './hud.css';
 
 export type { RestPanelProps };
 
-const MOVES: readonly { kind: RestMove['kind']; label: string; targeted: boolean }[] = [
+const MOVES: readonly { kind: RestMove['kind']; label: string; targeted: boolean; long?: boolean }[] = [
   { kind: 'tendWounds', label: 'Tend to wounds', targeted: true },
   { kind: 'clearStress', label: 'Clear Stress', targeted: false },
   { kind: 'repairArmor', label: 'Repair armor', targeted: true },
   { kind: 'prepare', label: 'Prepare (gain Light)', targeted: false },
+  // A long rest's, on a project plan the party has learned (`content/projects.ts`).
+  { kind: 'workOnProject', label: 'Work on a project', targeted: false, long: true },
 ];
 
 const FIRST: [RestMove, RestMove] = [{ kind: 'tendWounds' }, { kind: 'clearStress' }];
@@ -38,7 +40,11 @@ export function RestPanel(props: RestPanelProps): preact.JSX.Element {
     Object.fromEntries(mine.map((m) => [m.id, (call?.moves[m.id] as [RestMove, RestMove] | undefined) ?? FIRST])),
   );
   const shownKind = call?.kind ?? kind;
-  const own = (): Record<string, [RestMove, RestMove]> => Object.fromEntries(mine.map((m) => [m.id, moves[m.id] ?? FIRST]));
+  // The moves a rest of this kind offers: Work on a Project only on a long one, and only with a project to work at.
+  const offered = MOVES.filter((m) => m.long !== true || (shownKind === 'long' && props.projects.length > 0));
+  const fits = (move: RestMove): RestMove => (offered.some((m) => m.kind === move.kind) ? move : { kind: 'clearStress' });
+  const own = (): Record<string, [RestMove, RestMove]> =>
+    Object.fromEntries(mine.map((m) => [m.id, (moves[m.id] ?? FIRST).map(fits) as [RestMove, RestMove]]));
 
   const set = (id: string, index: 0 | 1, move: RestMove): void => {
     const pair = moves[id] ?? FIRST;
@@ -47,21 +53,31 @@ export function RestPanel(props: RestPanelProps): preact.JSX.Element {
   };
 
   const pick = (id: string, index: 0 | 1) => {
-    const move = (moves[id] ?? FIRST)[index];
+    const move = fits((moves[id] ?? FIRST)[index]);
     const spec = MOVES.find((m) => m.kind === move.kind)!;
+    const chosen = (kind: RestMove['kind']): RestMove => (kind === 'workOnProject' ? { kind, project: props.projects[0]!.id } : ({ kind } as RestMove));
     return (
       <span>
         <select
           value={move.kind}
           data-testid={`move-${index}`}
-          onChange={(e) => set(id, index, { kind: (e.target as HTMLSelectElement).value as RestMove['kind'] })}
+          onChange={(e) => set(id, index, chosen((e.target as HTMLSelectElement).value as RestMove['kind']))}
         >
-          {MOVES.map((m) => (
+          {offered.map((m) => (
             <option key={m.kind} value={m.kind}>
               {m.label}
             </option>
           ))}
         </select>
+        {move.kind === 'workOnProject' ? (
+          <select value={move.project} data-testid={`project-${index}`} onChange={(e) => set(id, index, { kind: 'workOnProject', project: (e.target as HTMLSelectElement).value })}>
+            {props.projects.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name} ({p.done} of {p.work})
+              </option>
+            ))}
+          </select>
+        ) : null}
         {spec.targeted ? (
           <select
             value={'target' in move && move.target !== undefined ? move.target : id}

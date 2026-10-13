@@ -91,6 +91,15 @@ impl<'w> SceneScriptWorld<'w> {
     // Completed and failed are terminal; finishing is explicit - ticking the last objective does not
     // complete a quest.
 
+    /// A project plan learned, its work not begun - once: a plan the party knows, at work or finished, stays as it is.
+    pub fn learn_plan(&mut self, plan: &str) -> bool {
+        if plan.is_empty() || self.scenario.projects.has(plan) {
+            return false;
+        }
+        self.scenario.projects.set(plan, 0.0);
+        true
+    }
+
     pub fn start_quest(&mut self, quest: &str) -> bool {
         if self.scenario.quests.has(quest) {
             return false;

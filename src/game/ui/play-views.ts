@@ -25,7 +25,7 @@ import type { TalkingView } from './Conversation';
 import { itemOf, itemsFor } from '../../engine/content/equipment/catalogue';
 import { gearCard } from '../gear';
 
-/** The journal: every quest the party has been given, joined to its words. */
+/** The journal: every quest the party has been given, joined to its words - and every project plan learned. */
 export function journalEntries(demo: DemoScene): JournalQuest[] {
   const entries: JournalQuest[] = [];
   for (const quest of demo.project.quests) {
@@ -41,6 +41,20 @@ export function journalEntries(demo: DemoScene): JournalQuest[] {
         // A hidden step stays out of the journal until revealed or done.
         .filter((o) => !o.hidden || progress.revealed.has(o.id) || progress.done.has(o.id))
         .map((o) => ({ id: o.id, text: o.text, done: progress.done.has(o.id) })),
+    });
+  }
+  // The project plans learned, after the quests: what each is, and how much of its work is done.
+  for (const [id, done] of demo.scenario.projects) {
+    const plan = (demo.project.projectPlans ?? []).find((p) => p.id === id);
+    if (plan === undefined) continue;
+    const finished = done >= plan.work;
+    entries.push({
+      id,
+      name: plan.name,
+      summary: plan.description,
+      status: finished ? 'completed' : 'active',
+      objectives: [{ id: 'work', text: finished ? 'Finished.' : `Worked at on a long rest: ${done} of ${plan.work} done.`, done: finished }],
+      project: { done, work: plan.work },
     });
   }
   // Active first; finished ones sink to the tail.

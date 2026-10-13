@@ -683,6 +683,11 @@ impl Session {
                         let whose = if target == *id { "their".to_string() } else { format!("{}'s", name_of(self, &target)) };
                         note(self, &format!("{who} repairs {whose} armor: {} Armor Slot{} cleared.", js::number_to_string(cleared), if cleared == 1.0 { "" } else { "s" }), "good");
                     }
+                    // A long rest's work on a project the party has learned (`projects.rs`).
+                    "workOnProject" if long => {
+                        let plan = one["project"].as_str().unwrap_or_default().to_string();
+                        self.work_on_project(id, &plan)?;
+                    }
                     "prepare" => {
                         let body = self.world.state.entity_mut(id).expect("standing");
                         if let Some(good) = body.good {

@@ -265,6 +265,8 @@ pub fn effect() -> &'static Schema {
                 ("goto", object(vec![kind("goto"), req("scene", content_id())])),
                 ("startDialogue", object(vec![kind("startDialogue"), req("dialogue", content_id())])),
                 quest("startQuest"),
+                // A project plan learned (`content/projects.ts`): the party may work at it on a long rest.
+                ("learnPlan", object(vec![kind("learnPlan"), req("plan", content_id())])),
                 objective("completeObjective"),
                 quest("completeQuest"),
                 objective("revealObjective"),

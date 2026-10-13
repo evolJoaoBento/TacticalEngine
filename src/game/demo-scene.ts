@@ -10,7 +10,7 @@
  * and a turn loop that hands the spotlight back and forth.
  */
 
-import { CHEST_LOOT, DEMO_ITEMS, DEMO_LOOT_TABLES } from './demo-items';
+import { CHEST_LOOT, DEMO_ITEMS, DEMO_LOOT_TABLES, DEMO_PLANS } from './demo-items';
 import { DEMO_TERRAIN, DEMO_VAULT_WALL_X, PIT_SCENE, PIT_SCENE_ID, groundAsTiles, lineUp } from './demo-scenes';
 import { BEATEN_TINTS, VAULT_SOUTH_Y } from './demo-map';
 import { SHIPPED_MODELS, openProject } from './project-open';
@@ -672,6 +672,7 @@ export function buildDemoScene(map: LegacyMap, seed = 'demo'): DemoScene {
     items: [...DEMO_ITEMS],
     lootTables: [...DEMO_LOOT_TABLES],
     quests: [...DEMO_QUESTS],
+    projectPlans: [...DEMO_PLANS],
     // The party holds the starter pack's cards, so the starter pack's abilities
     // are what those cards do. Nothing else is listed: stat-block features used to be
     // inherited from a shipped catalogue, and now travel with whatever pack carries the

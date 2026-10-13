@@ -4,6 +4,15 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## Project plans: Work on a Project — done
+
+A project plan is the designer's: the work it takes and a reward in the one effect vocabulary (gear, a narrative
+item, a flag for later, a quest, a page of story). The party comes by one through a "Teach a project plan" effect
+(a reply, a chest, a blueprint's use); on a long rest a character spends a Work on a Project move on it, one unit
+of work each, the party's together, and the move that does the last of it runs the reward with that character
+acting. The rest panel offers it, the journal tracks it, the editor has a Projects workspace, validation checks
+it, and the demo carries a worked example. Next: a card as a reward (a `grantCard` effect).
+
 ## Rests: three short ones, then a long one — done
 
 The SRD's limit: after three short rests the party's next must be long. The panel says how many have been taken and
@@ -16,7 +25,7 @@ A rest is called, voted on, and each player's own: anybody who plays a character
 characters' moves, everybody who plays a character agrees (one "Not now" calls it off), each chooses their own
 characters' two downtime moves, and it is taken once all are in - Prepare together counting across players. The
 panel comes up on every page while a rest is called. A player alone still rests in one click, the same rest as
-before. Not built, called or not: a long rest's Work on a Project (the three-short-rests limit is, above).
+before. (A long rest's Work on a Project and the three-short-rests limit are built since, above.)
 
 ## Phase 5 (multiplayer): a shared game's saves keep who plays whom — done
 

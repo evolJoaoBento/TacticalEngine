@@ -22,12 +22,31 @@ export interface RestMember {
   mine: boolean;
 }
 
+/** A project the party can work at on a long rest: a plan learned whose work is not all done. */
+export interface RestProject {
+  id: string;
+  name: string;
+  done: number;
+  work: number;
+}
+
+/** The project plans learned and not finished, in the order they were learned. */
+export function openProjects(board: { scenario: { projects: ReadonlyMap<string, number> }; project: { projectPlans?: readonly { id: string; name: string; work: number }[] } }): RestProject[] {
+  const plans = board.project.projectPlans ?? [];
+  return [...board.scenario.projects].flatMap(([id, done]) => {
+    const plan = plans.find((p) => p.id === id);
+    return plan === undefined || done >= plan.work ? [] : [{ id, name: plan.name, done, work: plan.work }];
+  });
+}
+
 /** What the rest panel shows, and what its buttons do. */
 export interface RestPanelProps {
   /** The rest called, if one is. */
   call: RestCall | null;
   /** Short rests since the last long one: at `SHORT_RESTS`, the next must be long. */
   shortRests: number;
+  /** The projects a long rest's Work on a Project may go to. */
+  projects: RestProject[];
   party: RestMember[];
   /** Whether the page's player is the only one who plays a character: a rest is called and taken at once. */
   alone: boolean;
@@ -55,13 +74,14 @@ export function playersOf(party: readonly string[]): string[] {
 }
 
 /** What the rest panel reads off the game and the table. */
-export function restView(call: RestCall | null, party: readonly string[], nameOf: (id: string) => string, shortRests = 0): Omit<RestPanelProps, 'onCall' | 'onVote' | 'onChoose' | 'onCancel' | 'onClose'> {
+export function restView(call: RestCall | null, party: readonly string[], nameOf: (id: string) => string, shortRests = 0, projects: RestProject[] = []): Omit<RestPanelProps, 'onCall' | 'onVote' | 'onChoose' | 'onCancel' | 'onClose'> {
   const table = sharedTable();
   const you = playingAs() ?? '';
   const players = playersOf(party);
   return {
     call,
     shortRests,
+    projects,
     party: party.map((id) => ({ id, name: nameOf(id), mine: playsFor(id) })),
     alone: players.length === 1 && players[0] === you,
     toVote: call !== null && call.voters.includes(you) && !call.agreed.includes(you),
@@ -81,7 +101,7 @@ export function restPanelProps(game: GameClient, close: () => void, refresh: () 
     refresh();
   };
   return {
-    ...restView(game.board.restCall, party, (id) => game.nameOf(id), game.board.shortRests),
+    ...restView(game.board.restCall, party, (id) => game.nameOf(id), game.board.shortRests, openProjects(game.board)),
     onCall: (kind, moves) => done(game.callRest(kind, moves)),
     onVote: (agree) => done(game.voteRest(agree)),
     onChoose: (moves) => done(game.chooseRest(moves)),

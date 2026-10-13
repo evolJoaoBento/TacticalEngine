@@ -163,6 +163,39 @@ test('after three short rests the panel offers only a long one, and a long rest 
   expect(errors, `console errors: ${errors.join(' | ')}`).toEqual([]);
 });
 
+test('a project plan is learned, worked at on long rests through the panel, and its reward given', async ({ page }) => {
+  const errors = await ready(page);
+  await throughTheCampaign(page);
+  // The demo's example plan, taught by the smith's notes (unplaced: the test driver hands them over).
+  await page.evaluate(() => {
+    const a = window.__engine!;
+    a.giveItem('smiths-notes');
+    a.useItem('smiths-notes');
+  });
+  const project = page.locator('[data-testid="journal"] [data-project="husk-iron-blade"]');
+  await expect(project).toContainText('Husk-iron blade — project, 0 of 2');
+  const panel = page.locator('[data-testid="rest"]');
+  for (const n of [1, 2]) {
+    await page.locator('[data-testid="open-rest"]').click();
+    // Work on a project is a long rest's: not offered on a short one.
+    const first = panel.locator('[data-rest-member="kara"] [data-testid="move-0"]');
+    await expect(first.locator('option[value="workOnProject"]')).toHaveCount(0);
+    await panel.getByTestId('rest-long').click();
+    await first.selectOption('workOnProject');
+    await expect(panel.locator('[data-rest-member="kara"] [data-testid="project-0"]')).toContainText(`Husk-iron blade (${n - 1} of 2)`);
+    if (n === 2) await page.screenshot({ path: 'test-results/rest-project.png' });
+    await panel.getByTestId('take-rest').click();
+    await expect(panel).toHaveCount(0);
+  }
+  // Finished: the journal says so, the log tells it, and the blade is carried.
+  await expect(project).toContainText('Husk-iron blade — project, 2 of 2');
+  const log = await page.evaluate(() => window.__engine!.log().map((l) => l.text));
+  expect(log).toContain('Husk-iron blade is finished.');
+  expect(log).toContain('The husk-iron takes an edge at last.');
+  expect(await page.evaluate(() => window.__engine!.carried().map((i) => i.name))).toContain('Improved Longsword');
+  expect(errors, `console errors: ${errors.join(' | ')}`).toEqual([]);
+});
+
 test('what the strongbox paid out can be put on', async ({ page }) => {
   const errors = await ready(page);
   await throughTheCampaign(page);

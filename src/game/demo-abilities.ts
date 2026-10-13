@@ -401,7 +401,9 @@ export type RestMove =
   | { kind: 'tendWounds'; target?: string }
   | { kind: 'clearStress' }
   | { kind: 'repairArmor'; target?: string }
-  | { kind: 'prepare' };
+  | { kind: 'prepare' }
+  /** A long rest's: a unit of work on a project plan the party has learned (the engine's `projects.rs`). */
+  | { kind: 'workOnProject'; project: string };
 
 export interface RestPlan {
   /** Each character's two downtime moves. A character left out makes none. */

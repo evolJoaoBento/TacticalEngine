@@ -15,7 +15,7 @@ import { Icon } from './icons';
 /** Which of the top bar's dropdowns is open, or none. */
 export type Menu = 'project' | 'content' | 'scenes';
 /** The long-lived editors that open as a workspace under the bar. */
-export type Workspace = 'party' | 'cards' | 'items' | 'quests' | 'code' | 'models' | 'tiles';
+export type Workspace = 'party' | 'cards' | 'items' | 'quests' | 'projects' | 'code' | 'models' | 'tiles';
 
 interface ContentEntry {
   workspace: Workspace;
@@ -30,6 +30,7 @@ const WRITTEN: readonly ContentEntry[] = [
   { workspace: 'cards', label: 'Cards', testId: 'open-abilities', count: (s) => s.project.abilities.length },
   { workspace: 'items', label: 'Items & loot', testId: 'open-items', count: (s) => s.project.items.length },
   { workspace: 'quests', label: 'Quests', testId: 'open-quests', count: (s) => s.project.quests.length },
+  { workspace: 'projects', label: 'Projects', testId: 'open-projects', count: (s) => s.project.projectPlans?.length ?? 0 },
   { workspace: 'code', label: 'Code', testId: 'open-code', count: (s) => s.project.code.length },
   // The engine's four when a project declares none, which is what adding would write down.
   { workspace: 'tiles', label: 'Tiles', testId: 'open-tiles', count: (s) => s.project.terrainPalette?.length ?? DEFAULT_TERRAIN_TYPES.length },

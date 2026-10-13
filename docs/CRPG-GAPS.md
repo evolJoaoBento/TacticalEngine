@@ -332,6 +332,22 @@ describing the pit once the word is won.
 
 **Still open:** nothing.
 
+**Project plans** sit beside the quests (`content/projects.ts`, the project's `projectPlans`): the SRD's Work on
+a Project downtime move, made a designer's tool. A plan is whatever the designer wants - a blade to forge, a book
+to decipher - and is two things to the engine: the **work** it takes, counted in Work on a Project moves spent on
+long rests, the party's together; and its **reward**, in the one effect vocabulary, so finishing it can give gear
+or a narrative item (`addItem`), set a flag the story reads later, start a quest, tell a page of story - anything
+a script can do, with whoever finished it acting. The party comes by a plan through one effect, `learnPlan`
+("Teach a project plan"), wherever effects are written: a reply, a chest, a blueprint whose use teaches it. The
+work done is the party's (`ScenarioState.projects`, written only once a plan is learned) and travels into a save.
+The rest panel offers "Work on a project" on a long rest when there is one to work at, with a choice of which; the
+journal lists each plan learned with its work ("Husk-iron blade - project, 1 of 2"); the log says when one is
+learned, worked at and finished. The editor has a Projects workspace (name, description, the work it takes, the
+reward as an effect list) and the effect editor's "Teach a project plan"; validation checks a reward as it checks
+an item's use, errs on a plan taught that is not there, and warns of a plan nothing teaches. The demo carries a
+worked example: the smith's notes teach the husk-iron blade, two moves forge it. Still open: a card as a reward -
+no effect grants one yet.
+
 The editor has a quest list and a form — name, summary, steps — because a quest is a list and a
 list is edited as a list; the graph was the right call for conversations, not for this. The
 effect editor offers the four quest effects with the quest picked from a dropdown and the

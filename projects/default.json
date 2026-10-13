@@ -22440,6 +22440,19 @@
       "description": "Forty years of verses, most of them rude.",
       "stackable": false,
       "use": []
+    },
+    {
+      "id": "smiths-notes",
+      "name": "Smith's notes",
+      "kind": "consumable",
+      "description": "A husk-smith's notes on reworking their iron. Reading them teaches the party a project to work at on a long rest.",
+      "stackable": false,
+      "use": [
+        {
+          "kind": "learnPlan",
+          "plan": "husk-iron-blade"
+        }
+      ]
     }
   ],
   "lootTables": [
@@ -22538,6 +22551,29 @@
           "text": "Bring it back to Wren at the camp.",
           "hidden": false,
           "summary": "Every page. She paid in gold, and in a verse nobody asked for."
+        }
+      ]
+    }
+  ],
+  "projectPlans": [
+    {
+      "id": "husk-iron-blade",
+      "name": "Husk-iron blade",
+      "description": "Rework the husks' black iron into a blade the party can carry.",
+      "work": 2,
+      "reward": [
+        {
+          "kind": "addItem",
+          "item": "primary-improved-longsword"
+        },
+        {
+          "kind": "setFlag",
+          "flag": "husk-iron-blade-forged"
+        },
+        {
+          "kind": "log",
+          "text": "The husk-iron takes an edge at last.",
+          "tone": "narration"
         }
       ]
     }

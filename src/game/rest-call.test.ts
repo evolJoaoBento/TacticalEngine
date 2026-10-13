@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { playersOf, restView } from './rest-call';
+import { openProjects, playersOf, restView } from './rest-call';
 import { tableOf } from './shared-game';
 import type { RestCall } from './demo-abilities';
 import type { SharedTable, Wire } from './wire';
@@ -67,5 +67,17 @@ describe('a rest, as the page offers it', () => {
     expect(watcher.toVote).toBe(false);
     expect(watcher.party.some((m) => m.mine)).toBe(false);
     tableOf(null);
+  });
+
+  it('offers Work on a Project only on a plan learned and not finished', () => {
+    const plans = [
+      { id: 'blade', name: 'Blade', work: 2 },
+      { id: 'book', name: 'Book', work: 1 },
+      { id: 'ship', name: 'Ship', work: 4 },
+    ];
+    const board = { scenario: { projects: new Map([['book', 1], ['blade', 1], ['gone', 0]]) }, project: { projectPlans: plans } };
+    // Learned in this order: the book finished, the blade half done, a plan the project no longer has left out.
+    expect(openProjects(board)).toEqual([{ id: 'blade', name: 'Blade', done: 1, work: 2 }]);
+    expect(openProjects({ scenario: { projects: new Map() }, project: {} })).toEqual([]);
   });
 });

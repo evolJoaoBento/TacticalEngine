@@ -14,6 +14,8 @@
  * authoring error cannot be made here at all.
  */
 
+import { useContext } from 'preact/hooks';
+import { PlanIds } from './plans-context';
 import type { Amount, CountName, Effect, PoolName, TargetSelector } from '../../engine/script/schema';
 import { COUNT_NAMES } from '../../engine/script/schema';
 import { ADVANCES, describe, parseArgs } from './effect-list-parts';
@@ -42,6 +44,7 @@ export interface EffectListProps {
   abilityIds?: readonly string[];
   /** What a `summon` can name: every stat block the project can place. */
   adversaryIds?: readonly string[];
+  /** What a `learnPlan` can name: the project's plans (`plans-context.ts`, when not handed in). */ planIds?: readonly string[];
 }
 
 /** The kinds this can build. Anything else is shown, not offered. */
@@ -60,6 +63,7 @@ const ADDABLE = [
   'goto',
   'startDialogue',
   'startQuest',
+  'learnPlan',
   'completeObjective',
   'revealObjective',
   'completeQuest',
@@ -133,6 +137,7 @@ const LABELS: Readonly<Record<Addable, string>> = {
   goto: 'Travel to a scene',
   startDialogue: 'Start a conversation',
   startQuest: 'Start a quest',
+  learnPlan: 'Teach a project plan',
   completeObjective: 'Complete an objective',
   revealObjective: 'Reveal an objective',
   completeQuest: 'Complete a quest',
@@ -251,6 +256,7 @@ function blank(kind: Addable, props: EffectListProps): Effect {
     case 'completeQuest':
     case 'failQuest':
       return { kind, quest: props.quests[0]?.id ?? '' };
+    case 'learnPlan': return { kind: 'learnPlan', plan: props.planIds?.[0] ?? '' };
     case 'completeObjective':
     case 'revealObjective':
       return {
@@ -342,7 +348,8 @@ function blank(kind: Addable, props: EffectListProps): Effect {
   }
 }
 
-export function EffectList(props: EffectListProps): preact.JSX.Element {
+export function EffectList(given: EffectListProps): preact.JSX.Element {
+  const props = { planIds: useContext(PlanIds), ...given }; // the plans, from the shell, unless handed in
   const { effects } = props;
 
   const replace = (index: number, effect: Effect): void => {
@@ -1238,6 +1245,7 @@ function renderBody(
     case 'completeQuest':
     case 'failQuest':
       return pick(effect.quest, props.quests.map((q) => q.id), (quest) => ({ ...effect, quest }));
+    case 'learnPlan': return pick(effect.plan, props.planIds ?? [], (plan) => ({ ...effect, plan }));
     case 'completeObjective':
     case 'revealObjective': {
       // The objective list follows the chosen quest; switching quests resets

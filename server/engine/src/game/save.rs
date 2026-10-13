@@ -49,6 +49,8 @@ pub fn scenario_snapshot_schema() -> &'static Schema {
             def("abilityTokens", counts(), || json!([])),
             def("countdowns", array(lazy(running_countdown_schema)), || json!([])),
             def("zones", array(lazy(running_zone_schema)), || json!([])),
+            // The project plans learned and the work done on each: only once one is learned.
+            opt("projects", counts()),
         ])
     })
 }

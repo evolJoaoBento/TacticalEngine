@@ -400,6 +400,10 @@ fn describe_entry(session: &Session, entry: &Value, names: &[ItemName]) -> Optio
             }
         }
         "levelUp" => said(format!("The party reaches level {}.", n(&entry["level"])), "good"),
+        "plan" => {
+            let plan = list(&session.project, "projectPlans").iter().find(|p| p["id"] == entry["plan"]).map(|p| s(&p["name"]).to_string());
+            said(format!("A project to work on at a long rest: {}.", plan.unwrap_or_else(|| s(&entry["plan"]).to_string())), "system")
+        }
         "objective" => said(format!("Objective complete: {}", step(entry)), "success"),
         "revealed" => said(format!("New objective: {}", step(entry)), "system"),
         "log" => Some((s(&entry["text"]).to_string(), s(&entry["tone"]).to_string())),

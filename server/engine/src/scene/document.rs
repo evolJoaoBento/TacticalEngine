@@ -434,6 +434,7 @@ fn project_holds_together(project: &Map<String, Value>, found: &mut Refinements)
     duplicates(project, "items", "item", found);
     duplicates(project, "assets", "asset", found);
     duplicates(project, "quests", "quest", found);
+    duplicates(project, "projectPlans", "project plan", found);
     duplicates(project, "party", "character", found);
     duplicates(project, "abilities", "ability", found);
     duplicates(project, "lootTables", "loot table", found);
@@ -441,6 +442,17 @@ fn project_holds_together(project: &Map<String, Value>, found: &mut Refinements)
     if !list(project, "scenes").iter().any(|s| s["id"].as_str() == Some(start)) {
         found.add(vec![Key::Name("startScene".into())], format!("startScene \"{start}\" is not one of the project's scenes"));
     }
+}
+
+/// `projectPlanSchema`: what the party can work at on a long rest - its work, and what finishing it does.
+fn project_plan() -> Schema {
+    object(vec![
+        req("id", content_id()),
+        req("name", string().min(1.0)),
+        def("description", string(), empty_text),
+        req("work", int().min(1.0)),
+        def("reward", array(lazy(effect)), empty_list),
+    ])
 }
 
 fn content(kind: Kind) -> Schema {
@@ -481,6 +493,8 @@ pub fn project() -> &'static Schema {
             listed("items", Kind::Item),
             listed("lootTables", Kind::LootTable),
             listed("quests", Kind::Quest),
+            // Project plans (`content/projects.ts`): optional, so a project with none reads as it always did.
+            opt("projectPlans", array(project_plan())),
             def("assets", array(model_asset()), empty_list),
             def("adversaryModels", record(string(), string().min(1.0)), empty_object),
             listed("classes", Kind::Class),

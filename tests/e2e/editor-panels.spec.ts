@@ -14,6 +14,7 @@ const PANELS = [
   { open: 'open-items', panel: 'item-panel', add: 'add-item', close: 'close-items' },
   { open: 'open-abilities', panel: 'ability-panel', add: 'add-ability', close: 'close-abilities' },
   { open: 'open-code', panel: 'code-panel', add: 'add-code', close: 'close-code' },
+  { open: 'open-projects', panel: 'projects-panel', add: 'add-plan', close: 'close-projects' },
 ] as const;
 
 async function editing(page: Page): Promise<string[]> {
@@ -189,6 +190,7 @@ test('a designer can add one of each thing, and the panel shows it', async ({ pa
     await page.waitForTimeout(150);
     const after = await body.innerText();
     if (after !== before) grew.push(panel);
+    if (panel === 'projects-panel') await page.screenshot({ path: 'test-results/editor-projects.png' });
     console.log(`${panel}:`, before.length, '->', after.length);
 
     await page.locator(`[data-testid="${close}"]`).click();

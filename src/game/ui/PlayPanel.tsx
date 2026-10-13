@@ -61,6 +61,8 @@ export interface JournalQuest {
   summary: string;
   status: 'active' | 'completed' | 'failed';
   objectives: readonly { id: string; text: string; done: boolean }[];
+  /** A project plan learned rather than a quest: the work done on it, of all it takes (`content/projects.ts`). */
+  project?: { done: number; work: number };
 }
 
 /** What a right-click found: a card's worth of facts, no verbs. */
@@ -271,10 +273,11 @@ export function PlayPanel(props: PlayPanelProps): preact.JSX.Element | null {
         <div className="play-box panel-box is-fixed" data-testid="journal">
           <div className="play-eyebrow panel-heading">Journal</div>
           {props.journal.map((quest) => (
-            <div key={quest.id} className="panel-quest" data-quest={quest.id}>
+            <div key={quest.id} className="panel-quest" data-quest={quest.project === undefined ? quest.id : undefined} data-project={quest.project === undefined ? undefined : quest.id}>
               <div className={quest.status === 'completed' ? 'is-done' : quest.status === 'failed' ? 'panel-detail' : ''} style={quest.status === 'completed' ? { color: 'var(--play-muted)', textDecoration: 'line-through' } : undefined}>
                 {quest.name}
                 {quest.status === 'failed' ? ' — failed' : ''}
+                {quest.project === undefined ? '' : ` — project, ${quest.project.done} of ${quest.project.work}`}
               </div>
               {quest.status === 'active' ? (
                 <div className="panel-detail" style={{ fontSize: '12px' }}>

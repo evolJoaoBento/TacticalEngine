@@ -23,6 +23,7 @@ import { abilitySchema } from '../content/abilities';
 import { characterSheetSchema } from '../character/sheet-schema';
 import { conditionDefSchema } from '../content/conditions';
 import { questSchema } from '../content/quests';
+import { projectPlanSchema } from '../content/projects';
 import { modelAssetSchema } from '../render/assets';
 import {
   adversaryDefSchema,
@@ -410,6 +411,11 @@ export const projectSchema = z
      * project written before quests existed is still a valid project.
      */
     quests: z.array(questSchema).default([]),
+    /**
+     * What the party can work at on a long rest once a `learnPlan` effect has taught it (`content/projects.ts`).
+     * Optional rather than defaulted: a project with none reads exactly as it did before there were plans.
+     */
+    projectPlans: z.array(projectPlanSchema).optional(),
     /** Imported models, by id. Content names them exactly as it names a procedural model. */
     assets: z.array(modelAssetSchema).default([]),
     /**
@@ -505,6 +511,13 @@ export const projectSchema = z
         ctx.addIssue({ code: 'custom', path: ['items', i, 'id'], message: `duplicate item id "${item.id}"` });
       }
       seen.add(item.id);
+    });
+    const planIds = new Set<string>();
+    (project.projectPlans ?? []).forEach((plan, i) => {
+      if (planIds.has(plan.id)) {
+        ctx.addIssue({ code: 'custom', path: ['projectPlans', i, 'id'], message: `duplicate project plan id "${plan.id}"` });
+      }
+      planIds.add(plan.id);
     });
     const assetIds = new Set<string>();
     project.assets.forEach((asset, i) => {

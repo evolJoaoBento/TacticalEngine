@@ -169,6 +169,10 @@ pub trait ScriptWorld: ConditionContext {
     fn gain_good(&mut self) -> bool;
     fn gain_bad(&mut self) -> bool;
     fn start_quest(&mut self, quest: &str) -> bool;
+    /// A project plan learned: whether the party had not known it. Nothing, in a world that keeps no projects.
+    fn learn_plan(&mut self, _plan: &str) -> bool {
+        false
+    }
     fn complete_objective(&mut self, quest: &str, objective: &str) -> bool;
     fn reveal_objective(&mut self, quest: &str, objective: &str) -> bool;
     fn complete_quest(&mut self, quest: &str) -> bool;
@@ -955,6 +959,13 @@ impl<'a, W: ScriptWorld + ?Sized> ScriptRunner<'a, W> {
             }
             "startQuest" => {
                 self.quest_started(s(effect, "quest").unwrap_or_default());
+                None
+            }
+            "learnPlan" => {
+                let plan = s(effect, "plan").unwrap_or_default();
+                if self.world.learn_plan(plan) {
+                    self.journal.push(json!({ "kind": "plan", "plan": plan }));
+                }
                 None
             }
             "completeObjective" | "revealObjective" => {
