@@ -94,7 +94,8 @@ export const DEMO_ITEMS: readonly ItemDef[] = [
  * A worked example of a project plan (`content/projects.ts`): the smith's notes teach it, and two Work on a Project
  * moves on long rests forge the blade - a weapon carried, a flag the story could ask after, a card for the one who
  * finished it (Unbroken: nobody in the party holds it), a line of narration.
- * The notes are placed nowhere in the demo; they are here to be read, and handed over by the tests.
+ * In the project file's camp Tobin the Pedlar sells the notes (`projects/default.json`); this demo, built from code
+ * for the tests, places them nowhere, and the tests hand them over.
  */
 export const DEMO_PLANS: readonly ProjectPlan[] = [
   projectPlanSchema.parse({

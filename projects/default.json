@@ -4598,6 +4598,11 @@
                       "item": "primary-shortbow",
                       "price": 18,
                       "count": 1
+                    },
+                    {
+                      "item": "smiths-notes",
+                      "price": 12,
+                      "count": 1
                     }
                   ],
                   "buysAt": 40

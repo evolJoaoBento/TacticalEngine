@@ -27,4 +27,12 @@ describe('the camp by the fire', () => {
     expect(offerFor(demo, shop, 'primary-broadsword')).toBe(4);
     expect(offerFor(demo, shop, 'wrens-songbook')).toBe(0);
   });
+
+  it("has Tobin sell the smith's notes, which teach the project plan the project carries", () => {
+    const demo = camp();
+    expect(shopOf(demo, 'tobin')!.stock).toContainEqual({ item: 'smiths-notes', price: 12, count: 1 });
+    const notes = demo.project.items.find((item) => item.id === 'smiths-notes')!;
+    expect(notes.use).toEqual([{ kind: 'learnPlan', plan: 'husk-iron-blade' }]);
+    expect(demo.project.projectPlans?.map((plan) => plan.id)).toContain('husk-iron-blade');
+  });
 });
