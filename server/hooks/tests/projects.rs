@@ -27,7 +27,7 @@ fn demo() -> Session {
         "work": 2,
         "reward": [{ "kind": "addItem", "item": blade }, { "kind": "setFlag", "flag": "blade-forged" }],
     }]);
-    project["items"].as_array_mut().unwrap().push(json!({ "id": "blueprint", "name": "Blueprint", "kind": "consumable", "use": [{ "kind": "learnPlan", "plan": "masterwork-blade" }] }));
+    project["items"].as_array_mut().unwrap().push(json!({ "id": "blueprint", "name": "Blueprint", "kind": "consumable", "glyph": "book", "use": [{ "kind": "learnPlan", "plan": "masterwork-blade" }] }));
     let hooks: engine::game::session::HooksFor = Rc::new(|_: &[CodeSource]| -> Rc<dyn Hooks> { Rc::new(NoHooks) });
     let mut session = Session::build(&project, Rc::new(shipped), hooks, "projects").unwrap();
     session.dispatch("restoreRng", &[json!(3)]).unwrap();
@@ -78,7 +78,9 @@ fn a_plan_learned_is_worked_on_at_long_rests_and_its_reward_given_when_the_work_
     // Not learned: no work on it.
     let refused = rest(&mut session, "long", &[&everybody[0]]);
     assert_eq!(refused["reason"], "that is no project the party can work on", "{refused}");
-    // The blueprint teaches it, and says so.
+    // The blueprint, drawn as a book, teaches it, and says so.
+    assert_eq!(session.gear_card("blueprint").unwrap()["glyph"], "book");
+    assert!(session.gear_card("gold").map_or(true, |card| card.get("glyph").is_none()));
     learn(&mut session);
     assert_eq!(session.world.scenario.projects.get("masterwork-blade"), Some(&0.0));
     assert!(lines(&mut session).iter().any(|l| l == "A project to work on at a long rest: Masterwork Blade."));

@@ -128,7 +128,8 @@ test('two pages share one game on the server: each plays their own, and each one
 
   // Nothing parted on either page: every answer held to what the page predicted, or another's intent between.
   for (const each of [page, guest]) {
-    expect(await each.evaluate(() => window.__replica!.server())).toBe('in');
+    // Stood where the game is once whatever crossed the last intent is answered - a page part-way there is no parting.
+    await expect.poll(() => each.evaluate(() => window.__replica!.server()), { timeout: 15_000 }).toBe('in');
     expect(await each.evaluate(() => window.__replica!.count().parted)).toBe(0);
   }
   await guestContext.close();

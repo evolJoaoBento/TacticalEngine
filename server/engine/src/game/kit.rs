@@ -446,6 +446,9 @@ impl Session {
         if let Some(picture) = &item.card {
             card["card"] = json!(picture);
         }
+        if let Some(glyph) = &item.glyph {
+            card["glyph"] = json!(glyph);
+        }
         Some(card)
     }
 

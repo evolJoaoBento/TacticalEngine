@@ -30,6 +30,10 @@ const GLYPH: Record<string, string> = {
   consumable: 'M10 3h4M10.5 3v5L6 16a3 3 0 002.7 5h6.6a3 3 0 002.7-5l-4.5-8V3',
   key: 'M8 14a4 4 0 110-8 4 4 0 010 8zM11 10h9M17 10v3M20 10v2',
   trinket: 'M6 8h12l-1 12H7zM9 8V6a3 3 0 016 0v2',
+  // A sheet rolled at its head and its foot, lines of writing between.
+  scroll: 'M8 4h10a2 2 0 010 4h-2v9a3 3 0 01-3 3H6a2 2 0 010-4h2V6a2 2 0 012-2M8 16h5a2 2 0 002-2M10.5 9.5h3M10.5 12.5h3',
+  // A closed book, its spine to the left, a band across the cover.
+  book: 'M6 4h12v16H6a2 2 0 01-2-2V6a2 2 0 012-2zM8 4v16M10.5 9h5M10.5 12h5',
 };
 
 /**
@@ -46,7 +50,7 @@ export function GearFace({ card, className }: { card: GearCard; className?: stri
   return (
     <div className={`gear-face gear-drawn is-${card.kind} ${className ?? ''}`} aria-label={card.name}>
       <div className="gear-art">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d={GLYPH[card.kind] ?? GLYPH.trinket} /></svg>
+        <svg viewBox="0 0 24 24" aria-hidden="true" data-glyph={card.glyph ?? card.kind}><path d={GLYPH[card.glyph ?? card.kind] ?? GLYPH.trinket} /></svg>
       </div>
       <div className="gear-banner">{card.banner}</div>
       <h3 className="gear-name">{card.name}</h3>

@@ -84,6 +84,7 @@ export const DEMO_ITEMS: readonly ItemDef[] = [
     id: 'smiths-notes',
     name: "Smith's notes",
     kind: 'consumable',
+    glyph: 'scroll',
     description: "A husk-smith's notes on reworking their iron. Reading them teaches the party a project to work at on a long rest.",
     stackable: false,
     use: [{ kind: 'learnPlan', plan: 'husk-iron-blade' }],

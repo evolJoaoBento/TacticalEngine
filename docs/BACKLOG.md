@@ -4,6 +4,13 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## An item drawn as what it is — done
+
+An item with no picture of its own was drawn with its kind's glyph, so a smith's notes showed a potion's flask. An
+item may now name what it is drawn with (`glyph`: a blade, a coat, a flask, a key, a pouch, a scroll or a book; the
+Items panel's "drawn as", left at "its kind's" by default), carried on its card by the page and the engine alike.
+The demo's smith's notes are a scroll.
+
 ## Project plans: Work on a Project — done
 
 A project plan is the designer's: the work it takes and a reward in the one effect vocabulary (gear, a narrative

@@ -358,6 +358,8 @@ fn item() -> Schema {
         opt("value", int().min(0.0)),
         opt("tier", int().min(1.0)),
         opt("card", string()),
+        // What its card is drawn with when it has no picture (`itemGlyphSchema`); left out, its kind's.
+        opt("glyph", one_of(&["weapon", "armor", "consumable", "key", "trinket", "scroll", "book"])),
         def("use", effects(), empty_list),
     ])
 }

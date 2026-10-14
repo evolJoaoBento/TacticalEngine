@@ -58,6 +58,9 @@ pub struct ItemName {
     /// Its card's picture.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub card: Option<String>,
+    /// What its card is drawn with when it has no picture; its kind's when left out.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub glyph: Option<String>,
     /// What using it does; nothing means it cannot be used.
     #[serde(default, rename = "use", skip_serializing_if = "Vec::is_empty")]
     pub use_: Vec<Value>,

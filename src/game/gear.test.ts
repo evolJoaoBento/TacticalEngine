@@ -44,6 +44,12 @@ describe('the gear pages', () => {
     ]);
     expect(gearCard(demo, 'no-such-thing')).toBeNull();
   });
+
+  it("are drawn with what the item names when it has no picture - the smith's notes a scroll - and its kind's else", () => {
+    const demo = scene();
+    expect(gearCard(demo, 'smiths-notes')).toMatchObject({ kind: 'consumable', glyph: 'scroll' });
+    expect('glyph' in gearCard(demo, 'husk-carapace')!).toBe(false);
+  });
 });
 
 describe('the content a project is played with', () => {

@@ -426,6 +426,13 @@ test("an item's worth is set in the Items panel, and emptied it is worth nothing
   await worth.fill('');
   await worth.blur();
   expect(await valueOf()).toBeUndefined();
+  // What its card is drawn with when it has no picture: chosen, and back to its kind's.
+  const glyphOf = () =>
+    page.evaluate(() => (JSON.parse(window.__engine!.exportProject()) as { items: { id: string; glyph?: string }[] }).items.find((item) => item.id === 'a-silver-ring')?.glyph);
+  await panel.locator('[data-testid="item-glyph"]').selectOption('book');
+  expect(await glyphOf()).toBe('book');
+  await panel.locator('[data-testid="item-glyph"]').selectOption('');
+  expect(await glyphOf()).toBeUndefined();
   expect(errors).toEqual([]);
 });
 

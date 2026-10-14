@@ -9,7 +9,7 @@
  * the UI's business (`ui/equipment-art.ts`).
  */
 
-import type { ItemDef, ItemKind } from '../engine/content/items';
+import type { ItemDef, ItemGlyph, ItemKind } from '../engine/content/items';
 import type { ArmorDef, WeaponDef } from '../engine/content/pack/import';
 import { itemOf } from '../engine/content/equipment/catalogue';
 import { itemForGear, type GearSlot } from './equip';
@@ -44,6 +44,8 @@ export interface GearCard {
   tier?: number;
   /** Its picture's file, when it has one. */
   card?: string;
+  /** What it is drawn with when it has no picture, when not its kind's. */
+  glyph?: ItemGlyph;
   /** Which slot it goes in, when it is worn at all. */
   fits: GearSlot | null;
 }
@@ -146,6 +148,7 @@ export function gearCard(demo: Pick<DemoScene, 'project'>, itemId: string): Gear
     text: item.description,
     ...(item.tier === undefined ? {} : { tier: item.tier }),
     ...(item.card === undefined ? {} : { card: item.card }),
+    ...(item.glyph === undefined ? {} : { glyph: item.glyph }),
     fits: null,
   };
 }

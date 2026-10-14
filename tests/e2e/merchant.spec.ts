@@ -64,6 +64,8 @@ test('the merchant by the camp fire sells to a party that can pay', async ({ pag
   await expect(shop.locator('.shop-card')).toHaveCount(7);
   const draught = shop.locator('[data-item="consumable-minor-health-potion"]').getByTestId('shop-buy');
   await expect(draught).toContainText('6 gold');
+  // The smith's notes have no picture: drawn as a scroll, not as their kind's flask.
+  await expect(shop.locator('[data-item="smiths-notes"] svg[data-glyph="scroll"]')).toHaveCount(1);
   await page.screenshot({ path: 'test-results/merchant-shop.png' });
   await draught.click();
   await expect(shop.getByTestId('shop-purse')).toHaveText('You have 14 gold.');
