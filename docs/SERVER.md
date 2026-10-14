@@ -1679,4 +1679,13 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     (`tests/tunnel/tunnel.spec.ts`: a friend through the tunnel opening the host's invitation signed out, shown the
     card ready to make an account, made, in the host's game with the host, changing their password from the menu,
     the old one refused and the new one taken).
+  - **A friend coming back finds the game waiting** (14 October 2026). The games whose host loaded a save that
+    kept a seat for an account are listed for that account alone (`GET /__play/waiting`, `play.rs`,
+    `Tables::waiting_for`): each one's invitation, the host's name, the project's, and the kept characters' names
+    off the game's last board; signed in, the page's Play Together lists them, joined with one click
+    (`waiting-games.ts`, `MainMenu.tsx`), and the menu's Play Together says a game is waiting. A seat given away or
+    taken, nothing waits. Proved by the server's tests (`play_routes.rs`: each player's own listed, the host
+    kept nothing, a seat given away or taken listed no more, the route a signed-in account's alone), the page's
+    (`waiting-games.test.ts`) and the server-mode e2e (`shared.spec.ts`: the guest back with no link, joining
+    from Play Together and seated in their own).
   - **Next**: phase 5's slices are done, and what they left with them.

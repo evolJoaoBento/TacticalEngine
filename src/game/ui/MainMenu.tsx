@@ -10,7 +10,8 @@
  *               for whoever is signed in
  *   Play Together  where the server plays the game: any game Load Game lists, or a save of it, hosted for
  *               friends - opened as a lobby they gather in before it starts (`?host`, `Lobby.tsx`) - or
- *               another's joined with the link its host sent (`?join=`)
+ *               another's joined with the link its host sent (`?join=`) - or, where a save its host loaded
+ *               kept a seat for you, from the list of games waiting for you, no link needed (`waiting-games.ts`)
  *
  * Every choice opens the page again with it written in the address, so a game starts on a clean
  * page. Saves are listed under the game they are of (`SaveSlot.project`), and are the signed-in
@@ -27,6 +28,7 @@ import { ChangePassword } from './ChangePassword';
 import { listAccountSaves } from '../account-saves';
 import { serverAllowed } from '../play-socket';
 import { inviteFrom } from '../shared-game';
+import { listWaiting, waitingLine, type WaitingGame } from '../waiting-games';
 import './menu.css';
 
 /** Open the page again, on what was chosen. */
@@ -64,6 +66,11 @@ export function MainMenu(props: { account?: SignedIn | null; onSignOut?: () => v
   useEffect(() => {
     if (!onServer) return;
     void listAccountSaves(account.id).then((listed) => setSaves(listed ?? new SaveSlots(browserStore()).list()));
+  }, [account?.id, onServer]);
+  // The games whose host kept a seat for this player, to join without the link.
+  const [waiting, setWaiting] = useState<WaitingGame[]>([]);
+  useEffect(() => {
+    if (onServer) void listWaiting().then(setWaiting);
   }, [account?.id, onServer]);
   const savesOf = (project: string): SaveSlot[] => saves.filter((slot) => projectOfSlot(slot) === project);
   // Every game, and the saves of each, opened as chosen - hosted for friends too (`?host`) from Play Together.
@@ -128,7 +135,7 @@ export function MainMenu(props: { account?: SignedIn | null; onSignOut?: () => v
                 </button>
                 {onServer ? (
                   <button type="button" className="menu-choice" data-testid="menu-together" onClick={() => setView('together')}>
-                    Play Together<small>Host a game for friends, or join theirs</small>
+                    Play Together<small>{waiting.length === 0 ? 'Host a game for friends, or join theirs' : `${waiting[0]!.host} has a game waiting for you`}</small>
                   </button>
                 ) : null}
                 {account === null ? null : (
@@ -140,6 +147,17 @@ export function MainMenu(props: { account?: SignedIn | null; onSignOut?: () => v
             </>
           ) : view === 'together' ? (
             <div className="menu-load" data-testid="menu-together-list">
+              {waiting.map((game) => (
+                <section key={game.invite} className="menu-game menu-join" data-testid="menu-waiting">
+                  <header>
+                    <h2>{game.project === '' ? 'A game' : game.project}</h2>
+                    <button type="button" className="menu-go" data-testid="menu-waiting-join" onClick={() => openPage(`join=${encodeURIComponent(game.invite)}`)}>
+                      Join
+                    </button>
+                  </header>
+                  <p className="menu-waiting-line">{waitingLine(game)}</p>
+                </section>
+              ))}
               <section className="menu-game menu-join">
                 <header>
                   <h2>Join a game</h2>

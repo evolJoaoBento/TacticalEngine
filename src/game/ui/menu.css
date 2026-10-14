@@ -41,6 +41,7 @@
 .menu-join-row input{flex:1;min-width:0;padding:6px 9px;font:13px 'Libre Baskerville',Georgia,serif;color:#1d1611;border:1px solid #b2a68d;border-radius:4px;background:#fffdf6}
 .menu-join-refused{margin:6px 0 0;font:italic 12px/1.3 'Libre Baskerville',Georgia,serif;color:#8a2f1d}
 .menu-load>.menu-sub{margin:4px 0 0}
+.menu-waiting-line{margin:2px 0 0;font-style:italic;color:#57493a}
 
 /* New Game. */
 .wizard{box-sizing:border-box;width:min(1180px,100%);max-height:calc(100dvh - 48px);display:flex;flex-direction:column;border-radius:2px;

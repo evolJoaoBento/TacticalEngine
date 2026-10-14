@@ -4,6 +4,14 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## A friend coming back finds the game waiting — done
+
+A host who hosts a save again keeps each friend's character for them; now the friend needs no new link. Signed in,
+their Play Together shows the game ("Kara kept Violet for you", and on the menu's Play Together, "Kara has a game
+waiting for you"), and Join takes them to their seat. The server lists, for the account signed in only, the games
+whose `kept` seats are theirs (`GET /__play/waiting`), with the invitation. A friend new to a game still needs the
+link: nothing kept for them, nothing listed.
+
 ## A stable address for friends, written up — done
 
 `docs/HOSTING.md`, "A stable address": a named Cloudflare tunnel, made from the dashboard and run as a Windows

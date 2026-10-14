@@ -51,6 +51,11 @@
 //! to it; past that it goes. A guest's page opens over the game's project, read before it is built
 //! (`GET /__play/join/<invite>`: `{ project }`, for anybody signed in who holds the invitation).
 //!
+//! A player coming back finds the games that hold a seat for them without being sent the link again
+//! (`GET /__play/waiting`: `{ games: [{ invite, host, project, characters, started }] }`, the signed-in account's
+//! own): those whose host loaded a save that kept that account's characters for it (`kept`), with each one's
+//! invitation, the host's name, the project's, and the kept characters' names.
+//!
 //! Each player acts with their own (phase 5, slice 4): before anything of an account's is asked of its game, the
 //! game is told whom it plays for (`restoreSeating`, which no page may send) - the account, the host, who plays
 //! whom, and whom the account last had selected - and refuses an intent for a character that account does not
@@ -714,11 +719,48 @@ impl Tables {
         inner.at.contains_key(account)
     }
 
+    /// The games holding a seat for an account - a save their host loaded kept its characters for it - with each
+    /// one's invitation, its host's name, its project's, and the names of the characters kept: a player coming
+    /// back joins without being sent the link again.
+    pub fn waiting_for(&self, account: &str) -> Vec<Value> {
+        let mut inner = self.inner.lock().expect("the tables");
+        self.sweep(&mut inner);
+        let accounts = read_accounts(&self.root);
+        let name = |id: &str| accounts.iter().find(|known| known.id == id).map_or_else(|| id.to_string(), |known| known.name.clone());
+        let mut waiting: Vec<Value> = inner
+            .games
+            .values()
+            .filter_map(|game| {
+                let held = game.shared.lock().expect("the game");
+                let theirs: Vec<&String> = held.kept.iter().filter(|(_, kept)| *kept == account).map(|(character, _)| character).collect();
+                if theirs.is_empty() {
+                    return None;
+                }
+                let board: Value = serde_json::from_str(&held.seen).unwrap_or(Value::Null);
+                Some(json!({
+                    "invite": held.invite,
+                    "host": name(&held.host),
+                    "project": held.document["name"].as_str().unwrap_or(""),
+                    "characters": theirs.iter().map(|character| character_name(&board, character)).collect::<Vec<_>>(),
+                    "started": held.started,
+                }))
+            })
+            .collect();
+        waiting.sort_by(|a, b| (a["host"].as_str(), a["invite"].as_str()).cmp(&(b["host"].as_str(), b["invite"].as_str())));
+        waiting
+    }
+
     /// The project a game was opened over, for a page joining it with its invitation to open over.
     pub fn project_of(&self, invite: &str) -> Option<Value> {
         let inner = self.inner.lock().expect("the tables");
         inner.games.values().map(|game| game.shared.lock().expect("the game")).find(|held| !invite.is_empty() && held.invite == invite).map(|held| held.document.clone())
     }
+}
+
+/// A character's name on a board: its sheet's, else its own id.
+fn character_name(board: &Value, character: &str) -> String {
+    let sheets = board["replica"]["sheets"].as_array().map_or(&[][..], Vec::as_slice);
+    sheets.iter().find(|sheet| sheet["id"] == character).and_then(|sheet| sheet["name"].as_str()).unwrap_or(character).to_string()
 }
 
 /// Who is signed in, by the session cookie the accounts know.
@@ -756,6 +798,14 @@ async fn joining(State(tables): State<Tables>, headers: HeaderMap, Route(invite)
     match tables.project_of(&invite) {
         Some(project) => Json(json!({ "project": project })).into_response(),
         None => (StatusCode::NOT_FOUND, "no game for that invitation").into_response(),
+    }
+}
+
+/// The games holding a seat for whoever is signed in, to join without being sent the link again.
+async fn waiting(State(tables): State<Tables>, headers: HeaderMap) -> Response {
+    match signed_in(&tables, &headers) {
+        Err(refused) => refused.into_response(),
+        Ok(account) => Json(json!({ "games": tables.waiting_for(&account) })).into_response(),
     }
 }
 
@@ -800,5 +850,5 @@ pub fn router(root: PathBuf) -> Router {
 
 /// The play route over tables made as they are wanted - the tests' (`Tables::for_tests`).
 pub fn router_for(tables: Tables) -> Router {
-    Router::new().route(PLAY_URL, get(handle)).route(&format!("{PLAY_URL}/join/{{invite}}"), get(joining)).with_state(tables)
+    Router::new().route(PLAY_URL, get(handle)).route(&format!("{PLAY_URL}/join/{{invite}}"), get(joining)).route(&format!("{PLAY_URL}/waiting"), get(waiting)).with_state(tables)
 }

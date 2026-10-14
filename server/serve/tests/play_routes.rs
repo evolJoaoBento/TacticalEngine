@@ -744,12 +744,39 @@ async fn a_shared_games_save_keeps_who_plays_whom_and_hosting_it_again_seats_eac
     let table = told(&mut to_host).await["table"].clone();
     assert_eq!(table["seats"], json!({}), "nobody back yet: {table}");
     assert_eq!(table["kept"], json!({ finns.as_str(): { "id": "finn", "name": "finn" }, miras.as_str(): { "id": "mira", "name": "mira" } }));
+    // Each finds the game waiting for them, without the link: its invitation, its host, and the characters kept.
+    let named = |character: &str| fixture["projects"][0]["party"].as_array().unwrap().iter().find(|sheet| sheet["id"] == character).unwrap()["name"].clone();
+    assert_eq!(
+        tables.waiting_for("finn"),
+        vec![json!({ "invite": invite, "host": "kara", "project": "Demo Vault", "characters": [named(&finns)], "started": false })]
+    );
+    assert_eq!(tables.waiting_for("mira")[0]["characters"], json!([named(&miras)]));
+    assert_eq!(tables.waiting_for("kara"), Vec::<Value>::new(), "the host is kept nothing");
+    // Asked over the route, each is told their own, and nobody signed in is told nothing.
+    write_accounts(&root, &[Account { id: "finn".into(), name: "finn".into(), salt: "s".into(), hash: "h".into(), admin: false, created: 0, rest: IndexMap::new() }]).unwrap();
+    let mut sessions = IndexMap::new();
+    sessions.insert("finns-token".to_string(), Signed { account: "finn".into(), expires: i64::MAX });
+    write_sessions(&root, &sessions).unwrap();
+    let app = serve::play::router_for(tables.clone());
+    let get = |cookie: Option<&str>| {
+        let mut request = axum::http::Request::builder().uri("/__play/waiting");
+        if let Some(cookie) = cookie {
+            request = request.header("cookie", format!("{SESSION_COOKIE}={cookie}"));
+        }
+        tower::ServiceExt::oneshot(app.clone(), request.body(axum::body::Body::empty()).unwrap())
+    };
+    let read = get(Some("finns-token")).await.unwrap();
+    assert_eq!(read.status(), 200);
+    let body: Value = serde_json::from_slice(&http_body_util::BodyExt::collect(read.into_body()).await.unwrap().to_bytes()).unwrap();
+    assert_eq!(body, json!({ "games": tables.waiting_for("finn") }));
+    assert_eq!(get(None).await.unwrap().status(), 401);
     // Saved before they are back, the kept seats are still in it.
     tables.ask_on(host, "kara", json!({ "id": 5, "op": "save", "slot": id, "name": "The evening", "where": "the vault" }));
     assert_eq!(told(&mut to_host).await["ok"]["slot"]["seats"], json!({ finns.as_str(): "finn", miras.as_str(): "mira" }));
     // The host's word over a kept seat: Mira's given to Kara.
     tables.ask_on(host, "kara", json!({ "id": 6, "op": "seat", "character": miras, "account": "kara" }));
     assert_eq!(told(&mut to_host).await["ok"]["table"]["kept"], json!({ finns.as_str(): { "id": "finn", "name": "finn" } }));
+    assert_eq!(tables.waiting_for("mira"), Vec::<Value>::new(), "nothing kept for Mira now");
     // Mira comes back: not seated in what the host gave away, and not to take Finn's, kept for him.
     let (mira, mut to_mira) = tables.connect();
     tables.ask_on(mira, "mira", json!({ "id": 1, "op": "join", "invite": invite }));
@@ -763,6 +790,7 @@ async fn a_shared_games_save_keeps_who_plays_whom_and_hosting_it_again_seats_eac
     let joined = told(&mut to_finn).await;
     assert_eq!(joined["ok"]["table"]["seats"], json!({ miras.as_str(): "kara", finns.as_str(): "finn" }));
     assert_eq!(joined["ok"]["table"]["kept"], json!({}));
+    assert_eq!(tables.waiting_for("finn"), Vec::<Value>::new(), "back, nothing waits for him");
     assert_eq!(told(&mut to_host).await["table"]["seats"][finns.as_str()], "finn");
     // Started, Finn has his own selected.
     tables.ask_on(host, "kara", json!({ "id": 7, "op": "start" }));

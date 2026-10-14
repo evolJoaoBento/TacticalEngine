@@ -9,7 +9,8 @@ import { ON_SERVER } from './server-mode';
  * guest nobody until seated, then the one they were seated in, each with a selection of their own; a question is
  * put to whoever plays the character it is about, and the other page says whom it waits on. Nothing parts. And a
  * game hosted from the menu's Play Together, a lobby: the guest joins with the link pasted there, takes a seat,
- * and the host starts it; the game's saves the host's alone.
+ * and the host starts it; the game's saves the host's alone. Hosted again from that save, the game waits for the
+ * guest in their own Play Together, joined with no link sent.
  * Played on the server alone: the ordinary run has no server to share a game on.
  */
 
@@ -255,9 +256,19 @@ test('a game hosted from the menu is a lobby: friends join with the link, take t
   await expect(lobby.locator(`[data-testid="lobby-seat"][data-character="${theirs}"]`).getByTestId('lobby-kept')).toContainText('Kept for');
   await page.screenshot({ path: 'test-results/lobby-kept.png' });
   const again = new URL(await lobby.getByTestId('invite-link').inputValue());
-  // The guest back, with the new link: seated in their own at once, nothing to take.
+  // The guest back, sent no link: Play Together has the game waiting for them, and joins it - seated in their own
+  // at once, nothing to take.
   const back = await guestContext.newPage();
-  await back.goto(`/${again.search}`);
+  await back.goto('/?menu');
+  await expect(back.getByTestId('menu-together')).toContainText('has a game waiting for you');
+  await back.getByTestId('menu-together').click();
+  const waiting = back.getByTestId('menu-waiting');
+  await expect(waiting).toHaveCount(1);
+  await expect(waiting).toContainText('kept');
+  await expect(waiting).toContainText('for you.');
+  await back.screenshot({ path: 'test-results/menu-waiting.png' });
+  await waiting.getByTestId('menu-waiting-join').click();
+  await back.waitForURL((url) => url.search === again.search);
   await ready(back);
   await expect.poll(() => back.evaluate(() => window.__table!.table()!.seats), { timeout: 15_000 }).toEqual({ [theirs]: guestId });
   await expect(back.getByTestId('lobby').locator(`[data-testid="lobby-seat"][data-character="${theirs}"]`).getByTestId('lobby-leave')).toBeVisible();

@@ -90,7 +90,9 @@ in the menu choose **Change password** (beside Sign out). Until you do, `admin` 
    seat them. A friend who comes late, with the link, joins the game as it is. The game's saves are yours: only
    you save it, into your saves, and only you load a save into it. A save remembers who played whom: host it
    again from Play Together and the lobby keeps each friend's character for them ("Kept for ..."), seating them
-   in it the moment they join with the new link.
+   in it the moment they join. **A friend coming back needs no new link:** signed in, their own Play Together
+   shows your game waiting for them ("Kara kept Violet for you"), and **Join** takes them to their seat. A
+   friend new to the game still needs the link.
 
 A game opened the ordinary way - New Game, Load Game - is still yours alone until somebody joins it with the
 link in the settings: it starts at once, with no lobby.
@@ -122,9 +124,9 @@ Then each evening is steps 1 and 3 to 6 of "Each time" above, with no step 2: st
 and send `https://play.example.com/?join=...`. While the server is not running, the address answers with
 Cloudflare's error page.
 
-**What it does not change:** the address stays the same, but the invitation is still each game's own. Every game
-you host gets a new `?join=...`, so a friend coming back still needs tonight's link to get into tonight's game; the
-stable address saves them only the new address and the new sign-in.
+**What it does not change:** every game you host gets a new invitation, `?join=...`. A friend you host a save
+for finds the game waiting in their Play Together without it (step 6 above); anybody new to the game still needs
+tonight's link.
 
 (Cloudflare also has a command-line way to make a named tunnel - `cloudflared tunnel login`, `create`,
 `route dns` and `run`, with a `config.yml` - which needs the same domain. The dashboard's is the shorter.)
