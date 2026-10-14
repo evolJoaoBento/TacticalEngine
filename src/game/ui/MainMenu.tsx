@@ -5,6 +5,7 @@
  *   Load Game   the game, played: the demo from the start or from a save, or a game you began and
  *               any save of it - never the editor
  *   Edit Game   the project with the editor, as the app has always opened
+ *   (Change password, beside Sign out, for whoever is signed in: `ChangePassword.tsx`.)
  *   Store       art creators have published, with how they made it, and a vote on it (`Store.tsx`) -
  *               for whoever is signed in
  *   Play Together  where the server plays the game: any game Load Game lists, or a save of it, hosted for
@@ -22,6 +23,7 @@ import { DEFAULT_SAVE_PROJECT, SaveSlots, browserStore, projectOfSlot, type Save
 import { NewGame } from './NewGame';
 import type { SignedIn } from '../accounts';
 import { Store } from './Store';
+import { ChangePassword } from './ChangePassword';
 import { listAccountSaves } from '../account-saves';
 import { serverAllowed } from '../play-socket';
 import { inviteFrom } from '../shared-game';
@@ -51,7 +53,7 @@ function Saves({ saves, open }: { saves: SaveSlot[]; open: (slot: string) => voi
 }
 
 export function MainMenu(props: { account?: SignedIn | null; onSignOut?: () => void }): preact.JSX.Element {
-  const [view, setView] = useState<'main' | 'load' | 'new' | 'store' | 'together'>('main');
+  const [view, setView] = useState<'main' | 'load' | 'new' | 'store' | 'together' | 'password'>('main');
   const [joining, setJoining] = useState('');
   const [joinRefused, setJoinRefused] = useState(false);
   const account = props.account ?? null;
@@ -104,11 +106,14 @@ export function MainMenu(props: { account?: SignedIn | null; onSignOut?: () => v
           {account === null ? null : (
             <p className="menu-account" data-testid="menu-account">
               Signed in as <b>{account.name}</b>{account.admin ? ' (admin)' : ''} ·{' '}
+              <button type="button" className="menu-link" data-testid="menu-password" onClick={() => setView('password')}>Change password</button> ·{' '}
               <button type="button" className="menu-link" data-testid="menu-sign-out" onClick={props.onSignOut}>Sign out</button>
             </p>
           )}
           <h1 className="menu-title">Tactical Engine</h1>
-          {view === 'main' ? (
+          {view === 'password' && account !== null ? (
+            <ChangePassword onBack={() => setView('main')} />
+          ) : view === 'main' ? (
             <>
               <p className="menu-sub">A party, a table, and whatever waits in the dark.</p>
               <nav className="menu-choices">

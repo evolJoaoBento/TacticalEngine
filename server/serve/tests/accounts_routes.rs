@@ -220,11 +220,80 @@ async fn from_beyond_this_machine_admin_keeps_its_first_password_home_and_nobody
     assert_eq!(send_to(&root, closed, "/__accounts/login", r#"{"name":"admin","password":"admin"}"#, &PAGE).await.status, StatusCode::OK);
     // Nor is an account made from beyond, unless the server was started to let one be.
     let made = send_to(&root, closed, "/__accounts/register", r#"{"name":"Stranger","password":"hunter22"}"#, &TUNNEL).await;
-    assert_eq!((made.status, made.body["reason"].clone()), (StatusCode::FORBIDDEN, json!("new accounts are made on the machine the server runs on")));
+    assert_eq!((made.status, made.body["reason"].clone()), (StatusCode::FORBIDDEN, json!("new accounts are made on the machine the server runs on, or with an invitation to a game")));
     // Made here, it signs in from beyond.
     assert_eq!(send_to(&root, closed, "/__accounts/register", r#"{"name":"Wren","password":"hunter22"}"#, &PAGE).await.status, StatusCode::OK);
     assert_eq!(send_to(&root, closed, "/__accounts/login", r#"{"name":"Wren","password":"hunter22"}"#, &TUNNEL).await.status, StatusCode::OK);
     let open = serve::Settings { sign_up: true, ..serve::Settings::default() };
     assert_eq!(send_to(&root, open, "/__accounts/register", r#"{"name":"Stranger","password":"hunter22"}"#, &TUNNEL).await.status, StatusCode::OK);
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+/// A request to one server, kept between requests: its games, its invitations.
+async fn ask(app: &axum::Router, path: &str, body: &str, headers: &[(&str, &str)]) -> Reply {
+    let mut request = Request::builder().method("POST").uri(path);
+    for (name, value) in headers {
+        request = request.header(*name, *value);
+    }
+    let response = app.clone().oneshot(request.body(Body::from(body.to_string())).unwrap()).await.unwrap();
+    let status = response.status();
+    let cookie = response.headers().get("set-cookie").map(|v| v.to_str().unwrap().to_string());
+    let bytes = response.into_body().collect().await.unwrap().to_bytes();
+    Reply { status, body: serde_json::from_slice(&bytes).unwrap(), cookie, cache: None }
+}
+
+#[tokio::test]
+async fn a_friend_holding_an_invitation_to_a_game_makes_an_account_from_beyond_this_machine() {
+    let root = folder("invited");
+    let fixture: Value = serde_json::from_str(&std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../fixtures/replica.json")).unwrap()).unwrap();
+    let tables = serve::play::Tables::new(root.clone());
+    let opened = tables.ask("admin", json!({ "id": 1, "op": "open", "project": fixture["projects"][0], "shipped": fixture["shipped"], "table": {} })).await;
+    let invite = opened["ok"]["invite"].as_str().unwrap().to_string();
+    let app = serve::app_over(root.clone(), serve::Settings::default(), tables);
+    // Without an invitation, or with one to no game, nobody signs up from beyond.
+    let refused = "new accounts are made on the machine the server runs on, or with an invitation to a game";
+    for body in [r#"{"name":"Pip","password":"hunter22"}"#.to_string(), r#"{"name":"Pip","password":"hunter22","invite":"0000"}"#.to_string()] {
+        let made = ask(&app, "/__accounts/register", &body, &TUNNEL).await;
+        assert_eq!((made.status, made.body["reason"].clone()), (StatusCode::FORBIDDEN, json!(refused)), "{body}");
+    }
+    // With the game's own: an account, signed in.
+    let made = ask(&app, "/__accounts/register", &json!({ "name": "Pip", "password": "hunter22", "invite": invite }).to_string(), &TUNNEL).await;
+    assert_eq!(made.status, StatusCode::OK, "{}", made.body);
+    assert_eq!(made.body["name"], "Pip");
+    assert!(made.cookie.is_some_and(|cookie| cookie.contains("Secure")));
+    // An invitation is no way into a name somebody has.
+    let taken = ask(&app, "/__accounts/register", &json!({ "name": "pip", "password": "other22", "invite": invite }).to_string(), &TUNNEL).await;
+    assert_eq!(taken.status, StatusCode::CONFLICT);
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[tokio::test]
+async fn a_password_is_changed_by_its_account_saying_the_one_it_has() {
+    let root = folder("password");
+    let app = serve::app(root.clone());
+    let made = ask(&app, "/__accounts/register", r#"{"name":"Wren","password":"hunter22"}"#, &PAGE).await;
+    let cookie = pair(made.cookie.as_deref().unwrap());
+    let change = |body: &'static str| {
+        let app = app.clone();
+        let cookie = cookie.clone();
+        async move { ask(&app, "/__accounts/password", body, &with_cookie(&cookie)).await }
+    };
+    // Nobody signed in changes nothing.
+    assert_eq!(ask(&app, "/__accounts/password", r#"{"current":"hunter22","next":"falcon99"}"#, &PAGE).await.status, StatusCode::UNAUTHORIZED);
+    // Not the password it has; a new one too short.
+    let wrong = change(r#"{"current":"nope","next":"falcon99"}"#).await;
+    assert_eq!((wrong.status, wrong.body["reason"].clone()), (StatusCode::FORBIDDEN, json!("that is not your password")));
+    assert_eq!(change(r#"{"current":"hunter22","next":"abc"}"#).await.status, StatusCode::UNPROCESSABLE_ENTITY);
+    // Changed: the old one signs in no more, the new one does, from here and from beyond.
+    let done = change(r#"{"current":"hunter22","next":"falcon99"}"#).await;
+    assert_eq!((done.status, done.body["name"].clone()), (StatusCode::OK, json!("Wren")));
+    assert_eq!(ask(&app, "/__accounts/login", r#"{"name":"Wren","password":"hunter22"}"#, &PAGE).await.status, StatusCode::UNAUTHORIZED);
+    assert_eq!(ask(&app, "/__accounts/login", r#"{"name":"Wren","password":"falcon99"}"#, &TUNNEL).await.status, StatusCode::OK);
+    // The admin's first password changed on this machine: then it signs in from beyond with the new one.
+    let admin = ask(&app, "/__accounts/login", r#"{"name":"admin","password":"admin"}"#, &PAGE).await;
+    let admin_cookie = pair(admin.cookie.as_deref().unwrap());
+    assert_eq!(ask(&app, "/__accounts/password", r#"{"current":"admin","next":"kept-safe"}"#, &with_cookie(&admin_cookie)).await.status, StatusCode::OK);
+    assert_eq!(ask(&app, "/__accounts/login", r#"{"name":"admin","password":"kept-safe"}"#, &TUNNEL).await.status, StatusCode::OK);
+    assert_eq!(ask(&app, "/__accounts/login", r#"{"name":"admin","password":"admin"}"#, &PAGE).await.status, StatusCode::UNAUTHORIZED);
     let _ = std::fs::remove_dir_all(&root);
 }

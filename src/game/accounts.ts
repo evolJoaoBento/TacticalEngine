@@ -66,19 +66,39 @@ export async function whoAmI(send: Send = fetch): Promise<SignedIn | null | 'non
   }
 }
 
-/** Sign in, or make an account and sign in with it (`create`). The account, or why not. */
-export async function signIn(name: string, password: string, create: boolean, send: Send = fetch): Promise<SignedIn | { refused: string }> {
+/**
+ * Sign in, or make an account and sign in with it (`create`) - holding a game's invitation (`invite`), which is what
+ * lets a friend through a tunnel make one (`server/serve/src/accounts.rs`). The account, or why not.
+ */
+export async function signIn(name: string, password: string, create: boolean, send: Send = fetch, invite: string | null = null): Promise<SignedIn | { refused: string }> {
   try {
     const response = await send(`${URL_BASE}/${create ? 'register' : 'login'}`, {
       method: 'POST',
       credentials: 'same-origin',
       headers: { 'content-type': 'application/json', [HEADER]: '1' },
-      body: JSON.stringify({ name, password }),
+      body: JSON.stringify(create && invite !== null ? { name, password, invite } : { name, password }),
     });
     const body = (await response.json()) as SignedIn & { reason?: string };
     if (!response.ok) return { refused: body.reason ?? 'the server would not sign you in' };
     rememberUser(body.id);
     return body;
+  } catch {
+    return { refused: 'the server could not be reached' };
+  }
+}
+
+/** The signed-in account's password changed, saying the one it has now: done, or why not. */
+export async function changePassword(current: string, next: string, send: Send = fetch): Promise<{ done: true } | { refused: string }> {
+  try {
+    const response = await send(`${URL_BASE}/password`, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'content-type': 'application/json', [HEADER]: '1' },
+      body: JSON.stringify({ current, next }),
+    });
+    if (response.ok) return { done: true };
+    const body = (await response.json()) as { reason?: string };
+    return { refused: body.reason ?? 'the server would not change it' };
   } catch {
     return { refused: 'the server could not be reached' };
   }

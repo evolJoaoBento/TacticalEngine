@@ -25,7 +25,7 @@ import { driveFloaters, type LiveFloater } from './game/ui/floaters';
 import { PartyHud } from './game/ui/PartyHud';
 import { bootDemo, saveDefault, savesToDefault } from './game/project-store';
 import { withListedPacks, withoutPackEntries } from './game/listed-packs';
-import { showMainMenu, startOf } from './game/start';
+import { showMainMenu, signInToJoin, startOf } from './game/start';
 import { STEER_EVERY, STEER_HOLD } from './game/steer';
 import { standingNow } from './game/land';
 import { noteArtOnBoard } from './game/hover';
@@ -328,7 +328,7 @@ const webgl2 = typeof WebGL2RenderingContext !== 'undefined' && gl instanceof We
 // `let`, because loading a project restarts the game on it. It opens on the default project, a file
 // that Ctrl+S writes back, so an edit that is saved is what opens next time (`game/project-store.ts`).
 // The main menu, unless the address has already chosen a game (`game/start.ts`): it opens the page again on what it chose.
-const start = startOf(); if (start.menu) await showMainMenu();
+const start = startOf(); if (start.menu) await showMainMenu(); else await signInToJoin(); // a friend's invitation, signed in first
 const booted = await bootDemo({ problems: errors });
 // The game, through its one seam (`game/client.ts`): seated at a table, the defender asked, the tokens walking.
 let game: GameClient & LocalPowers = await gameReady(booted.demo); // the page's own, or the engine's (`?engine=wasm`)

@@ -2,16 +2,20 @@
  * Signing in, before the main menu, when the server keeps accounts (`accounts.ts`, `tools/accounts.ts`):
  * a name and a password, and Sign in - or Create account, to make one with them. Signed in, the menu
  * shows that player's games and saves, and the store knows who they are.
+ *
+ * Opened with a game's invitation (`?join=`) and nobody signed in, it says so and starts on making an account:
+ * the invitation goes with it, which is what lets a friend through a tunnel make one (`start.ts`, `signInToJoin`).
  */
 
 import { useState } from 'preact/hooks';
 import { signIn, type SignedIn } from '../accounts';
 import './menu.css';
 
-export function SignIn(props: { onSignedIn: (account: SignedIn) => void }): preact.JSX.Element {
+export function SignIn(props: { onSignedIn: (account: SignedIn) => void; invite?: string | null }): preact.JSX.Element {
+  const invite = props.invite ?? null;
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
-  const [creating, setCreating] = useState(false);
+  const [creating, setCreating] = useState(invite !== null);
   const [busy, setBusy] = useState(false);
   const [refused, setRefused] = useState<string | null>(null);
 
@@ -19,7 +23,7 @@ export function SignIn(props: { onSignedIn: (account: SignedIn) => void }): prea
     if (busy) return;
     setBusy(true);
     setRefused(null);
-    const answer = await signIn(name.trim(), password, creating);
+    const answer = await signIn(name.trim(), password, creating, fetch, invite);
     setBusy(false);
     if ('refused' in answer) setRefused(answer.refused);
     else props.onSignedIn(answer);
@@ -35,7 +39,10 @@ export function SignIn(props: { onSignedIn: (account: SignedIn) => void }): prea
         }}
       >
         <h1 className="menu-title">Tactical Engine</h1>
-        <p className="menu-sub">{creating ? 'Make an account: your games and saves are kept under it.' : 'Sign in to play your own games.'}</p>
+        <p className="menu-sub">
+          {invite !== null ? 'You have been invited to a game. ' : ''}
+          {creating ? 'Make an account: your games and saves are kept under it.' : invite !== null ? 'Sign in to join it.' : 'Sign in to play your own games.'}
+        </p>
         <label className="menu-field">
           Name
           <input data-testid="sign-in-name" value={name} autoComplete="username" maxLength={24} onInput={(e) => setName(e.currentTarget.value)} />

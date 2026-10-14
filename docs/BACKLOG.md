@@ -4,6 +4,14 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## Accounts: a friend makes their own with an invitation, and anybody changes their password — done
+
+Through a tunnel an account is made by somebody holding the invitation to a game being played now (or by anybody,
+with `--sign-up` as before): a friend opening the host's invitation signed in to nothing is shown the sign-in card,
+ready to make one, and lands in the game. Anybody signed in changes their password from the menu (Change
+password, beside Sign out) - admin's first one too, after which admin signs in from beyond this machine as well.
+`docs/HOSTING.md` gives the tunnel as Cloudflare's quick tunnel, step by step.
+
 ## An item drawn as what it is — done
 
 An item with no picture of its own was drawn with its kind's glyph, so a smith's notes showed a potion's flask. An

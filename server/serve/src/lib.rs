@@ -40,7 +40,16 @@ pub fn app(root: PathBuf) -> Router {
 
 /// The server, as `app`, run as `settings` say.
 pub fn app_with(root: PathBuf, settings: Settings) -> Router {
-    let keeper = accounts::Keeper::new(root.clone()).with_sign_up(settings.sign_up);
+    let tables = play::Tables::new(root.clone());
+    app_over(root, settings, tables)
+}
+
+/// The server, as `app_with`, over games already made (`play::Tables`): the tests', which open a game and then ask
+/// the routes about it. A friend holding one of its invitations may make an account from beyond this machine.
+pub fn app_over(root: PathBuf, settings: Settings, tables: play::Tables) -> Router {
+    let live = tables.clone();
+    let invited: accounts::Invited = std::sync::Arc::new(move |invite: &str| live.project_of(invite).is_some());
+    let keeper = accounts::Keeper::new(root.clone()).with_sign_up(settings.sign_up).with_invitations(invited);
     let shop = store::Shop::new(root.clone());
     let shelf = your_models::Shelf::new(root.clone());
     let workshop = manifest::Workshop::new(root.clone());
@@ -72,7 +81,6 @@ pub fn app_with(root: PathBuf, settings: Settings) -> Router {
         .route(saves::SAVES_URL, any(saves::handle))
         .route(&format!("{}/{{*rest}}", saves::SAVES_URL), any(saves::handle))
         .with_state(root_for_play.clone());
-    let tables = play::Tables::new(root_for_play);
     let play = play::router_for(if settings.for_tests { tables.for_tests() } else { tables });
     accounts.merge(store).merge(models.with_state(shelf)).merge(engine).merge(saves.with_state(archive)).merge(saved).merge(play)
 }

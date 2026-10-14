@@ -3,8 +3,8 @@
 How to run Tactical Engine on your own machine so friends can play it over the internet
 (`docs/SERVER.md`, phase 5, slices 2 to 5).
 
-**What this gives you today:** each friend signs in to an account on your server, and joins **your game**
-with its invitation. You host it from the menu, as a lobby: your friends join it, take their seats, and you start
+**What this gives you today:** each friend opens your game's invitation link, makes an account on your server
+right there (or signs in to the one they have), and joins **your game**. You host it from the menu, as a lobby: your friends join it, take their seats, and you start
 it together. Everybody at it sees what everybody else does, and you say who plays which character.
 Each friend plays the character you seated them in and nobody else, with a selection of their own; you play
 every character nobody is seated in. A question - a roll, how a hit lands, a death move, a line of a
@@ -35,6 +35,15 @@ npm run models          # the 3D models, from Hugging Face
 
 You also need Rust installed (`rustup`; see `docs/SERVER.md`, "Running it").
 
+And a tunnel program. Cloudflare's is free and needs no account for a quick tunnel:
+
+```bash
+winget install --id Cloudflare.cloudflared
+```
+
+**Change admin's password once,** on this machine: sign in as `admin` / `admin` at `http://127.0.0.1:8430/`, and
+in the menu choose **Change password** (beside Sign out). Until you do, `admin` signs in on this machine alone.
+
 ## Each time
 
 1. **Build the game for the server, and start it:**
@@ -47,25 +56,30 @@ You also need Rust installed (`rustup`; see `docs/SERVER.md`, "Running it").
    Open `http://127.0.0.1:8430/` yourself and sign in. The server prints where it keeps its files: your
    accounts and saves are in `data/`, which git ignores.
 
-2. **Make your friends' accounts, on this machine.** On `http://127.0.0.1:8430/`, sign out, choose to make
-   an account, and make one for each friend with a password you then give them. From beyond this machine
-   nobody can make an account unless you start the server with `--sign-up`:
+2. **Start a tunnel to the server,** in another terminal:
 
    ```bash
-   npm run server -- --sign-up
+   cloudflared tunnel --url http://127.0.0.1:8430
    ```
 
-   Anybody who has your tunnel's address can then make one. Use it for an evening and start the server
-   again without it.
+   It prints a public address, `https://<something>.trycloudflare.com`, and passes whatever reaches it on to the
+   server on this machine. The address is new each time you start it, and works only while the tunnel and the
+   server are both running here. (Any tunnel that gives HTTPS and passes on websockets will do; see "What the
+   server needs from the tunnel", below.)
 
-3. **Start a tunnel to `http://127.0.0.1:8430`,** with whichever tunnel program you use. It gives you a
-   public `https://...` address.
+3. **Your friends' accounts are their own.** A friend opening your game's invitation link who is signed in to
+   nothing is shown the sign-in card, ready to make an account: the invitation goes with it, so they can, and
+   they land in your game. Somebody who only has your tunnel's address, with no invitation to a game being
+   played, cannot make one. Each changes their own password from the menu (**Change password**). To let anybody
+   who reaches the address make an account, invitation or none, start the server with `--sign-up`
+   (`npm run server -- --sign-up`) for an evening, and again without it after.
 
 4. **Host your game, and invite your friends.** In the menu, **Play Together** lists every game you can
    load, and its saves: choose one to host. It opens as a lobby, **Gathering**, over the board, with the
    invitation: a link to the address you opened the game at, ending in `?join=...`. If you opened it at
-   `http://127.0.0.1:8430`, send your friends the tunnel's address with the same `?join=...` on the end. A
-   friend signed in opens it, or pastes it into **Join a game** under Play Together, and joins your lobby.
+   `http://127.0.0.1:8430`, send your friends the tunnel's address with the same `?join=...` on the end
+   (`https://<something>.trycloudflare.com/?join=...`). A friend opens it - making an account first if they have
+   none - or, signed in, pastes it into **Join a game** under Play Together, and joins your lobby.
 
 5. **Take your seats, and start.** The lobby lists everybody at the game, and each character with who plays
    it. Each friend takes a character nobody has, or leaves their own; you choose for anybody. Whoever nobody
@@ -92,10 +106,11 @@ link in the settings: it starts at once, with no lobby.
   be used.
 - **Websockets.** The games are played over one (`/__play`).
 
-**Checking it works:** open the public address in a browser that is not signed in to anything.
-- The sign-in card shows, and a friend's account signs in.
-- The menu shows the account's name.
-- Opening a game, the game plays.
+**Checking it works:** host a game, and open its invitation at the public address in a browser that is not
+signed in to anything (a private window will do).
+- The sign-in card shows, saying you have been invited, ready to make an account.
+- Made, the page opens on your game, and the lobby lists both of you.
+- Opening the address alone, with no invitation, the card signs in but makes no account.
 
 If sign-in says *sent from another origin*, the tunnel is sending neither host name above.
 `npm run test:e2e:tunnel` runs this same check against a tunnel that rewrites `Host`, on this machine.
@@ -106,8 +121,9 @@ These hold for anything that reaches the server from beyond this machine, which 
 tunnel:
 
 - **Sign in as `admin` with the password it was made with** (`admin`). That password works only on this
-  machine. There is no way to change a password yet, so this is what keeps the default harmless.
-- **Make an account**, unless the server was started with `--sign-up`.
+  machine; once you change it, `admin` signs in from anywhere with the new one.
+- **Make an account** without an invitation to a game being played now, unless the server was started with
+  `--sign-up`.
 - **See the card art in `public/cards/`.** It is reference art for this machine only, never handed on.
   Friends see the cards drawn from their numbers instead.
 - **Use the test driver's hands** (wounding somebody, placing them, handing them cards). Only a server

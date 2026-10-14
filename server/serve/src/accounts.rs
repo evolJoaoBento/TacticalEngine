@@ -260,6 +260,9 @@ pub fn public_account(account: &Account) -> Value {
     json!({ "name": account.name, "id": account.id, "admin": account.admin })
 }
 
+/// Whether an invitation is to a game being played now (`play::Tables`): what lets a friend make an account.
+pub type Invited = Arc<dyn Fn(&str) -> bool + Send + Sync>;
+
 /// Everything under one lock: the dev plugins were one thread, and a read-then-write must not interleave.
 #[derive(Clone)]
 pub struct Keeper {
@@ -267,17 +270,34 @@ pub struct Keeper {
     lock: Arc<Mutex<()>>,
     /// Whether somebody from beyond this machine may make an account (`--sign-up`).
     sign_up: bool,
+    /// Whether an invitation is a live game's: somebody from beyond this machine holding one may make an account.
+    invited: Invited,
 }
 
 impl Keeper {
     pub fn new(root: PathBuf) -> Self {
-        Keeper { root, lock: Arc::new(Mutex::new(())), sign_up: false }
+        Keeper { root, lock: Arc::new(Mutex::new(())), sign_up: false, invited: Arc::new(|_: &str| false) }
     }
 
     /// The accounts, letting somebody from beyond this machine make one (`--sign-up`).
     pub fn with_sign_up(self, sign_up: bool) -> Self {
         Keeper { sign_up, ..self }
     }
+
+    /// The accounts, letting somebody from beyond this machine who holds a live game's invitation make one.
+    pub fn with_invitations(self, invited: Invited) -> Self {
+        Keeper { invited, ..self }
+    }
+}
+
+/// A new password, as a body gives it beside the one it replaces (`password`): both, or why not.
+fn judge_new_password(body: &str) -> Result<(String, String), &'static str> {
+    let parsed: Value = serde_json::from_str(body).map_err(|_| "not JSON")?;
+    let field = |key: &str| parsed.as_object().and_then(|object| object.get(key)).and_then(Value::as_str);
+    let current = field("current").ok_or("your password as it is now")?;
+    // The length JavaScript counts: UTF-16 units, as an account's first password is held to.
+    let next = field("next").filter(|next| (4..=200).contains(&next.encode_utf16().count())).ok_or("a password is 4 to 200 characters")?;
+    Ok((current.to_string(), next.to_string()))
 }
 
 /// A request as the accounts see it, with the body read (or found too large).
@@ -336,6 +356,32 @@ fn respond(keeper: &Keeper, asked: Asked) -> Answer {
         done.cookie = Some(session_cookie(None, secure));
         return done;
     }
+    // A password changed, by the account signed in, which says the one it has now: on this machine or beyond it.
+    if asked.route == "password" {
+        let Some(account) = account_of(cookie.as_deref(), &sessions, &all, now).cloned() else {
+            return answer(401, json!({ "reason": "nobody is signed in" }));
+        };
+        let Ok(body) = asked.body else {
+            return answer(413, json!({ "reason": "too large" }));
+        };
+        let (current, next) = match judge_new_password(&body) {
+            Ok(passwords) => passwords,
+            Err(reason) => return answer(422, json!({ "reason": reason })),
+        };
+        if !check_password(&account.salt, &account.hash, &current) {
+            return answer(403, json!({ "reason": "that is not your password" }));
+        }
+        let salt = new_salt();
+        let hash = hash_password(&next, &salt);
+        if let Some(entry) = all.iter_mut().find(|entry| entry.id == account.id) {
+            entry.salt = salt;
+            entry.hash = hash;
+        }
+        if let Err(why) = write_accounts(root, &all) {
+            return answer(500, json!({ "reason": format!("the password could not be kept: {why}") }));
+        }
+        return answer(200, public_account(&account));
+    }
     if asked.route != "login" && asked.route != "register" {
         return answer(404, json!({ "reason": "no such route" }));
     }
@@ -352,8 +398,10 @@ fn respond(keeper: &Keeper, asked: Asked) -> Answer {
         return answer(403, json!({ "reason": "admin signs in with that password only on the machine the server runs on" }));
     }
     let account = if asked.route == "register" {
-        if beyond && !keeper.sign_up {
-            return answer(403, json!({ "reason": "new accounts are made on the machine the server runs on" }));
+        // From beyond this machine: with `--sign-up`, or holding the invitation to a game being played now.
+        let invitation = serde_json::from_str::<Value>(&body).ok().and_then(|parsed| parsed["invite"].as_str().map(str::to_string));
+        if beyond && !keeper.sign_up && !invitation.is_some_and(|invite| (keeper.invited)(&invite)) {
+            return answer(403, json!({ "reason": "new accounts are made on the machine the server runs on, or with an invitation to a game" }));
         }
         if all.iter().any(|entry| entry.id == id) {
             return answer(409, json!({ "reason": "that name is taken" }));

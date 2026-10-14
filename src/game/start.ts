@@ -21,6 +21,7 @@ import { h, render } from 'preact';
 import { BOOT } from 'virtual:boot-project';
 import { MainMenu } from './ui/MainMenu';
 import { SignIn } from './ui/SignIn';
+import { invitationOf } from './shared-game';
 import { rememberUser, signOut, whoAmI, type SignedIn } from './accounts';
 import { useState } from 'preact/hooks';
 import { CardArtImports, loadCardArtIndex, useCardArtImports, useCardArtIndex } from './ui/card-art';
@@ -63,6 +64,19 @@ export async function showMainMenu(): Promise<never> {
   else if (who !== 'none') rememberUser(who.id);
   document.getElementById('curtain')?.remove();
   render(h(MenuGate, { first: who }), document.getElementById('app')!);
+  return new Promise<never>(() => undefined);
+}
+
+/**
+ * A page opened with a game's invitation (`?join=`) while nobody is signed in, where the server keeps accounts:
+ * the sign-in card first - starting on making an account, the invitation going with it - and then the page opened
+ * again, signed in, to join. Returns at once for anybody signed in, or a server that keeps no accounts.
+ */
+export async function signInToJoin(): Promise<void> {
+  const invite = invitationOf();
+  if (invite === null || (await whoAmI()) !== null) return;
+  document.getElementById('curtain')?.remove();
+  render(h(SignIn, { invite, onSignedIn: () => window.location.reload() }), document.getElementById('app')!);
   return new Promise<never>(() => undefined);
 }
 

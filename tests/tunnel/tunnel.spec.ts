@@ -55,3 +55,46 @@ test('a friend signs in through the tunnel and plays on the server', async ({ pa
   await page.waitForFunction(() => window.__replica?.server() === 'in', null, { timeout: 15_000 });
   expect(await page.evaluate(() => window.__replica!.count().parted)).toBe(0);
 });
+
+test("a friend opens the host's invitation signed out, makes an account with it, joins, and changes their password", async ({ page, browser }) => {
+  // The host, at home: an account, and a game opened, its invitation read.
+  const home = `http://127.0.0.1:${SERVER_PORT}`;
+  const host = await browser.newContext();
+  const made = await host.request.post(`${home}/__accounts/register`, { headers: { 'x-tactical-save': '1', origin: home }, data: { name: 'Hearth', password: 'hunter22' } });
+  expect(made.status(), await made.text()).toBe(200);
+  const hosting = await host.newPage();
+  await hosting.goto(`${home}/?play`);
+  await hosting.waitForFunction(() => window.__replica?.server() === 'in' && window.__table?.table() !== null, null, { timeout: 60_000 });
+  const invite = await hosting.evaluate(() => window.__table!.table()!.invite);
+
+  // The friend, through the tunnel, signed in to nothing: the sign-in card, on making an account, saying why.
+  await page.goto(`/?join=${invite}`);
+  const card = page.getByTestId('sign-in');
+  await expect(card).toContainText('You have been invited to a game.');
+  await expect(page.getByTestId('sign-in-go')).toHaveText('Create account');
+  await page.screenshot({ path: 'test-results/sign-in-invited.png' });
+  await page.getByTestId('sign-in-name').fill('Pip');
+  await page.getByTestId('sign-in-password').fill('first-pass');
+  await page.getByTestId('sign-in-go').click();
+  // Made, and in the host's game.
+  await page.waitForFunction(() => window.__replica?.server() === 'in' && window.__table?.table() !== null, null, { timeout: 60_000 });
+  expect(await page.evaluate(() => window.__table!.table()!.members.map((m) => m.name))).toEqual(['Hearth', 'Pip']);
+
+  // Their password changed from the menu: the old one signs in no more, the new one does.
+  await page.goto('/?menu');
+  await page.getByTestId('menu-password').click();
+  await page.getByTestId('password-current').fill('first-pass');
+  await page.getByTestId('password-next').fill('own-choice');
+  await page.getByTestId('password-again').fill('own-choice');
+  await page.getByTestId('password-go').click();
+  await expect(page.getByTestId('password-changed')).toBeVisible();
+  await page.screenshot({ path: 'test-results/change-password.png' });
+  const signIn = (password: string) =>
+    page.evaluate(
+      (pass) => fetch('/__accounts/login', { method: 'POST', headers: { 'x-tactical-save': '1', 'content-type': 'application/json' }, body: JSON.stringify({ name: 'Pip', password: pass }) }).then((r) => r.status),
+      password,
+    );
+  expect(await signIn('first-pass')).toBe(401);
+  expect(await signIn('own-choice')).toBe(200);
+  await host.close();
+});

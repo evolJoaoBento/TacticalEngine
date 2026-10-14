@@ -1662,4 +1662,21 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     neither counting nor held; the count told to an engine in step), the page's (`save.test.ts`: the count saved and
     parsed, and absent before there is one), the wire's (counted on both pages; the page's save the server's) and the
     e2e (three short rests through the panel, the fourth offered only long, a long one beginning the count again).
+  - **A friend's own account, and a password changed** (14 October 2026). Through a tunnel, an account is made by
+    somebody holding the invitation to a game being played now (`accounts.rs`: `register` with `invite`, the
+    `Keeper` asking the games, `play::Tables::project_of`, through `Invited`; `app_over` builds the server over
+    games already made) - or by anybody, with `--sign-up`, as before; without either it is refused. A page opened
+    with an invitation while nobody is signed in shows the sign-in card first, starting on making an account, the
+    invitation going with it (`start.ts`, `signInToJoin`; `SignIn`'s `invite`), and opens again signed in, to join -
+    it used to play alone, silently. Anybody signed in changes their password (`POST /__accounts/password`,
+    `{ current, next }`: the one it has, checked, and a new one held to the first's rules), from this machine or
+    beyond it, from the menu (`ui/ChangePassword.tsx`, beside Sign out); admin's first password, changed, lets
+    admin sign in from beyond too. Proved by the server's tests (`accounts_routes.rs`: no invitation and a dead one
+    refused, a live one making an account and no way into a taken name; a password changed only by its account
+    saying the one it has, a short one refused, the old one signing in no more and the new one from here and
+    beyond; admin's changed and then signing in from beyond), the page's (`accounts.test.ts`: the invitation sent
+    with a new account and not with a sign-in; a password changed or why not) and the tunnel's e2e
+    (`tests/tunnel/tunnel.spec.ts`: a friend through the tunnel opening the host's invitation signed out, shown the
+    card ready to make an account, made, in the host's game with the host, changing their password from the menu,
+    the old one refused and the new one taken).
   - **Next**: phase 5's slices are done, and what they left with them.

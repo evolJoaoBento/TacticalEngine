@@ -5,7 +5,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { currentUser, rememberUser, signIn, signOut, userKey, whoAmI } from './accounts';
+import { changePassword, currentUser, rememberUser, signIn, signOut, userKey, whoAmI } from './accounts';
 import { SaveSlots, browserStore } from './save-slots';
 
 /** A `localStorage` over a map, as the browser's would be. */
@@ -54,6 +54,34 @@ describe('who is signed in', () => {
   it('is not changed by a refusal, which says why', async () => {
     expect(await signIn('Ash', 'wrong', false, answer(401, { reason: 'that name and password do not match' }))).toEqual({ refused: 'that name and password do not match' });
     expect(currentUser()).toBeNull();
+  });
+
+  it("makes an account holding a game's invitation, which goes with it; signing in, it does not", async () => {
+    const sent: { url: string; body: unknown }[] = [];
+    const recording = async (url: string, init?: RequestInit) => {
+      sent.push({ url, body: JSON.parse(String(init?.body)) });
+      return { ok: true, status: 200, json: async () => ({ id: 'pip', name: 'Pip', admin: false }) };
+    };
+    await signIn('Pip', 'hunter22', true, recording, 'a1b2');
+    await signIn('Pip', 'hunter22', false, recording, 'a1b2');
+    await signIn('Pip', 'hunter22', true, recording);
+    expect(sent).toEqual([
+      { url: '/__accounts/register', body: { name: 'Pip', password: 'hunter22', invite: 'a1b2' } },
+      { url: '/__accounts/login', body: { name: 'Pip', password: 'hunter22' } },
+      { url: '/__accounts/register', body: { name: 'Pip', password: 'hunter22' } },
+    ]);
+  });
+
+  it('changes its password saying the one it has, or says why not', async () => {
+    let sent: unknown = null;
+    const done = await changePassword('hunter22', 'falcon99', async (url, init) => {
+      sent = { url, body: JSON.parse(String(init?.body)) };
+      return { ok: true, status: 200, json: async () => ({ id: 'pip' }) };
+    });
+    expect(done).toEqual({ done: true });
+    expect(sent).toEqual({ url: '/__accounts/password', body: { current: 'hunter22', next: 'falcon99' } });
+    expect(await changePassword('nope', 'falcon99', answer(403, { reason: 'that is not your password' }))).toEqual({ refused: 'that is not your password' });
+    expect(await changePassword('x', 'y', async () => { throw new Error('offline'); })).toEqual({ refused: 'the server could not be reached' });
   });
 });
 
