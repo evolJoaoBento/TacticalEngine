@@ -11,7 +11,8 @@ item, a flag for later, a quest, a page of story). The party comes by one throug
 (a reply, a chest, a blueprint's use); on a long rest a character spends a Work on a Project move on it, one unit
 of work each, the party's together, and the move that does the last of it runs the reward with that character
 acting. The rest panel offers it, the journal tracks it, the editor has a Projects workspace, validation checks
-it, and the demo carries a worked example. Next: a card as a reward (a `grantCard` effect).
+it, and the demo carries a worked example. A card can be a reward too: the `grantCard` effect ("Give a card")
+puts one in the actor's hands, or a named party member's, wherever effects are written.
 
 ## Rests: three short ones, then a long one — done
 

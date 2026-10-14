@@ -192,6 +192,8 @@ test('a project plan is learned, worked at on long rests through the panel, and 
   const log = await page.evaluate(() => window.__engine!.log().map((l) => l.text));
   expect(log).toContain('Husk-iron blade is finished.');
   expect(log).toContain('The husk-iron takes an edge at last.');
+  // And a card for the one who finished it: Quim, who worked the second rest.
+  expect(log.some((line) => line.endsWith('learns Unbroken.'))).toBe(true);
   expect(await page.evaluate(() => window.__engine!.carried().map((i) => i.name))).toContain('Improved Longsword');
   expect(errors, `console errors: ${errors.join(' | ')}`).toEqual([]);
 });

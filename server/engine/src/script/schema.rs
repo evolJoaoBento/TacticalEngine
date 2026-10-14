@@ -267,6 +267,8 @@ pub fn effect() -> &'static Schema {
                 quest("startQuest"),
                 // A project plan learned (`content/projects.ts`): the party may work at it on a long rest.
                 ("learnPlan", object(vec![kind("learnPlan"), req("plan", content_id())])),
+                // A card given a character to hold (`game/cards.rs`): the actor's, or the one named.
+                ("grantCard", object(vec![kind("grantCard"), req("card", content_id()), opt("to", content_id())])),
                 objective("completeObjective"),
                 quest("completeQuest"),
                 objective("revealObjective"),

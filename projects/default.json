@@ -22571,6 +22571,10 @@
           "flag": "husk-iron-blade-forged"
         },
         {
+          "kind": "grantCard",
+          "card": "unbroken"
+        },
+        {
           "kind": "log",
           "text": "The husk-iron takes an edge at last.",
           "tone": "narration"

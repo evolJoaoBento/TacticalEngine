@@ -345,8 +345,16 @@ journal lists each plan learned with its work ("Husk-iron blade - project, 1 of 
 learned, worked at and finished. The editor has a Projects workspace (name, description, the work it takes, the
 reward as an effect list) and the effect editor's "Teach a project plan"; validation checks a reward as it checks
 an item's use, errs on a plan taught that is not there, and warns of a plan nothing teaches. The demo carries a
-worked example: the smith's notes teach the husk-iron blade, two moves forge it. Still open: a card as a reward -
-no effect grants one yet.
+worked example: the smith's notes teach the husk-iron blade, two moves forge it, and whoever finishes it learns
+Unbroken.
+
+**A card given** is an effect too (`grantCard`, "Give a card"): it puts a card in a character's hands - the one
+acting (a plan's finisher, an item's user, the one talking) unless the effect names a party member - so a project's
+reward, a teacher's lesson or a relic's gift can be a new ability. The engine adds it to the character's domain
+cards (`game/cards.rs`: in the vault if the loadout is full, swapped in on a rest like any other), the log says
+"Quim learns Unbroken.", and a card already held, or one no content has, changes nothing. The effect editor picks
+the card from the project's and the packs' cards and the receiver from the party; validation errs on a card there
+is not and on a receiver who is not in the party.
 
 The editor has a quest list and a form — name, summary, steps — because a quest is a list and a
 list is edited as a list; the graph was the right call for conversations, not for this. The

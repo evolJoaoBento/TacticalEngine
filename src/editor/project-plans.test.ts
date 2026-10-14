@@ -68,4 +68,16 @@ describe('project plans in the editor', () => {
     expect(parsed.success).toBe(false);
     expect(parsed.error?.issues.map((i) => i.message)).toContain('duplicate project plan id "blade"');
   });
+
+  it('check a card given: one there is, to somebody in the party', () => {
+    const none = new Map();
+    const content = { weapons: none, armors: none, classes: none, ancestries: none, communities: none, subclasses: none, cards: new Map([['flame-strike', {}]]) } as unknown as NonNullable<Parameters<typeof validateProject>[1]>['characterContent'];
+    const blueprint = (use: unknown[]) => ({ id: 'blueprint', name: 'Blueprint', kind: 'consumable', use });
+    const said = (use: unknown[]): string[] => validateProject(build({ items: [blueprint(use)] }), { characterContent: content }).map((p) => p.message);
+    expect(said([{ kind: 'grantCard', card: 'flame-strike' }]).filter((m) => m.includes('Give a card'))).toEqual([]);
+    expect(said([{ kind: 'grantCard', card: 'nothing-such' }])).toContain('A "Give a card" effect gives card "nothing-such", which does not exist.');
+    expect(said([{ kind: 'grantCard', card: 'flame-strike', to: 'stranger' }])).toContain('A "Give a card" effect gives a card to "stranger", who is not in the party.');
+    // Without the content to check against, a card is not doubted.
+    expect(messages(build({ items: [blueprint([{ kind: 'grantCard', card: 'nothing-such' }])] })).filter((m) => m.includes('Give a card'))).toEqual([]);
+  });
 });

@@ -92,7 +92,8 @@ export const DEMO_ITEMS: readonly ItemDef[] = [
 
 /**
  * A worked example of a project plan (`content/projects.ts`): the smith's notes teach it, and two Work on a Project
- * moves on long rests forge the blade - a weapon carried, a flag the story could ask after, a line of narration.
+ * moves on long rests forge the blade - a weapon carried, a flag the story could ask after, a card for the one who
+ * finished it (Unbroken: nobody in the party holds it), a line of narration.
  * The notes are placed nowhere in the demo; they are here to be read, and handed over by the tests.
  */
 export const DEMO_PLANS: readonly ProjectPlan[] = [
@@ -104,6 +105,7 @@ export const DEMO_PLANS: readonly ProjectPlan[] = [
     reward: [
       { kind: 'addItem', item: 'primary-improved-longsword' },
       { kind: 'setFlag', flag: 'husk-iron-blade-forged' },
+      { kind: 'grantCard', card: 'unbroken' },
       { kind: 'log', text: 'The husk-iron takes an edge at last.', tone: 'narration' },
     ],
   }),

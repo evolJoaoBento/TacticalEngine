@@ -108,6 +108,9 @@ export function validateProject(
   checkProjectPlans(project, (severity, message, entity) => {
     problems.push({ severity, message, ...(entity === undefined ? {} : { entity }) });
   });
+  checkCardsGiven(project, options, (severity, message, entity) => {
+    problems.push({ severity, message, ...(entity === undefined ? {} : { entity }) });
+  });
   checkAbilitiesAndCode(project, options, (severity, message, entity) => {
     problems.push({ severity, message, ...(entity === undefined ? {} : { entity }) });
   });
@@ -795,6 +798,25 @@ function walkProjectEffects(project: ProjectDoc, visit: (effect: Effect) => void
   }
   for (const item of project.items) walkEffects(item.use, visit);
   for (const plan of project.projectPlans ?? []) walkEffects(plan.reward, visit);
+}
+
+/**
+ * A "Give a card" effect naming a card there is not - checked against the project's cards and the content it is
+ * checked against, when there is that - or a receiver who is not in the party.
+ */
+function checkCardsGiven(
+  project: ProjectDoc,
+  options: ValidationOptions,
+  add: (severity: ProblemSeverity, message: string, entity?: string) => void,
+): void {
+  const packed = options.characterContent?.cards;
+  const cards = packed === undefined ? null : new Set([...project.cards.map((card) => card.id), ...packed.keys()]);
+  const party = new Set(project.party.map((sheet) => sheet.id));
+  walkProjectEffects(project, (effect) => {
+    if (effect.kind !== 'grantCard') return;
+    if (cards !== null && !cards.has(effect.card)) add('error', `A "Give a card" effect gives card "${effect.card}", which does not exist.`, effect.card);
+    if (effect.to !== undefined && !party.has(effect.to)) add('error', `A "Give a card" effect gives a card to "${effect.to}", who is not in the party.`, effect.to);
+  });
 }
 
 /** A plan taught that the project has not got; a plan nothing teaches (`content/projects.ts`). */

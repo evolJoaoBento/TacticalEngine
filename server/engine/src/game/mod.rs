@@ -5,6 +5,7 @@
 pub mod answer;
 pub mod ask;
 pub mod bar;
+pub mod cards;
 pub mod blow;
 pub mod board;
 pub mod content;

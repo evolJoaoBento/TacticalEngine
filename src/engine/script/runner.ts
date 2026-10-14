@@ -982,7 +982,7 @@ export class ScriptRunner {
   private apply(effect: Effect): Prompt | null {
     const world = this.world;
     switch (effect.kind) {
-      case 'learnPlan': // a project plan: the engine's (`game/projects.rs`), and nothing a preview keeps
+      case 'learnPlan': case 'grantCard': // a plan learned, a card given: the engine's (`game/projects.rs`, `cards.rs`)
       case 'none':
         return null;
       case 'log':

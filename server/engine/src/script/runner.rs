@@ -961,6 +961,14 @@ impl<'a, W: ScriptWorld + ?Sized> ScriptRunner<'a, W> {
                 self.quest_started(s(effect, "quest").unwrap_or_default());
                 None
             }
+            "grantCard" => {
+                // Given in the session, which holds the sheets (`game/cards.rs`): the actor, unless one is named.
+                let to = s(effect, "to").map(str::to_string).or_else(|| self.world.actor_id());
+                if let (Some(to), Some(card)) = (to, s(effect, "card")) {
+                    self.journal.push(json!({ "kind": "cardGranted", "id": to, "card": card }));
+                }
+                None
+            }
             "learnPlan" => {
                 let plan = s(effect, "plan").unwrap_or_default();
                 if self.world.learn_plan(plan) {
