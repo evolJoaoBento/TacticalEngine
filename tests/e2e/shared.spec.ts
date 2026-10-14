@@ -155,6 +155,8 @@ test('a game hosted from the menu is a lobby: friends join with the link, take t
   await expect(lobby.getByTestId('lobby-start')).toBeVisible();
   const link = await lobby.getByTestId('invite-link').inputValue();
   expect(link).toMatch(/\?join=[0-9a-f]{32}$/);
+  // And for somebody with no account yet: the host's own invitation with the game's, which makes theirs and brings them.
+  await expect(lobby.getByTestId('invite-new-link')).toHaveValue(new RegExp(`/\\?invite=[0-9a-f]{24}&join=${link.split('join=')[1]}$`));
   // Nobody plays anybody before it starts: the host no more than anybody.
   const party = await page.evaluate(() => window.__engine!.party());
   expect(await page.evaluate(() => window.__engine!.selected())).toBeNull();

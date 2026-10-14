@@ -98,6 +98,7 @@ suite. `src/engine`, which the editor still reads, keeps its own golden tests.
 | 3 | Game sessions on the server: the WebSocket protocol, the client's game layer as a view, the editor's playtest on the engine built to WebAssembly | the full e2e suite passes with play on the server |
 | 4 | Co-op: several players in a session, turn ownership, visibility, reconnecting | two browsers play one fight |
 | 5 | The internet: HTTPS, a real admin password, upload and rate limits, backups, a host | reachable from outside this machine |
+| 6 | The server is the host: players invite players, anybody opens a lobby - public, friends-only or invite-only - friends, chat | (designed below) |
 
 ## Phase 3, designed (its four decisions taken, 1 October 2026)
 
@@ -272,6 +273,37 @@ The slices:
    conversation its talker's player's.
 5. **The lobby** - opening a game, inviting, joining, taking seats, starting; a shared game's saves its host's.
    Done 13 October 2026 (Progress, below).
+
+## Phase 6, designed: the server is the host (its four decisions taken, 14 October 2026)
+
+Phase 5 made one player's machine a host friends join. The server is to be the host instead: a place players come
+to, where anybody opens a game for others, not a game one player lends out.
+
+- **An account is made with a player's invitation** (decided), until sign-in with Google or the like replaces it:
+  each player holds one invitation, which makes one account and is spent; admin renews one player's, or
+  everybody's at once. A game's invitation makes no account. On the owner's machine an account is made without
+  one too, and `--sign-up` still opens the door to anybody for an evening.
+- **A game's creator runs it, handed on** (decided): whoever opens a lobby says who plays whom, starts it, loads and
+  saves it; when they leave, the running of it passes to somebody still at the table and the game goes on. Its saves
+  are the game's, not the creator's folder's: anybody who played it can host it again.
+- **Friends both ways** (decided): asked by name and accepted (or not), removed by either; and whoever's invitation
+  made an account is that account's friend from the start.
+- **Chat at the table and between friends** (decided): everybody at a game, in its lobby and in play; and a
+  friend's private messages, outside any game.
+
+The slices:
+
+1. **Invitations** - one per player, spent by the account it makes (`invitedBy`), renewed by admin; the sign-in card
+   reads it (`?invite=`), the menu shows it (Invite), the lobby offers it with the game's for somebody new. Done 14
+   October 2026 (Progress, below).
+2. **Friends** - requests by name, accepted or declined, removed; the inviter and the invited friends from the start
+   (`invitedBy`, kept since slice 1).
+3. **Lobbies anybody opens** - public, friends-only or invite-only; a list of the games a player may join in Play
+   Together (the games waiting for them - their seat kept - among them); the running of a game handed on when its
+   creator leaves.
+4. **A game's saves the game's** - kept for everybody who played it, any of whom hosts it again.
+5. **Chat at the table** - the lobby's and the game's.
+6. **Messages between friends.**
 
 ## Running it
 
@@ -1688,4 +1720,22 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     kept nothing, a seat given away or taken listed no more, the route a signed-in account's alone), the page's
     (`waiting-games.test.ts`) and the server-mode e2e (`shared.spec.ts`: the guest back with no link, joining
     from Play Together and seated in their own).
-  - **Next**: phase 5's slices are done, and what they left with them.
+  - **Phase 6, slice 1: invitations** (14 October 2026). An account is made with a player's invitation
+    (`accounts.rs`): each player holds one (`Account::invitation`, a code given the first time it is asked for,
+    `GET /__accounts/invitation`), which the account it makes spends (`usedBy`) and is kept as made by
+    (`invitedBy`); spent, it makes no other until admin renews it - one player's or everybody's (`POST
+    /__accounts/refresh`, `{ account? }`), admin seeing every player, who invited them and whether theirs is spent
+    (`GET /__accounts/players`). From beyond this machine an account needs one, unless `--sign-up`; on this machine,
+    not. A game's invitation makes no account any more (`Keeper::invited` gone, with `app_over`'s wiring of it). The
+    page: the sign-in card starts on making an account when the address carries one (`?invite=`, `accounts.ts`
+    `invitationCodeOf`; with `?join=` too it lands in the game), says so, and the address forgets it once somebody is
+    signed in; the menu's Invite shows the player's own link, or whose account it made, and admin's players with
+    a new invitation for one or for all (`ui/Invitations.tsx`); the lobby offers the player's own with the game's,
+    for somebody with no account yet. Proved by the server's tests (`accounts_routes.rs`: given once and the same
+    after; none, or nobody's, refused from beyond; a name taken spends nothing; made, invited by its holder, spent,
+    and refused again from beyond and here; players admin's alone; renewed for one and for all, nobody else
+    renewing), the page's (`accounts.test.ts`) and the e2e (`tunnel.spec.ts`: a game's invitation alone refused an
+    account; with the host's, made through the tunnel, in the host's game, the host's spent; the friend's own in
+    their menu; admin at home seeing who invited whom and renewing the host's; `shared.spec.ts`: the lobby's link for
+    somebody new).
+  - **Next**: phase 6 (designed above), from slice 2, friends.

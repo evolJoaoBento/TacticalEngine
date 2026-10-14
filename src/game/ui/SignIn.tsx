@@ -3,16 +3,19 @@
  * a name and a password, and Sign in - or Create account, to make one with them. Signed in, the menu
  * shows that player's games and saves, and the store knows who they are.
  *
- * Opened with a game's invitation (`?join=`) and nobody signed in, it says so and starts on making an account:
- * the invitation goes with it, which is what lets a friend through a tunnel make one (`start.ts`, `signInToJoin`).
+ * Opened with a player's invitation (`?invite=`), it says so and starts on making an account: the invitation goes
+ * with it, which is what lets a friend through a tunnel make one, and spends it (`accounts.rs`). Opened with a
+ * game's (`?join=`) and nobody signed in, it says that too, and the page opens again signed in, to join
+ * (`start.ts`, `signInToJoin`); a game's invitation makes no account.
  */
 
 import { useState } from 'preact/hooks';
 import { signIn, type SignedIn } from '../accounts';
 import './menu.css';
 
-export function SignIn(props: { onSignedIn: (account: SignedIn) => void; invite?: string | null }): preact.JSX.Element {
+export function SignIn(props: { onSignedIn: (account: SignedIn) => void; invite?: string | null; joining?: boolean }): preact.JSX.Element {
   const invite = props.invite ?? null;
+  const joining = props.joining ?? false;
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
   const [creating, setCreating] = useState(invite !== null);
@@ -39,9 +42,9 @@ export function SignIn(props: { onSignedIn: (account: SignedIn) => void; invite?
         }}
       >
         <h1 className="menu-title">Tactical Engine</h1>
-        <p className="menu-sub">
-          {invite !== null ? 'You have been invited to a game. ' : ''}
-          {creating ? 'Make an account: your games and saves are kept under it.' : invite !== null ? 'Sign in to join it.' : 'Sign in to play your own games.'}
+        <p className="menu-sub" data-testid="sign-in-why">
+          {joining ? 'You have been invited to a game. ' : invite !== null ? 'You have been invited to play. ' : ''}
+          {creating ? 'Make an account: your games and saves are kept under it.' : joining ? 'Sign in to join it.' : 'Sign in to play your own games.'}
         </p>
         <label className="menu-field">
           Name

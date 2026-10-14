@@ -3,17 +3,26 @@
  * until its host starts it. The invitation to send; who has come; each character and who plays it - a seat nobody
  * has taken, by whoever wants it, their own left again, and anybody's by the host's word - and the host's Start,
  * which the others wait on. A save hosted again keeps each player's seat for them until they are back (`kept`).
+ * Somebody with no account yet is sent the player's own invitation with the game's: it makes their account, and
+ * they land here (`accounts.ts`, `invitationAddress`) - while it is not spent.
  * Until then nobody plays anybody (`engine::game::seats`). Nothing at a game nobody shares,
  * or once it has started (`shared-game.ts`).
  */
 
 import { useEffect, useState } from 'preact/hooks';
 import { hosting, invitationLink, onSharedTable, playingAs, seat, seatFor, seatable, sharedTable, start } from '../shared-game';
+import { invitationAddress, myInvitation, type Invitation } from '../accounts';
 import { InviteRow, SeatSelect } from './Players';
 
 export function Lobby(): preact.JSX.Element | null {
   const [table, setTable] = useState(sharedTable());
   useEffect(() => onSharedTable(setTable), []);
+  const [mine, setMine] = useState<Invitation | null>(null);
+  // Asked only at a lobby: a page with no shared game has nobody signed in to ask for.
+  const gathering = table !== null && !table.started;
+  useEffect(() => {
+    if (gathering) void myInvitation().then(setMine);
+  }, [gathering]);
   if (table === null || table.started) return null;
   const nameOf = (account: string): string => table.members.find((member) => member.id === account)?.name ?? account;
   const you = playingAs();
@@ -26,6 +35,14 @@ export function Lobby(): preact.JSX.Element | null {
         <div className="settings-section">
           <div className="play-eyebrow">Invite your friends</div>
           <InviteRow link={invitationLink(table.invite)} />
+          {mine === null || mine.usedBy !== null ? null : (
+            <>
+              <div className="panel-sub" style={{ margin: '6px 0 2px' }}>
+                Somebody with no account yet: this one makes theirs with your invitation, and brings them here.
+              </div>
+              <InviteRow link={invitationAddress(mine.code, table.invite)} testid="invite-new-link" />
+            </>
+          )}
         </div>
         <div className="settings-section">
           <div className="play-eyebrow">At the table</div>

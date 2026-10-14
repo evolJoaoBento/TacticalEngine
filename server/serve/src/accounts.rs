@@ -14,6 +14,14 @@
 //! Routes, under `/__accounts/`: `me` (who the cookie says, or 401), and `register`, `login`, `logout`
 //! (POST, the page's own: its header, from its own origin).
 //!
+//! **Invitations** (`docs/SERVER.md`, phase 6, slice 1). Each player holds one invitation to hand somebody new: a
+//! code (`GET invitation`: `{ code, usedBy }`, given the first time it is asked for). A new account made with it
+//! (`register` with `invite`) spends it, and is kept as invited by the player who held it (`invitedBy`); spent, it
+//! makes no other until admin renews it - one player's, or everybody's at once (`POST refresh`, `{ account? }`).
+//! Admin sees every player, who invited them, and whether their invitation is spent (`GET players`). From beyond
+//! this machine an account is made only with an invitation, unless the server was started with `--sign-up`; on
+//! this machine, the owner's, without one too. A game's invitation (`?join=`) makes no account.
+//!
 //! **Through a tunnel** (`docs/HOSTING.md`, phase 5, slice 2). Friends reach the server through a proxy that
 //! answers at a public hostname over HTTPS and connects to it on this machine, so a request's `Host` may be
 //! the proxy's, not the page's. The host the page was loaded from (`page_host`) is the first
@@ -22,8 +30,8 @@
 //! origin check is sound: a page on another site cannot set it on a request without a preflight the server
 //! never answers, a websocket carries no headers a page sets, and the session cookie is `SameSite=Strict`
 //! besides. From beyond this machine, `admin` does not sign in with the password it was made with, and nobody
-//! signs up unless the server was started to let them (`--sign-up`). The session cookie is `Secure` when the
-//! page came over HTTPS (`over_https`).
+//! signs up without a player's invitation unless the server was started to let them (`--sign-up`). The session
+//! cookie is `Secure` when the page came over HTTPS (`over_https`).
 
 use crate::files::{read_json, write_json};
 use axum::body::{to_bytes, Body};
@@ -57,9 +65,31 @@ pub struct Account {
     pub hash: String,
     pub admin: bool,
     pub created: i64,
+    /// The one invitation this account hands somebody new: given the first time it is asked for, spent by the
+    /// account it makes, renewed by admin.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub invitation: Option<Invitation>,
+    /// The account whose invitation made this one.
+    #[serde(default, rename = "invitedBy", skip_serializing_if = "Option::is_none")]
+    pub invited_by: Option<String>,
     /// Anything else a later version wrote, kept as it was.
     #[serde(flatten)]
     pub rest: IndexMap<String, Value>,
+}
+
+/// An invitation to make one account: its code, and the account it made once it is spent.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct Invitation {
+    pub code: String,
+    #[serde(default, rename = "usedBy", skip_serializing_if = "Option::is_none")]
+    pub used_by: Option<String>,
+}
+
+impl Invitation {
+    /// A new one, not spent.
+    pub fn fresh() -> Invitation {
+        Invitation { code: random_hex(12), used_by: None }
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -153,6 +183,8 @@ pub fn read_accounts(root: &Path) -> Vec<Account> {
         salt,
         admin: true,
         created: now_ms(),
+        invitation: None,
+        invited_by: None,
         rest: IndexMap::new(),
     };
     let _ = write_json(&file, &vec![admin.clone()]);
@@ -260,34 +292,34 @@ pub fn public_account(account: &Account) -> Value {
     json!({ "name": account.name, "id": account.id, "admin": account.admin })
 }
 
-/// Whether an invitation is to a game being played now (`play::Tables`): what lets a friend make an account.
-pub type Invited = Arc<dyn Fn(&str) -> bool + Send + Sync>;
-
 /// Everything under one lock: the dev plugins were one thread, and a read-then-write must not interleave.
 #[derive(Clone)]
 pub struct Keeper {
     pub root: PathBuf,
     lock: Arc<Mutex<()>>,
-    /// Whether somebody from beyond this machine may make an account (`--sign-up`).
+    /// Whether somebody from beyond this machine may make an account without an invitation (`--sign-up`).
     sign_up: bool,
-    /// Whether an invitation is a live game's: somebody from beyond this machine holding one may make an account.
-    invited: Invited,
 }
 
 impl Keeper {
     pub fn new(root: PathBuf) -> Self {
-        Keeper { root, lock: Arc::new(Mutex::new(())), sign_up: false, invited: Arc::new(|_: &str| false) }
+        Keeper { root, lock: Arc::new(Mutex::new(())), sign_up: false }
     }
 
-    /// The accounts, letting somebody from beyond this machine make one (`--sign-up`).
+    /// The accounts, letting somebody from beyond this machine make one without an invitation (`--sign-up`).
     pub fn with_sign_up(self, sign_up: bool) -> Self {
         Keeper { sign_up, ..self }
     }
+}
 
-    /// The accounts, letting somebody from beyond this machine who holds a live game's invitation make one.
-    pub fn with_invitations(self, invited: Invited) -> Self {
-        Keeper { invited, ..self }
-    }
+/// An account's invitation as its holder is told it: the code, and whom it made once spent.
+fn invitation_of(account: &Account, all: &[Account]) -> Value {
+    let Some(invitation) = &account.invitation else { return Value::Null };
+    let used_by = invitation.used_by.as_deref().map(|id| {
+        let name = all.iter().find(|entry| entry.id == id).map_or(id, |entry| entry.name.as_str());
+        json!({ "id": id, "name": name })
+    });
+    json!({ "code": invitation.code, "usedBy": used_by })
 }
 
 /// A new password, as a body gives it beside the one it replaces (`password`): both, or why not.
@@ -341,6 +373,36 @@ fn respond(keeper: &Keeper, asked: Asked) -> Answer {
             None => answer(401, json!({ "reason": "nobody is signed in" })),
         };
     }
+    // The signed-in player's invitation, given the first time it is asked for.
+    if asked.route == "invitation" && asked.method == "GET" {
+        let Some(id) = account_of(cookie.as_deref(), &sessions, &all, now).map(|account| account.id.clone()) else {
+            return answer(401, json!({ "reason": "nobody is signed in" }));
+        };
+        let at = all.iter().position(|entry| entry.id == id).expect("the account signed in");
+        if all[at].invitation.is_none() {
+            all[at].invitation = Some(Invitation::fresh());
+            if let Err(why) = write_accounts(root, &all) {
+                return answer(500, json!({ "reason": format!("the invitation could not be kept: {why}") }));
+            }
+        }
+        return answer(200, invitation_of(&all[at], &all));
+    }
+    // Every player, for admin: who invited them, and whether their invitation is spent.
+    if asked.route == "players" && asked.method == "GET" {
+        match account_of(cookie.as_deref(), &sessions, &all, now) {
+            Some(account) if account.admin => {}
+            Some(_) => return answer(403, json!({ "reason": "only admin sees every player" })),
+            None => return answer(401, json!({ "reason": "nobody is signed in" })),
+        }
+        let players: Vec<Value> = all
+            .iter()
+            .map(|entry| {
+                let spent = entry.invitation.as_ref().is_some_and(|invitation| invitation.used_by.is_some());
+                json!({ "id": entry.id, "name": entry.name, "admin": entry.admin, "invitedBy": entry.invited_by, "spent": spent })
+            })
+            .collect();
+        return answer(200, json!({ "players": players }));
+    }
     let header = |name: &str| header_of(&asked.headers, name);
     if let Some(refused) = from_the_page(&asked.method, header) {
         return answer(403, json!({ "reason": refused }));
@@ -355,6 +417,30 @@ fn respond(keeper: &Keeper, asked: Asked) -> Answer {
         let mut done = answer(200, json!({}));
         done.cookie = Some(session_cookie(None, secure));
         return done;
+    }
+    // Admin renews invitations: one player's (`account`), or everybody's.
+    if asked.route == "refresh" {
+        match account_of(cookie.as_deref(), &sessions, &all, now) {
+            Some(account) if account.admin => {}
+            Some(_) => return answer(403, json!({ "reason": "only admin renews invitations" })),
+            None => return answer(401, json!({ "reason": "nobody is signed in" })),
+        }
+        let Ok(body) = asked.body else {
+            return answer(413, json!({ "reason": "too large" }));
+        };
+        let one = serde_json::from_str::<Value>(&body).ok().and_then(|parsed| parsed["account"].as_str().map(str::to_lowercase));
+        if one.as_ref().is_some_and(|id| !all.iter().any(|entry| entry.id == *id)) {
+            return answer(404, json!({ "reason": "no such player" }));
+        }
+        let mut refreshed = Vec::new();
+        for entry in all.iter_mut().filter(|entry| one.as_ref().is_none_or(|id| entry.id == *id)) {
+            entry.invitation = Some(Invitation::fresh());
+            refreshed.push(entry.id.clone());
+        }
+        if let Err(why) = write_accounts(root, &all) {
+            return answer(500, json!({ "reason": format!("the invitations could not be kept: {why}") }));
+        }
+        return answer(200, json!({ "refreshed": refreshed }));
     }
     // A password changed, by the account signed in, which says the one it has now: on this machine or beyond it.
     if asked.route == "password" {
@@ -398,16 +484,25 @@ fn respond(keeper: &Keeper, asked: Asked) -> Answer {
         return answer(403, json!({ "reason": "admin signs in with that password only on the machine the server runs on" }));
     }
     let account = if asked.route == "register" {
-        // From beyond this machine: with `--sign-up`, or holding the invitation to a game being played now.
-        let invitation = serde_json::from_str::<Value>(&body).ok().and_then(|parsed| parsed["invite"].as_str().map(str::to_string));
-        if beyond && !keeper.sign_up && !invitation.is_some_and(|invite| (keeper.invited)(&invite)) {
-            return answer(403, json!({ "reason": "new accounts are made on the machine the server runs on, or with an invitation to a game" }));
-        }
+        // With a player's invitation, not spent - from anywhere. Without one: on this machine, or with `--sign-up`.
+        let code = serde_json::from_str::<Value>(&body).ok().and_then(|parsed| parsed["invite"].as_str().map(str::to_string));
+        let holder = match code.filter(|code| !code.is_empty()) {
+            Some(code) => match all.iter().position(|entry| entry.invitation.as_ref().is_some_and(|invitation| invitation.code == code && invitation.used_by.is_none())) {
+                Some(at) => Some(at),
+                None => return answer(403, json!({ "reason": "that invitation has been used, or is nobody's: ask for another" })),
+            },
+            None if beyond && !keeper.sign_up => return answer(403, json!({ "reason": "a new account needs a player's invitation" })),
+            None => None,
+        };
         if all.iter().any(|entry| entry.id == id) {
             return answer(409, json!({ "reason": "that name is taken" }));
         }
         let salt = new_salt();
-        let account = Account { id, name, hash: hash_password(&password, &salt), salt, admin: false, created: now_ms(), rest: IndexMap::new() };
+        let invited_by = holder.map(|at| all[at].id.clone());
+        let account = Account { id, name, hash: hash_password(&password, &salt), salt, admin: false, created: now_ms(), invitation: None, invited_by, rest: IndexMap::new() };
+        if let Some(invitation) = holder.and_then(|at| all[at].invitation.as_mut()) {
+            invitation.used_by = Some(account.id.clone());
+        }
         all.push(account.clone());
         let _ = write_accounts(root, &all);
         account

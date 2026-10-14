@@ -218,9 +218,9 @@ async fn from_beyond_this_machine_admin_keeps_its_first_password_home_and_nobody
     assert!(admin.cookie.is_none());
     // On this machine it signs in as it always has.
     assert_eq!(send_to(&root, closed, "/__accounts/login", r#"{"name":"admin","password":"admin"}"#, &PAGE).await.status, StatusCode::OK);
-    // Nor is an account made from beyond, unless the server was started to let one be.
+    // Nor is an account made from beyond without an invitation, unless the server was started to let one be.
     let made = send_to(&root, closed, "/__accounts/register", r#"{"name":"Stranger","password":"hunter22"}"#, &TUNNEL).await;
-    assert_eq!((made.status, made.body["reason"].clone()), (StatusCode::FORBIDDEN, json!("new accounts are made on the machine the server runs on, or with an invitation to a game")));
+    assert_eq!((made.status, made.body["reason"].clone()), (StatusCode::FORBIDDEN, json!("a new account needs a player's invitation")));
     // Made here, it signs in from beyond.
     assert_eq!(send_to(&root, closed, "/__accounts/register", r#"{"name":"Wren","password":"hunter22"}"#, &PAGE).await.status, StatusCode::OK);
     assert_eq!(send_to(&root, closed, "/__accounts/login", r#"{"name":"Wren","password":"hunter22"}"#, &TUNNEL).await.status, StatusCode::OK);
@@ -243,27 +243,82 @@ async fn ask(app: &axum::Router, path: &str, body: &str, headers: &[(&str, &str)
 }
 
 #[tokio::test]
-async fn a_friend_holding_an_invitation_to_a_game_makes_an_account_from_beyond_this_machine() {
+async fn a_players_invitation_makes_one_account_and_admin_renews_it() {
     let root = folder("invited");
-    let fixture: Value = serde_json::from_str(&std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../fixtures/replica.json")).unwrap()).unwrap();
-    let tables = serve::play::Tables::new(root.clone());
-    let opened = tables.ask("admin", json!({ "id": 1, "op": "open", "project": fixture["projects"][0], "shipped": fixture["shipped"], "table": {} })).await;
-    let invite = opened["ok"]["invite"].as_str().unwrap().to_string();
-    let app = serve::app_over(root.clone(), serve::Settings::default(), tables);
-    // Without an invitation, or with one to no game, nobody signs up from beyond.
-    let refused = "new accounts are made on the machine the server runs on, or with an invitation to a game";
-    for body in [r#"{"name":"Pip","password":"hunter22"}"#.to_string(), r#"{"name":"Pip","password":"hunter22","invite":"0000"}"#.to_string()] {
-        let made = ask(&app, "/__accounts/register", &body, &TUNNEL).await;
-        assert_eq!((made.status, made.body["reason"].clone()), (StatusCode::FORBIDDEN, json!(refused)), "{body}");
-    }
-    // With the game's own: an account, signed in.
-    let made = ask(&app, "/__accounts/register", &json!({ "name": "Pip", "password": "hunter22", "invite": invite }).to_string(), &TUNNEL).await;
-    assert_eq!(made.status, StatusCode::OK, "{}", made.body);
-    assert_eq!(made.body["name"], "Pip");
-    assert!(made.cookie.is_some_and(|cookie| cookie.contains("Secure")));
-    // An invitation is no way into a name somebody has.
-    let taken = ask(&app, "/__accounts/register", &json!({ "name": "pip", "password": "other22", "invite": invite }).to_string(), &TUNNEL).await;
+    let app = serve::app(root.clone());
+    let get = |path: &'static str, cookie: String| {
+        let root = root.clone();
+        async move { send(&root, "GET", path, "", &[("cookie", cookie.as_str())]).await }
+    };
+    let signed_in = |name: &'static str, password: &'static str| {
+        let app = app.clone();
+        async move { pair(ask(&app, "/__accounts/login", &json!({ "name": name, "password": password }).to_string(), &PAGE).await.cookie.as_deref().unwrap()) }
+    };
+    // Wren, made at home, asks for their invitation: given once, the same code after.
+    assert_eq!(ask(&app, "/__accounts/register", r#"{"name":"Wren","password":"hunter22"}"#, &PAGE).await.status, StatusCode::OK);
+    let wren = signed_in("Wren", "hunter22").await;
+    let theirs = get("/__accounts/invitation", wren.clone()).await;
+    assert_eq!(theirs.status, StatusCode::OK);
+    let code = theirs.body["code"].as_str().unwrap().to_string();
+    assert_eq!(code.len(), 24);
+    assert_eq!(theirs.body["usedBy"], Value::Null);
+    assert_eq!(get("/__accounts/invitation", wren.clone()).await.body["code"], code.as_str());
+    assert_eq!(send(&root, "GET", "/__accounts/invitation", "", &[]).await.status, StatusCode::UNAUTHORIZED);
+
+    // From beyond: no invitation, or one that is nobody's, makes no account.
+    let none = ask(&app, "/__accounts/register", r#"{"name":"Pip","password":"hunter22"}"#, &TUNNEL).await;
+    assert_eq!((none.status, none.body["reason"].clone()), (StatusCode::FORBIDDEN, json!("a new account needs a player's invitation")));
+    let used = "that invitation has been used, or is nobody's: ask for another";
+    let nobodys = ask(&app, "/__accounts/register", r#"{"name":"Pip","password":"hunter22","invite":"0000"}"#, &TUNNEL).await;
+    assert_eq!((nobodys.status, nobodys.body["reason"].clone()), (StatusCode::FORBIDDEN, json!(used)));
+    // Wren's, into a name somebody has: refused, and not spent.
+    let taken = ask(&app, "/__accounts/register", &json!({ "name": "wren", "password": "other22", "invite": code }).to_string(), &TUNNEL).await;
     assert_eq!(taken.status, StatusCode::CONFLICT);
+    assert_eq!(get("/__accounts/invitation", wren.clone()).await.body["usedBy"], Value::Null);
+    // Wren's: an account, signed in, invited by Wren, the invitation spent on it.
+    let made = ask(&app, "/__accounts/register", &json!({ "name": "Pip", "password": "hunter22", "invite": code }).to_string(), &TUNNEL).await;
+    assert_eq!(made.status, StatusCode::OK, "{}", made.body);
+    assert!(made.cookie.is_some_and(|cookie| cookie.contains("Secure")));
+    let kept: Value = serde_json::from_str(&std::fs::read_to_string(root.join("data/accounts.json")).unwrap()).unwrap();
+    assert_eq!(kept.as_array().unwrap().iter().find(|a| a["id"] == "pip").unwrap()["invitedBy"], "wren");
+    assert_eq!(get("/__accounts/invitation", wren.clone()).await.body, json!({ "code": code, "usedBy": { "id": "pip", "name": "Pip" } }));
+    // Spent, it makes no other - from beyond or here.
+    for headers in [&TUNNEL[..], &PAGE[..]] {
+        let again = ask(&app, "/__accounts/register", &json!({ "name": "Moth", "password": "hunter22", "invite": code }).to_string(), headers).await;
+        assert_eq!((again.status, again.body["reason"].clone()), (StatusCode::FORBIDDEN, json!(used)));
+    }
+
+    // Admin sees every player; nobody else does.
+    assert_eq!(get("/__accounts/players", wren.clone()).await.status, StatusCode::FORBIDDEN);
+    assert_eq!(send(&root, "GET", "/__accounts/players", "", &[]).await.status, StatusCode::UNAUTHORIZED);
+    let admin = signed_in("admin", "admin").await;
+    let players = get("/__accounts/players", admin.clone()).await;
+    assert_eq!(
+        players.body["players"],
+        json!([
+            { "id": "admin", "name": "admin", "admin": true, "invitedBy": null, "spent": false },
+            { "id": "wren", "name": "Wren", "admin": false, "invitedBy": null, "spent": true },
+            { "id": "pip", "name": "Pip", "admin": false, "invitedBy": "wren", "spent": false },
+        ])
+    );
+    // Admin renews Wren's alone: a new code, not spent. Nobody else renews any.
+    let renew = |cookie: String, body: &'static str| {
+        let app = app.clone();
+        async move { ask(&app, "/__accounts/refresh", body, &with_cookie(&cookie)).await }
+    };
+    assert_eq!(renew(wren.clone(), "{}").await.status, StatusCode::FORBIDDEN);
+    assert_eq!(renew(admin.clone(), r#"{"account":"nobody"}"#).await.status, StatusCode::NOT_FOUND);
+    let one = renew(admin.clone(), r#"{"account":"Wren"}"#).await;
+    assert_eq!((one.status, one.body.clone()), (StatusCode::OK, json!({ "refreshed": ["wren"] })));
+    let renewed = get("/__accounts/invitation", wren.clone()).await.body;
+    assert_ne!(renewed["code"], code.as_str());
+    assert_eq!(renewed["usedBy"], Value::Null);
+    let made = ask(&app, "/__accounts/register", &json!({ "name": "Moth", "password": "hunter22", "invite": renewed["code"] }).to_string(), &TUNNEL).await;
+    assert_eq!(made.status, StatusCode::OK, "{}", made.body);
+    // Everybody's at once.
+    let all = renew(admin.clone(), "{}").await;
+    assert_eq!(all.body, json!({ "refreshed": ["admin", "wren", "pip", "moth"] }));
+    assert_eq!(get("/__accounts/invitation", wren).await.body["usedBy"], Value::Null);
     let _ = std::fs::remove_dir_all(&root);
 }
 

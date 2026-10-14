@@ -29,7 +29,7 @@ pub struct Settings {
     /// The tests' server (`--for-tests`, `play.rs`): a game opened with its dice where the page's are, and the
     /// test driver's hands taken.
     pub for_tests: bool,
-    /// Somebody from beyond this machine may make an account (`--sign-up`, `accounts.rs`).
+    /// Somebody from beyond this machine may make an account without a player's invitation (`--sign-up`, `accounts.rs`).
     pub sign_up: bool,
 }
 
@@ -45,11 +45,9 @@ pub fn app_with(root: PathBuf, settings: Settings) -> Router {
 }
 
 /// The server, as `app_with`, over games already made (`play::Tables`): the tests', which open a game and then ask
-/// the routes about it. A friend holding one of its invitations may make an account from beyond this machine.
+/// the routes about it.
 pub fn app_over(root: PathBuf, settings: Settings, tables: play::Tables) -> Router {
-    let live = tables.clone();
-    let invited: accounts::Invited = std::sync::Arc::new(move |invite: &str| live.project_of(invite).is_some());
-    let keeper = accounts::Keeper::new(root.clone()).with_sign_up(settings.sign_up).with_invitations(invited);
+    let keeper = accounts::Keeper::new(root.clone()).with_sign_up(settings.sign_up);
     let shop = store::Shop::new(root.clone());
     let shelf = your_models::Shelf::new(root.clone());
     let workshop = manifest::Workshop::new(root.clone());

@@ -7,7 +7,7 @@
 //! opened takes the page's dice rather than the server's own seed, so the suite rolls what it was written for, and
 //! the test driver's hands - somebody wounded, put somewhere, handed a card - are taken (`play.rs`).
 //! `--sign-up` lets somebody reaching the server from beyond this machine - a friend through a tunnel - make
-//! an account (`accounts.rs`); without it, accounts are made here (`docs/HOSTING.md`).
+//! an account without a player's invitation (`accounts.rs`); without it, only with one (`docs/HOSTING.md`).
 
 use std::net::SocketAddr;
 use std::path::PathBuf;

@@ -3,7 +3,7 @@
 How to run Tactical Engine on your own machine so friends can play it over the internet
 (`docs/SERVER.md`, phase 5, slices 2 to 5).
 
-**What this gives you today:** each friend opens your game's invitation link, makes an account on your server
+**What this gives you today:** each friend opens the invitation link you send, makes an account on your server
 right there (or signs in to the one they have), and joins **your game**. You host it from the menu, as a lobby: your friends join it, take their seats, and you start
 it together. Everybody at it sees what everybody else does, and you say who plays which character.
 Each friend plays the character you seated them in and nobody else, with a selection of their own; you play
@@ -67,19 +67,26 @@ in the menu choose **Change password** (beside Sign out). Until you do, `admin` 
    server are both running here. (Any tunnel that gives HTTPS and passes on websockets will do; see "What the
    server needs from the tunnel", below. For an address that stays the same, see "A stable address", below.)
 
-3. **Your friends' accounts are their own.** A friend opening your game's invitation link who is signed in to
-   nothing is shown the sign-in card, ready to make an account: the invitation goes with it, so they can, and
-   they land in your game. Somebody who only has your tunnel's address, with no invitation to a game being
-   played, cannot make one. Each changes their own password from the menu (**Change password**). To let anybody
+3. **Your friends' accounts are their own, made with an invitation.** Every player has one invitation (the
+   menu's **Invite**, beside Change password): a link that makes one account, and is spent once it has. A friend
+   opening it is shown the sign-in card ready to make an account; theirs is then made, and they have an invitation
+   of their own to pass on. Somebody with only your tunnel's address, or only a game's link, cannot make one.
+   You, as admin, see every player there and who invited them, and give anybody a new invitation - one player,
+   or **New for everybody**. Each changes their own password from the menu (**Change password**). To let anybody
    who reaches the address make an account, invitation or none, start the server with `--sign-up`
    (`npm run server -- --sign-up`) for an evening, and again without it after.
+
+   The links are made with the address you opened the page at. Opened at `http://127.0.0.1:8430`, send the
+   tunnel's address with the same ending (`/?invite=...`).
 
 4. **Host your game, and invite your friends.** In the menu, **Play Together** lists every game you can
    load, and its saves: choose one to host. It opens as a lobby, **Gathering**, over the board, with the
    invitation: a link to the address you opened the game at, ending in `?join=...`. If you opened it at
    `http://127.0.0.1:8430`, send your friends the tunnel's address with the same `?join=...` on the end
-   (`https://<something>.trycloudflare.com/?join=...`). A friend opens it - making an account first if they have
-   none - or, signed in, pastes it into **Join a game** under Play Together, and joins your lobby.
+   (`https://<something>.trycloudflare.com/?join=...`). A friend with an account opens it, or pastes it into
+   **Join a game** under Play Together, and joins your lobby. For a friend with no account yet the lobby has a
+   second link, your invitation and the game's together (`/?invite=...&join=...`): it makes their account and
+   brings them in. It is there while your invitation is not spent.
 
 5. **Take your seats, and start.** The lobby lists everybody at the game, and each character with who plays
    it. Each friend takes a character nobody has, or leaves their own; you choose for anybody. Whoever nobody
@@ -142,11 +149,11 @@ tonight's link.
   be used.
 - **Websockets.** The games are played over one (`/__play`).
 
-**Checking it works:** host a game, and open its invitation at the public address in a browser that is not
-signed in to anything (a private window will do).
-- The sign-in card shows, saying you have been invited, ready to make an account.
+**Checking it works:** host a game, and open the lobby's link for somebody new at the public address in a
+browser that is not signed in to anything (a private window will do).
+- The sign-in card shows, saying you have been invited to a game, ready to make an account.
 - Made, the page opens on your game, and the lobby lists both of you.
-- Opening the address alone, with no invitation, the card signs in but makes no account.
+- Opening the game's link alone, or the address alone, the card signs in but makes no account.
 
 If sign-in says *sent from another origin*, the tunnel is sending neither host name above.
 `npm run test:e2e:tunnel` runs this same check against a tunnel that rewrites `Host`, on this machine.
@@ -158,7 +165,7 @@ tunnel:
 
 - **Sign in as `admin` with the password it was made with** (`admin`). That password works only on this
   machine; once you change it, `admin` signs in from anywhere with the new one.
-- **Make an account** without an invitation to a game being played now, unless the server was started with
+- **Make an account** without a player's invitation not yet spent, unless the server was started with
   `--sign-up`.
 - **See the card art in `public/cards/`.** It is reference art for this machine only, never handed on.
   Friends see the cards drawn from their numbers instead.

@@ -5,7 +5,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { changePassword, currentUser, rememberUser, signIn, signOut, userKey, whoAmI } from './accounts';
+import { changePassword, currentUser, invitationAddress, invitationCodeOf, listPlayers, myInvitation, rememberUser, renewInvitations, signIn, signOut, userKey, whoAmI } from './accounts';
 import { SaveSlots, browserStore } from './save-slots';
 
 /** A `localStorage` over a map, as the browser's would be. */
@@ -56,7 +56,7 @@ describe('who is signed in', () => {
     expect(currentUser()).toBeNull();
   });
 
-  it("makes an account holding a game's invitation, which goes with it; signing in, it does not", async () => {
+  it("makes an account holding a player's invitation, which goes with it; signing in, it does not", async () => {
     const sent: { url: string; body: unknown }[] = [];
     const recording = async (url: string, init?: RequestInit) => {
       sent.push({ url, body: JSON.parse(String(init?.body)) });
@@ -82,6 +82,47 @@ describe('who is signed in', () => {
     expect(sent).toEqual({ url: '/__accounts/password', body: { current: 'hunter22', next: 'falcon99' } });
     expect(await changePassword('nope', 'falcon99', answer(403, { reason: 'that is not your password' }))).toEqual({ refused: 'that is not your password' });
     expect(await changePassword('x', 'y', async () => { throw new Error('offline'); })).toEqual({ refused: 'the server could not be reached' });
+  });
+});
+
+describe('invitations', () => {
+  it('are the player’s own: a code, and whom it made once spent; none when the server gives none', async () => {
+    const asked: string[] = [];
+    const mine = await myInvitation(async (url) => {
+      asked.push(url);
+      return { ok: true, status: 200, json: async () => ({ code: 'c0de', usedBy: null }) };
+    });
+    expect(asked).toEqual(['/__accounts/invitation']);
+    expect(mine).toEqual({ code: 'c0de', usedBy: null });
+    expect(await myInvitation(answer(200, { code: 'c0de', usedBy: { id: 'pip', name: 'Pip' } }))).toEqual({ code: 'c0de', usedBy: { id: 'pip', name: 'Pip' } });
+    expect(await myInvitation(answer(401, { reason: 'nobody is signed in' }))).toBeNull();
+    expect(await myInvitation(answer(200, { code: '' }))).toBeNull();
+    expect(await myInvitation(async () => { throw new Error('offline'); })).toBeNull();
+  });
+
+  it('are an address that makes an account - and joins a game, with its invitation - and are read back from one', () => {
+    expect(invitationAddress('c0de', null, 'https://friends.example')).toBe('https://friends.example/?invite=c0de');
+    expect(invitationAddress('c0de', 'g4me', 'https://friends.example')).toBe('https://friends.example/?invite=c0de&join=g4me');
+    expect(invitationCodeOf('?invite=c0de&join=g4me')).toBe('c0de');
+    expect(invitationCodeOf('?join=g4me')).toBeNull();
+    expect(invitationCodeOf('?invite=')).toBeNull();
+  });
+
+  it('are listed for admin, and renewed for one player or for everybody', async () => {
+    expect(await listPlayers(answer(200, { players: [{ id: 'pip', name: 'Pip', admin: false, invitedBy: 'wren', spent: true }] }))).toEqual([{ id: 'pip', name: 'Pip', admin: false, invitedBy: 'wren', spent: true }]);
+    expect(await listPlayers(answer(403, { reason: 'only admin sees every player' }))).toBeNull();
+    const sent: unknown[] = [];
+    const recording = async (url: string, init?: RequestInit) => {
+      sent.push({ url, method: init?.method, body: JSON.parse(String(init?.body)) });
+      return { ok: true, status: 200, json: async () => ({ refreshed: ['pip'] }) };
+    };
+    expect(await renewInvitations('pip', recording)).toEqual({ refreshed: ['pip'] });
+    await renewInvitations(null, recording);
+    expect(sent).toEqual([
+      { url: '/__accounts/refresh', method: 'POST', body: { account: 'pip' } },
+      { url: '/__accounts/refresh', method: 'POST', body: {} },
+    ]);
+    expect(await renewInvitations(null, answer(403, { reason: 'only admin renews invitations' }))).toEqual({ refused: 'only admin renews invitations' });
   });
 });
 

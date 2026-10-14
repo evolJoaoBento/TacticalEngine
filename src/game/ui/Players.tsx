@@ -10,11 +10,11 @@ import type { SharedTable } from '../wire';
 import { hosting, invitationLink, onSharedTable, seat, seatable, sharedTable } from '../shared-game';
 
 /** The invitation's address, to select or copy. */
-export function InviteRow({ link }: { link: string }): preact.JSX.Element {
+export function InviteRow({ link, testid = 'invite-link' }: { link: string; testid?: string }): preact.JSX.Element {
   const [copied, setCopied] = useState(false);
   return (
     <div className="panel-row" style={{ gap: '4px' }}>
-      <input className="players-invite" readOnly value={link} data-testid="invite-link" title="Send this to a friend to join the game" onFocus={(e) => e.currentTarget.select()} />
+      <input className="players-invite" readOnly value={link} data-testid={testid} title="Send this to a friend to join the game" onFocus={(e) => e.currentTarget.select()} />
       <button
         type="button"
         className="play-btn is-ghost"

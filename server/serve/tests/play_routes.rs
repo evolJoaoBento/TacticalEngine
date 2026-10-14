@@ -156,7 +156,7 @@ async fn a_game_on_the_server_plays_as_the_engine_plays() {
 #[tokio::test]
 async fn the_play_route_is_a_websocket_for_a_signed_in_page() {
     let root = root("route");
-    let account = Account { id: "kara".into(), name: "Kara".into(), salt: "s".into(), hash: "h".into(), admin: false, created: 0, rest: IndexMap::new() };
+    let account = Account { id: "kara".into(), name: "Kara".into(), salt: "s".into(), hash: "h".into(), admin: false, created: 0, invitation: None, invited_by: None, rest: IndexMap::new() };
     write_accounts(&root, &[account]).unwrap();
     let mut sessions = IndexMap::new();
     sessions.insert("good-token".to_string(), Signed { account: "kara".into(), expires: i64::MAX });
@@ -323,7 +323,7 @@ async fn a_walk_cut_short_puts_its_walker_down_only_on_the_line_it_walked() {
 #[tokio::test]
 async fn the_play_route_takes_a_page_a_tunnel_brings_from_its_public_host() {
     let root = root("tunnel");
-    let account = Account { id: "wren".into(), name: "Wren".into(), salt: "s".into(), hash: "h".into(), admin: false, created: 0, rest: IndexMap::new() };
+    let account = Account { id: "wren".into(), name: "Wren".into(), salt: "s".into(), hash: "h".into(), admin: false, created: 0, invitation: None, invited_by: None, rest: IndexMap::new() };
     write_accounts(&root, &[account]).unwrap();
     let mut sessions = IndexMap::new();
     sessions.insert("good-token".to_string(), Signed { account: "wren".into(), expires: i64::MAX });
@@ -504,7 +504,7 @@ async fn a_shared_game_is_kept_while_anybody_is_at_it() {
 #[tokio::test]
 async fn a_guests_page_reads_the_games_project_with_its_invitation() {
     let root = root("join-route");
-    let account = Account { id: "finn".into(), name: "Finn".into(), salt: "s".into(), hash: "h".into(), admin: false, created: 0, rest: IndexMap::new() };
+    let account = Account { id: "finn".into(), name: "Finn".into(), salt: "s".into(), hash: "h".into(), admin: false, created: 0, invitation: None, invited_by: None, rest: IndexMap::new() };
     write_accounts(&root, &[account]).unwrap();
     let mut sessions = IndexMap::new();
     sessions.insert("good-token".to_string(), Signed { account: "finn".into(), expires: i64::MAX });
@@ -753,7 +753,7 @@ async fn a_shared_games_save_keeps_who_plays_whom_and_hosting_it_again_seats_eac
     assert_eq!(tables.waiting_for("mira")[0]["characters"], json!([named(&miras)]));
     assert_eq!(tables.waiting_for("kara"), Vec::<Value>::new(), "the host is kept nothing");
     // Asked over the route, each is told their own, and nobody signed in is told nothing.
-    write_accounts(&root, &[Account { id: "finn".into(), name: "finn".into(), salt: "s".into(), hash: "h".into(), admin: false, created: 0, rest: IndexMap::new() }]).unwrap();
+    write_accounts(&root, &[Account { id: "finn".into(), name: "finn".into(), salt: "s".into(), hash: "h".into(), admin: false, created: 0, invitation: None, invited_by: None, rest: IndexMap::new() }]).unwrap();
     let mut sessions = IndexMap::new();
     sessions.insert("finns-token".to_string(), Signed { account: "finn".into(), expires: i64::MAX });
     write_sessions(&root, &sessions).unwrap();

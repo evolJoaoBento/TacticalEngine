@@ -4,6 +4,19 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## Phase 6: the server is the host
+
+Designed in `docs/SERVER.md` ("Phase 6, designed"): players invite players, anybody opens a lobby - public,
+friends-only or invite-only - friends both ways, chat at the table and between friends. Slice 1, invitations, is
+done; next is slice 2, friends.
+
+## Invitations: one per player, renewed by admin — done
+
+An account is made with a player's invitation: each player has one (the menu's Invite), which makes one account and
+is spent; admin sees who invited whom and renews one player's or everybody's. A game's invitation no longer makes an
+account. The lobby offers the host's own invitation with the game's, for somebody with no account yet. On the
+owner's machine an account is still made without one, and `--sign-up` still opens the door to anybody.
+
 ## A friend coming back finds the game waiting — done
 
 A host who hosts a save again keeps each friend's character for them; now the friend needs no new link. Signed in,

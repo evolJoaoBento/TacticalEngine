@@ -67,8 +67,8 @@ export async function whoAmI(send: Send = fetch): Promise<SignedIn | null | 'non
 }
 
 /**
- * Sign in, or make an account and sign in with it (`create`) - holding a game's invitation (`invite`), which is what
- * lets a friend through a tunnel make one (`server/serve/src/accounts.rs`). The account, or why not.
+ * Sign in, or make an account and sign in with it (`create`) - with a player's invitation (`invite`), which is what
+ * lets a friend through a tunnel make one, and spends it (`server/serve/src/accounts.rs`). The account, or why not.
  */
 export async function signIn(name: string, password: string, create: boolean, send: Send = fetch, invite: string | null = null): Promise<SignedIn | { refused: string }> {
   try {
@@ -99,6 +99,73 @@ export async function changePassword(current: string, next: string, send: Send =
     if (response.ok) return { done: true };
     const body = (await response.json()) as { reason?: string };
     return { refused: body.reason ?? 'the server would not change it' };
+  } catch {
+    return { refused: 'the server could not be reached' };
+  }
+}
+
+/** The player's own invitation, to hand somebody new: its code, and whom it made once spent. */
+export interface Invitation {
+  code: string;
+  usedBy: { id: string; name: string } | null;
+}
+
+/** The signed-in player's invitation (given the first time it is asked for), or `null` when there is none to have. */
+export async function myInvitation(send: Send = fetch): Promise<Invitation | null> {
+  try {
+    const response = await send(`${URL_BASE}/invitation`, { credentials: 'same-origin', cache: 'no-store' });
+    if (!response.ok) return null;
+    const body = (await response.json()) as Partial<Invitation>;
+    return typeof body.code === 'string' && body.code !== '' ? { code: body.code, usedBy: body.usedBy ?? null } : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The address somebody new opens to make an account with an invitation - and, with a game's (`join`), to join it. */
+export function invitationAddress(code: string, join: string | null = null, origin: string = globalThis.location?.origin ?? ''): string {
+  return `${origin}/?invite=${encodeURIComponent(code)}${join === null ? '' : `&join=${encodeURIComponent(join)}`}`;
+}
+
+/** The invitation an address carries to make an account with (`?invite=`), if any. */
+export function invitationCodeOf(search: string = globalThis.location?.search ?? ''): string | null {
+  const code = new URLSearchParams(search).get('invite');
+  return code === null || code === '' ? null : code;
+}
+
+/** Every player, as admin sees them: who invited them, and whether their invitation is spent. */
+export interface Player {
+  id: string;
+  name: string;
+  admin: boolean;
+  invitedBy: string | null;
+  spent: boolean;
+}
+
+/** Every player, for admin; `null` for anybody else, or when the server cannot be asked. */
+export async function listPlayers(send: Send = fetch): Promise<Player[] | null> {
+  try {
+    const response = await send(`${URL_BASE}/players`, { credentials: 'same-origin', cache: 'no-store' });
+    if (!response.ok) return null;
+    const { players } = (await response.json()) as { players?: Player[] };
+    return Array.isArray(players) ? players : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Admin's: a new invitation for one player (`account`), or for everybody (`null`). Whose were renewed, or why not. */
+export async function renewInvitations(account: string | null, send: Send = fetch): Promise<{ refreshed: string[] } | { refused: string }> {
+  try {
+    const response = await send(`${URL_BASE}/refresh`, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'content-type': 'application/json', [HEADER]: '1' },
+      body: JSON.stringify(account === null ? {} : { account }),
+    });
+    const body = (await response.json()) as { refreshed?: string[]; reason?: string };
+    if (!response.ok) return { refused: body.reason ?? 'the server would not renew it' };
+    return { refreshed: body.refreshed ?? [] };
   } catch {
     return { refused: 'the server could not be reached' };
   }
