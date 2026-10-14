@@ -65,7 +65,7 @@ in the menu choose **Change password** (beside Sign out). Until you do, `admin` 
    It prints a public address, `https://<something>.trycloudflare.com`, and passes whatever reaches it on to the
    server on this machine. The address is new each time you start it, and works only while the tunnel and the
    server are both running here. (Any tunnel that gives HTTPS and passes on websockets will do; see "What the
-   server needs from the tunnel", below.)
+   server needs from the tunnel", below. For an address that stays the same, see "A stable address", below.)
 
 3. **Your friends' accounts are their own.** A friend opening your game's invitation link who is signed in to
    nothing is shown the sign-in card, ready to make an account: the invitation goes with it, so they can, and
@@ -94,6 +94,40 @@ in the menu choose **Change password** (beside Sign out). Until you do, `admin` 
 
 A game opened the ordinary way - New Game, Load Game - is still yours alone until somebody joins it with the
 link in the settings: it starts at once, with no lobby.
+
+## A stable address
+
+The quick tunnel's address is new every time, and a browser keeps a sign-in for one address only, so each evening
+your friends need the new address and sign in again. A **named tunnel** keeps one address, say
+`https://play.example.com`, for good: your friends bookmark it, and stay signed in there for thirty days after they
+sign in (the server keeps the sign-ins in `data/`).
+
+**It needs a domain of your own, on Cloudflare.** A Cloudflare account is free, but Cloudflare publishes a tunnel
+only at a name in a domain you have added to it (a "website" in its dashboard): a domain you already own, moved to
+Cloudflare's name servers, or one bought from Cloudflare's own registrar. The game gets a name under it, such as
+`play.`.
+
+Once, from Cloudflare's dashboard:
+
+1. **Add your domain** to your Cloudflare account, and wait until it says the domain is active.
+2. **Make the tunnel:** **Networking** > **Tunnels** > **Create a tunnel**, give it a name, and choose Windows. It
+   shows an install command with the tunnel's token in it: run it in a terminal opened as administrator. It
+   installs `cloudflared` as a Windows service, so the tunnel starts with Windows and is always up. Keep the token
+   to yourself: anybody who has it can run your tunnel.
+3. **Give it the game's address:** the tunnel's **Routes** tab > **Add route** > **Published application**. A
+   subdomain (`play`), your domain, and as the **Service URL** `http://127.0.0.1:8430`. Leave the other settings
+   as they are: the tunnel then passes your friends' `Host` on unchanged, which is what the server needs.
+
+Then each evening is steps 1 and 3 to 6 of "Each time" above, with no step 2: start the server, host your game,
+and send `https://play.example.com/?join=...`. While the server is not running, the address answers with
+Cloudflare's error page.
+
+**What it does not change:** the address stays the same, but the invitation is still each game's own. Every game
+you host gets a new `?join=...`, so a friend coming back still needs tonight's link to get into tonight's game; the
+stable address saves them only the new address and the new sign-in.
+
+(Cloudflare also has a command-line way to make a named tunnel - `cloudflared tunnel login`, `create`,
+`route dns` and `run`, with a `config.yml` - which needs the same domain. The dashboard's is the shorter.)
 
 ## What the server needs from the tunnel
 

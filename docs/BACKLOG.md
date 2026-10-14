@@ -4,6 +4,13 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## A stable address for friends, written up — done
+
+`docs/HOSTING.md`, "A stable address": a named Cloudflare tunnel, made from the dashboard and run as a Windows
+service, publishing the server at a name in a domain of the host's own (which Cloudflare requires). Friends keep one
+address and stay signed in there; the invitation is still each game's own, so a friend coming back still needs that
+evening's link. Docs only: the server already takes a tunnel passing `Host` unchanged.
+
 ## Accounts: a friend makes their own with an invitation, and anybody changes their password — done
 
 Through a tunnel an account is made by somebody holding the invitation to a game being played now (or by anybody,
