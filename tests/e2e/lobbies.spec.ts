@@ -5,7 +5,10 @@ import { ON_SERVER } from './server-mode';
  * Lobbies anybody opens (`docs/SERVER.md`, phase 6, slice 3), on the server: a player hosts a game for their friends
  * from Play Together; their friend finds it there and joins with no link, a stranger does not see it - until the host
  * opens it to everybody. When the host's page goes and does not come back, the running of the game is handed on to
- * the friend still at it, who starts it. Each player in a browser of their own, signed in to an account of their own.
+ * the friend still at it, who starts it. And a game's save is everybody's who played it (slice 4): the host's own camp,
+ * played with a friend and saved, is in the friend's saves too, and the friend hosts it again over the project the
+ * server kept with it - which their browser never had - the host's seat kept for them. Each player in a browser of their
+ * own, signed in to an account of their own.
  */
 
 test.skip(!ON_SERVER, 'lobbies are the server’s: npm run test:e2e:server');
@@ -87,4 +90,78 @@ test('a lobby is found by whoever its host lets find it, and handed on when its 
   await expect.poll(() => friend.page.evaluate(() => window.__replica!.server()), { timeout: 15_000 }).toBe('in');
   expect(await friend.page.evaluate(() => window.__replica!.count().parted)).toBe(0);
   for (const each of [host, friend, stranger]) await each.context.close();
+});
+
+test("a game's save is everybody's who played it: a friend hosts the host's camp again from their own saves", async ({ browser, baseURL }) => {
+  const stamp = Date.now().toString(36).slice(-5);
+  const host = await player(browser, baseURL!, `hearth${stamp}`);
+  const friend = await player(browser, baseURL!, `wren${stamp}`);
+  expect((await host.context.request.post('/__friends/ask', { headers: HEADERS(baseURL!), data: { name: friend.name } })).status()).toBe(200);
+  expect((await friend.context.request.post('/__friends/answer', { headers: HEADERS(baseURL!), data: { from: host.id, accept: true } })).status()).toBe(200);
+
+  // The host's own camp, kept in their browser alone, as New Game keeps one: hosted for friends.
+  await host.page.goto('/?play');
+  await ready(host.page);
+  const camp = `camp-${stamp}`;
+  await host.page.evaluate(
+    ({ id, user }) => {
+      const project = JSON.parse(window.__engine!.exportProject());
+      project.id = id;
+      project.name = `${user}'s camp`;
+      localStorage.setItem(`tactical:u:${user}:game:${id}`, JSON.stringify(project));
+      localStorage.setItem(`tactical:u:${user}:games`, JSON.stringify([{ id, name: project.name, startedAt: Date.now() }]));
+    },
+    { id: camp, user: host.id },
+  );
+  await host.page.goto(`/?play&project=${camp}&host=friends`);
+  await ready(host.page);
+
+  // The friend joins from Play Together and takes a character; the host starts, and saves.
+  await friend.page.reload();
+  await friend.page.getByTestId('menu-together').click();
+  await friend.page.getByTestId('menu-joinable').filter({ hasText: `${host.name}'s game` }).getByTestId('menu-joinable-join').click();
+  await ready(friend.page);
+  const lobby = friend.page.getByTestId('lobby');
+  const theirs = await lobby.locator('[data-testid="lobby-seat"]').last().getAttribute('data-character');
+  await lobby.locator(`[data-testid="lobby-seat"][data-character="${theirs}"]`).getByTestId('lobby-take').click();
+  await expect.poll(() => host.page.evaluate(() => window.__table!.table()!.seats)).toEqual({ [theirs!]: friend.id });
+  // The host seats themselves in the first.
+  await host.page.bringToFront();
+  const hostLobby = host.page.getByTestId('lobby');
+  const mine = await hostLobby.locator('[data-testid="lobby-seat"]').first().getAttribute('data-character');
+  await hostLobby.locator(`[data-testid="seat"][data-character="${mine}"]`).selectOption(host.id);
+  await expect.poll(() => host.page.evaluate(() => window.__table!.table()!.seats)).toEqual({ [theirs!]: friend.id, [mine!]: host.id });
+  await hostLobby.getByTestId('lobby-start').click();
+  // Started on the host's page too - their own selected - before it is saved.
+  await expect.poll(() => host.page.evaluate(() => window.__engine!.selected()), { timeout: 15_000 }).toBe(mine);
+  const slot = await host.page.evaluate(() => window.__engine!.saveAs('Our camp'));
+  expect(slot).not.toBeNull();
+  // The friend has it too: the same slot, saying who played.
+  const theirSaves = async () => ((await (await friend.context.request.get('/__saves')).json()) as { id: string; players?: string[]; project?: string }[]).find((s) => s.id === slot);
+  await expect.poll(theirSaves, { timeout: 15_000 }).toMatchObject({ players: [host.id, friend.id], project: camp });
+  expect(await host.page.evaluate(() => window.__replica!.count().parted)).toBe(0);
+  await host.page.close();
+  await friend.page.close();
+
+  // The friend, next time: the camp is not in their browser, so its save is under Played together; hosted again, over
+  // the project the server kept with it, the friend in their own seat and the host's kept for the host.
+  const again = await friend.context.newPage();
+  await again.goto('/?menu');
+  await again.getByTestId('menu-together').click();
+  const together = again.locator('[data-testid="menu-together-list"]').getByTestId('menu-played-together');
+  await expect(together.getByTestId('menu-load-save')).toContainText('Our camp');
+  await again.screenshot({ path: 'test-results/menu-played-together.png' });
+  await together.getByTestId('menu-load-save').click();
+  await again.waitForURL(/saved=.*&load=.*&host=friends$/);
+  await ready(again);
+  expect(JSON.parse(await again.evaluate(() => window.__engine!.exportProject())).name).toBe(`${host.id}'s camp`);
+  await expect.poll(() => again.evaluate(() => window.__table!.table()!.host)).toBe(friend.id);
+  await expect.poll(() => again.evaluate(() => window.__table!.table()!.seats)).toEqual({ [theirs!]: friend.id });
+  await expect(again.getByTestId('lobby').locator(`[data-testid="lobby-seat"][data-character="${mine}"]`).getByTestId('lobby-kept')).toContainText(`Kept for ${host.name}`);
+  // And the host finds it waiting for them in their own Play Together.
+  const back = await host.context.newPage();
+  await back.goto('/?menu');
+  await expect(back.getByTestId('menu-together')).toContainText(`${friend.name} has a game waiting for you`);
+  expect(await again.evaluate(() => window.__replica!.count().parted)).toBe(0);
+  for (const each of [host, friend]) await each.context.close();
 });

@@ -35,6 +35,9 @@ describe('what the page opens on', () => {
 
   it('opens another\'s game, joined with its invitation, played only', () => {
     expect(startOf('?join=ab12', 'file')).toEqual({ menu: false, locked: true, edit: false, load: null });
+    // A shared game's save, opened over the project kept beside it: played, and the save loaded.
+    expect(startOf('?saved=s1&load=s1', 'file')).toEqual({ menu: false, locked: true, edit: false, load: 's1' });
+    expect(startOf('?saved=s1', 'file')).toEqual({ menu: false, locked: true, edit: false, load: null });
   });
 
   it('opens a game for others to join, as a lobby, played only - and with a save of the host\'s', () => {

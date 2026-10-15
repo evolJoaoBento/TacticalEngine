@@ -54,6 +54,9 @@ const builtin = (): DemoScene => buildDemoScene(hollowVaultMap());
 /** Where a page joining another's game reads its project, with the invitation (`play.rs`, `GET /__play/join/<invite>`). */
 export const JOIN_URL = '/__play/join';
 
+/** Where the project kept beside a shared game's save is read (`saves.rs`, `GET /__saves/<id>/project`). */
+export const savedProjectUrl = (slot: string): string => `/__saves/${encodeURIComponent(slot)}/project`;
+
 /** Which way to open: what the address asks for, or what the server was started with. */
 export function bootMode(search: string, fallback: 'file' | 'builtin' = BOOT): 'file' | 'builtin' {
   const asked = new URLSearchParams(search).get('boot');
@@ -80,6 +83,18 @@ async function open(options: BootOptions): Promise<Booted> {
       return fromText(JSON.stringify(project), options, 'game');
     } catch (failure) {
       return { demo: builtin(), source: 'invalid', problem: `The game could not be joined (${reasonOf(failure)}), so the demo opened instead.` };
+    }
+  }
+  // A shared game's save, opened over the project it was played over, which the server keeps beside it: another's
+  // camp, which this browser has not got.
+  const saved = new URLSearchParams(search).get('saved');
+  if (saved !== null) {
+    try {
+      const response = await fetcher(savedProjectUrl(saved), { cache: 'no-store' });
+      if (!response.ok) return { demo: builtin(), source: 'invalid', problem: 'That save keeps no game on the server, so the demo opened instead.' };
+      return fromText(await response.text(), options, 'game');
+    } catch (failure) {
+      return { demo: builtin(), source: 'invalid', problem: `The saved game could not be read (${reasonOf(failure)}), so the demo opened instead.` };
     }
   }
   // A game New Game began is opened from the browser, whatever the server would open.

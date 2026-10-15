@@ -98,16 +98,18 @@ in the menu choose **Change password** (beside Sign out). Until you do, `admin` 
 
 6. **Play.** Once the game has started only you, the host, change who plays whom (the settings' **Players**,
    Esc); your friends see it. A friend seated in nobody watches: they can select nobody and do nothing until you
-   seat them. A friend who comes late, with the link, joins the game as it is. The game's saves are yours: only
-   you save it, into your saves, and only you load a save into it. A save remembers who played whom: host it
+   seat them. A friend who comes late, with the link, joins the game as it is. Only you, the host, save it and
+   load a save into it - but the save is everybody's who played: it goes into each one's saves, and any of them can
+   host it again from Play Together, even a camp of yours their browser has never had (it is under **Played
+   together**). A save remembers who played whom: host it
    again from Play Together and the lobby keeps each friend's character for them ("Kept for ..."), seating them
    in it the moment they join. **A friend coming back needs no new link:** signed in, their own Play Together
    shows your game waiting for them ("Kara kept Violet for you"), whoever you let find it, and **Join** takes
    them to their seat.
 
    **If you go,** the game goes on: once your page has been closed for half a minute, the running of it passes to
-   the first friend still at it, who says who plays whom, starts it, and saves it from then on - into their own
-   saves, for now; the game's earlier saves stay yours. Come back and you are a player at it.
+   the first friend still at it, who says who plays whom, starts it, and saves it from then on - into everybody's
+   saves, as you did. Come back and you are a player at it.
 
 A game opened the ordinary way - New Game, Load Game - is still yours alone until somebody joins it with the
 link in the settings: it starts at once, with no lobby.

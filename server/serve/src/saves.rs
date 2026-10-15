@@ -7,11 +7,18 @@
 //!
 //! - `GET /__saves` - the slots;
 //! - `GET /__saves/<id>` - one save's text;
+//! - `GET /__saves/<id>/project` - the project a shared game's save was played over, kept beside it, so a player who
+//!   has not got that project in their browser - another's camp - hosts the game again (phase 6, slice 4);
 //! - `POST /__saves/remove` `{ id }` - a slot gone;
 //! - `POST /__saves/import` `{ saves: [{ slot, text }] }` - the slots a browser kept before its player's saves
 //!   moved here, taken the first time it signs in: any slot already here is kept as it is.
 //!
 //! The two POSTs come only from the page (its header, its own origin), as every write the server takes does.
+//!
+//! **A shared game's saves are the game's** (phase 6, slice 4): saved, the same slot - its text, who played whom,
+//! and who played (`players`) - goes into the folder of everybody who played it, with the project beside it
+//! (`<id>.project.json`), so any of them hosts it again (`play.rs`, `saved`). Each player's copy is their own to
+//! remove.
 
 use crate::accounts::{account_of, from_the_page, now_ms, read_accounts, read_sessions};
 use crate::files::{read_json, write_json};
@@ -49,6 +56,10 @@ pub struct Slot {
     /// again seats each player in their own as they come back (`play.rs`). Left out of a game nobody shared.
     #[serde(skip_serializing_if = "IndexMap::is_empty", default)]
     pub seats: IndexMap<String, String>,
+    /// Everybody who played a shared game when it was saved - each with this slot in their own saves. Left out of a
+    /// game nobody shared.
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub players: Vec<String>,
 }
 
 /// An id a slot may have: a file's name, nothing that climbs out of the folder, and not the index's.
@@ -121,7 +132,23 @@ pub fn write_save(root: &Path, account: &str, slot: Slot, text: &str) -> Result<
     write_json(&index_file(root, account), &slots).map_err(|e| e.to_string())
 }
 
-/// A slot gone, its text with it: whether there was one.
+/// The project a shared game was played over, kept beside a save of it in the account's folder.
+pub fn write_project(root: &Path, account: &str, id: &str, project: &Value) -> Result<(), String> {
+    if !is_slot_id(id) {
+        return Err("not a slot".into());
+    }
+    write_text(&saves_folder(root, account).join(format!("{id}.project.json")), &project.to_string()).map_err(|e| e.to_string())
+}
+
+/// The project kept beside a save, if the account has that slot and it was a shared game's.
+pub fn read_project(root: &Path, account: &str, id: &str) -> Option<String> {
+    if !is_slot_id(id) || !read_slots(root, account).iter().any(|slot| slot.id == id) {
+        return None;
+    }
+    fs::read_to_string(saves_folder(root, account).join(format!("{id}.project.json"))).ok()
+}
+
+/// A slot gone, its text - and any project kept beside it - with it: whether there was one.
 pub fn remove_save(root: &Path, account: &str, id: &str) -> bool {
     let _held = LOCK.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
     let slots = read_slots(root, account);
@@ -129,6 +156,7 @@ pub fn remove_save(root: &Path, account: &str, id: &str) -> bool {
         return false;
     }
     let _ = fs::remove_file(saves_folder(root, account).join(format!("{id}.json")));
+    let _ = fs::remove_file(saves_folder(root, account).join(format!("{id}.project.json")));
     let kept: Vec<Slot> = slots.into_iter().filter(|slot| slot.id != id).collect();
     write_json(&index_file(root, account), &kept).is_ok()
 }
@@ -191,6 +219,12 @@ fn respond(root: &Path, method: &str, path: &str, headers: &HeaderMap, body: Res
     if method == "GET" {
         if rest.is_empty() {
             return Answer::Json(200, json!(read_slots(root, &account.id)));
+        }
+        if let Some(id) = rest.strip_suffix("/project") {
+            return match read_project(root, &account.id, id) {
+                Some(text) => Answer::Text(text),
+                None => refuse(404, "no project kept with that save"),
+            };
         }
         return match read_save(root, &account.id, rest) {
             Some(text) => Answer::Text(text),

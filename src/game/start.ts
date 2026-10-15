@@ -8,6 +8,7 @@
  *   ?play                    Load Game: the same, played - no editor, no Ctrl+E
  *   ?project=<id>            a game New Game began, from this browser (`game-projects.ts`), played
  *   ?load=<slot>             and a save of it loaded as it opens
+ *   ?saved=<slot>            the project a shared game's save keeps on the server, played (with `load=` the same slot)
  *   ?join=<invitation>       another's game on the server, joined: its project, played (`shared-game.ts`)
  *   ?invite=<code>           a player's invitation: the sign-in card starts on making an account with it (`accounts.ts`)
  *   ?host                    and the game opened for others to join, as a lobby they gather in before it starts
@@ -41,10 +42,10 @@ export interface Start {
 
 export function startOf(search: string = globalThis.location?.search ?? '', boot: 'file' | 'builtin' = BOOT): Start {
   const asked = new URLSearchParams(search);
-  const chosen = ['edit', 'play', 'project', 'load', 'boot', 'join', 'host'].some((key) => asked.has(key));
+  const chosen = ['edit', 'play', 'project', 'load', 'boot', 'join', 'host', 'saved'].some((key) => asked.has(key));
   return {
     menu: asked.has('menu') || (boot !== 'builtin' && !chosen),
-    locked: asked.has('play') || asked.has('project') || asked.has('join') || asked.has('host'),
+    locked: asked.has('play') || asked.has('project') || asked.has('join') || asked.has('host') || asked.has('saved'),
     edit: asked.has('edit'),
     load: asked.get('load'),
   };

@@ -301,7 +301,8 @@ The slices:
 3. **Lobbies anybody opens** - public, friends-only or invite-only; a list of the games a player may join in Play
    Together (the games waiting for them - their seat kept - among them); the running of a game handed on when its
    creator leaves. Done 15 October 2026 (Progress, below).
-4. **A game's saves the game's** - kept for everybody who played it, any of whom hosts it again.
+4. **A game's saves the game's** - kept for everybody who played it, any of whom hosts it again. Done 15 October
+   2026 (Progress, below).
 5. **Chat at the table** - the lobby's and the game's.
 6. **Messages between friends.**
 
@@ -1775,4 +1776,20 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     friend finds a friends-only lobby in Play Together and joins it, a stranger does not until the host opens it to
     everybody; the host's page closed, the friend runs it and starts it, nothing parted; `shared.spec.ts`: the game
     keeping a seat found among whatever else may be joined).
-  - **Next**: phase 6, slice 4: a game's saves the game's, for everybody who played it.
+  - **Phase 6, slice 4: a game's saves the game's** (15 October 2026). Saved, a game more than one played goes into
+    the saves of everybody who played it - whoever came to it, and whoever a seat is kept for - as the same slot
+    (`play.rs`, `saved`; `Slot::players`), with the project it was played over beside it (`saves.rs`,
+    `<id>.project.json`, `GET /__saves/<id>/project`), so any of them hosts it again: their copy loads into a game
+    they host, seating them in their own and keeping the others' for them, and saving it again writes everybody's
+    copy. A game nobody shared saves as before, into its player's folder alone. The page lists a shared save of a
+    game its browser has not got - another's camp - under Played together, and opens it over the project kept with
+    it (`?saved=<slot>&load=<slot>`, `project-store.ts`, `start.ts`, `MainMenu.tsx`). The test driver's `saveAs`
+    now names the project as the Save button does. And the list of games to join leaves out a game nobody's page is
+    at, and counts who is at it now. Proved by the server's tests (`play_routes.rs`: everybody's copy the same, the
+    project beside each; another player hosts it from theirs, seated, the first host's kept, saved again into
+    everybody's; a game nobody shared alone, with no project; a game nobody is at listed to nobody;
+    `saves_routes.rs`: the project read by its player only, not by a path out of their folder, gone with its
+    save), the page's (`project-store.test.ts`, `start.test.ts`) and the server-mode e2e (`lobbies.spec.ts`: the
+    host's own camp, played with a friend and saved, in the friend's saves; the friend hosts it from Played
+    together over the project the server kept, in their own seat, the host's kept, and the host finds it waiting).
+  - **Next**: phase 6, slice 5: chat at the table.

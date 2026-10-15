@@ -30,7 +30,7 @@ fn fixture() -> Value {
 }
 
 fn slot(id: &str, name: &str) -> Slot {
-    Slot { id: id.into(), name: name.into(), saved_at: 1, place: "The Husk Vault".into(), project: None, seats: Default::default() }
+    Slot { id: id.into(), name: name.into(), saved_at: 1, place: "The Husk Vault".into(), project: None, seats: Default::default(), players: Vec::new() }
 }
 
 async fn send(root: &Path, method: &str, path: &str, body: &str, cookie: Option<&str>, page: bool) -> (StatusCode, Value, String) {
@@ -132,6 +132,18 @@ async fn the_saves_routes_are_a_signed_in_players_own() {
     assert_eq!(send(&root, "POST", "/__saves/remove", "{\"id\":\"s1\"}", Some(&kara), true).await.0, StatusCode::OK);
     assert_eq!(send(&root, "POST", "/__saves/remove", "{\"id\":\"s1\"}", Some(&kara), true).await.0, StatusCode::NOT_FOUND);
     assert_eq!(send(&root, "GET", "/__saves/s1", "", Some(&kara), false).await.0, StatusCode::NOT_FOUND);
+
+    // A shared game's save, the project kept beside it: read back by its player only, and gone with the save.
+    write_save(&root, "kara", slot("s2", "Shared"), "{\"shared\":1}").unwrap();
+    serve::saves::write_project(&root, "kara", "s2", &json!({ "id": "camp", "name": "Kara's camp" })).unwrap();
+    let (status, _, text) = send(&root, "GET", "/__saves/s2/project", "", Some(&kara), false).await;
+    assert_eq!((status, serde_json::from_str::<Value>(&text).unwrap()), (StatusCode::OK, json!({ "id": "camp", "name": "Kara's camp" })));
+    assert_eq!(send(&root, "GET", "/__saves/s2/project", "", Some(&finn), false).await.0, StatusCode::NOT_FOUND);
+    // Nor read from another's folder by a path that climbs out of one's own.
+    assert!(serve::saves::read_project(&root, "finn", "../../kara/saves/s2").is_none());
+    assert_eq!(send(&root, "GET", "/__saves/quick/project", "", Some(&kara), false).await.0, StatusCode::NOT_FOUND, "a save with none kept");
+    assert_eq!(send(&root, "POST", "/__saves/remove", "{\"id\":\"s2\"}", Some(&kara), true).await.0, StatusCode::OK);
+    assert!(!root.join("data/users/kara/saves/s2.project.json").exists());
 }
 
 fn hooks() -> engine::game::session::HooksFor {

@@ -33,8 +33,9 @@
 //! - `{ id, op: "ask", ask, ... }` - what the pointer asks: `{ id, ok: <answer> }`;
 //! - `{ id, op: "save", slot?, name, where, project? }` - the game saved by itself into the account's own
 //!   folder (`saves.rs`): its own text, in the slot named or a fresh one, `{ id, ok: { slot, text } }`, or why
-//!   it may not be saved now. A shared game's saves are its host's: nobody else saves it. The slot keeps who plays
-//!   whom (`seats`), the seats kept for players not back yet among them;
+//!   it may not be saved now. Only the host saves a shared game, and the save is everybody's who played it: the same
+//!   slot written into each one's folder, with who played (`players`) and the project beside it (`saves.rs`). The
+//!   slot keeps who plays whom (`seats`), the seats kept for players not back yet among them;
 //! - `{ id, op: "resume" }` - the game the account is at, kept since its socket last closed:
 //!   `{ id, ok: { board, project, table } }`;
 //!
@@ -55,7 +56,8 @@
 //! in (`public`), the host's friends (`friends`, `friends.rs`), or nobody - only those sent its invitation
 //! (`invite`, a game opened the ordinary way). The games a player may join are listed for them (`GET /__play/games`:
 //! `{ games: [{ invite, host, project, players, started, visibility, kept }] }`): those they may find, and any that
-//! keeps a seat for them (`kept`, the characters' names) whoever may find it - never one they host. The host changes
+//! keeps a seat for them (`kept`, the characters' names) whoever may find it - never one they host, nor one nobody is
+//! at now (`players`, how many are). The host changes
 //! who may find it (`{ id, op: "visibility", visibility }`, `{ id, ok: { table } }`), and the table says it.
 //!
 //! **The running of a game is handed on** when its host has been gone a while (`HAND_ON_AFTER`; a page reloaded comes
@@ -79,7 +81,7 @@
 
 use crate::accounts::{account_of, now_ms, page_host, read_accounts, read_sessions, same_origin};
 use crate::friends::read_friends;
-use crate::saves::{is_slot_id, mint_id, read_save, read_slots, write_save, Slot};
+use crate::saves::{is_slot_id, mint_id, read_save, read_slots, write_project, write_save, Slot};
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
 use axum::extract::{Path as Route, State};
 use axum::http::{HeaderMap, StatusCode};
@@ -378,8 +380,16 @@ fn play_thread(shared: Arc<Mutex<Shared>>, root: PathBuf) -> mpsc::Sender<Job> {
                     let held = shared.lock().expect("the game");
                     let mut seats = held.kept.clone();
                     seats.extend(held.seats.clone());
+                    // Everybody who played it: whoever came to it, and whoever a seat is kept for.
+                    let mut players = held.members.clone();
+                    for account in seats.values() {
+                        if !players.contains(account) {
+                            players.push(account.clone());
+                        }
+                    }
+                    let project = held.document.clone();
                     drop(held);
-                    said = saved(&root, &job.account, &job.message, said, seats);
+                    said = saved(&root, &job.account, &job.message, said, seats, players, &project);
                 }
                 "open" | "join" | "resume" if said["ok"].is_object() => {
                     let held = shared.lock().expect("the game");
@@ -587,7 +597,9 @@ fn hand_on(shared: &Arc<Mutex<Shared>>) -> bool {
 }
 
 /// The text a game saved, written into the account's slot - the slot named, or a fresh one - with who plays whom.
-fn saved(root: &Path, account: &str, asked: &Value, said: Value, seats: IndexMap<String, String>) -> Value {
+/// At a game more than one played, the same slot goes to everybody who played it (`players`), the project it was
+/// played over beside it: the game's save, not its host's alone.
+fn saved(root: &Path, account: &str, asked: &Value, said: Value, seats: IndexMap<String, String>, players: Vec<String>, project: &Value) -> Value {
     let Some(text) = said["ok"]["text"].as_str() else { return said };
     let id = match asked["slot"].as_str() {
         Some(id) if is_slot_id(id) => id.to_string(),
@@ -601,11 +613,23 @@ fn saved(root: &Path, account: &str, asked: &Value, said: Value, seats: IndexMap
         place: asked["where"].as_str().unwrap_or("").to_string(),
         project: asked["project"].as_str().map(str::to_string),
         seats,
+        players: if players.len() > 1 { players } else { Vec::new() },
     };
-    match write_save(root, account, slot.clone(), text) {
-        Ok(()) => json!({ "ok": { "slot": slot, "text": text } }),
-        Err(why) => json!({ "error": format!("the save could not be written: {why}") }),
+    if let Err(why) = write_save(root, account, slot.clone(), text) {
+        return json!({ "error": format!("the save could not be written: {why}") });
     }
+    // Everybody else who played it, given the same slot; and each the project beside it.
+    for player in &slot.players {
+        if player != account {
+            if let Err(why) = write_save(root, player, slot.clone(), text) {
+                return json!({ "error": format!("the save could not be written for {player}: {why}") });
+            }
+        }
+        if let Err(why) = write_project(root, player, &slot.id, project) {
+            return json!({ "error": format!("the game's project could not be kept with its save: {why}") });
+        }
+    }
+    json!({ "ok": { "slot": slot, "text": text } })
 }
 
 impl Tables {
@@ -812,9 +836,9 @@ impl Tables {
     }
 
     /// The games an account may join: those it may find - every public one, and its friends' friends-only ones - and
-    /// any that keeps a seat for it, whoever may find it; never one it hosts. Each with its invitation, its host's
-    /// name, its project's, how many are at it, whether it has started, who may find it, and the names of the
-    /// characters it keeps for the account. Those keeping a seat first.
+    /// any that keeps a seat for it, whoever may find it; never one it hosts, nor one nobody's page is at. Each with its
+    /// invitation, its host's name, its project's, how many are at it now, whether it has started, who may find it,
+    /// and the names of the characters it keeps for the account. Those keeping a seat first.
     pub fn joinable_for(&self, account: &str) -> Vec<Value> {
         let mut inner = self.inner.lock().expect("the tables");
         self.sweep(&mut inner);
@@ -826,7 +850,11 @@ impl Tables {
             .values()
             .filter_map(|game| {
                 let held = game.shared.lock().expect("the game");
-                if held.host == account {
+                // Who is at it now: a game nobody's page is at - kept for them to come back to - is nobody's to join.
+                let mut here: Vec<&str> = held.watching.iter().map(|(_, who, _)| who.as_str()).collect();
+                here.sort_unstable();
+                here.dedup();
+                if held.host == account || here.is_empty() {
                     return None;
                 }
                 let theirs: Vec<&String> = held.kept.iter().filter(|(_, kept)| *kept == account).map(|(character, _)| character).collect();
@@ -843,7 +871,7 @@ impl Tables {
                     "invite": held.invite,
                     "host": name(&held.host),
                     "project": held.document["name"].as_str().unwrap_or(""),
-                    "players": held.members.len(),
+                    "players": here.len(),
                     "started": held.started,
                     "visibility": held.visibility,
                     "kept": theirs.iter().map(|character| character_name(&board, character)).collect::<Vec<_>>(),

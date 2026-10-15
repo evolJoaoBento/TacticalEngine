@@ -39,6 +39,11 @@ export interface SaveSlot {
    * shared.
    */
   seats?: Record<string, string>;
+  /**
+   * Everybody who played a shared game when it was saved: each has this slot in their own saves, and the project it
+   * was played over kept beside it, so any of them hosts it again (`saves.rs`). None at a game nobody shared.
+   */
+  players?: string[];
 }
 
 /** The project a save that does not say is of: the only one there was when saves did not say. */

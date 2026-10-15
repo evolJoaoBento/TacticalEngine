@@ -18,7 +18,9 @@
  *
  * Every choice opens the page again with it written in the address, so a game starts on a clean
  * page. Saves are listed under the game they are of (`SaveSlot.project`), and are the signed-in
- * player's own (`browserStore`, `accounts.ts`); who that is, and Sign out, head the card.
+ * player's own (`browserStore`, `accounts.ts`); who that is, and Sign out, head the card. A shared game's
+ * save of a game this browser has not got - another's camp - is listed on its own, and opened over the
+ * project the server keeps beside it (`?saved=`).
  */
 
 import { useEffect, useState } from 'preact/hooks';
@@ -87,6 +89,9 @@ export function MainMenu(props: { account?: SignedIn | null; onSignOut?: () => v
   // Who may find a game hosted from here.
   const [findable, setFindable] = useState<Visibility>('friends');
   const savesOf = (project: string): SaveSlot[] => saves.filter((slot) => projectOfSlot(slot) === project);
+  // A shared game's saves of games this browser has not got: opened over the project kept with them.
+  const known = new Set([DEFAULT_SAVE_PROJECT, ...games.list().map((game) => game.id)]);
+  const elsewhere = saves.filter((slot) => slot.players !== undefined && !known.has(projectOfSlot(slot)));
   // Every game, and the saves of each, opened as chosen - hosted for friends too (`?host`) from Play Together.
   const gameList = (also: string): preact.JSX.Element[] => [
     ...games.list().map((game) => (
@@ -109,6 +114,16 @@ export function MainMenu(props: { account?: SignedIn | null; onSignOut?: () => v
       </header>
       <Saves saves={savesOf(DEFAULT_SAVE_PROJECT)} open={(slot) => openPage(`play&load=${encodeURIComponent(slot)}${also}`)} />
     </section>,
+    ...(elsewhere.length === 0
+      ? []
+      : [
+          <section key="played-together" className="menu-game" data-game="played-together" data-testid="menu-played-together">
+            <header>
+              <h2>Played together</h2>
+            </header>
+            <Saves saves={elsewhere} open={(slot) => openPage(`play&saved=${encodeURIComponent(slot)}&load=${encodeURIComponent(slot)}${also}`)} />
+          </section>,
+        ]),
   ];
   const join = (): void => {
     const invite = inviteFrom(joining);

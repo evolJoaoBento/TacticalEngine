@@ -2301,7 +2301,7 @@ const state = {
   },
   saveAs: (name: string): string | null => {
     const text = game.serialiseSave();
-    const slot = text === null ? null : slots.write(text, name, whereWeAre());
+    const slot = text === null ? null : slots.write(text, name, whereWeAre(), undefined, game.board.project.id); // as `saveTo` writes one
     refreshPlay();
     return slot?.id ?? null;
   },

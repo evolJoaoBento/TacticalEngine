@@ -50,6 +50,29 @@ describe('which project opens', () => {
     expect(down.problem).toMatch(/could not be joined \(offline\)/);
   });
 
+  it("opens a shared game's save over the project the server keeps beside it", async () => {
+    const project = JSON.parse(demoText);
+    project.name = "Kara's camp";
+    const asked: string[] = [];
+    const booted = await bootDemo({
+      boot: 'builtin',
+      search: '?play&saved=s1%20x&load=s1%20x',
+      fetcher: (url) => {
+        asked.push(url);
+        return answer(200, JSON.stringify(project));
+      },
+    });
+    expect(asked).toEqual(['/__saves/s1%20x/project']);
+    expect(booted.source).toBe('game');
+    expect(booted.problem).toBeNull();
+    expect(booted.demo.project.name).toBe("Kara's camp");
+    const none = await bootDemo({ boot: 'file', search: '?saved=nope', fetcher: () => answer(404) });
+    expect(none.source).toBe('invalid');
+    expect(none.problem).toMatch(/keeps no game on the server/);
+    const down = await bootDemo({ boot: 'file', search: '?saved=nope', fetcher: () => Promise.reject(new Error('offline')) });
+    expect(down.problem).toMatch(/could not be read \(offline\)/);
+  });
+
   it('opens the demo from code when there is no file yet, and says nothing is wrong', async () => {
     const booted = await bootDemo({ boot: 'file', search: '', fetcher: () => answer(404) });
     expect(booted.source).toBe('missing');

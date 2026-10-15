@@ -473,7 +473,7 @@ async fn a_game_is_shared_its_invitation_joins_it_and_each_intent_is_pushed_to_t
     assert!(told(&mut to_host).await["ok"]["slot"]["id"].is_string(), "the host's written");
     // A save loaded puts everybody somewhere else: not the guest's to do, though the save be their own.
     let slot = serve::saves::mint_id(1);
-    let theirs = serve::saves::Slot { id: slot.clone(), name: "Mine".into(), saved_at: 1, place: "here".into(), project: None, seats: Default::default() };
+    let theirs = serve::saves::Slot { id: slot.clone(), name: "Mine".into(), saved_at: 1, place: "here".into(), project: None, seats: Default::default(), players: Vec::new() };
     serve::saves::write_save(&root, "finn", theirs, &serve::saves::read_save(&root, "kara", &serve::saves::read_slots(&root, "kara")[0].id).unwrap()).unwrap();
     tables.ask_on(guest, "finn", json!({ "id": 12, "op": "load", "slot": slot }));
     assert_eq!(told(&mut to_guest).await["error"], "only the host loads a save into a game others are at");
@@ -731,6 +731,15 @@ async fn a_shared_games_save_keeps_who_plays_whom_and_hosting_it_again_seats_eac
     assert_eq!(slot["seats"], json!({ finns.as_str(): "finn", miras.as_str(): "mira" }), "{slot}");
     let id = slot["id"].as_str().unwrap().to_string();
     assert_eq!(serve::saves::read_slots(&root, "kara").iter().find(|s| s.id == id).unwrap().seats.len(), 2);
+    // The game's save, not Kara's alone: everybody who played it has the same slot, its text, and the project beside it.
+    assert_eq!(slot["players"], json!(["kara", "finn", "mira"]));
+    for player in ["kara", "finn", "mira"] {
+        let theirs = serve::saves::read_slots(&root, player).into_iter().find(|s| s.id == id).unwrap_or_else(|| panic!("{player} has it"));
+        assert_eq!(serde_json::to_value(&theirs).unwrap(), slot, "{player}");
+        assert_eq!(serve::saves::read_save(&root, player, &id), serve::saves::read_save(&root, "kara", &id), "{player}");
+        let project: Value = serde_json::from_str(&serve::saves::read_project(&root, player, &id).unwrap()).unwrap();
+        assert_eq!(project, fixture["projects"][0], "{player}");
+    }
     for conn in [host, finn, mira] {
         tables.left(conn);
     }
@@ -842,8 +851,16 @@ async fn a_game_is_found_by_whoever_its_host_lets_find_it_and_the_host_changes_w
     assert_eq!(listed("moth"), vec![invite.clone()]);
     assert_eq!(tables.joinable_for("moth")[0]["players"], 2);
     assert!(listed("kara").is_empty(), "never the host's own, public or not");
+    // Nobody at it - every page gone, the game kept for them to come back to - nobody finds it.
+    tables.left(host);
+    tables.left(guest);
+    assert!(listed("moth").is_empty(), "nobody is at it");
+    let (host, mut to_host) = tables.connect();
+    tables.ask_on(host, "kara", json!({ "id": 4, "op": "resume" }));
+    told(&mut to_host).await;
+    assert_eq!(tables.joinable_for("moth")[0]["players"], 1, "only who is at it now");
     // Invite-only: nobody finds it.
-    tables.ask_on(host, "kara", json!({ "id": 4, "op": "visibility", "visibility": "invite" }));
+    tables.ask_on(host, "kara", json!({ "id": 5, "op": "visibility", "visibility": "invite" }));
     told(&mut to_host).await;
     assert!(listed("moth").is_empty() && listed("finn").is_empty());
     // A game opened the ordinary way is invite-only.
@@ -908,4 +925,56 @@ async fn a_host_whose_page_comes_back_in_time_keeps_the_game() {
     assert_eq!(told(&mut to_again).await["ok"]["table"]["host"], "kara");
     tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
     assert!(nothing_more(&mut to_finn).await, "nothing handed on");
+}
+
+#[tokio::test]
+async fn a_shared_games_save_is_hosted_again_by_anybody_who_played_it() {
+    let fixture = fixture();
+    let root = root("anybodys-save");
+    let tables = Tables::new(root.clone()).for_tests();
+    let open = |lobby: bool| json!({ "id": 1, "op": "open", "project": fixture["projects"][0], "shipped": fixture["shipped"], "table": {}, "lobby": lobby });
+    // Kara's game, Finn at it and seated; Kara saves it.
+    let (host, mut to_host) = tables.connect();
+    tables.ask_on(host, "kara", open(false));
+    let opened = told(&mut to_host).await;
+    let invite = opened["ok"]["invite"].as_str().unwrap().to_string();
+    let party: Vec<String> = opened["ok"]["board"]["replica"]["state"]["entities"].as_object().unwrap().iter().filter(|(_, e)| e["faction"] == "party").map(|(id, _)| id.clone()).collect();
+    let (karas, finns) = (party[0].clone(), party[1].clone());
+    let (finn, mut to_finn) = tables.connect();
+    tables.ask_on(finn, "finn", json!({ "id": 1, "op": "join", "invite": invite }));
+    told(&mut to_finn).await;
+    told(&mut to_host).await;
+    for (character, account) in [(&karas, "kara"), (&finns, "finn")] {
+        tables.ask_on(host, "kara", json!({ "id": 2, "op": "seat", "character": character, "account": account }));
+        told(&mut to_host).await;
+    }
+    tables.ask_on(host, "kara", json!({ "id": 3, "op": "save", "name": "Our game", "where": "the vault" }));
+    let id = told(&mut to_host).await["ok"]["slot"]["id"].as_str().unwrap().to_string();
+    for conn in [host, finn] {
+        tables.left(conn);
+    }
+    // Finn hosts it from his own saves: seated in his own, Kara's kept for her.
+    let (again, mut to_again) = tables.connect();
+    tables.ask_on(again, "finn", open(true));
+    told(&mut to_again).await;
+    tables.ask_on(again, "finn", json!({ "id": 2, "op": "load", "slot": id }));
+    assert_eq!(told(&mut to_again).await["ok"]["answer"], json!({ "ok": true }));
+    let table = told(&mut to_again).await["table"].clone();
+    assert_eq!(table["host"], "finn");
+    assert_eq!(table["seats"], json!({ finns.as_str(): "finn" }));
+    assert_eq!(table["kept"], json!({ karas.as_str(): { "id": "kara", "name": "kara" } }));
+    // Saved again by Finn, into the same slot: Kara's copy is the new one too.
+    tables.ask_on(again, "finn", json!({ "id": 3, "op": "save", "slot": id, "name": "Our game", "where": "the vault" }));
+    let resaved = told(&mut to_again).await["ok"]["slot"].clone();
+    assert_eq!(resaved["players"], json!(["finn", "kara"]));
+    assert_eq!(serve::saves::read_save(&root, "kara", &id), serve::saves::read_save(&root, "finn", &id));
+    assert_eq!(serve::saves::read_slots(&root, "kara").iter().find(|s| s.id == id).unwrap().saved_at, resaved["savedAt"].as_i64().unwrap());
+    // A game nobody shared saves into its player's folder alone, with no players and no project beside it.
+    let (alone, mut to_alone) = tables.connect();
+    tables.ask_on(alone, "moth", open(false));
+    told(&mut to_alone).await;
+    tables.ask_on(alone, "moth", json!({ "id": 2, "op": "save", "name": "Mine", "where": "the vault" }));
+    let mine = told(&mut to_alone).await["ok"]["slot"].clone();
+    assert!(mine.get("players").is_none(), "{mine}");
+    assert!(serve::saves::read_project(&root, "moth", mine["id"].as_str().unwrap()).is_none());
 }
