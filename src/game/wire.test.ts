@@ -44,6 +44,8 @@ const UNTOLD = ['readContainer', 'readThing'];
  * `noisy` has a game opened with lines already in its log. Its saves are the account's, kept across its games.
  * Its game is shared, as the server's are: each intent's answer carries what it gave to draw, taken off the
  * game's queues (`views`), and is pushed to every other connection that listens; `join` and `seat` as `play.rs`.
+ * Unlike `play.rs` it pushes a board that changed nothing - a selection alone - so a page here can be told what the
+ * server's would not tell it: what a page is pushed is `play_routes.rs`'s to prove.
  * And as `play.rs`, its game is told whom it plays for before each message (`restoreSeating`): the connection's
  * account - the host's for the one that opened it, a guest's for each that joined - and that account's own
  * selection, kept between its messages and put on every board it is pushed.

@@ -23,6 +23,7 @@ import { ArtNote } from './AiNote';
 import { Players } from './Players';
 import { Lobby } from './Lobby';
 import { Chat } from './Chat';
+import { FriendsInPlay } from './FriendsInPlay';
 import { waitingOn } from '../shared-game';
 
 
@@ -296,6 +297,9 @@ export function PlayPanel(props: PlayPanelProps): preact.JSX.Element | null {
       ) : null}
 
       {/* What the party carries is in the loadout now, as cards (`GearBinder.tsx`). */}
+
+      {/* The player's friends, and what they have written unread - the menu's, during a game (`FriendsInPlay.tsx`). */}
+      <FriendsInPlay />
 
       {/* What is said at a shared game's table, once it has started; in its lobby before (`Chat.tsx`). */}
       <Chat />

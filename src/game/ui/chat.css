@@ -13,3 +13,8 @@
 .chat.is-friend .chat-lines{max-height:min(320px,45vh);font-size:13px;line-height:1.45}
 .chat.is-friend .panel-sub{font-size:12px;font-style:italic;color:#57493a}
 .chat.is-friend .chat-say input{font-size:13px;padding:6px 9px;border-color:#b2a68d;border-radius:4px;background:#fffdf6;color:#1d1611}
+/* A player's friends during a game (`FriendsInPlay.tsx`): a button over the board, above the table's chat - paper,
+   not ghost, the board being dark - its words gold while anybody is asking or has written unread. */
+.play-friends{display:flex;justify-content:flex-end}
+.play-friends .play-btn{font-size:12px;padding:3px 10px}
+.play-friends .play-btn.is-waiting{color:#7a4a14}

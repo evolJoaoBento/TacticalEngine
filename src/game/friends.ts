@@ -3,7 +3,8 @@
  * them, and whom they have asked - a request by name, accepted or declined, and either removing the other. An
  * account made with a player's invitation is that player's friend from the start. And what friends write each other
  * (slice 6; the server's `messages.rs`): a conversation read, written to, and read up to a message. And which
- * friends are around (`online`, the server's `play.rs` `presence`).
+ * friends are around (`online`, the server's `play.rs` `presence`). And whose friends a game's page shows (`playAs`):
+ * the menu's are reachable during a game too (`ui/FriendsInPlay.tsx`).
  */
 
 export const FRIENDS_URL = '/__friends';
@@ -45,6 +46,27 @@ export interface Message {
 export interface Conversation {
   with: Person;
   messages: Message[];
+}
+
+/** Who the page plays as on the server, told as it boots (`wasm-game.ts`, `gameReady`); nobody without a server. */
+let player: Person | null = null;
+const toldOfPlayer = new Set<(player: Person | null) => void>();
+
+/** The page's game played as this account, or nobody: whose friends the game's page shows. */
+export function playAs(account: Person | null): void {
+  player = account === null ? null : { id: account.id, name: account.name };
+  for (const tell of toldOfPlayer) tell(player);
+}
+
+/** Whom the page's game is played as, if anybody. */
+export function playingAs(): Person | null {
+  return player;
+}
+
+/** Told whenever whom the page plays as changes; what to call to stop. */
+export function onPlayingAs(tell: (player: Person | null) => void): () => void {
+  toldOfPlayer.add(tell);
+  return () => toldOfPlayer.delete(tell);
 }
 
 /** How often an open conversation asks for what is new, and the friends for what is unread (ms). */

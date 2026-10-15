@@ -32,6 +32,7 @@ import { nameOf } from './log';
 import { loadAccountSaves } from './account-saves';
 import { SaveSlots, browserStore, type SaveShelf } from './save-slots';
 import { talkingAside } from './talks';
+import { playAs } from './friends';
 
 export type { GameClient, LocalPowers } from './client';
 
@@ -203,6 +204,7 @@ const OPENING_MS = 3000;
 export async function gameReady(demo: DemoScene): Promise<GameClient & LocalPowers> {
   const [account] = await Promise.all([serverAccount(BOOT), refill()]);
   serverOn = account !== null;
+  playAs(account);
   booting = true;
   const game = gameFor(demo);
   booting = false;

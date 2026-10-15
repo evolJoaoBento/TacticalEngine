@@ -10,7 +10,13 @@ Designed in `docs/SERVER.md` ("Phase 6, designed"): players invite players, anyb
 friends-only or invite-only - friends both ways, chat at the table and between friends. Slices 1 (invitations),
 2 (friends), 3 (lobbies anybody opens), 4 (a game's saves the game's), 5 (chat at the table) and 6 (messages
 between friends) are done: the phase is, and who is around after it. Next, what an evening played through the
-tunnel shows; then a friend's messages reachable during a game - they are the menu's alone.
+tunnel shows.
+
+## A friend's messages during a game — done
+
+A game's page played on the server has a Friends button above the table's chat, saying how many are asking and how
+much is unread; it opens the menu's friends - asking, answering, writing - on a sheet over the table, Escape shutting
+it.
 
 ## A conversation its talker's player's — done
 

@@ -12,7 +12,7 @@ describe('whose Escape it is', () => {
   });
 
   it('belongs to whatever Escape already closes, while that is up', () => {
-    for (const open of ['[data-testid="loadout-backdrop"]', '[data-testid="rest"]', '[data-testid="cancel-targeting"]', '[data-testid="inspect"]', '.roll-backdrop', '[data-testid="level-up"]']) {
+    for (const open of ['[data-testid="loadout-backdrop"]', '[data-testid="rest"]', '[data-testid="cancel-targeting"]', '[data-testid="inspect"]', '.roll-backdrop', '[data-testid="level-up"]', '[data-testid="friends-sheet"]']) {
       expect(ESCAPE_IS_TAKEN.split(',')).toContain(open);
       expect(escapeIsTaken(pageWith(open))).toBe(true);
     }

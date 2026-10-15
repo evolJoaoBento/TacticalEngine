@@ -6,7 +6,8 @@ import { ON_SERVER } from './server-mode';
  * own and signed in to an account of its own: one asks the other by name; the other's menu says somebody is asking,
  * and they accept; each lists the other; they write each other (slice 6), what is unread said on the menu and read
  * as it is shown, an answer coming without a reload; each sees whether the other is around - online on the menu, in
- * a game once at one; one removes the other, and neither lists anybody. The server keeps the friends, so this is
+ * a game once at one; written to during that game, the game's page says so, and its friends are the menu's, read and
+ * answered over the table; one removes the other, and neither lists anybody. The server keeps the friends, so this is
  * played on the server alone.
  */
 
@@ -83,6 +84,28 @@ test('a player asks another by name, who accepts; each lists the other, until on
   // The other goes to play, alone: the friends' list, asked again in a while, says so.
   await asked.page.goto('/?play');
   await expect(asking.page.getByTestId('friend-presence')).toHaveText('· in a game', { timeout: 25_000 });
+  // Written to during the game: the game's page says so, and its friends are the menu's - read and answered over the
+  // table, shut with Escape, which opens no settings behind them.
+  await asking.page.getByTestId('friend-write').click();
+  await askingChat.getByTestId('chat-input').fill('Ready to roll?');
+  await askingChat.getByTestId('chat-send').click();
+  const friendsInPlay = asked.page.getByTestId('play-friends');
+  await expect(friendsInPlay).toHaveText('Friends (1)', { timeout: 25_000 });
+  await asked.page.screenshot({ path: 'test-results/friends-in-play-waiting.png' });
+  await friendsInPlay.click();
+  await expect(asked.page.getByTestId('friends-sheet').getByTestId('friend-write')).toHaveText('Messages (1)');
+  await asked.page.getByTestId('friend-write').click();
+  const playingChat = asked.page.getByTestId('friend-chat');
+  await expect(playingChat.getByTestId('chat-line').last()).toHaveText(`${askingName} Ready to roll?`);
+  await playingChat.getByTestId('chat-input').fill('Rolling now.');
+  await playingChat.getByTestId('chat-send').click();
+  await expect(askingChat.getByTestId('chat-line').last()).toHaveText(`${askedName} Rolling now.`);
+  await asked.page.screenshot({ path: 'test-results/friends-in-play.png' });
+  await asked.page.keyboard.press('Escape');
+  await expect(asked.page.getByTestId('friends-sheet')).toHaveCount(0);
+  await expect(asked.page.getByTestId('user-settings')).toHaveCount(0);
+  await expect(friendsInPlay).toHaveText('Friends');
+  await asking.page.getByTestId('friend-messages-back').click();
   await asked.page.goto('/?menu');
 
   // Removed by one, gone for both.

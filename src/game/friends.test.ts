@@ -5,7 +5,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { FRIENDS_URL, answerFriend, askFriend, presenceWord, readConversation, readFriends, readUpTo, removeFriend, unreadOf, writeTo } from './friends';
+import { FRIENDS_URL, answerFriend, askFriend, onPlayingAs, playAs, playingAs, presenceWord, readConversation, readFriends, readUpTo, removeFriend, unreadOf, writeTo } from './friends';
 
 const answer = (status: number, body: unknown) => async () => ({ ok: status >= 200 && status < 300, status, json: async () => body });
 const wren = { id: 'wren', name: 'Wren' };
@@ -78,5 +78,20 @@ describe('friends', () => {
     expect(await readConversation('moth', answer(404, { reason: "you can only read a friend's messages" }))).toBeNull();
     expect(await readConversation('wren', async () => Promise.reject(new Error('offline')))).toBeNull();
     expect(await writeTo('moth', 'Hi', answer(404, { reason: 'you can only write to a friend' }))).toEqual({ refused: 'you can only write to a friend' });
+  });
+
+  it("knows whom the game's page plays as - whose friends it shows - and tells whoever asked to be told", () => {
+    expect(playingAs()).toBeNull();
+    const told: unknown[] = [];
+    const stop = onPlayingAs((player) => told.push(player));
+    // The account as the server says it: its id and name, nothing else kept.
+    playAs({ id: 'wren', name: 'Wren', admin: false } as { id: string; name: string });
+    expect(playingAs()).toEqual({ id: 'wren', name: 'Wren' });
+    playAs(null);
+    stop();
+    playAs({ id: 'pip', name: 'Pip' });
+    expect(told).toEqual([{ id: 'wren', name: 'Wren' }, null]);
+    expect(playingAs()).toEqual({ id: 'pip', name: 'Pip' });
+    playAs(null);
   });
 });

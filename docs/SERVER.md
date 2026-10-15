@@ -1293,10 +1293,11 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     and the page is stood where the server's board says after - the next question shown the same way, or
     none and in step. Anything else is played on the page's game alone, which refuses it as it would with any
     question open, and is not sent; the conversations are not set aside here (`syncTalks`), which a stand-in must
-    not be - one of the page's player's is set aside there (a conversation its talker's player's, below). A question the page held that the server's game does not is dropped with the rest of the page's
-    game. Only a conversation set aside, on either side - a runner too - still has the server told the
-    page's game instead. A dropped connection keeps the question shown and shows it again where the kept game
-    now is; a game gone lets it go.
+    not be - one of the page's player's is set aside there (a conversation its talker's player's, below). A
+    question the page held that the server's game does not is dropped with the rest of the page's game. A
+    conversation set aside is known to the page's engine by name, its runner the server's (`restoreAside`). A
+    dropped connection keeps the question shown and shows it again where the kept game now is; a game gone lets
+    it go.
     - **Drawn again when the game changed under it**: a board that stands the page somewhere else comes in a
       socket's message, between frames, not in answer to a click; `GameClient.changedBehind` says so, and the
       frame loop draws the page again (`refreshPlay`) - one line of `main.ts`, on another.
@@ -1883,9 +1884,17 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     sends `syncTalks` (and the selection, which a page shown a question keeps to itself) with nothing predicted, and
     the page is stood where the answer leaves the game (`Wire.unpredicted`) - once for each selection, so a game that
     will not move it (a fight held by a talk) is not asked with every frame. Proved by `seats.rs` (the guest's
-    selection moves nothing, the host's sets aside and brings back) and `wire.test.ts` (two pages: drawing sends
+    selection moves nothing, the host's sets aside and brings back), `play_routes.rs` (a conversation moved is
+    pushed to the guest, a page drawing with nothing moved to nobody - the only test of `UNTOLD` itself, the page's
+    tests' server keeping a list of its own) and `wire.test.ts` (two pages: drawing sends
     nothing; set aside, the guest told and walking; brought back to a page that knew it by name, the guest's walk
     then refused at home and not sent; set aside and back again from the board; had to its end; nothing parted). A
     single page shown its conversation from the board (a reload) now sets it aside as single play does.
-  - **Next**: an evening through the tunnel; then a friend's messages reachable during a game (they are the menu's
-    alone).
+  - **A friend's messages during a game** (15 October 2026). The menu's friends - asking, answering, writing - were
+    the menu's alone. Now a game's page played as an account on the server (`friends.ts`, `playAs`, told by
+    `gameReady`) has a Friends button above the table's chat (`ui/FriendsInPlay.tsx`), saying how many are asking
+    and how much is unread, asked again every ten seconds while shut; it opens the menu's own `Friends` on a sheet
+    over the table, shut by Back, a click beside it or Escape - which, the sheet up, opens no settings behind it
+    (`ESCAPE_IS_TAKEN`). Nothing at a page with no server. The friends' e2e test writes to a player at a game: the
+    button says so, the sheet reads and answers it, Escape shuts it (`friends.spec.ts`).
+  - **Next**: an evening through the tunnel.
