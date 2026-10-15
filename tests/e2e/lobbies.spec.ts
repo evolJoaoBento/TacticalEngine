@@ -116,7 +116,17 @@ test('a lobby is found by whoever its host lets find it, and handed on when its 
   const panelChat = friend.page.locator('.play.panel').getByTestId('chat');
   await expect(panelChat.getByTestId('chat-line')).toHaveCount(2);
   const before = await friend.page.evaluate(() => window.__engine!.tileOf(window.__engine!.selected() ?? window.__engine!.party()[0]!));
-  await panelChat.getByTestId('chat-input').fill('wasd and off we go');
+  const saying = panelChat.getByTestId('chat-input');
+  await saying.fill('wasd and off we go');
+  // Escape typed lets go of the box, what is typed kept, and opens no settings; another Escape does.
+  await saying.press('Escape');
+  await expect(saying).not.toBeFocused();
+  await expect(saying).toHaveValue('wasd and off we go');
+  await expect(friend.page.getByTestId('user-settings')).toHaveCount(0);
+  await friend.page.keyboard.press('Escape');
+  await expect(friend.page.getByTestId('user-settings')).toBeVisible();
+  await friend.page.keyboard.press('Escape');
+  await expect(friend.page.getByTestId('user-settings')).toHaveCount(0);
   await panelChat.getByTestId('chat-send').click();
   await expect(panelChat.getByTestId('chat-line').last()).toHaveText(`${friend.name} wasd and off we go`);
   expect(await friend.page.evaluate(() => window.__engine!.tileOf(window.__engine!.selected() ?? window.__engine!.party()[0]!))).toBe(before);

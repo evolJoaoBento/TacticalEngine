@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ESCAPE_IS_TAKEN, escapeIsTaken } from './SettingsModal';
+import { ESCAPE_IS_TAKEN, escapeIsTaken, typingIn } from './SettingsModal';
 
 /** A page with these things on it, as far as `querySelector` over a list of selectors can tell. */
 const pageWith = (...present: string[]): ParentNode =>
@@ -20,5 +20,14 @@ describe('whose Escape it is', () => {
 
   it('is the settings’ in a conversation, and over a shop: Escape closes neither', () => {
     expect(escapeIsTaken(pageWith('[data-testid="dialogue"]', '[data-testid="shop-backdrop"]', '[data-testid="container"]'))).toBe(false);
+  });
+
+  it('is a field’s while something is typed in it, and the settings’ on a switch or a button', () => {
+    for (const typed of [{ tagName: 'INPUT', type: 'text' }, { tagName: 'INPUT', type: 'search' }, { tagName: 'INPUT' }, { tagName: 'TEXTAREA' }, { tagName: 'DIV', isContentEditable: true }]) {
+      expect(typingIn(typed as unknown as EventTarget)).toBe(true);
+    }
+    for (const untyped of [{ tagName: 'INPUT', type: 'checkbox' }, { tagName: 'INPUT', type: 'range' }, { tagName: 'BUTTON' }, { tagName: 'DIV', isContentEditable: false }, {}, null]) {
+      expect(typingIn(untyped as unknown as EventTarget)).toBe(false);
+    }
   });
 });

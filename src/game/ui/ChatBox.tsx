@@ -74,6 +74,10 @@ export function ChatBox(props: {
             setText(e.currentTarget.value);
             setRefused(null);
           }}
+          // Escape lets go of the keyboard, what is typed kept, and opens nothing (`SettingsModal.tsx`, `typingIn`).
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') e.currentTarget.blur();
+          }}
         />
         <button type="submit" className={props.buttonClass} data-testid="chat-send" disabled={text.trim() === ''}>
           Say

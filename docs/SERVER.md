@@ -1800,7 +1800,8 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     game's: it is not saved, numbers no intent, and is not asked of the engine (so saying asks the game nothing about
     whom it plays for). The page: the wire keeps what was said (`Wire.chat`, `onChat`, `say`), `shared-game.ts`
     hands it on (`chat`, `onChat`, `say`), and `ui/Chat.tsx` shows it - a section of the lobby while the players
-    gather, a box above the log once the game has started; typing in it walks nobody (`typing`, `main.ts`). Proved by
+    gather, a box above the log once the game has started; typing in it walks nobody (`typing`, `main.ts`), and
+    Escape there lets go of the box, opening no settings (`typingIn`, `SettingsModal.tsx`). Proved by
     the server's tests (`play_routes.rs`: said before anybody came and told to who comes, each told the other's and
     not their own twice, nothing and too much refused, 500 accented characters taken, the last hundred kept in order
     for a page that comes back, the seq untouched), the page's (`wire.test.ts`: each wire told the other's, a page
@@ -1897,4 +1898,8 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     over the table, shut by Back, a click beside it or Escape - which, the sheet up, opens no settings behind it
     (`ESCAPE_IS_TAKEN`). Nothing at a page with no server. The friends' e2e test writes to a player at a game: the
     button says so, the sheet reads and answers it, Escape shuts it (`friends.spec.ts`).
+  - **Escape typed at the table's chat** (15 October 2026) let go of nothing and opened the settings over the
+    game. Now a key typed in a field is the field's (`typingIn`, `SettingsModal.tsx`): the chat's box lets go of
+    the keyboard (`ChatBox.tsx`), what is typed kept, and a second Escape opens the settings
+    (`settings-modal.test.ts`, `lobbies.spec.ts`).
   - **Next**: an evening through the tunnel.

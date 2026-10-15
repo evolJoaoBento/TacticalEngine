@@ -18,6 +18,11 @@ A game's page played on the server has a Friends button above the table's chat, 
 much is unread; it opens the menu's friends - asking, answering, writing - on a sheet over the table, Escape shutting
 it.
 
+## Escape typed at the table's chat — done
+
+Escape in a text field is the field's: the chat's box lets go of the keyboard, what is typed kept, and opens no
+settings; a second Escape does.
+
 ## A conversation its talker's player's — done
 
 At a shared game a conversation is set aside and brought back by its talker's player's selection alone, and every

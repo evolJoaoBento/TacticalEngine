@@ -381,7 +381,8 @@ you are still reading, both wait for **Accept** with it.
 button for it on the board. Escape already means "put that down" everywhere else, so it opens
 the settings only when there is nothing to put down: with the loadout open it shuts the loadout,
 with a card or a jump being aimed it calls that off, with a roll on the table it is the roll's.
-Escape again, **Close**, or a click outside the sheet puts it away. While it is up the keyboard
+Typing at the table's chat, it lets go of the box - what you typed is kept - and a second Escape
+opens the settings. Escape again, **Close**, or a click outside the sheet puts it away. While it is up the keyboard
 is its own: Tab walks its switches rather than the party.
 
 What it holds is yours rather than the campaign's. It is kept in this browser (`localStorage`),
