@@ -9,16 +9,23 @@ handful of working rules that are learned the expensive way rather than read.
 Designed in `docs/SERVER.md` ("Phase 6, designed"): players invite players, anybody opens a lobby - public,
 friends-only or invite-only - friends both ways, chat at the table and between friends. Slices 1 (invitations),
 2 (friends), 3 (lobbies anybody opens), 4 (a game's saves the game's), 5 (chat at the table) and 6 (messages
-between friends) are done: the phase is, and who is around after it. Next, what an evening played through the
-tunnel shows; then a friend's messages reachable during a game - they are the menu's alone.
+between friends) are done: the phase is, and who is around after it. Next, the drawing intents asked only when
+something changed (below); then what an evening played through the tunnel shows; then a friend's messages reachable
+during a game - they are the menu's alone.
 
 ## Who is around — done
 
 Friends says which friends are **online** (on the menu a moment ago) or **in a game** (theirs alone too), and so does
 a conversation's header. A lobby, and the players panel in a game, mark a player whose page has gone **(away)**,
-told at once. On the way: a host's save no longer counts a friend's move made a moment before it as a parting - one
-of two races there; the other (the server's save naming the friend's character as the actor, nothing numbered
-between) still logs a parting in `lobbies.spec.ts` now and then, and is next after the evening.
+told at once. On the way: a host's save no longer counts a friend's move made a moment before it as a parting.
+
+## A save numbered as the game stood — done
+
+The host's save sometimes parted when a friend's page drew its abilities a moment before: the drawing is played on
+the server and pushed to nobody, and it leaves the game's actor the friend's character. The save's answer now carries
+the game's number as it saved, and the page compares only when nothing came between. Measured on the way, and next:
+each page asks the server to draw its abilities and its talks some twenty times a second once a game has started,
+each answered with the whole board - to be asked only when something changed, before an evening through the tunnel.
 
 ## Messages between friends — done
 

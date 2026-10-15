@@ -967,8 +967,15 @@ async fn a_shared_games_save_is_hosted_again_by_anybody_who_played_it() {
         tables.ask_on(host, "kara", json!({ "id": 2, "op": "seat", "character": character, "account": account }));
         told(&mut to_host).await;
     }
+    // Finn's page draws his abilities: played and numbered, pushed to nobody; Kara's save numbered after it.
+    while !nothing_more(&mut to_finn).await {}
+    tables.ask_on(finn, "finn", json!({ "id": 2, "op": "call", "call": "abilityList", "args": [finns] }));
+    let drawn = told(&mut to_finn).await["ok"]["seq"].as_u64().unwrap();
+    assert!(nothing_more(&mut to_host).await, "a drawing intent is pushed to nobody");
     tables.ask_on(host, "kara", json!({ "id": 3, "op": "save", "name": "Our game", "where": "the vault" }));
-    let id = told(&mut to_host).await["ok"]["slot"]["id"].as_str().unwrap().to_string();
+    let said = told(&mut to_host).await;
+    assert_eq!(said["ok"]["seq"].as_u64(), Some(drawn), "{said}");
+    let id = said["ok"]["slot"]["id"].as_str().unwrap().to_string();
     for conn in [host, finn] {
         tables.left(conn);
     }

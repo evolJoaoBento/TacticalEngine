@@ -421,6 +421,11 @@ fn play_thread(shared: Arc<Mutex<Shared>>, root: PathBuf) -> mpsc::Sender<Job> {
                     let project = held.document.clone();
                     drop(held);
                     said = saved(&root, &job.account, &job.message, said, seats, players, &project);
+                    // Numbered as the game stood when it was saved: another page's intent played since the saver's
+                    // last answer - a drawing one too, never pushed (`DRAWN`) - is no parting of the saver's page.
+                    if said["ok"].is_object() {
+                        said["ok"]["seq"] = json!(played);
+                    }
                 }
                 "open" | "join" | "resume" if said["ok"].is_object() => {
                     let held = shared.lock().expect("the game");

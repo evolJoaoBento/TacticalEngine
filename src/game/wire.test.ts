@@ -59,8 +59,8 @@ class EngineServer implements Transport {
   /** A save's text changed on its way back, or a save refused outright. */
   rewordSave: ((text: string) => string) | null = null;
   refuseSave: string | null = null;
-  /** Another page's intent, played just before a save is: numbered, and pushed to every page. */
-  meanwhile: ((engine: WasmEngine) => void) | null = null;
+  /** Another page's intent, played just before a save is: numbered, and pushed to every page - or, a drawing one, not. */
+  meanwhile: { play: (engine: WasmEngine) => void; pushed: boolean } | null = null;
   refuse: ((call: string, calls: number) => boolean) | null = null;
   /** The account's saves, by slot, as the server's folder keeps them. */
   readonly saves = new Map<string, string>();
@@ -268,13 +268,14 @@ class EngineServer implements Transport {
           const blocked = this.refuseSave ?? (engine.call('saveBlockedBy', []) as string | null);
           if (blocked !== null) return { error: blocked };
           if (this.meanwhile !== null) {
-            this.meanwhile(engine);
-            this.push(-1, { push: { board: engine.board(), views: this.views(), by: 'another', seq: ++this.played } });
+            this.meanwhile.play(engine);
+            const seq = ++this.played;
+            if (this.meanwhile.pushed) this.push(-1, { push: { board: engine.board(), views: this.views(), by: 'another', seq } });
           }
           const text = engine.call('serialiseSave', []) as string;
           const slot = { id: m['slot'], name: m['name'], savedAt: 1, where: m['where'] };
           this.saves.set(m['slot'] as string, text);
-          return { ok: { slot, text: this.rewordSave === null ? text : this.rewordSave(text) } };
+          return { ok: { slot, text: this.rewordSave === null ? text : this.rewordSave(text), seq: this.played } };
         }
         case 'resume':
           if (this.kept === null) return { error: 'no game: open one' };
@@ -443,14 +444,16 @@ describe('the wire to the server\'s game', () => {
     after = replicaCount();
     expect(after.first.slice(before.first.length).map((p) => p.question)).toEqual(['server save: save.version']);
     // Another page's intent played between the page's save and the server's: the server's differs, and is no parting.
+    // And one nobody is pushed - a drawing intent (`DRAWN`): the save's own number says it came between.
     server.rewordSave = null;
-    server.meanwhile = (engine) => engine.call('selectNext', []);
-    const asked = replicaCount().asked;
-    const meanwhile = await wire.save({ id: 'quick', name: 'Quick save', where: '' }, text);
-    expect(JSON.parse(meanwhile!.text)).not.toEqual(JSON.parse(text));
-    expect(replicaCount().first.slice(before.first.length).map((p) => p.question)).toEqual(['server save: save.version']);
-    expect(replicaCount().asked).toBe(asked);
-    expect(wire.status()).toBe('in');
+    for (const pushed of [true, false]) {
+      server.meanwhile = { play: (engine) => engine.call('selectNext', []), pushed };
+      const asked = replicaCount().asked;
+      const meanwhile = await wire.save({ id: 'quick', name: 'Quick save', where: '' }, game.serialiseSave()!);
+      expect(JSON.parse(meanwhile!.text)).not.toEqual(JSON.parse(game.serialiseSave()!));
+      expect(replicaCount().first.slice(before.first.length).map((p) => p.question)).toEqual(['server save: save.version']);
+      expect(replicaCount().asked).toBe(asked);
+    }
     server.meanwhile = null;
     // Refused by the server's game: a parting, and nothing given back.
     server.rewordSave = null;

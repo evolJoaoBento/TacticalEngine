@@ -663,8 +663,9 @@ export class Wire {
    * The game saved by the server's game, into the account's slot (`account-saves.ts`): its own text, held to
    * the page's by value - key order is not the game's - and what it wrote given back, or `null` if it would
    * not. `null` at once when the server is not in step to save the game the page has. Held to the page's only when
-   * no other page's intent was played between the two: one that was is pushed before the answer (`seq`), and the
-   * server's save is of a game the page had not seen yet - no parting.
+   * no other page's intent was played between the two (the save's `seq`, as the game stood when it saved - or, from
+   * a server that does not say, the page's own count): one that was - a drawing one too, which nobody is pushed
+   * (`DRAWN`, `play.rs`) - left the server's save of a game the page had not seen, and that is no parting.
    */
   save(slot: { id: string; name: string; where: string; project?: string }, text: string): Promise<{ slot: SaveSlot; text: string } | null> | null {
     if (this.state !== 'in') return null;
@@ -673,17 +674,17 @@ export class Wire {
     const expected = this.known + this.inFlight;
     const ours = JSON.parse(text) as unknown;
     return this.send({ op: 'save', slot: slot.id, name: slot.name, where: slot.where, ...(slot.project === undefined ? {} : { project: slot.project }) }).then((said) => {
-      const saved = said.ok as { slot: SaveSlot; text: string } | undefined;
+      const saved = said.ok as { slot: SaveSlot; text: string; seq?: number } | undefined;
       if (saved === undefined) {
         if (epoch === this.epoch) recordParting('server save: refused', [slot.id], null, { failed: said.error });
         return null;
       }
-      if (epoch === this.epoch && this.known === expected && this.state === 'in') {
+      if (epoch === this.epoch && (saved.seq ?? this.known) === expected && this.state === 'in') {
         recordAsked();
         const parted = firstDifference(ours, JSON.parse(saved.text) as unknown, 'save');
         if (parted !== null) recordParting(`server save: ${parted.path}`, [slot.id], parted.game, parted.replica);
       }
-      return saved;
+      return { slot: saved.slot, text: saved.text };
     });
   }
 

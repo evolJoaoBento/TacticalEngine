@@ -1835,15 +1835,23 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     and the players panel mark a member whose page has gone **(away)** (`shared-game.ts` `membersLine`). And a race
     the save had, found on the way: a save is held to the page's only when no other page's intent was played between
     the two (`Wire.save`, as an intent is by `seq`) - a friend's selection played just before the host's save had the
-    server's save of a game the host's page had not seen yet, a parting that was none. One race of two: the other is
-    still open - now and then `lobbies.spec.ts` logs the host's save parted at `save.scenario.actorId`, the server's
-    naming the friend's character with no intent numbered between (the test's own count read before the answer
-    comes, it passes). Proved by the server's tests
+    server's save of a game the host's page had not seen yet, a parting that was none. Proved by the server's tests
     (`play_routes.rs`: Finn told at once that the host is away, then handed the game; the host back, Finn told; a
     second page of the same account coming and going tells nobody; playing, online, neither, playing winning;
     `friends_routes.rs`: friends told each other around, the one who only asked told nobody, gone after the while,
     playing at a game of their own), the page's (`friends.test.ts`, `shared-game.test.ts`: the members' line;
     `wire.test.ts`: another page's intent played before a save, no parting) and the server-mode e2e
     (`friends.spec.ts`: the other online, then in a game; `lobbies.spec.ts`: the host's page closed, away).
-  - **Next**: what an evening played through the tunnel shows; the save's other race (above); and a friend's messages
-    reachable during a game (they are the menu's alone).
+  - **A save numbered as the game stood** (15 October 2026). The save's other race, found with both pages' frames
+    logged: a page draws its selected character's abilities (`abilityList`, `DRAWN`) - played and numbered on the
+    server, pushed to nobody - and the drawing leaves the game's actor (`scenario.actorId`) the one it drew for. The
+    friend's drawing, played between the host's last answer and the host's save, had the server save the friend's
+    character as the actor, and the host's page could not know. The save's answer now carries the game's `seq` as it
+    saved (`play.rs`), and the page holds the save to its own only when nothing was numbered between (`Wire.save`, its
+    own count from a server that does not say). Repeated nine times the test parted four; after, none. Proved by the
+    server's test (`play_routes.rs`: Finn's drawing pushed to nobody, Kara's save numbered after it) and the page's
+    (`wire.test.ts`: another page's intent, pushed and not, before a save - no parting). On the way, measured: each
+    page draws its abilities about every 50 ms once a game has started, and asks `syncTalks` as often - some twenty
+    round trips a second, each answered with the whole board.
+  - **Next**: the drawing intents asked only when something changed (above), before an evening through the tunnel;
+    then a friend's messages reachable during a game (they are the menu's alone).
