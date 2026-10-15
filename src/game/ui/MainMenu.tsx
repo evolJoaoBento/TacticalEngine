@@ -7,6 +7,7 @@
  *   Edit Game   the project with the editor, as the app has always opened
  *   (Change password, beside Sign out, for whoever is signed in: `ChangePassword.tsx`.)
  *   (Invite, beside them: the player's own invitation for somebody new, and admin's players: `Invitations.tsx`.)
+ *   (Friends, beside them too, with how many are asking: `Friends.tsx`.)
  *   Store       art creators have published, with how they made it, and a vote on it (`Store.tsx`) -
  *               for whoever is signed in
  *   Play Together  where the server plays the game: any game Load Game lists, or a save of it, hosted for
@@ -27,6 +28,8 @@ import type { SignedIn } from '../accounts';
 import { Store } from './Store';
 import { ChangePassword } from './ChangePassword';
 import { Invitations } from './Invitations';
+import { Friends } from './Friends';
+import { readFriends } from '../friends';
 import { listAccountSaves } from '../account-saves';
 import { serverAllowed } from '../play-socket';
 import { inviteFrom } from '../shared-game';
@@ -57,10 +60,15 @@ function Saves({ saves, open }: { saves: SaveSlot[]; open: (slot: string) => voi
 }
 
 export function MainMenu(props: { account?: SignedIn | null; onSignOut?: () => void }): preact.JSX.Element {
-  const [view, setView] = useState<'main' | 'load' | 'new' | 'store' | 'together' | 'password' | 'invite'>('main');
+  const [view, setView] = useState<'main' | 'load' | 'new' | 'store' | 'together' | 'password' | 'invite' | 'friends'>('main');
   const [joining, setJoining] = useState('');
   const [joinRefused, setJoinRefused] = useState(false);
   const account = props.account ?? null;
+  // How many players are asking to be friends, for the account's line.
+  const [asking, setAsking] = useState(0);
+  useEffect(() => {
+    if (account !== null) void readFriends().then((read) => setAsking(read?.asking.length ?? 0));
+  }, [account?.id]);
   const games = new GameProjects(browserStore());
   // The browser's saves - or, signed in where the server plays the game, the account's, kept there.
   const onServer = account !== null && serverAllowed();
@@ -115,6 +123,7 @@ export function MainMenu(props: { account?: SignedIn | null; onSignOut?: () => v
           {account === null ? null : (
             <p className="menu-account" data-testid="menu-account">
               Signed in as <b>{account.name}</b>{account.admin ? ' (admin)' : ''} ·{' '}
+              <button type="button" className="menu-link" data-testid="menu-friends" onClick={() => setView('friends')}>{asking === 0 ? 'Friends' : `Friends (${asking})`}</button> ·{' '}
               <button type="button" className="menu-link" data-testid="menu-invite" onClick={() => setView('invite')}>Invite</button> ·{' '}
               <button type="button" className="menu-link" data-testid="menu-password" onClick={() => setView('password')}>Change password</button> ·{' '}
               <button type="button" className="menu-link" data-testid="menu-sign-out" onClick={props.onSignOut}>Sign out</button>
@@ -123,6 +132,8 @@ export function MainMenu(props: { account?: SignedIn | null; onSignOut?: () => v
           <h1 className="menu-title">Tactical Engine</h1>
           {view === 'password' && account !== null ? (
             <ChangePassword onBack={() => setView('main')} />
+          ) : view === 'friends' && account !== null ? (
+            <Friends onBack={() => setView('main')} onChange={(read) => setAsking(read.asking.length)} />
           ) : view === 'invite' && account !== null ? (
             <Invitations account={account} onBack={() => setView('main')} />
           ) : view === 'main' ? (

@@ -99,6 +99,10 @@ test("a friend opens the host's invitation signed out, makes an account with it,
   await page.getByTestId('menu-invite').click();
   await expect(page.getByTestId('invite-own-link')).toHaveValue(/\/\?invite=[0-9a-f]{24}$/);
   await page.getByTestId('menu-back').click();
+  // And the host is Pip's friend from the start: their invitation made Pip's account.
+  await page.getByTestId('menu-friends').click();
+  await expect(page.getByTestId('friend')).toHaveText(/Hearth/);
+  await page.getByTestId('menu-back').click();
 
   // Admin, at home, sees who invited whom, and gives the host a new invitation.
   const admin = await browser.newContext();

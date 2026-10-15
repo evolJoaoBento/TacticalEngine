@@ -12,6 +12,7 @@
 pub mod accounts;
 pub mod art_and_project;
 pub mod files;
+pub mod friends;
 pub mod js;
 pub mod manifest;
 pub mod play;
@@ -79,8 +80,12 @@ pub fn app_over(root: PathBuf, settings: Settings, tables: play::Tables) -> Rout
         .route(saves::SAVES_URL, any(saves::handle))
         .route(&format!("{}/{{*rest}}", saves::SAVES_URL), any(saves::handle))
         .with_state(root_for_play.clone());
+    let friends = Router::new()
+        .route(friends::FRIENDS_URL, any(friends::handle))
+        .route(&format!("{}/{{*rest}}", friends::FRIENDS_URL), any(friends::handle))
+        .with_state(root_for_play.clone());
     let play = play::router_for(if settings.for_tests { tables.for_tests() } else { tables });
-    accounts.merge(store).merge(models.with_state(shelf)).merge(engine).merge(saves.with_state(archive)).merge(saved).merge(play)
+    accounts.merge(store).merge(models.with_state(shelf)).merge(engine).merge(saves.with_state(archive)).merge(saved).merge(friends).merge(play)
 }
 
 /// Where the built client is, from the repository: `npm run build:server` writes it.

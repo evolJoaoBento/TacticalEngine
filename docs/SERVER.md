@@ -297,7 +297,7 @@ The slices:
    reads it (`?invite=`), the menu shows it (Invite), the lobby offers it with the game's for somebody new. Done 14
    October 2026 (Progress, below).
 2. **Friends** - requests by name, accepted or declined, removed; the inviter and the invited friends from the start
-   (`invitedBy`, kept since slice 1).
+   (`invitedBy`, kept since slice 1). Done 15 October 2026 (Progress, below).
 3. **Lobbies anybody opens** - public, friends-only or invite-only; a list of the games a player may join in Play
    Together (the games waiting for them - their seat kept - among them); the running of a game handed on when its
    creator leaves.
@@ -1738,4 +1738,19 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     account; with the host's, made through the tunnel, in the host's game, the host's spent; the friend's own in
     their menu; admin at home seeing who invited whom and renewing the host's; `shared.spec.ts`: the lobby's link for
     somebody new).
-  - **Next**: phase 6 (designed above), from slice 2, friends.
+  - **Phase 6, slice 2: friends** (15 October 2026). Each player's friends are kept by the server (`friends.rs`,
+    `data/friends.json`: the pairs that are friends, and the requests not answered yet). A player asks another by
+    name (`POST /__friends/ask`), who accepts or declines (`answer`); either removes the other, or takes a request of
+    their own back (`remove`); two who ask each other are friends at once; and an account an invitation made is its
+    holder's friend from the start (`accounts.rs`, `friends::befriend`). `GET /__friends` is the player's own:
+    `{ friends, asking, asked }`, by name; each write answers with the same, as it stands after. The page: the
+    menu's Friends, beside Invite, saying how many are asking (`ui/Friends.tsx`, `friends.ts`); the tests' server
+    passes `/__friends` to the Rust server with the games (`tools/rust-server.ts`). `Friends::of` is what slice 3's
+    friends-only lobbies will ask. Proved by the server's tests (`friends_routes.rs`: asked by name in any case,
+    asked again nothing more, nobody and oneself refused, accepted both ways, an answer to nobody refused,
+    declined, asked both ways, taken back, removed by either and nothing left to remove, only the page writing; the
+    invited and their inviter friends, an account made without one nobody's), the page's (`friends.test.ts`) and
+    the e2e (`friends.spec.ts`, on the server: asked through the menu, the other's menu counting it, accepted,
+    each listing the other, removed by one and gone for both; `tunnel.spec.ts`: the friend made with the host's
+    invitation finds the host among their friends).
+  - **Next**: phase 6, slice 3: lobbies anybody opens - public, friends-only or invite-only.

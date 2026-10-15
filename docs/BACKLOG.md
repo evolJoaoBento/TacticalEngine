@@ -7,8 +7,14 @@ handful of working rules that are learned the expensive way rather than read.
 ## Phase 6: the server is the host
 
 Designed in `docs/SERVER.md` ("Phase 6, designed"): players invite players, anybody opens a lobby - public,
-friends-only or invite-only - friends both ways, chat at the table and between friends. Slice 1, invitations, is
-done; next is slice 2, friends.
+friends-only or invite-only - friends both ways, chat at the table and between friends. Slices 1 (invitations)
+and 2 (friends) are done; next is slice 3, lobbies anybody opens.
+
+## Friends: asked by name, and the inviter from the start — done
+
+The menu's Friends: ask a player by name, and they accept or decline (the menu counts the requests waiting); either
+removes the other, or takes their own request back; two who ask each other are friends at once. An account made with
+a player's invitation is that player's friend from the start. Kept by the server (`data/friends.json`).
 
 ## Invitations: one per player, renewed by admin — done
 

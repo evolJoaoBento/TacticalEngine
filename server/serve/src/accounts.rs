@@ -20,7 +20,8 @@
 //! makes no other until admin renews it - one player's, or everybody's at once (`POST refresh`, `{ account? }`).
 //! Admin sees every player, who invited them, and whether their invitation is spent (`GET players`). From beyond
 //! this machine an account is made only with an invitation, unless the server was started with `--sign-up`; on
-//! this machine, the owner's, without one too. A game's invitation (`?join=`) makes no account.
+//! this machine, the owner's, without one too. A game's invitation (`?join=`) makes no account. The account an
+//! invitation made is its holder's friend from the start (`friends.rs`).
 //!
 //! **Through a tunnel** (`docs/HOSTING.md`, phase 5, slice 2). Friends reach the server through a proxy that
 //! answers at a public hostname over HTTPS and connects to it on this machine, so a request's `Host` may be
@@ -505,6 +506,10 @@ fn respond(keeper: &Keeper, asked: Asked) -> Answer {
         }
         all.push(account.clone());
         let _ = write_accounts(root, &all);
+        // The player whose invitation made it is its friend from the start.
+        if let Some(by) = &account.invited_by {
+            let _ = crate::friends::befriend(root, by, &account.id);
+        }
         account
     } else {
         match all.iter().find(|entry| entry.id == id) {

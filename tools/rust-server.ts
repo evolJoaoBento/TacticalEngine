@@ -52,9 +52,11 @@ export { servesRust };
 export const PLAY_URL = '/__play';
 /** Each player's saves, which their games on the server write (`server/serve/src/saves.rs`). */
 export const SAVES_URL = '/__saves';
+/** Each player's friends (`server/serve/src/friends.rs`). */
+export const FRIENDS_URL = '/__friends';
 
-/** What the tests' server passes to the Rust server when it plays their games: signing in, the games, their saves. */
-export const PLAYED_ROUTES: readonly string[] = [ACCOUNTS_URL, PLAY_URL, SAVES_URL];
+/** What the tests' server passes to the Rust server when it plays their games: signing in, the games, their saves, friends. */
+export const PLAYED_ROUTES: readonly string[] = [ACCOUNTS_URL, PLAY_URL, SAVES_URL, FRIENDS_URL];
 
 /** The scratch folder the tests' Rust server keeps its accounts and saves in. */
 export const e2eRoot = (): string => process.env['TACTICAL_E2E_ROOT'] ?? join(tmpdir(), 'tactical-e2e-server');
@@ -76,6 +78,7 @@ export function rustProxy(port: number = serverPort(), tests: boolean = playsOnS
     ...Object.fromEntries(RUST_ROUTES.map((route) => [route, { target, changeOrigin: false }])),
     [PLAY_URL]: { target, changeOrigin: false, ws: true },
     [SAVES_URL]: { target, changeOrigin: false },
+    [FRIENDS_URL]: { target, changeOrigin: false },
   };
 }
 
