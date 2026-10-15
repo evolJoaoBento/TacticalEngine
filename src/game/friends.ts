@@ -69,7 +69,20 @@ export function onPlayingAs(tell: (player: Person | null) => void): () => void {
   return () => toldOfPlayer.delete(tell);
 }
 
-/** How often an open conversation asks for what is new, and the friends for what is unread (ms). */
+const toldOfFriend = new Set<(from: string) => void>();
+
+/** A friend asked, answered, removed or wrote to this player: told by the game's connection (`play.rs`, `{ friends }`). */
+export function friendDid(from: string): void {
+  for (const tell of toldOfFriend) tell(from);
+}
+
+/** Told at once whenever a friend does something - whose doing; what to call to stop. Nothing told at no game. */
+export function onFriendDid(tell: (from: string) => void): () => void {
+  toldOfFriend.add(tell);
+  return () => toldOfFriend.delete(tell);
+}
+
+/** How often an open conversation asks for what is new, and the friends for what is unread (ms) - at a game, as well as told. */
 export const CONVERSATION_EVERY = 3000;
 export const FRIENDS_EVERY = 10_000;
 

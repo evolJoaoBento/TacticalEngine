@@ -211,6 +211,7 @@ export class Wire {
   /** What has been said at the table, oldest first, as the server keeps it - and who is told when it grows. */
   chat: ChatLine[] = [];
   private chatHeard: ((chat: ChatLine[]) => void)[] = [];
+  private friendsHeard: ((from: string) => void)[] = [];
   /** What other pages' intents gave to draw while this page's own were on their way up, drawn when it is stood. */
   private waiting: Views[] = [];
   /** The server's game opened, and the page stood where it is - or the page come back to the game kept. */
@@ -275,6 +276,11 @@ export class Wire {
   onChat(heard: (chat: ChatLine[]) => void): void {
     this.chatHeard.push(heard);
     if (this.chat.length > 0) heard(this.chat);
+  }
+
+  /** Told whenever a friend of the page's player asked, answered, removed or wrote to them - whose doing. */
+  onFriends(heard: (from: string) => void): void {
+    this.friendsHeard.push(heard);
   }
 
   /** Everything said at the table, as the server hands it to a page that opens, joins or comes back to the game. */
@@ -349,7 +355,7 @@ export class Wire {
   }
 
   /**
-   * What the server says unasked. The table changed: told. Another page's intent: the page stood where its board
+   * What the server says unasked. The table changed, or something said, or a friend did something: told. Another page's intent: the page stood where its board
    * says, with what it gave to draw - at once when nothing of this page's own is on its way up, else when the
    * last of that is answered, the boards the answers bring held to nothing (the server played the other page's
    * intent between this page's own, which the page did not).
@@ -357,6 +363,8 @@ export class Wire {
   private heard(message: Record<string, unknown>): void {
     if (message['table'] !== undefined) this.setTable(message['table'] as SharedTable);
     if (message['chat'] !== undefined) this.addChat(message['chat'] as ChatLine);
+    const friend = (message['friends'] as { from?: unknown } | undefined)?.from;
+    if (typeof friend === 'string') for (const heard of this.friendsHeard) heard(friend);
     const pushed = message['push'] as { board: BoardSnapshot; views: Views; seq?: number } | undefined;
     if (pushed === undefined || this.state === 'opening' || this.state === 'closed' || this.state === 'lost') return;
     if (this.inFlight > 0) {

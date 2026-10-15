@@ -1,12 +1,13 @@
 /**
  * What a player and a friend write each other (`docs/SERVER.md`, phase 6, slice 6; `friends.ts`): the conversation,
- * asked for again every few seconds while it is open (`CONVERSATION_EVERY` - nothing pushes it outside a game), read
+ * asked for again every few seconds while it is open (`CONVERSATION_EVERY`) - and at a game at once when the friend
+ * writes, the game's connection telling it (`onFriendDid`) - read
  * up to its newest as it is shown, and a line to write more (`ChatBox.tsx`); whether the friend is around beside
  * their name.
  */
 
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { CONVERSATION_EVERY, presenceWord, readConversation, readUpTo, writeTo, type Conversation, type FriendsView, type Person, type Presence } from '../friends';
+import { CONVERSATION_EVERY, onFriendDid, presenceWord, readConversation, readUpTo, writeTo, type Conversation, type FriendsView, type Person, type Presence } from '../friends';
 import { ChatBox } from './ChatBox';
 
 export function FriendMessages(props: { friend: Person; you: Person; presence?: Presence | undefined; onBack: () => void; onRead: (view: FriendsView) => void }): preact.JSX.Element {
@@ -37,7 +38,14 @@ export function FriendMessages(props: { friend: Person; you: Person; presence?: 
     };
     ask();
     const every = setInterval(ask, CONVERSATION_EVERY);
-    return () => clearInterval(every);
+    // At a game, asked again at once when this friend writes.
+    const stop = onFriendDid((from) => {
+      if (from === props.friend.id) ask();
+    });
+    return () => {
+      clearInterval(every);
+      stop();
+    };
   }, [props.friend.id]);
 
   const say = async (text: string): Promise<string | null> => {

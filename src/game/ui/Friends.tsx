@@ -3,11 +3,11 @@
  * requests they have been sent - accepted or declined - the ones they sent, which they may take back, and their
  * friends, any of whom they may remove or write to (`FriendMessages.tsx`), each with how much they have written
  * unread and whether they are around - in a game, or online; asked again every few seconds (`FRIENDS_EVERY`), for
- * what has come since.
+ * what has come since - and at a game at once when a friend does something (`onFriendDid`).
  */
 
 import { useEffect, useState } from 'preact/hooks';
-import { FRIENDS_EVERY, answerFriend, askFriend, presenceWord, readFriends, removeFriend, unreadOf, type FriendsView, type Person } from '../friends';
+import { FRIENDS_EVERY, answerFriend, onFriendDid, askFriend, presenceWord, readFriends, removeFriend, unreadOf, type FriendsView, type Person } from '../friends';
 import { FriendMessages } from './FriendMessages';
 import './menu.css';
 
@@ -29,7 +29,12 @@ export function Friends(props: { you: Person; onBack: () => void; onChange?: (vi
     };
     ask();
     const every = setInterval(ask, FRIENDS_EVERY);
-    return () => clearInterval(every);
+    // At a game, asked again at once when a friend does something.
+    const stop = onFriendDid(ask);
+    return () => {
+      clearInterval(every);
+      stop();
+    };
   }, []);
   const act = async (done: Promise<FriendsView | { refused: string }>): Promise<boolean> => {
     const answer = await done;

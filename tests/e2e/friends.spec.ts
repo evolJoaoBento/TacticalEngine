@@ -6,8 +6,8 @@ import { ON_SERVER } from './server-mode';
  * own and signed in to an account of its own: one asks the other by name; the other's menu says somebody is asking,
  * and they accept; each lists the other; they write each other (slice 6), what is unread said on the menu and read
  * as it is shown, an answer coming without a reload; each sees whether the other is around - online on the menu, in
- * a game once at one; written to during that game, the game's page says so, and its friends are the menu's, read and
- * answered over the table; one removes the other, and neither lists anybody. The server keeps the friends, so this is
+ * a game once at one; written to during that game, the game's page says so at once, and its friends are the menu's,
+ * read and answered over the table; one removes the other, and neither lists anybody. The server keeps the friends, so this is
  * played on the server alone.
  */
 
@@ -97,6 +97,11 @@ test('a player asks another by name, who accepts; each lists the other, until on
   await asked.page.getByTestId('friend-write').click();
   const playingChat = asked.page.getByTestId('friend-chat');
   await expect(playingChat.getByTestId('chat-line').last()).toHaveText(`${askingName} Ready to roll?`);
+  // Written to with the conversation open at the game: told at once, well before it would ask again
+  // (`CONVERSATION_EVERY`, from when it was opened).
+  await askingChat.getByTestId('chat-input').fill('Bring the dice.');
+  await askingChat.getByTestId('chat-send').click();
+  await expect(playingChat.getByTestId('chat-line').last()).toHaveText(`${askingName} Bring the dice.`, { timeout: 1_500 });
   await playingChat.getByTestId('chat-input').fill('Rolling now.');
   await playingChat.getByTestId('chat-send').click();
   await expect(askingChat.getByTestId('chat-line').last()).toHaveText(`${askedName} Rolling now.`);
@@ -105,6 +110,18 @@ test('a player asks another by name, who accepts; each lists the other, until on
   await expect(asked.page.getByTestId('friends-sheet')).toHaveCount(0);
   await expect(asked.page.getByTestId('user-settings')).toHaveCount(0);
   await expect(friendsInPlay).toHaveText('Friends');
+  // Shut, the button asked just now and not again for a while (`FRIENDS_EVERY`): written to, it says so at once.
+  await askingChat.getByTestId('chat-input').fill('Still there?');
+  await askingChat.getByTestId('chat-send').click();
+  await expect(friendsInPlay).toHaveText('Friends (1)', { timeout: 3_000 });
+  // And the list on the sheet, opened just now, at once too.
+  await friendsInPlay.click();
+  const onTheSheet = asked.page.getByTestId('friends-sheet').getByTestId('friend-write');
+  await expect(onTheSheet).toHaveText('Messages (1)');
+  await askingChat.getByTestId('chat-input').fill('Hello?');
+  await askingChat.getByTestId('chat-send').click();
+  await expect(onTheSheet).toHaveText('Messages (2)', { timeout: 3_000 });
+  await asked.page.keyboard.press('Escape');
   await asking.page.getByTestId('friend-messages-back').click();
   await asked.page.goto('/?menu');
 

@@ -5,7 +5,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { FRIENDS_URL, answerFriend, askFriend, onPlayingAs, playAs, playingAs, presenceWord, readConversation, readFriends, readUpTo, removeFriend, unreadOf, writeTo } from './friends';
+import { FRIENDS_URL, answerFriend, askFriend, friendDid, onFriendDid, onPlayingAs, playAs, playingAs, presenceWord, readConversation, readFriends, readUpTo, removeFriend, unreadOf, writeTo } from './friends';
 
 const answer = (status: number, body: unknown) => async () => ({ ok: status >= 200 && status < 300, status, json: async () => body });
 const wren = { id: 'wren', name: 'Wren' };
@@ -93,5 +93,16 @@ describe('friends', () => {
     expect(told).toEqual([{ id: 'wren', name: 'Wren' }, null]);
     expect(playingAs()).toEqual({ id: 'pip', name: 'Pip' });
     playAs(null);
+  });
+
+  it("tells whoever asked at once when a friend does something - whose doing - until they stop", () => {
+    const told: string[][] = [[], []];
+    const stops = told.map((each) => onFriendDid((from) => each.push(from)));
+    friendDid('pip');
+    stops[0]!();
+    friendDid('moth');
+    stops[1]!();
+    friendDid('wren');
+    expect(told).toEqual([['pip'], ['pip', 'moth']]);
   });
 });

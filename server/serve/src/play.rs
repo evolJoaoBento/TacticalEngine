@@ -48,7 +48,9 @@
 //! `{ game, host, invite, members: [{ id, name }], seats: { character: account }, started, kept: { character:
 //! { id, name } }, here: [account] }` - `kept` the seats a loaded save gave players not at the game yet, `here` who
 //! is at it now (phase 6, who is online): the others told the table whenever somebody's last page there goes, or
-//! somebody's page comes back (a page that joins is told it as it joins).
+//! somebody's page comes back (a page that joins is told it as it joins). And from outside the game, to an account's
+//! pages at it alone: `{ friends: { from } }` when a friend asked, answered, removed or wrote to it (`friends.rs`,
+//! `Tables::tell`) - the page asks its friends again at once.
 //!
 //! A game outlives the last socket at it for a while (`KEPT_FOR`), so a page that lost its connection comes back
 //! to it; past that it goes. A guest's page opens over the game's project, read before it is built
@@ -707,6 +709,18 @@ impl Tables {
     /// Tables counting an account online for `online_for` after it was last seen.
     pub fn online_for(self, online_for: Duration) -> Tables {
         Tables { online_for, ..self }
+    }
+
+    /// Something for an account's pages at its game, whatever the game, outside it (`friends.rs`: a friend asked,
+    /// answered, removed or wrote to it). Nothing for an account at none.
+    pub fn tell(&self, account: &str, message: &Value) {
+        let inner = self.inner.lock().expect("the tables");
+        let Some(found) = inner.at.get(account).and_then(|game| inner.games.get(game)) else { return };
+        for (_, whose, to) in &found.shared.lock().expect("the game").watching {
+            if whose == account {
+                let _ = to.send(message.clone());
+            }
+        }
     }
 
     /// An account's page asked the server something outside a game (`friends.rs`): online a while.

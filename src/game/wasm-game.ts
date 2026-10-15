@@ -32,7 +32,7 @@ import { nameOf } from './log';
 import { loadAccountSaves } from './account-saves';
 import { SaveSlots, browserStore, type SaveShelf } from './save-slots';
 import { talkingAside } from './talks';
-import { playAs } from './friends';
+import { friendDid, playAs } from './friends';
 
 export type { GameClient, LocalPowers } from './client';
 
@@ -169,6 +169,7 @@ function wireUp(game: GameTable, demo: DemoScene, resume: boolean): void {
   const lobby = booting && lobbyAsked();
   const wire = new Wire(() => new PlaySocket(), demo, shippedContent(), { resume, lobby, ...(lobby ? { visibility: visibilityAsked() } : {}), ...(invite === null ? {} : { join: invite }) });
   game.wireWith(wire);
+  wire.onFriends(friendDid);
   wired = wire;
   tableOf(wire, () => demo.party.members().map((id) => ({ id, name: nameOf(demo, id) })));
   publishCount(undefined, () => wire.status());

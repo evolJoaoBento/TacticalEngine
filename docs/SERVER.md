@@ -1902,4 +1902,14 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     game. Now a key typed in a field is the field's (`typingIn`, `SettingsModal.tsx`): the chat's box lets go of
     the keyboard (`ChatBox.tsx`), what is typed kept, and a second Escape opens the settings
     (`settings-modal.test.ts`, `lobbies.spec.ts`).
+  - **A friend's doing told at once at a game** (15 October 2026). The friends were asked for again every ten seconds,
+    an open conversation every three. Now a request, an answer, a friend removed or a message written is told at once
+    to the other's pages at a game, on the game's connection (`{ friends: { from } }`, `Tables::tell`, called by
+    `friends.rs` once the change is kept) - never to whoever made it, nor to anybody else at that game; a message read
+    is told to nobody, or two pages shown one conversation would read it to each other for ever. The page hears it
+    (`Wire.onFriends`, `friends.ts`'s `friendDid`, wired in `wireUp`), and the Friends button, the list and the
+    conversation with that friend ask again at once; the asking every few seconds stays, the menu's only way - a
+    page there is at no game. Proved by `friends_routes.rs` (each doing told to the other alone, a third at the
+    game told nothing, a read told nobody), `wire.test.ts` and `friends.test.ts` (heard, and only as it is said), and
+    `friends.spec.ts` (each of the three told well inside the while it would otherwise wait).
   - **Next**: an evening through the tunnel.

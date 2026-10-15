@@ -1,12 +1,13 @@
 /**
  * A player's friends during a game (`docs/SERVER.md`, phase 6): the menu's (`Friends.tsx`) - asking, answering, and
  * writing to them (`FriendMessages.tsx`) - on a sheet over the table, opened from a button above the table's chat
- * that says how many are asking and how much they have written unread, asked again every few seconds while the sheet
- * is shut (`FRIENDS_EVERY`). Escape shuts the sheet. Nothing where the page plays as nobody on the server (`friends.ts`, `playAs`).
+ * that says how many are asking and how much they have written unread, asked again at once when a friend asks, answers
+ * or writes (`onFriendDid`, the game's connection telling it) and every few seconds besides (`FRIENDS_EVERY`) while the
+ * sheet is shut. Escape shuts the sheet. Nothing where the page plays as nobody on the server (`friends.ts`, `playAs`).
  */
 
 import { useEffect, useState } from 'preact/hooks';
-import { FRIENDS_EVERY, onPlayingAs, playingAs, readFriends, unreadOf, type FriendsView } from '../friends';
+import { FRIENDS_EVERY, onFriendDid, onPlayingAs, playingAs, readFriends, unreadOf, type FriendsView } from '../friends';
 import { Friends } from './Friends';
 import './chat.css';
 
@@ -15,7 +16,8 @@ export function FriendsInPlay(): preact.JSX.Element | null {
   const [view, setView] = useState<FriendsView | null>(null);
   const [open, setOpen] = useState(false);
   useEffect(() => onPlayingAs(setYou), []);
-  // Asked again every few seconds while the sheet is shut; open, the friends' list asks, and says.
+  // Asked again at once when a friend does something (`onFriendDid`), and every few seconds besides, while the sheet
+  // is shut; open, the friends' list asks, and says.
   useEffect(() => {
     if (you === null || open) return;
     const ask = (): void => {
@@ -25,7 +27,11 @@ export function FriendsInPlay(): preact.JSX.Element | null {
     };
     ask();
     const every = setInterval(ask, FRIENDS_EVERY);
-    return () => clearInterval(every);
+    const stop = onFriendDid(ask);
+    return () => {
+      clearInterval(every);
+      stop();
+    };
   }, [you?.id, open]);
   // Escape shuts the sheet, and nothing behind it hears the key (`SettingsModal.tsx`, `ESCAPE_IS_TAKEN`).
   useEffect(() => {

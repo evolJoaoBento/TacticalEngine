@@ -1,6 +1,7 @@
 //! The `/__friends` routes end to end, over a folder of their own: a request by name, accepted or declined; two who
 //! ask each other friends at once; either removing the other; an account made with a player's invitation that
-//! player's friend from the start; what friends write each other; and which friends are around.
+//! player's friend from the start; what friends write each other; which friends are around; and what is told at once
+//! to a friend at a game.
 
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
@@ -233,5 +234,60 @@ async fn friends_are_told_which_of_them_are_around_and_nobody_else_is() {
     tables.left(conn);
     tokio::time::sleep(Duration::from_millis(500)).await;
     assert_eq!(online(&pip).await, json!({}));
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[tokio::test]
+async fn a_friends_doing_is_told_at_once_to_the_other_at_a_game_and_a_message_read_to_nobody() {
+    let root = folder("told");
+    let tables = Tables::new(root.clone());
+    let app = serve::app_over(root.clone(), serve::Settings::default(), tables.clone());
+    let (wren, pip) = (player(&app, "Wren").await, player(&app, "Pip").await);
+    let post = |cookie: &str, route: &str, body: Value| {
+        let (app, cookie, path) = (app.clone(), cookie.to_string(), format!("/__friends/{route}"));
+        async move { assert_eq!(send(&app, "POST", &path, &body.to_string(), Some(&cookie), true).await.0, StatusCode::OK) }
+    };
+    // Each at a game of their own, and Moth - nobody's friend - at Pip's.
+    let fixture: Value = serde_json::from_str(&std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../fixtures/replica.json")).unwrap()).unwrap();
+    let mut at = Vec::new();
+    let mut invite = Value::Null;
+    for account in ["wren", "pip"] {
+        let (conn, mut to) = tables.connect();
+        tables.ask_on(conn, account, json!({ "id": 1, "op": "open", "project": fixture["projects"][0], "shipped": fixture["shipped"], "table": {} }));
+        let opened = tokio::time::timeout(Duration::from_secs(5), to.recv()).await.unwrap().unwrap();
+        invite = opened["ok"]["invite"].clone();
+        at.push(to);
+    }
+    let (to_wren, to_pip) = at.split_at_mut(1);
+    let (to_wren, to_pip) = (&mut to_wren[0], &mut to_pip[0]);
+    let (moth, mut to_moth) = tables.connect();
+    tables.ask_on(moth, "moth", json!({ "id": 1, "op": "join", "invite": invite }));
+    assert!(tokio::time::timeout(Duration::from_secs(5), to_moth.recv()).await.unwrap().unwrap()["ok"].is_object());
+    // Pip told Moth came.
+    assert!(tokio::time::timeout(Duration::from_secs(5), to_pip.recv()).await.unwrap().unwrap()["table"].is_object());
+    // Told before the answer is given back, so what is in a queue now is all it will be told.
+    let told = |to: &mut tokio::sync::mpsc::UnboundedReceiver<Value>| {
+        let mut said = Vec::new();
+        while let Ok(message) = to.try_recv() {
+            said.push(message);
+        }
+        said
+    };
+    let from = |who: &str| vec![json!({ "friends": { "from": who } })];
+    // Asked: the asked told, the asker not.
+    post(&wren, "ask", json!({ "name": "pip" })).await;
+    assert_eq!((told(to_pip), told(to_wren)), (from("wren"), vec![]));
+    // Answered: the one who asked told.
+    post(&pip, "answer", json!({ "from": "wren", "accept": true })).await;
+    assert_eq!((told(to_wren), told(to_pip)), (from("pip"), vec![]));
+    // Written to: the friend written to told - not who else is at their game.
+    post(&wren, "say", json!({ "to": "pip", "text": "Ready to roll?" })).await;
+    assert_eq!((told(to_pip), told(to_wren), told(&mut to_moth)), (from("wren"), vec![], vec![]));
+    // Read: nobody told, or two pages shown the conversation would read it to each other for ever.
+    post(&pip, "read", json!({ "id": "wren", "upTo": 1 })).await;
+    assert_eq!((told(to_wren), told(to_pip)), (vec![], vec![]));
+    // Removed: the one removed told.
+    post(&pip, "remove", json!({ "id": "wren" })).await;
+    assert_eq!((told(to_wren), told(to_pip)), (from("pip"), vec![]));
     let _ = std::fs::remove_dir_all(&root);
 }

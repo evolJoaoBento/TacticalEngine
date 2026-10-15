@@ -17,7 +17,9 @@
 //!   (`messages.rs`).
 //!
 //! The POSTs come only from the page (its header, its own origin), as every write the server takes does. Whatever a
-//! signed-in page asks here, its player is seen online (`Tables::saw`).
+//! signed-in page asks here, its player is seen online (`Tables::saw`). A request, an answer, a friend removed or a message
+//! written is told at once to the other's pages at a game (`{ friends: { from } }`, `Tables::tell`), which ask again;
+//! a message read is told to nobody. Pages on the menu, at no game, ask every few seconds.
 
 use crate::accounts::{account_of, from_the_page, now_ms, read_accounts, read_sessions, Account};
 use crate::files::{read_json, write_json};
@@ -165,6 +167,8 @@ fn respond(root: &Path, tables: &Tables, method: &str, path: &str, headers: &Hea
     let Ok(body) = body else { return refuse(413, "too large") };
     let asked: Value = serde_json::from_str(&body).unwrap_or(Value::Null);
     let field = |key: &str| asked[key].as_str().map(str::to_lowercase).unwrap_or_default();
+    // Whom the change is told to at their game, once it is kept: the other of the two, never the one who made it.
+    let told: String;
     match rest {
         // Asked by name: friends at once if they had asked first.
         "ask" => {
@@ -181,8 +185,9 @@ fn respond(root: &Path, tables: &Tables, method: &str, path: &str, headers: &Hea
             if friends.has_asked(&other, &account) {
                 friends.befriend(&account, &other);
             } else if !friends.has_asked(&account, &other) {
-                friends.asked.push(Request { from: account.clone(), to: other });
+                friends.asked.push(Request { from: account.clone(), to: other.clone() });
             }
+            told = other;
         }
         "answer" => {
             let from = field("from");
@@ -194,6 +199,7 @@ fn respond(root: &Path, tables: &Tables, method: &str, path: &str, headers: &Hea
             } else {
                 friends.part(&account, &from);
             }
+            told = from;
         }
         "remove" => {
             if !friends.part(&account, &field("id")) {
@@ -203,6 +209,7 @@ fn respond(root: &Path, tables: &Tables, method: &str, path: &str, headers: &Hea
             if let Err(why) = write_messages(root, &messages) {
                 return refuse(500, &format!("the messages could not be kept: {why}"));
             }
+            told = field("id");
         }
         // Written to a friend: the conversation after. The text as written - not lowercased as the ids are.
         "say" => {
@@ -216,9 +223,11 @@ fn respond(root: &Path, tables: &Tables, method: &str, path: &str, headers: &Hea
             if let Err(why) = write_messages(root, &messages) {
                 return refuse(500, &format!("the messages could not be kept: {why}"));
             }
+            tables.tell(&to, &json!({ "friends": { "from": account } }));
             return (200, messages.conversation(&account, person(&accounts, &to)));
         }
-        // A friend's messages read, up to one: the friends after, what is unread with them.
+        // A friend's messages read, up to one: the friends after, what is unread with them. Told to nobody - a page
+        // shown a conversation reads it, and the friend told would read theirs again, and so on.
         "read" => {
             let friend = field("id");
             if !friends.are_friends(&account, &friend) {
@@ -235,6 +244,7 @@ fn respond(root: &Path, tables: &Tables, method: &str, path: &str, headers: &Hea
     if let Err(why) = write_friends(root, &friends) {
         return refuse(500, &format!("the friends could not be kept: {why}"));
     }
+    tables.tell(&told, &json!({ "friends": { "from": account } }));
     (200, view(&friends, &messages, tables, &account, &accounts))
 }
 

@@ -120,6 +120,11 @@ class EngineServer implements Transport {
     }
   }
 
+  /** Something told an account's connections alone, from outside the game - a friend's doing (`Tables::tell`). */
+  tell(account: string, message: Record<string, unknown>): void {
+    for (const [connection, heard] of this.ears) if (this.accountOf(connection) === account) heard(JSON.parse(JSON.stringify(message)) as Record<string, unknown>);
+  }
+
   private accountOf(connection: number): string {
     return this.accounts.get(connection) ?? 'host';
   }
@@ -1190,6 +1195,14 @@ describe('a shared game, on the wire', () => {
     await settle(server);
     for (const wire of [hostWire, guestWire]) expect(wire.chat.map((line) => line.text)).toEqual(['Who is bringing the snacks?', 'Me.']);
     expect(guestWire.chat[0]!.from).toBe(hostWire.you);
+    // A friend's doing, told the account it was done to alone - whose doing; anything else in its place heard as nothing.
+    const friendsDid = new Map<string, string[]>([[hostWire.you!, []], [guestWire.you!, []]]);
+    for (const wire of [hostWire, guestWire]) wire.onFriends((from) => friendsDid.get(wire.you!)!.push(from));
+    server.tell(guestWire.you!, { friends: { from: 'pip' } });
+    server.tell(guestWire.you!, { friends: {} });
+    server.tell(guestWire.you!, { friends: { from: 7 } });
+    expect(friendsDid.get(guestWire.you!)).toEqual(['pip']);
+    expect(friendsDid.get(hostWire.you!)).toEqual([]);
     // A page that comes later is told what was said.
     const lateDemo = buildProjectScene(project(), 'wire:lobby:late');
     const late = new Wire(() => server.connection(), lateDemo, shippedContent(), { join: hostWire.table!.invite });
