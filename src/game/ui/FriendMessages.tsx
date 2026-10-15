@@ -1,14 +1,15 @@
 /**
  * What a player and a friend write each other (`docs/SERVER.md`, phase 6, slice 6; `friends.ts`): the conversation,
  * asked for again every few seconds while it is open (`CONVERSATION_EVERY` - nothing pushes it outside a game), read
- * up to its newest as it is shown, and a line to write more (`ChatBox.tsx`).
+ * up to its newest as it is shown, and a line to write more (`ChatBox.tsx`); whether the friend is around beside
+ * their name.
  */
 
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { CONVERSATION_EVERY, readConversation, readUpTo, writeTo, type Conversation, type FriendsView, type Person } from '../friends';
+import { CONVERSATION_EVERY, presenceWord, readConversation, readUpTo, writeTo, type Conversation, type FriendsView, type Person, type Presence } from '../friends';
 import { ChatBox } from './ChatBox';
 
-export function FriendMessages(props: { friend: Person; you: Person; onBack: () => void; onRead: (view: FriendsView) => void }): preact.JSX.Element {
+export function FriendMessages(props: { friend: Person; you: Person; presence?: Presence | undefined; onBack: () => void; onRead: (view: FriendsView) => void }): preact.JSX.Element {
   const [conversation, setConversation] = useState<Conversation | null>(null);
   // Nothing to read: no longer friends, or no server to ask.
   const [gone, setGone] = useState(false);
@@ -50,7 +51,15 @@ export function FriendMessages(props: { friend: Person; you: Person; onBack: () 
   return (
     <section className="menu-game" data-testid="friend-messages" data-person={props.friend.id}>
       <header>
-        <h2>{props.friend.name}</h2>
+        <h2>
+          {props.friend.name}
+          {presenceWord(props.presence) === null ? null : (
+            <span className="menu-presence" data-testid="friend-messages-presence">
+              {' '}
+              · {presenceWord(props.presence)}
+            </span>
+          )}
+        </h2>
         <button type="button" className="menu-link" data-testid="friend-messages-back" onClick={props.onBack}>
           All friends
         </button>

@@ -2,11 +2,12 @@
  * A player's friends, from the main menu (`friends.ts`; the server's `friends.rs`): asking somebody by name, the
  * requests they have been sent - accepted or declined - the ones they sent, which they may take back, and their
  * friends, any of whom they may remove or write to (`FriendMessages.tsx`), each with how much they have written
- * unread; asked again every few seconds (`FRIENDS_EVERY`), for what has come since.
+ * unread and whether they are around - in a game, or online; asked again every few seconds (`FRIENDS_EVERY`), for
+ * what has come since.
  */
 
 import { useEffect, useState } from 'preact/hooks';
-import { FRIENDS_EVERY, answerFriend, askFriend, readFriends, removeFriend, unreadOf, type FriendsView, type Person } from '../friends';
+import { FRIENDS_EVERY, answerFriend, askFriend, presenceWord, readFriends, removeFriend, unreadOf, type FriendsView, type Person } from '../friends';
 import { FriendMessages } from './FriendMessages';
 import './menu.css';
 
@@ -44,7 +45,7 @@ export function Friends(props: { you: Person; onBack: () => void; onChange?: (vi
   if (talking !== null) {
     return (
       <div className="menu-load" data-testid="friends">
-        <FriendMessages friend={talking} you={props.you} onBack={() => setTalking(null)} onRead={took} />
+        <FriendMessages friend={talking} you={props.you} presence={view?.online[talking.id]} onBack={() => setTalking(null)} onRead={took} />
         <button type="button" className="menu-back" data-testid="menu-back" onClick={props.onBack}>
           Back
         </button>
@@ -108,8 +109,16 @@ export function Friends(props: { you: Person; onBack: () => void; onChange?: (vi
             {view.friends.length === 0 && view.asked.length === 0 ? <p className="menu-waiting-line">None yet: ask somebody by their name.</p> : null}
             <ul className="menu-players">
               {view.friends.map((person) => (
-                <li key={person.id} data-person={person.id} data-testid="friend">
-                  <b>{person.name}</b>
+                <li key={person.id} data-person={person.id} data-testid="friend" data-presence={view.online[person.id] ?? 'away'}>
+                  <span>
+                    <b>{person.name}</b>
+                    {presenceWord(view.online[person.id]) === null ? null : (
+                      <span className="menu-presence" data-testid="friend-presence">
+                        {' '}
+                        · {presenceWord(view.online[person.id])}
+                      </span>
+                    )}
+                  </span>
                   <span>
                     <button type="button" className="menu-link" data-testid="friend-write" onClick={() => setTalking(person)}>
                       {unreadOf(view, person.id) === 0 ? 'Messages' : `Messages (${unreadOf(view, person.id)})`}

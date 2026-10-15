@@ -89,8 +89,11 @@ test('a lobby is found by whoever its host lets find it, and handed on when its 
   await stranger.page.getByTestId('menu-together').click();
   await expect(stranger.page.getByTestId('menu-joinable').filter({ hasText: `${host.name}'s game, open to everybody` })).toHaveCount(1);
 
-  // The host's page goes, and does not come back: the game is the friend's to run, and they start it.
+  // The host's page goes, and does not come back: the friend is told at once the host is away, then the game is
+  // theirs to run, and they start it.
+  await expect(friend.page.getByTestId('lobby').getByTestId('lobby-members')).not.toContainText('(away)');
   await host.page.close();
+  await expect(friend.page.getByTestId('lobby').getByTestId('lobby-members')).toContainText(new RegExp(`${host.name}( \\(host\\))? \\(away\\)`));
   await expect.poll(() => friend.page.evaluate(() => window.__table!.table()!.host), { timeout: 20_000 }).toBe(friend.id);
   await friend.page.bringToFront();
   const theirs = friend.page.getByTestId('lobby');

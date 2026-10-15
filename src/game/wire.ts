@@ -85,6 +85,8 @@ export interface SharedTable {
   kept?: Record<string, { id: string; name: string }>;
   /** Who may find it in the list of games to join. */
   visibility?: Visibility;
+  /** Who is at it now, by id: a member not here has left, for now. */
+  here?: string[];
 }
 
 /** A line said at the table (`play.rs`, `say`): who said it, by id and by name, what, and when. */
@@ -660,11 +662,15 @@ export class Wire {
   /**
    * The game saved by the server's game, into the account's slot (`account-saves.ts`): its own text, held to
    * the page's by value - key order is not the game's - and what it wrote given back, or `null` if it would
-   * not. `null` at once when the server is not in step to save the game the page has.
+   * not. `null` at once when the server is not in step to save the game the page has. Held to the page's only when
+   * no other page's intent was played between the two: one that was is pushed before the answer (`seq`), and the
+   * server's save is of a game the page had not seen yet - no parting.
    */
   save(slot: { id: string; name: string; where: string; project?: string }, text: string): Promise<{ slot: SaveSlot; text: string } | null> | null {
     if (this.state !== 'in') return null;
     const epoch = this.epoch;
+    // Where the game will be once the page's own intents on their way are answered, nobody else's between.
+    const expected = this.known + this.inFlight;
     const ours = JSON.parse(text) as unknown;
     return this.send({ op: 'save', slot: slot.id, name: slot.name, where: slot.where, ...(slot.project === undefined ? {} : { project: slot.project }) }).then((said) => {
       const saved = said.ok as { slot: SaveSlot; text: string } | undefined;
@@ -672,7 +678,7 @@ export class Wire {
         if (epoch === this.epoch) recordParting('server save: refused', [slot.id], null, { failed: said.error });
         return null;
       }
-      if (epoch === this.epoch) {
+      if (epoch === this.epoch && this.known === expected && this.state === 'in') {
         recordAsked();
         const parted = firstDifference(ours, JSON.parse(saved.text) as unknown, 'save');
         if (parted !== null) recordParting(`server save: ${parted.path}`, [slot.id], parted.game, parted.replica);

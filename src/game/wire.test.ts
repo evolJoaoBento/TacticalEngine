@@ -59,6 +59,8 @@ class EngineServer implements Transport {
   /** A save's text changed on its way back, or a save refused outright. */
   rewordSave: ((text: string) => string) | null = null;
   refuseSave: string | null = null;
+  /** Another page's intent, played just before a save is: numbered, and pushed to every page. */
+  meanwhile: ((engine: WasmEngine) => void) | null = null;
   refuse: ((call: string, calls: number) => boolean) | null = null;
   /** The account's saves, by slot, as the server's folder keeps them. */
   readonly saves = new Map<string, string>();
@@ -265,6 +267,10 @@ class EngineServer implements Transport {
           // The game saves itself, as a game on the server does (`play.rs`), unless it may not now.
           const blocked = this.refuseSave ?? (engine.call('saveBlockedBy', []) as string | null);
           if (blocked !== null) return { error: blocked };
+          if (this.meanwhile !== null) {
+            this.meanwhile(engine);
+            this.push(-1, { push: { board: engine.board(), views: this.views(), by: 'another', seq: ++this.played } });
+          }
           const text = engine.call('serialiseSave', []) as string;
           const slot = { id: m['slot'], name: m['name'], savedAt: 1, where: m['where'] };
           this.saves.set(m['slot'] as string, text);
@@ -436,6 +442,16 @@ describe('the wire to the server\'s game', () => {
     await wire.save({ id: 'quick', name: 'Quick save', where: '' }, text);
     after = replicaCount();
     expect(after.first.slice(before.first.length).map((p) => p.question)).toEqual(['server save: save.version']);
+    // Another page's intent played between the page's save and the server's: the server's differs, and is no parting.
+    server.rewordSave = null;
+    server.meanwhile = (engine) => engine.call('selectNext', []);
+    const asked = replicaCount().asked;
+    const meanwhile = await wire.save({ id: 'quick', name: 'Quick save', where: '' }, text);
+    expect(JSON.parse(meanwhile!.text)).not.toEqual(JSON.parse(text));
+    expect(replicaCount().first.slice(before.first.length).map((p) => p.question)).toEqual(['server save: save.version']);
+    expect(replicaCount().asked).toBe(asked);
+    expect(wire.status()).toBe('in');
+    server.meanwhile = null;
     // Refused by the server's game: a parting, and nothing given back.
     server.rewordSave = null;
     server.refuseSave = 'Not while a question is open.';

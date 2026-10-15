@@ -81,11 +81,12 @@ pub fn app_over(root: PathBuf, settings: Settings, tables: play::Tables) -> Rout
         .route(saves::SAVES_URL, any(saves::handle))
         .route(&format!("{}/{{*rest}}", saves::SAVES_URL), any(saves::handle))
         .with_state(root_for_play.clone());
+    let tables = if settings.for_tests { tables.for_tests() } else { tables };
     let friends = Router::new()
         .route(friends::FRIENDS_URL, any(friends::handle))
         .route(&format!("{}/{{*rest}}", friends::FRIENDS_URL), any(friends::handle))
-        .with_state(root_for_play.clone());
-    let play = play::router_for(if settings.for_tests { tables.for_tests() } else { tables });
+        .with_state(friends::Place { root: root_for_play.clone(), tables: tables.clone() });
+    let play = play::router_for(tables);
     accounts.merge(store).merge(models.with_state(shelf)).merge(engine).merge(saves.with_state(archive)).merge(saved).merge(friends).merge(play)
 }
 

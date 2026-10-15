@@ -46,7 +46,9 @@
 //! so a page holds an answer to what it predicted only when no other page's intent came in between. A connection's answers and pushes leave
 //! the game's thread into one queue, so a page is told them in the order the game played them. A table says
 //! `{ game, host, invite, members: [{ id, name }], seats: { character: account }, started, kept: { character:
-//! { id, name } } }` - `kept` the seats a loaded save gave players not at the game yet.
+//! { id, name } }, here: [account] }` - `kept` the seats a loaded save gave players not at the game yet, `here` who
+//! is at it now (phase 6, who is online): the others told the table whenever somebody's last page there goes, or
+//! somebody's page comes back (a page that joins is told it as it joins).
 //!
 //! A game outlives the last socket at it for a while (`KEPT_FOR`), so a page that lost its connection comes back
 //! to it; past that it goes. A guest's page opens over the game's project, read before it is built
@@ -116,6 +118,10 @@ pub const KEPT_FOR: Duration = Duration::from_secs(10 * 60);
 /// How long a host may be gone - their page closed, nothing come back - before the running of their game is handed
 /// on to somebody still at it. Long enough for a page reloaded to come back.
 pub const HAND_ON_AFTER: Duration = Duration::from_secs(30);
+
+/// How long a player is counted online after their page last asked the server something (`saw`, `presence`): the
+/// menu asks for the friends every 10 seconds (`FRIENDS_EVERY`, `friends.ts`).
+pub const ONLINE_FOR: Duration = Duration::from_secs(25);
 
 /// How often a game's thread, waiting for a message, looks whether its host is gone.
 const TICK: Duration = Duration::from_millis(500);
@@ -228,6 +234,8 @@ struct Inner {
     /// Each connection's queue, and the game it watches.
     conns: HashMap<Conn, (queue::UnboundedSender<Value>, Option<String>)>,
     next: Conn,
+    /// When each account's page last asked the server something outside a game (`saw`).
+    seen: HashMap<String, Instant>,
 }
 
 /// Every game on the server.
@@ -242,6 +250,8 @@ pub struct Tables {
     for_tests: bool,
     /// How long a host may be gone before their game is handed on.
     hand_on_after: Duration,
+    /// How long an account is online after it was last seen.
+    online_for: Duration,
 }
 
 /// A project's code run in QuickJS, compiled once for each body of code a game is built with.
@@ -271,6 +281,14 @@ fn fresh_hex(bytes: usize) -> String {
     hex::encode(buffer)
 }
 
+/// Who is at a game now, each once, by id.
+fn here(shared: &Shared) -> Vec<String> {
+    let mut here: Vec<String> = shared.watching.iter().map(|(_, who, _)| who.clone()).collect();
+    here.sort_unstable();
+    here.dedup();
+    here
+}
+
 /// Who is at a game and who plays whom, as the pages are told it: the members by name, as the accounts know them.
 fn table_of(shared: &Shared, root: &Path) -> Value {
     let accounts = read_accounts(root);
@@ -284,6 +302,7 @@ fn table_of(shared: &Shared, root: &Path) -> Value {
         "started": shared.started,
         "visibility": shared.visibility,
         "kept": shared.kept.iter().map(|(character, id)| (character.clone(), json!({ "id": id, "name": name(id) }))).collect::<serde_json::Map<_, _>>(),
+        "here": here(shared),
     })
 }
 
@@ -671,7 +690,39 @@ impl Tables {
 
     /// Tables whose games are kept for `kept_for` after the last socket at them closes.
     pub fn keeping(root: PathBuf, kept_for: Duration) -> Tables {
-        Tables { root, inner: Arc::new(Mutex::new(Inner::default())), kept_for, for_tests: false, hand_on_after: HAND_ON_AFTER }
+        Tables { root, inner: Arc::new(Mutex::new(Inner::default())), kept_for, for_tests: false, hand_on_after: HAND_ON_AFTER, online_for: ONLINE_FOR }
+    }
+
+    /// Tables counting an account online for `online_for` after it was last seen.
+    pub fn online_for(self, online_for: Duration) -> Tables {
+        Tables { online_for, ..self }
+    }
+
+    /// An account's page asked the server something outside a game (`friends.rs`): online a while.
+    pub fn saw(&self, account: &str) {
+        self.inner.lock().expect("the tables").seen.insert(account.to_string(), Instant::now());
+    }
+
+    /// Who of `accounts` is around now: `playing` with a page at a game (theirs alone too), else `online` seen within
+    /// the while; nobody else.
+    pub fn presence(&self, accounts: &[String]) -> std::collections::BTreeMap<String, &'static str> {
+        let mut inner = self.inner.lock().expect("the tables");
+        let online_for = self.online_for;
+        inner.seen.retain(|_, seen| seen.elapsed() < online_for);
+        let playing: Vec<String> = inner.games.values().flat_map(|game| here(&game.shared.lock().expect("the game"))).collect();
+        accounts
+            .iter()
+            .filter_map(|account| {
+                let presence = if playing.contains(account) {
+                    "playing"
+                } else if inner.seen.contains_key(account) {
+                    "online"
+                } else {
+                    return None;
+                };
+                Some((account.clone(), presence))
+            })
+            .collect()
     }
 
     /// Tables whose games are handed on once their host has been gone for `after`.
@@ -721,18 +772,23 @@ impl Tables {
         (conn, from)
     }
 
-    /// A connection now at `game`: no longer at the one it was at, which nobody may be at any more.
-    fn watch(inner: &mut Inner, conn: Conn, account: &str, game: &str) {
+    /// A connection now at `game`: no longer at the one it was at, which nobody may be at any more. The others told
+    /// the table if the account was not at it - unless `joining`, whose table the game's thread tells them.
+    fn watch(inner: &mut Inner, root: &Path, conn: Conn, account: &str, game: &str, joining: bool) {
         let Some((to, was)) = inner.conns.get(&conn).cloned() else { return };
         if was.as_deref() == Some(game) {
             return;
         }
         if let Some(was) = was {
-            Tables::unwatch(inner, conn, &was);
+            Tables::unwatch(inner, root, conn, &was);
         }
         if let Some(found) = inner.games.get(game) {
             let mut held = found.shared.lock().expect("the game");
+            let came = !held.watching.iter().any(|(_, who, _)| who == account);
             held.watching.push((conn, account.to_string(), to.clone()));
+            if came && !joining {
+                push(&held, Some(conn), &json!({ "table": table_of(&held, root) }));
+            }
             held.left = None;
             if held.host == account {
                 held.host_gone = None;
@@ -741,10 +797,15 @@ impl Tables {
         inner.conns.insert(conn, (to, Some(game.to_string())));
     }
 
-    fn unwatch(inner: &mut Inner, conn: Conn, game: &str) {
+    /// A connection no longer at `game`: the others told the table if it was its account's last there.
+    fn unwatch(inner: &mut Inner, root: &Path, conn: Conn, game: &str) {
         if let Some(found) = inner.games.get(game) {
             let mut held = found.shared.lock().expect("the game");
+            let before = here(&held);
             held.watching.retain(|(watcher, _, _)| *watcher != conn);
+            if here(&held) != before && !held.watching.is_empty() {
+                push(&held, None, &json!({ "table": table_of(&held, root) }));
+            }
             if held.watching.is_empty() {
                 held.left = Some(Instant::now());
             }
@@ -843,7 +904,7 @@ impl Tables {
         }
         inner.at.insert(account.to_string(), game.clone());
         if let Some(conn) = reply.conn() {
-            Tables::watch(&mut inner, conn, account, &game);
+            Tables::watch(&mut inner, &self.root, conn, account, &game, matches!(message["op"].as_str(), Some("open" | "join")));
         }
         let door = inner.games[&game].door.clone();
         drop(inner);
@@ -856,7 +917,7 @@ impl Tables {
     pub fn left(&self, conn: Conn) {
         let mut inner = self.inner.lock().expect("the tables");
         if let Some((_, Some(game))) = inner.conns.remove(&conn) {
-            Tables::unwatch(&mut inner, conn, &game);
+            Tables::unwatch(&mut inner, &self.root, conn, &game);
         }
         self.sweep(&mut inner);
     }
@@ -884,9 +945,7 @@ impl Tables {
             .filter_map(|game| {
                 let held = game.shared.lock().expect("the game");
                 // Who is at it now: a game nobody's page is at - kept for them to come back to - is nobody's to join.
-                let mut here: Vec<&str> = held.watching.iter().map(|(_, who, _)| who.as_str()).collect();
-                here.sort_unstable();
-                here.dedup();
+                let here = here(&held);
                 if held.host == account || here.is_empty() {
                     return None;
                 }

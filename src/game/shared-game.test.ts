@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { answers, changeVisibility, chat, hosting, invitationLink, invitationOf, inviteFrom, lobbyAsked, onChat, onSharedTable, plays, playsFor, say, seat, seatFor, seatable, sharedTable, start, started, tableOf, visibilityAsked, waitingOn } from './shared-game';
+import { answers, changeVisibility, chat, hosting, invitationLink, invitationOf, inviteFrom, lobbyAsked, membersLine, onChat, onSharedTable, plays, playsFor, say, seat, seatFor, seatable, sharedTable, start, started, tableOf, visibilityAsked, waitingOn } from './shared-game';
 import type { ChatLine, SharedTable, Wire } from './wire';
 
 const TABLE: SharedTable = { game: 'g', host: 'kara', invite: 'ab12', members: [{ id: 'kara', name: 'Kara' }], seats: {}, started: true };
@@ -44,6 +44,27 @@ function wireTelling(you = 'kara'): { wire: Wire; tell: (table: SharedTable) => 
   } as unknown as Wire;
   return { wire, tell: (table) => heard(table), seated, starts, found, hear: (lines) => hearChat(lines), said };
 }
+
+describe('who is at the table', () => {
+  const table: SharedTable = {
+    game: 'g',
+    host: 'kara',
+    invite: 'i',
+    members: [
+      { id: 'kara', name: 'Kara' },
+      { id: 'finn', name: 'Finn' },
+      { id: 'mira', name: 'Mira' },
+    ],
+    seats: {},
+    started: false,
+  };
+
+  it('is listed with the host said, and whoever has gone away; a table that says nobody is here says nobody is away', () => {
+    expect(membersLine({ ...table, here: ['finn'] })).toBe('Kara (host) (away) · Finn · Mira (away)');
+    expect(membersLine({ ...table, here: ['kara', 'finn', 'mira'] })).toBe('Kara (host) · Finn · Mira');
+    expect(membersLine(table)).toBe('Kara (host) · Finn · Mira');
+  });
+});
 
 describe('what is said at the table', () => {
   it('is what the wire is told, handed to whoever listens, said through it, and nothing without a server', async () => {

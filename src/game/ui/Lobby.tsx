@@ -12,7 +12,7 @@
  */
 
 import { useEffect, useState } from 'preact/hooks';
-import { changeVisibility, hosting, invitationLink, onSharedTable, playingAs, seat, seatFor, seatable, sharedTable, start } from '../shared-game';
+import { changeVisibility, hosting, invitationLink, membersLine, onSharedTable, playingAs, seat, seatFor, seatable, sharedTable, start } from '../shared-game';
 import type { Visibility } from '../wire';
 import { invitationAddress, myInvitation, type Invitation } from '../accounts';
 import { InviteRow, SeatSelect } from './Players';
@@ -68,7 +68,7 @@ export function Lobby(): preact.JSX.Element | null {
         <div className="settings-section">
           <div className="play-eyebrow">At the table</div>
           <div className="panel-facts" data-testid="lobby-members">
-            {table.members.map((member) => (member.id === table.host ? `${member.name} (host)` : member.name)).join(' · ')}
+            {membersLine(table)}
           </div>
         </div>
         <div className="settings-section">

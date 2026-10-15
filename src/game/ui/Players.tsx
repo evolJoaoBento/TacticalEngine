@@ -7,7 +7,7 @@
 
 import { useEffect, useState } from 'preact/hooks';
 import type { SharedTable } from '../wire';
-import { hosting, invitationLink, onSharedTable, seat, seatable, sharedTable } from '../shared-game';
+import { hosting, invitationLink, membersLine, onSharedTable, seat, seatable, sharedTable } from '../shared-game';
 
 /** The invitation's address, to select or copy. */
 export function InviteRow({ link, testid = 'invite-link' }: { link: string; testid?: string }): preact.JSX.Element {
@@ -60,7 +60,7 @@ export function Players(): preact.JSX.Element | null {
       <div className="play-eyebrow">Players</div>
       <InviteRow link={invitationLink(table.invite)} />
       <div className="panel-facts" data-testid="players-members">
-        {table.members.map((member) => (member.id === table.host ? `${member.name} (host)` : member.name)).join(' · ')}
+        {membersLine(table)}
       </div>
       {seatable().map((character) => (
         <label key={character.id} className="panel-row players-seat">

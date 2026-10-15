@@ -86,6 +86,12 @@ export function tableOf(wire: Wire | null, members: () => Seatable[] = () => [])
   wire?.onTable(told);
 }
 
+/** Who is at a game, as its lobby and its panel list them: the host said, and a member whose page has gone, away. */
+export function membersLine(table: SharedTable): string {
+  const away = (id: string): boolean => table.here !== undefined && !table.here.includes(id);
+  return table.members.map((member) => `${member.name}${member.id === table.host ? ' (host)' : ''}${away(member.id) ? ' (away)' : ''}`).join(' · ');
+}
+
 /** Whether the page plays as the host of its game, as the server says who it plays as. */
 export function hosting(): boolean {
   return table !== null && you() === table.host;

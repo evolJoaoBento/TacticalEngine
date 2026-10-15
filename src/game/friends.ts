@@ -2,7 +2,8 @@
  * A player's friends (`docs/SERVER.md`, phase 6, slice 2; the server's `friends.rs`): their friends, who has asked
  * them, and whom they have asked - a request by name, accepted or declined, and either removing the other. An
  * account made with a player's invitation is that player's friend from the start. And what friends write each other
- * (slice 6; the server's `messages.rs`): a conversation read, written to, and read up to a message.
+ * (slice 6; the server's `messages.rs`): a conversation read, written to, and read up to a message. And which
+ * friends are around (`online`, the server's `play.rs` `presence`).
  */
 
 export const FRIENDS_URL = '/__friends';
@@ -21,6 +22,15 @@ export interface FriendsView {
   asked: Person[];
   /** How many messages each friend has written this player that they have not read, by the friend's id. */
   unread: Record<string, number>;
+  /** Which friends are around: at a game (`playing`), or on the menu a moment ago (`online`); nobody else. */
+  online: Record<string, Presence>;
+}
+
+export type Presence = 'playing' | 'online';
+
+/** A friend's being around, as their line says it; nothing for a friend who is not. */
+export function presenceWord(presence: Presence | undefined): string | null {
+  return presence === 'playing' ? 'in a game' : presence === 'online' ? 'online' : null;
 }
 
 /** Something one friend wrote another: numbered as the server took it, `at` its time (ms). */
@@ -55,9 +65,12 @@ const people = (value: unknown): Person[] =>
 const counts = (value: unknown): Record<string, number> =>
   typeof value === 'object' && value !== null ? Object.fromEntries(Object.entries(value).filter((entry): entry is [string, number] => typeof entry[1] === 'number' && entry[1] > 0)) : {};
 
+const presences = (value: unknown): Record<string, Presence> =>
+  typeof value === 'object' && value !== null ? Object.fromEntries(Object.entries(value).filter((entry): entry is [string, Presence] => entry[1] === 'playing' || entry[1] === 'online')) : {};
+
 const viewOf = (body: unknown): FriendsView => {
-  const { friends, asking, asked, unread } = (body ?? {}) as Record<string, unknown>;
-  return { friends: people(friends), asking: people(asking), asked: people(asked), unread: counts(unread) };
+  const { friends, asking, asked, unread, online } = (body ?? {}) as Record<string, unknown>;
+  return { friends: people(friends), asking: people(asking), asked: people(asked), unread: counts(unread), online: presences(online) };
 };
 
 const conversationOf = (body: unknown): Conversation => {

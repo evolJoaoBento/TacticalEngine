@@ -1824,5 +1824,26 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     only the page writes), the page's (`friends.test.ts`) and the server-mode e2e (`friends.spec.ts`: one writes, the
     other's menu and friend's line say so; shown, read; answered, the first's open conversation has it with no
     reload).
-  - **Next**: phase 6 is done. What an evening played through the tunnel shows; and, outside the slices, who is
-    online now, and a friend's messages reachable during a game (they are the menu's alone).
+  - **Who is around** (15 October 2026, after the phase's slices). The server knows who is at a game - a page
+    watching one, a game of their own alone too - and whose page asked the friends' routes within the while
+    (`play.rs`: `Tables::saw`, every signed-in request to `/__friends`; `ONLINE_FOR` 25 s, the menu asking every
+    10; `Tables::presence`, playing before online). The friends' view says which friends are around (`online`,
+    `{ <id>: "playing" | "online" }`) - friends' alone, nobody who has only asked. A game's table says who is at it
+    now (`here`, each account once however many pages), and the others are told the table when somebody's last page
+    there goes or somebody's page comes back (a page that joins is told it as it joins). The page: a friend's line in
+    Friends, and the conversation's header, say **online** or **in a game** (`friends.ts` `presenceWord`); the lobby
+    and the players panel mark a member whose page has gone **(away)** (`shared-game.ts` `membersLine`). And a race
+    the save had, found on the way: a save is held to the page's only when no other page's intent was played between
+    the two (`Wire.save`, as an intent is by `seq`) - a friend's selection played just before the host's save had the
+    server's save of a game the host's page had not seen yet, a parting that was none. One race of two: the other is
+    still open - now and then `lobbies.spec.ts` logs the host's save parted at `save.scenario.actorId`, the server's
+    naming the friend's character with no intent numbered between (the test's own count read before the answer
+    comes, it passes). Proved by the server's tests
+    (`play_routes.rs`: Finn told at once that the host is away, then handed the game; the host back, Finn told; a
+    second page of the same account coming and going tells nobody; playing, online, neither, playing winning;
+    `friends_routes.rs`: friends told each other around, the one who only asked told nobody, gone after the while,
+    playing at a game of their own), the page's (`friends.test.ts`, `shared-game.test.ts`: the members' line;
+    `wire.test.ts`: another page's intent played before a save, no parting) and the server-mode e2e
+    (`friends.spec.ts`: the other online, then in a game; `lobbies.spec.ts`: the host's page closed, away).
+  - **Next**: what an evening played through the tunnel shows; the save's other race (above); and a friend's messages
+    reachable during a game (they are the menu's alone).

@@ -7,18 +7,22 @@
 //! once. An account made with a player's invitation is that player's friend from the start (`accounts.rs`,
 //! `befriend`). What the page asks here, signed in:
 //!
-//! - `GET /__friends` - `{ friends, asking, asked, unread }`, the first three `[{ id, name }]`: the player's friends,
-//!   who has asked them, and whom they have asked; and how many messages each friend has written them unread;
+//! - `GET /__friends` - `{ friends, asking, asked, unread, online }`, the first three `[{ id, name }]`: the player's
+//!   friends, who has asked them, and whom they have asked; how many messages each friend has written them unread;
+//!   and which friends are around (`{ <id>: "playing" | "online" }`, `play.rs`'s `presence`: a page at a game, or
+//!   one that asked here within the while) - friends' alone, nobody who has only asked;
 //! - `POST /__friends/ask` `{ name }`, `POST /__friends/answer` `{ from, accept }`, `POST /__friends/remove` `{ id }`
 //!   - each answered with the same, as it stands after; a friend removed, what the two wrote each other goes too;
 //! - a friend's messages: `GET /__friends/messages/<id>`, `POST /__friends/say`, `POST /__friends/read`
 //!   (`messages.rs`).
 //!
-//! The POSTs come only from the page (its header, its own origin), as every write the server takes does.
+//! The POSTs come only from the page (its header, its own origin), as every write the server takes does. Whatever a
+//! signed-in page asks here, its player is seen online (`Tables::saw`).
 
 use crate::accounts::{account_of, from_the_page, now_ms, read_accounts, read_sessions, Account};
 use crate::files::{read_json, write_json};
 use crate::messages::{read_messages, write_messages, Messages};
+use crate::play::Tables;
 use axum::body::{to_bytes, Body};
 use axum::extract::State;
 use axum::http::{header, HeaderMap, HeaderValue, Method, Response, StatusCode, Uri};
@@ -103,15 +107,23 @@ fn person(accounts: &[Account], id: &str) -> Value {
     json!({ "id": id, "name": name })
 }
 
-/// A player's friends as the page is told them: each friend, each who asked them, each they asked, by name; and how
-/// many messages each friend has written them unread.
-fn view(friends: &Friends, messages: &Messages, account: &str, accounts: &[Account]) -> Value {
+/// The friends' routes' state: the repository, and the games - who is at one, who has been seen.
+#[derive(Clone)]
+pub struct Place {
+    pub root: PathBuf,
+    pub tables: Tables,
+}
+
+/// A player's friends as the page is told them: each friend, each who asked them, each they asked, by name; how
+/// many messages each friend has written them unread; and which friends are around.
+fn view(friends: &Friends, messages: &Messages, tables: &Tables, account: &str, accounts: &[Account]) -> Value {
     let person = |id: &str| person(accounts, id);
     json!({
         "friends": friends.of(account).iter().map(|id| person(id)).collect::<Vec<_>>(),
         "asking": friends.asked.iter().filter(|request| request.to == account).map(|request| person(&request.from)).collect::<Vec<_>>(),
         "asked": friends.asked.iter().filter(|request| request.from == account).map(|request| person(&request.to)).collect::<Vec<_>>(),
         "unread": messages.unread(account),
+        "online": tables.presence(&friends.of(account)),
     })
 }
 
@@ -128,19 +140,20 @@ fn refuse(status: u16, reason: &str) -> (u16, Value) {
     (status, json!({ "reason": reason }))
 }
 
-fn respond(root: &Path, method: &str, path: &str, headers: &HeaderMap, body: Result<String, ()>) -> (u16, Value) {
+fn respond(root: &Path, tables: &Tables, method: &str, path: &str, headers: &HeaderMap, body: Result<String, ()>) -> (u16, Value) {
     let now = now_ms();
     let accounts = read_accounts(root);
     let Some(account) = account_of(header_of(headers, "cookie").as_deref(), &read_sessions(root, now), &accounts, now).map(|account| account.id.clone()) else {
         return refuse(401, "sign in first");
     };
+    tables.saw(&account);
     let rest = path.strip_prefix(FRIENDS_URL).unwrap_or("").trim_start_matches('/');
     let _held = LOCK.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
     let mut friends = read_friends(root);
     let mut messages = read_messages(root);
     if method == "GET" {
         return match rest.strip_prefix("messages/") {
-            None if rest.is_empty() => (200, view(&friends, &messages, &account, &accounts)),
+            None if rest.is_empty() => (200, view(&friends, &messages, tables, &account, &accounts)),
             Some(other) if friends.are_friends(&account, &other.to_lowercase()) => (200, messages.conversation(&account, person(&accounts, &other.to_lowercase()))),
             Some(_) => refuse(404, "you can only read a friend's messages"),
             None => refuse(404, "no such route"),
@@ -215,22 +228,22 @@ fn respond(root: &Path, method: &str, path: &str, headers: &HeaderMap, body: Res
             if let Err(why) = write_messages(root, &messages) {
                 return refuse(500, &format!("the messages could not be kept: {why}"));
             }
-            return (200, view(&friends, &messages, &account, &accounts));
+            return (200, view(&friends, &messages, tables, &account, &accounts));
         }
         _ => return refuse(404, "no such route"),
     }
     if let Err(why) = write_friends(root, &friends) {
         return refuse(500, &format!("the friends could not be kept: {why}"));
     }
-    (200, view(&friends, &messages, &account, &accounts))
+    (200, view(&friends, &messages, tables, &account, &accounts))
 }
 
 /// The friends' routes as an axum handler, over the repository at `root`.
-pub async fn handle(State(root): State<PathBuf>, method: Method, uri: Uri, headers: HeaderMap, body: Body) -> Response<Body> {
+pub async fn handle(State(place): State<Place>, method: Method, uri: Uri, headers: HeaderMap, body: Body) -> Response<Body> {
     let path = uri.path().to_string();
     let body = to_bytes(body, LIMIT).await.map(|bytes| String::from_utf8_lossy(&bytes).into_owned()).map_err(|_| ());
     let method = method.as_str().to_string();
-    let (status, value) = tokio::task::spawn_blocking(move || respond(&root, &method, &path, &headers, body)).await.expect("the friends task");
+    let (status, value) = tokio::task::spawn_blocking(move || respond(&place.root, &place.tables, &method, &path, &headers, body)).await.expect("the friends task");
     let mut response = Response::new(Body::from(value.to_string()));
     *response.status_mut() = StatusCode::from_u16(status).expect("a status");
     response.headers_mut().insert(header::CONTENT_TYPE, HeaderValue::from_static("application/json"));

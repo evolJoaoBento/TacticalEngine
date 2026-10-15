@@ -884,10 +884,14 @@ async fn a_game_whose_host_is_gone_is_handed_on_to_somebody_still_at_it() {
         told(to).await;
     }
     while !nothing_more(&mut to_finn).await {}
-    // Mira's page goes: nobody hands the game to a page that is not there.
+    // Mira's page goes: the others told who is still here; nobody hands the game to a page that is not there.
     tables.left(mira);
-    // The host's page goes, and does not come back: the game is Finn's, the first still at it - everybody told.
+    let away = told(&mut to_finn).await;
+    assert_eq!((away["table"]["here"].clone(), away["table"]["host"].clone()), (json!(["finn", "kara"]), json!("kara")), "{away}");
+    // The host's page goes, and does not come back: Finn told at once that the host is away, then the game is
+    // Finn's, the first still at it - everybody told.
     tables.left(host);
+    assert_eq!(told(&mut to_finn).await["table"]["here"], json!(["finn"]));
     let handed = told(&mut to_finn).await;
     assert_eq!(handed["table"]["host"], "finn", "{handed}");
     assert_eq!(handed["table"]["members"].as_array().unwrap().len(), 3);
@@ -915,16 +919,31 @@ async fn a_host_whose_page_comes_back_in_time_keeps_the_game() {
     let (finn, mut to_finn) = tables.connect();
     tables.ask_on(finn, "finn", json!({ "id": 1, "op": "join", "invite": invite }));
     told(&mut to_finn).await;
-    // The host's page goes: not handed on at once - the game waits the while a host may be gone.
+    assert_eq!(tables.presence(&["kara".into(), "finn".into(), "moth".into()]), [("finn".into(), "playing"), ("kara".into(), "playing")].into());
+    // The host's page goes: Finn told the host is away, and only that - the game waits the while a host may be gone.
     tables.left(host);
+    let away = told(&mut to_finn).await;
+    assert_eq!((away["table"]["here"].clone(), away["table"]["host"].clone()), (json!(["finn"]), json!("kara")), "{away}");
     tokio::time::sleep(std::time::Duration::from_millis(700)).await;
     assert!(nothing_more(&mut to_finn).await, "nothing handed on yet");
-    // A reload: it comes back within the while, and the game is still the host's - long after, too.
+    // Kara's page, on the menu, is online, not playing; Moth, never seen, is neither.
+    tables.saw("kara");
+    assert_eq!(tables.presence(&["kara".into(), "finn".into(), "moth".into()]), [("finn".into(), "playing"), ("kara".into(), "online")].into());
+    // A reload: it comes back within the while - Finn told it is here again - and the game is still the host's, long
+    // after too; playing is what Kara is, seen on the menu or not.
     let (again, mut to_again) = tables.connect();
     tables.ask_on(again, "kara", json!({ "id": 2, "op": "resume" }));
     assert_eq!(told(&mut to_again).await["ok"]["table"]["host"], "kara");
+    assert_eq!(told(&mut to_finn).await["table"]["here"], json!(["finn", "kara"]));
+    assert_eq!(tables.presence(&["kara".into()]), [("kara".into(), "playing")].into());
+    // A second page of Kara's at the game, and it going: nobody told anything, Kara is still here.
+    let (twice, mut to_twice) = tables.connect();
+    tables.ask_on(twice, "kara", json!({ "id": 1, "op": "resume" }));
+    told(&mut to_twice).await;
+    assert!(nothing_more(&mut to_finn).await, "Kara was here already");
+    tables.left(twice);
     tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
-    assert!(nothing_more(&mut to_finn).await, "nothing handed on");
+    assert!(nothing_more(&mut to_finn).await, "nothing handed on, nobody gone");
 }
 
 #[tokio::test]
