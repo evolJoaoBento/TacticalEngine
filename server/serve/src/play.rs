@@ -60,6 +60,11 @@
 //! at now (`players`, how many are). The host changes
 //! who may find it (`{ id, op: "visibility", visibility }`, `{ id, ok: { table } }`), and the table says it.
 //!
+//! **Chat at the table** (phase 6, slice 5): anybody at a game says something (`{ id, op: "say", text }`, 1 to
+//! `CHAT_LONGEST` characters): `{ id, ok: { line } }`, and every other page told it (`{ chat: line }`), a line being
+//! `{ from, name, text, at }`. The game keeps the last `CHAT_KEPT` lines, handed to a page as it opens the game, joins
+//! it or comes back to it (`chat`). Nothing said is the game's: it is not saved, and numbers no intent.
+//!
 //! **The running of a game is handed on** when its host has been gone a while (`HAND_ON_AFTER`; a page reloaded comes
 //! back well within it): to the first member, in the order they came, whose page is at the game - checked by the
 //! game's thread as it waits for its next message. The host it was is a member when they come back; every page is
@@ -114,6 +119,10 @@ pub const HAND_ON_AFTER: Duration = Duration::from_secs(30);
 
 /// How often a game's thread, waiting for a message, looks whether its host is gone.
 const TICK: Duration = Duration::from_millis(500);
+
+/// The most a line said at the table may be, in characters; and how many lines a game keeps for a page that comes.
+const CHAT_LONGEST: usize = 500;
+const CHAT_KEPT: usize = 100;
 
 /// Who may find a game in the list of games to join: everybody, the host's friends, or nobody (its invitation alone).
 const VISIBILITIES: [&str; 3] = ["public", "friends", "invite"];
@@ -201,6 +210,8 @@ struct Shared {
     /// handed on.
     host_gone: Option<Instant>,
     hand_on_after: Duration,
+    /// The last lines said at the table, oldest first.
+    chat: Vec<Value>,
 }
 
 /// A game being played: the way into its thread, and what is shared about it.
@@ -350,13 +361,14 @@ fn play_thread(shared: Arc<Mutex<Shared>>, root: PathBuf) -> mpsc::Sender<Job> {
                 }
             };
             let op = job.message["op"].as_str().unwrap_or("").to_string();
-            if !matches!(op.as_str(), "open" | "seat" | "start" | "visibility") {
+            if !matches!(op.as_str(), "open" | "seat" | "start" | "visibility" | "say") {
                 play_for(&mut slot, &shared, &job.account, &hooks);
             }
             let mut said = match op.as_str() {
                 "seat" => seat(&shared, &job.account, &job.message, &root),
                 "start" => start(&shared, &job.account, &root),
                 "visibility" => visibility(&shared, &job.account, &job.message, &root),
+                "say" => say(&shared, &job.account, &job.message, &root),
                 // A page that joined, or came back: where the game is, as for one resumed.
                 "join" => respond(&mut slot, &json!({ "op": "resume" }), &hooks),
                 _ => respond(&mut slot, &job.message, &hooks),
@@ -396,6 +408,7 @@ fn play_thread(shared: Arc<Mutex<Shared>>, root: PathBuf) -> mpsc::Sender<Job> {
                     said["ok"]["project"] = held.project.clone();
                     said["ok"]["table"] = table_of(&held, &root);
                     said["ok"]["you"] = json!(job.account);
+                    said["ok"]["chat"] = json!(held.chat);
                     if op == "open" {
                         said["ok"]["game"] = json!(held.id);
                         said["ok"]["invite"] = json!(held.invite);
@@ -435,6 +448,7 @@ fn play_thread(shared: Arc<Mutex<Shared>>, root: PathBuf) -> mpsc::Sender<Job> {
                     }
                 }
                 "join" | "seat" | "start" | "visibility" if said["ok"].is_object() => push(&held, from, &json!({ "table": table_of(&held, &root) })),
+                "say" if said["ok"].is_object() => push(&held, from, &json!({ "chat": said["ok"]["line"] })),
                 _ => {}
             }
             // And everybody told who plays whom after the save, the one who loaded it too.
@@ -578,6 +592,24 @@ fn visibility(shared: &Arc<Mutex<Shared>>, account: &str, message: &Value, root:
     };
     held.visibility = visibility.to_string();
     json!({ "ok": { "table": table_of(&held, root) } })
+}
+
+/// Something said at the table by an account at the game: kept, and the line it made given back.
+fn say(shared: &Arc<Mutex<Shared>>, account: &str, message: &Value, root: &Path) -> Value {
+    let text = message["text"].as_str().unwrap_or("").trim();
+    if text.is_empty() {
+        return json!({ "error": "nothing said" });
+    }
+    if text.chars().count() > CHAT_LONGEST {
+        return json!({ "error": format!("a line is {CHAT_LONGEST} characters at most") });
+    }
+    let name = read_accounts(root).into_iter().find(|known| known.id == account).map_or_else(|| account.to_string(), |known| known.name);
+    let line = json!({ "from": account, "name": name, "text": text, "at": now_ms() });
+    let mut held = shared.lock().expect("the game");
+    held.chat.push(line.clone());
+    let over = held.chat.len().saturating_sub(CHAT_KEPT);
+    held.chat.drain(..over);
+    json!({ "ok": { "line": line } })
 }
 
 /// The running of a game handed on, when its host has been gone longer than they may be: to the first member whose
@@ -778,6 +810,7 @@ impl Tables {
                     visibility: message["visibility"].as_str().filter(|v| VISIBILITIES.contains(v)).unwrap_or("invite").to_string(),
                     host_gone: None,
                     hand_on_after: self.hand_on_after,
+                    chat: Vec::new(),
                 }));
                 let door = play_thread(Arc::clone(&shared), self.root.clone());
                 inner.games.insert(game.clone(), Game { door, shared });

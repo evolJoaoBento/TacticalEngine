@@ -8,8 +8,13 @@ handful of working rules that are learned the expensive way rather than read.
 
 Designed in `docs/SERVER.md` ("Phase 6, designed"): players invite players, anybody opens a lobby - public,
 friends-only or invite-only - friends both ways, chat at the table and between friends. Slices 1 (invitations),
-2 (friends), 3 (lobbies anybody opens) and 4 (a game's saves the game's) are done; next is slice 5, chat at the
-table.
+2 (friends), 3 (lobbies anybody opens), 4 (a game's saves the game's) and 5 (chat at the table) are done; next is
+slice 6, messages between friends.
+
+## Chat at the table — done
+
+Everybody at a shared game talks: in the lobby while they gather, and in a box above the log once it has started. The
+server keeps the last hundred lines and hands them to a player who joins or comes back; nothing said is saved.
 
 ## A game's saves are everybody's who played it — done
 

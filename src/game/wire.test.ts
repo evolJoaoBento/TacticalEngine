@@ -20,7 +20,7 @@ import { firstDifference, replicaCount } from './shadow';
 import { shippedContent } from './shipped';
 import { WasmEngine } from './wasm-engine';
 import { WasmGame } from './wasm-game';
-import { KEPT_BY_HOST, LOCAL, Wire, type Said, type SharedTable, type Transport, type Visibility } from './wire';
+import { KEPT_BY_HOST, LOCAL, Wire, type ChatLine, type Said, type SharedTable, type Transport, type Visibility } from './wire';
 import { AccountSaves } from './account-saves';
 import type { RestMove } from './demo-abilities';
 import { talkingTo, talkingView } from './ui/play-views';
@@ -68,6 +68,8 @@ class EngineServer implements Transport {
   /** Whose each connection is, and whom each account last had selected. */
   private readonly accounts = new Map<number, string>();
   private readonly selected = new Map<string, unknown>();
+  /** What has been said at the table. */
+  chat: ChatLine[] = [];
   private connections = 0;
   /** The intents the game has played, as the server numbers them (`seq`). */
   private played = 0;
@@ -184,7 +186,7 @@ class EngineServer implements Transport {
     if (m['op'] === 'join') this.accounts.set(from, `guest-${from}`);
     const you = this.accountOf(from);
     try {
-      if (m['op'] !== 'open' && m['op'] !== 'seat' && m['op'] !== 'start' && m['op'] !== 'visibility' && this.kept !== null) this.playFor(you);
+      if (m['op'] !== 'open' && m['op'] !== 'seat' && m['op'] !== 'start' && m['op'] !== 'visibility' && m['op'] !== 'say' && this.kept !== null) this.playFor(you);
       switch (m['op']) {
         case 'open': {
           const seed = `${this.seed}:${++this.opens}`;
@@ -206,7 +208,7 @@ class EngineServer implements Transport {
           this.table = { ...this.table, members: [...this.table.members, { id: `guest-${from}`, name: `Guest ${from}` }] };
           this.push(from, { table: this.table });
           this.chose(you);
-          return { ok: { board: engine.board(), project: this.kept, table: this.table, seq: this.played, you } };
+          return { ok: { board: engine.board(), project: this.kept, table: this.table, seq: this.played, you, chat: this.chat } };
         }
         case 'seat': {
           // The host's to say; before the start, anybody takes a seat nobody has or leaves their own.
@@ -242,6 +244,14 @@ class EngineServer implements Transport {
           }
           this.push(from, { table: this.table });
           return { ok: { table: this.table } };
+        }
+        case 'say': {
+          // Said at the table, as `play.rs` keeps it: the line given back, every other page told.
+          const line: ChatLine = { from: you, name: you, text: String(m['text']).trim(), at: this.chat.length + 1 };
+          if (line.text === '') return { error: 'nothing said' };
+          this.chat = [...this.chat, line];
+          this.push(from, { chat: line });
+          return { ok: { line } };
         }
         case 'visibility': {
           // Who may find it: the host's to say, as `play.rs` rules it.
@@ -1109,6 +1119,21 @@ describe('a shared game, on the wire', () => {
     await settle(server);
     expect(guestWire.table!.visibility).toBe('public');
     expect(hostWire.table!.visibility).toBe('public');
+    // Said at the table: each told the other's, nothing numbered; nothing said refused.
+    expect(await hostWire.say('Who is bringing the snacks?')).toBeNull();
+    expect(await guestWire.say('Me.')).toBeNull();
+    expect(await guestWire.say('   ')).toBe('nothing said');
+    await settle(server);
+    for (const wire of [hostWire, guestWire]) expect(wire.chat.map((line) => line.text)).toEqual(['Who is bringing the snacks?', 'Me.']);
+    expect(guestWire.chat[0]!.from).toBe(hostWire.you);
+    // A page that comes later is told what was said.
+    const lateDemo = buildProjectScene(project(), 'wire:lobby:late');
+    const late = new Wire(() => server.connection(), lateDemo, shippedContent(), { join: hostWire.table!.invite });
+    const heard: string[][] = [];
+    late.onChat((chat) => heard.push(chat.map((line) => line.text)));
+    await late.ready;
+    expect(heard.at(-1)).toEqual(['Who is bringing the snacks?', 'Me.']);
+    late.close();
     expect(hostWire.table!.started).toBe(false);
     expect(guestWire.table!.started).toBe(false);
     // Nobody plays anybody yet, the host no more than the guest: nobody selected, everything refused on the page as

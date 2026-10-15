@@ -4,19 +4,28 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { answers, changeVisibility, hosting, invitationLink, invitationOf, inviteFrom, lobbyAsked, onSharedTable, plays, playsFor, seat, seatFor, seatable, sharedTable, start, started, tableOf, visibilityAsked, waitingOn } from './shared-game';
-import type { SharedTable, Wire } from './wire';
+import { answers, changeVisibility, chat, hosting, invitationLink, invitationOf, inviteFrom, lobbyAsked, onChat, onSharedTable, plays, playsFor, say, seat, seatFor, seatable, sharedTable, start, started, tableOf, visibilityAsked, waitingOn } from './shared-game';
+import type { ChatLine, SharedTable, Wire } from './wire';
 
 const TABLE: SharedTable = { game: 'g', host: 'kara', invite: 'ab12', members: [{ id: 'kara', name: 'Kara' }], seats: {}, started: true };
 
 /** As much of a wire as the table reads: told the table, and asked to seat. */
-function wireTelling(you = 'kara'): { wire: Wire; tell: (table: SharedTable) => void; seated: [string, string | null][]; starts: number[]; found: string[] } {
+function wireTelling(you = 'kara'): { wire: Wire; tell: (table: SharedTable) => void; seated: [string, string | null][]; starts: number[]; found: string[]; hear: (chat: ChatLine[]) => void; said: string[] } {
   let heard: (table: SharedTable) => void = () => undefined;
+  let hearChat: (chat: ChatLine[]) => void = () => undefined;
+  const said: string[] = [];
   const seated: [string, string | null][] = [];
   const starts: number[] = [];
   const found: string[] = [];
   const wire = {
     you,
+    onChat: (listener: (chat: ChatLine[]) => void) => {
+      hearChat = listener;
+    },
+    say: (text: string) => {
+      said.push(text);
+      return Promise.resolve(text === 'too loud' ? 'refused' : null);
+    },
     setVisibility: (visibility: string) => {
       found.push(visibility);
       return Promise.resolve(true);
@@ -33,8 +42,30 @@ function wireTelling(you = 'kara'): { wire: Wire; tell: (table: SharedTable) => 
       return Promise.resolve(true);
     },
   } as unknown as Wire;
-  return { wire, tell: (table) => heard(table), seated, starts, found };
+  return { wire, tell: (table) => heard(table), seated, starts, found, hear: (lines) => hearChat(lines), said };
 }
+
+describe('what is said at the table', () => {
+  it('is what the wire is told, handed to whoever listens, said through it, and nothing without a server', async () => {
+    const { wire, hear, said } = wireTelling();
+    const heard: ChatLine[][] = [];
+    const stop = onChat((lines) => heard.push(lines));
+    tableOf(wire);
+    expect(chat()).toEqual([]);
+    const line: ChatLine = { from: 'finn', name: 'Finn', text: 'Ready.', at: 1 };
+    hear([line]);
+    expect(chat()).toEqual([line]);
+    expect(heard.at(-1)).toEqual([line]);
+    expect(await say('On my way.')).toBeNull();
+    expect(await say('too loud')).toBe('refused');
+    expect(said).toEqual(['On my way.', 'too loud']);
+    // No server: nothing said, and nothing to say it to.
+    tableOf(null);
+    expect(chat()).toEqual([]);
+    expect(await say('anybody?')).toBe('not at a game');
+    stop();
+  });
+});
 
 describe('the shared game, as the page shows it', () => {
   it('is the table the wire is told, handed to whoever listens, and none without a server', async () => {

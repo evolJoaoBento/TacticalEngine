@@ -5,7 +5,7 @@ import { ON_SERVER } from './server-mode';
  * Lobbies anybody opens (`docs/SERVER.md`, phase 6, slice 3), on the server: a player hosts a game for their friends
  * from Play Together; their friend finds it there and joins with no link, a stranger does not see it - until the host
  * opens it to everybody. When the host's page goes and does not come back, the running of the game is handed on to
- * the friend still at it, who starts it. And a game's save is everybody's who played it (slice 4): the host's own camp,
+ * the friend still at it, who starts it. They talk at the table, in the lobby and in the game (slice 5). And a game's save is everybody's who played it (slice 4): the host's own camp,
  * played with a friend and saved, is in the friend's saves too, and the friend hosts it again over the project the
  * server kept with it - which their browser never had - the host's seat kept for them. Each player in a browser of their
  * own, signed in to an account of their own.
@@ -65,6 +65,19 @@ test('a lobby is found by whoever its host lets find it, and handed on when its 
   await expect.poll(() => friend.page.evaluate(() => window.__table!.table()!.members.map((m) => m.id))).toEqual([host.id, friend.id]);
   await expect(friend.page.getByTestId('lobby').getByTestId('lobby-findable-said')).toHaveText("The host's friends");
 
+  // They talk while they gather: each told the other's line, in the lobby.
+  await host.page.bringToFront();
+  await lobby.getByTestId('chat-input').fill('Who is bringing the snacks?');
+  await lobby.getByTestId('chat-send').click();
+  const friendsLobby = friend.page.getByTestId('lobby');
+  await expect(friendsLobby.getByTestId('chat-line')).toHaveText([`${host.name} Who is bringing the snacks?`]);
+  await friend.page.bringToFront();
+  await friendsLobby.getByTestId('chat-input').fill('Me.');
+  await friendsLobby.getByTestId('chat-input').press('Enter');
+  await expect(friendsLobby.getByTestId('chat-input')).toHaveValue('');
+  await expect(lobby.getByTestId('chat-line')).toHaveText([`${host.name} Who is bringing the snacks?`, `${friend.name} Me.`]);
+  await friend.page.screenshot({ path: 'test-results/lobby-chat.png' });
+
   // A stranger does not see it - until the host opens it to everybody.
   await stranger.page.getByTestId('menu-together').click();
   await expect(stranger.page.getByTestId('menu-joinable').filter({ hasText: `${host.name}'s game` })).toHaveCount(0);
@@ -85,6 +98,15 @@ test('a lobby is found by whoever its host lets find it, and handed on when its 
   await friend.page.screenshot({ path: 'test-results/lobby-handed-on.png' });
   await theirs.getByTestId('lobby-start').click();
   await expect(theirs).toHaveCount(0);
+  // Started, what was said is in the panel, above the log, and more is said there - typing it walks nobody.
+  const panelChat = friend.page.locator('.play.panel').getByTestId('chat');
+  await expect(panelChat.getByTestId('chat-line')).toHaveCount(2);
+  const before = await friend.page.evaluate(() => window.__engine!.tileOf(window.__engine!.selected() ?? window.__engine!.party()[0]!));
+  await panelChat.getByTestId('chat-input').fill('wasd and off we go');
+  await panelChat.getByTestId('chat-send').click();
+  await expect(panelChat.getByTestId('chat-line').last()).toHaveText(`${friend.name} wasd and off we go`);
+  expect(await friend.page.evaluate(() => window.__engine!.tileOf(window.__engine!.selected() ?? window.__engine!.party()[0]!))).toBe(before);
+  await friend.page.screenshot({ path: 'test-results/game-chat.png' });
   // The friend now plays everybody nobody is seated in: a character selected, and nothing parted.
   await expect.poll(() => friend.page.evaluate(() => window.__engine!.selected()), { timeout: 15_000 }).not.toBeNull();
   await expect.poll(() => friend.page.evaluate(() => window.__replica!.server()), { timeout: 15_000 }).toBe('in');

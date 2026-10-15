@@ -7,7 +7,8 @@
  * they land here (`accounts.ts`, `invitationAddress`) - while it is not spent.
  * Until then nobody plays anybody (`engine::game::seats`). Nothing at a game nobody shares,
  * or once it has started (`shared-game.ts`). Who may find the game in the list of games to join - everybody, the
- * host's friends, or only those sent the link - the host says here, and the others see (phase 6, slice 3).
+ * host's friends, or only those sent the link - the host says here, and the others see (phase 6, slice 3). And what
+ * everybody says while they gather (`Chat.tsx`, phase 6, slice 5).
  */
 
 import { useEffect, useState } from 'preact/hooks';
@@ -15,6 +16,7 @@ import { changeVisibility, hosting, invitationLink, onSharedTable, playingAs, se
 import type { Visibility } from '../wire';
 import { invitationAddress, myInvitation, type Invitation } from '../accounts';
 import { InviteRow, SeatSelect } from './Players';
+import { Chat } from './Chat';
 
 /** Who may find the game, as the others are told it. */
 const FINDABLE: Record<Visibility, string> = { friends: "The host's friends", public: 'Everybody', invite: 'Only those sent the link' };
@@ -107,6 +109,10 @@ export function Lobby(): preact.JSX.Element | null {
               </div>
             );
           })}
+        </div>
+        <div className="settings-section">
+          <div className="play-eyebrow">Talk</div>
+          <Chat inLobby />
         </div>
         <div className="lobby-foot">
           {hosting() ? (

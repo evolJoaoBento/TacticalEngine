@@ -24,7 +24,7 @@ const TABLE: SharedTable = {
 /** The page at the table as `you`. */
 function at(you: string, table: SharedTable = TABLE): void {
   let heard: (table: SharedTable) => void = () => undefined;
-  tableOf({ you, onTable: (listener: (table: SharedTable) => void) => (heard = listener) } as unknown as Wire);
+  tableOf({ you, onTable: (listener: (table: SharedTable) => void) => (heard = listener), onChat: () => undefined } as unknown as Wire);
   heard(table);
 }
 

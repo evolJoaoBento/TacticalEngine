@@ -22,6 +22,7 @@ import './hud.css';
 import { ArtNote } from './AiNote';
 import { Players } from './Players';
 import { Lobby } from './Lobby';
+import { Chat } from './Chat';
 import { waitingOn } from '../shared-game';
 
 
@@ -295,6 +296,9 @@ export function PlayPanel(props: PlayPanelProps): preact.JSX.Element | null {
       ) : null}
 
       {/* What the party carries is in the loadout now, as cards (`GearBinder.tsx`). */}
+
+      {/* What is said at a shared game's table, once it has started; in its lobby before (`Chat.tsx`). */}
+      <Chat />
 
       {log.length > 0 ? (
         <div

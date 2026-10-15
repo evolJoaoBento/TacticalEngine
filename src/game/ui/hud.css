@@ -329,6 +329,16 @@
 .settings-saves{max-height:38vh;overflow-y:auto;margin-top:6px;padding-right:2px;scrollbar-color:#b9a684 transparent}
 /* Who is at a shared game (`Players.tsx`): the invitation, the members, a seat a character. */
 .settings-players{margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid rgba(185,166,132,.35)}
+/* What is said at the table (`Chat.tsx`): a box above the log, or a section of the lobby. */
+.chat{flex:0 1 auto;min-height:64px;max-height:30vh;display:flex;flex-direction:column;gap:6px}
+.chat.is-lobby{max-height:none;min-height:0}
+.chat-lines{flex:1 1 auto;overflow-y:auto;min-height:0;max-height:22vh;scrollbar-color:#b9a684 transparent}
+.chat.is-lobby .chat-lines{max-height:120px}
+.chat-line{margin-bottom:3px;overflow-wrap:anywhere}
+.chat-line b{color:#57493a}
+.chat-line.is-yours b{color:#856018}
+.chat-say{display:flex;gap:4px}
+.chat-say input{flex:1;min-width:0;font:inherit;font-size:12px;padding:3px 6px;border:1px solid #b9a684;border-radius:3px;background:transparent;color:inherit}
 .players-invite{flex:1;min-width:0;font:inherit;font-size:11px;padding:3px 6px;border:1px solid #b9a684;border-radius:3px;background:transparent;color:inherit}
 .players-seat{font-size:12px;align-items:center;gap:6px;margin-top:3px}
 .panel-saves .play-btn{font-size:11px;padding:3px 9px}

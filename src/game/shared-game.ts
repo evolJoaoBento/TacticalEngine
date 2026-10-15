@@ -6,13 +6,14 @@
  * whoever plays the character it is put to, and the others whom it waits on (`waitingOn`). A game opened as a
  * lobby (`?host`) is not started until its host says (`start`); until then the players take their own seats
  * (`seatFor`), and the lobby is shown over the board (`ui/Lobby.tsx`). Who may find it in the list of games to join is
- * the host's to say (`?host=public|friends|invite`, `changeVisibility`; phase 6, slice 3).
+ * the host's to say (`?host=public|friends|invite`, `changeVisibility`; phase 6, slice 3). And what is said at the
+ * table (`chat`, `say`; phase 6, slice 5), shown in the lobby and over the game (`ui/Chat.tsx`).
  *
  * The Players section of the settings reads it (`ui/Players.tsx`); a test reads it too (`window.__table`). A page
  * that plays with no server has no table.
  */
 
-import type { Seating, SharedTable, Visibility, Wire } from './wire';
+import type { ChatLine, Seating, SharedTable, Visibility, Wire } from './wire';
 
 /** A character the table can seat: its id and the name the page shows. */
 export interface Seatable {
@@ -27,6 +28,30 @@ let startWith: (() => Promise<boolean>) | null = null;
 let visibilityWith: ((visibility: Visibility) => Promise<boolean>) | null = null;
 let party: () => Seatable[] = () => [];
 const heard = new Set<(table: SharedTable | null) => void>();
+let lines: ChatLine[] = [];
+let sayWith: ((text: string) => Promise<string | null>) | null = null;
+const hearing = new Set<(chat: ChatLine[]) => void>();
+
+/** What has been said at the table of the game the page plays, oldest first; nothing at no table. */
+export function chat(): ChatLine[] {
+  return lines;
+}
+
+/** Told whenever more is said at the table; what to call to stop. */
+export function onChat(listener: (chat: ChatLine[]) => void): () => void {
+  hearing.add(listener);
+  return () => hearing.delete(listener);
+}
+
+function toldChat(next: ChatLine[]): void {
+  lines = next;
+  for (const listener of hearing) listener(next);
+}
+
+/** Something said at the table: `null` once everybody has been told it, or why not. */
+export function say(text: string): Promise<string | null> {
+  return sayWith?.(text) ?? Promise.resolve('not at a game');
+}
 
 /** The table of the game the page plays now, as the server last said it; none without a server. */
 export function sharedTable(): SharedTable | null {
@@ -50,6 +75,9 @@ function told(next: SharedTable | null): void {
  */
 export function tableOf(wire: Wire | null, members: () => Seatable[] = () => []): void {
   told(null);
+  toldChat([]);
+  sayWith = wire === null ? null : (text) => wire.say(text);
+  wire?.onChat(toldChat);
   party = members;
   you = () => wire?.you ?? null;
   seatWith = wire === null ? null : (character, account) => wire.seat(character, account);

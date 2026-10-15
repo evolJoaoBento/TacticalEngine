@@ -303,7 +303,7 @@ The slices:
    creator leaves. Done 15 October 2026 (Progress, below).
 4. **A game's saves the game's** - kept for everybody who played it, any of whom hosts it again. Done 15 October
    2026 (Progress, below).
-5. **Chat at the table** - the lobby's and the game's.
+5. **Chat at the table** - the lobby's and the game's. Done 15 October 2026 (Progress, below).
 6. **Messages between friends.**
 
 ## Running it
@@ -1792,4 +1792,18 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     save), the page's (`project-store.test.ts`, `start.test.ts`) and the server-mode e2e (`lobbies.spec.ts`: the
     host's own camp, played with a friend and saved, in the friend's saves; the friend hosts it from Played
     together over the project the server kept, in their own seat, the host's kept, and the host finds it waiting).
-  - **Next**: phase 6, slice 5: chat at the table.
+  - **Phase 6, slice 5: chat at the table** (15 October 2026). Anybody at a game says something (`play.rs`,
+    `{ op: "say", text }`, trimmed, 1 to 500 characters - counted as characters, not bytes): the line
+    (`{ from, name, text, at }`) given back, and every other page told it (`{ chat: line }`). The game keeps the last
+    100 lines, handed to a page as it opens the game, joins it or comes back to it (`chat`). Nothing said is the
+    game's: it is not saved, numbers no intent, and is not asked of the engine (so saying asks the game nothing about
+    whom it plays for). The page: the wire keeps what was said (`Wire.chat`, `onChat`, `say`), `shared-game.ts`
+    hands it on (`chat`, `onChat`, `say`), and `ui/Chat.tsx` shows it - a section of the lobby while the players
+    gather, a box above the log once the game has started; typing in it walks nobody (`typing`, `main.ts`). Proved by
+    the server's tests (`play_routes.rs`: said before anybody came and told to who comes, each told the other's and
+    not their own twice, nothing and too much refused, 500 accented characters taken, the last hundred kept in order
+    for a page that comes back, the seq untouched), the page's (`wire.test.ts`: each wire told the other's, a page
+    joining later told what was said; `shared-game.test.ts`: heard, said, and nothing without a server) and the
+    server-mode e2e (`lobbies.spec.ts`: host and friend talk in the lobby; started, what was said is in the panel and
+    more is said there, the party not moved by the typing).
+  - **Next**: phase 6, slice 6: messages between friends.

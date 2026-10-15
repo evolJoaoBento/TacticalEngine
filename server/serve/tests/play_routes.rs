@@ -978,3 +978,53 @@ async fn a_shared_games_save_is_hosted_again_by_anybody_who_played_it() {
     assert!(mine.get("players").is_none(), "{mine}");
     assert!(serve::saves::read_project(&root, "moth", mine["id"].as_str().unwrap()).is_none());
 }
+
+#[tokio::test]
+async fn whoever_is_at_a_game_talks_and_a_page_that_comes_is_told_what_was_said() {
+    let fixture = fixture();
+    let root = root("chat");
+    let accounts = ["kara", "finn"].map(|id| Account { id: id.into(), name: id.to_uppercase(), salt: "s".into(), hash: "h".into(), admin: false, created: 0, invitation: None, invited_by: None, rest: IndexMap::new() });
+    write_accounts(&root, &accounts).unwrap();
+    let tables = Tables::new(root.clone());
+    let (host, mut to_host) = tables.connect();
+    tables.ask_on(host, "kara", json!({ "id": 1, "op": "open", "project": fixture["projects"][0], "shipped": fixture["shipped"], "table": {}, "lobby": true }));
+    let opened = told(&mut to_host).await;
+    assert_eq!(opened["ok"]["chat"], json!([]), "nothing said yet");
+    let invite = opened["ok"]["invite"].as_str().unwrap().to_string();
+    // Said before anybody else came: kept, the line given back, its sayer named.
+    tables.ask_on(host, "kara", json!({ "id": 2, "op": "say", "text": "  Who is bringing the snacks?  " }));
+    let said = told(&mut to_host).await;
+    let line = said["ok"]["line"].clone();
+    assert_eq!((line["from"].clone(), line["name"].clone(), line["text"].clone()), (json!("kara"), json!("KARA"), json!("Who is bringing the snacks?")));
+    assert!(line["at"].as_i64().unwrap() > 0);
+    // Finn comes, and is told what was said; Finn speaks, and Kara is told - Finn not told his own twice.
+    let (guest, mut to_guest) = tables.connect();
+    tables.ask_on(guest, "finn", json!({ "id": 1, "op": "join", "invite": invite }));
+    assert_eq!(told(&mut to_guest).await["ok"]["chat"], json!([line]));
+    told(&mut to_host).await;
+    tables.ask_on(guest, "finn", json!({ "id": 2, "op": "say", "text": "Me." }));
+    let finns = told(&mut to_guest).await["ok"]["line"].clone();
+    assert_eq!(told(&mut to_host).await, json!({ "chat": finns }));
+    assert!(nothing_more(&mut to_guest).await);
+    // Nothing, or too much, said: refused, nobody told.
+    tables.ask_on(guest, "finn", json!({ "id": 3, "op": "say", "text": "   " }));
+    assert_eq!(told(&mut to_guest).await["error"], "nothing said");
+    tables.ask_on(guest, "finn", json!({ "id": 4, "op": "say", "text": "a".repeat(501) }));
+    assert_eq!(told(&mut to_guest).await["error"], "a line is 500 characters at most");
+    tables.ask_on(guest, "finn", json!({ "id": 5, "op": "say", "text": "é".repeat(500) }));
+    assert!(told(&mut to_guest).await["ok"].is_object(), "500 characters, whatever their bytes");
+    told(&mut to_host).await;
+    assert!(nothing_more(&mut to_host).await);
+    // Kara's page comes back: told everything said, in order. A game keeps the last hundred lines.
+    for n in 0..120 {
+        tables.ask_on(host, "kara", json!({ "id": 10 + n, "op": "say", "text": format!("line {n}") }));
+        told(&mut to_host).await;
+    }
+    let back = tables.ask("kara", json!({ "id": 200, "op": "resume" })).await;
+    let kept = back["ok"]["chat"].as_array().unwrap();
+    assert_eq!(kept.len(), 100);
+    assert_eq!(kept[0]["text"], "line 20");
+    assert_eq!(kept[99]["text"], "line 119");
+    // Nothing said numbers an intent.
+    assert_eq!(back["ok"]["seq"], opened["ok"]["seq"]);
+}

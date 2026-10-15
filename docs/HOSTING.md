@@ -93,7 +93,8 @@ in the menu choose **Change password** (beside Sign out). Until you do, `admin` 
    brings them in. It is there while your invitation is not spent.
 
 5. **Take your seats, and start.** The lobby lists everybody at the game, and each character with who plays
-   it. Each friend takes a character nobody has, or leaves their own; you choose for anybody. Whoever nobody
+   it, and has a place to talk (**Talk**); once the game has started, what was said is in a box above the log, and
+   you talk on there. Each friend takes a character nobody has, or leaves their own; you choose for anybody. Whoever nobody
    takes, you play. Nobody plays anybody until you press **Start**, and then everybody starts at once.
 
 6. **Play.** Once the game has started only you, the host, change who plays whom (the settings' **Players**,

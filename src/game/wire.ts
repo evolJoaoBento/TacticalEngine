@@ -87,6 +87,14 @@ export interface SharedTable {
   visibility?: Visibility;
 }
 
+/** A line said at the table (`play.rs`, `say`): who said it, by id and by name, what, and when. */
+export interface ChatLine {
+  from: string;
+  name: string;
+  text: string;
+  at: number;
+}
+
 /**
  * Whom a game plays for at a shared game: the account, the host, who plays whom, and whether it has started - before
  * then nobody plays anybody (`engine::game::seats`).
@@ -124,6 +132,9 @@ export type WireState = 'opening' | 'in' | 'parted' | 'asked' | 'lost' | 'closed
 /** How long to wait before each try to connect again, in milliseconds; when they are spent the wire closes. */
 export const RETRIES: readonly number[] = [500, 1000, 2000, 4000, 8000, 15000, 30000];
 
+/** How many lines said at the table a page keeps, as the server's game does (`CHAT_KEPT`). */
+export const CHAT_KEPT = 100;
+
 export interface WireOptions {
   /** Come back to the game the server kept rather than open one: the page was reloaded. */
   resume?: boolean;
@@ -152,6 +163,7 @@ interface Kept {
   table?: SharedTable;
   seq?: number;
   you?: string;
+  chat?: ChatLine[];
 }
 
 const copy = (value: unknown): unknown => JSON.parse(JSON.stringify(value ?? null));
@@ -184,6 +196,9 @@ export class Wire {
   /** The account the page plays as, as the server says it. */
   you: string | null = null;
   private tableHeard: ((table: SharedTable) => void)[] = [];
+  /** What has been said at the table, oldest first, as the server keeps it - and who is told when it grows. */
+  chat: ChatLine[] = [];
+  private chatHeard: ((chat: ChatLine[]) => void)[] = [];
   /** What other pages' intents gave to draw while this page's own were on their way up, drawn when it is stood. */
   private waiting: Views[] = [];
   /** The server's game opened, and the page stood where it is - or the page come back to the game kept. */
@@ -228,6 +243,7 @@ export class Wire {
     this.joined = true;
     this.you = joined.you ?? null;
     if (joined.table !== undefined) this.setTable(joined.table);
+    this.setChat(joined.chat);
     this.known = joined.seq ?? 0;
     this.opened(joined.board);
   }
@@ -241,6 +257,34 @@ export class Wire {
   private setTable(table: SharedTable): void {
     this.table = table;
     for (const heard of this.tableHeard) heard(table);
+  }
+
+  /** Told what has been said at the table whenever more is - each that asks. */
+  onChat(heard: (chat: ChatLine[]) => void): void {
+    this.chatHeard.push(heard);
+    if (this.chat.length > 0) heard(this.chat);
+  }
+
+  /** Everything said at the table, as the server hands it to a page that opens, joins or comes back to the game. */
+  private setChat(lines: ChatLine[] | undefined): void {
+    if (!Array.isArray(lines)) return;
+    this.chat = lines;
+    for (const heard of this.chatHeard) heard(this.chat);
+  }
+
+  private addChat(line: ChatLine): void {
+    this.chat = [...this.chat, line].slice(-CHAT_KEPT);
+    for (const heard of this.chatHeard) heard(this.chat);
+  }
+
+  /** Something said at the table: `null` once the server has it - everybody else told - or why not. */
+  async say(text: string): Promise<string | null> {
+    if (this.state !== 'in' && this.state !== 'parted' && this.state !== 'asked') return 'not at a game';
+    const said = await this.send({ op: 'say', text });
+    const line = (said.ok as { line?: ChatLine } | undefined)?.line;
+    if (line === undefined) return said.error ?? 'it was not said';
+    this.addChat(line);
+    return null;
   }
 
   /**
@@ -300,6 +344,7 @@ export class Wire {
    */
   private heard(message: Record<string, unknown>): void {
     if (message['table'] !== undefined) this.setTable(message['table'] as SharedTable);
+    if (message['chat'] !== undefined) this.addChat(message['chat'] as ChatLine);
     const pushed = message['push'] as { board: BoardSnapshot; views: Views; seq?: number } | undefined;
     if (pushed === undefined || this.state === 'opening' || this.state === 'closed' || this.state === 'lost') return;
     if (this.inFlight > 0) {
@@ -331,6 +376,7 @@ export class Wire {
     this.resumed = true;
     this.you = kept.you ?? null;
     if (kept.table !== undefined) this.setTable(kept.table);
+    this.setChat(kept.chat);
     this.known = kept.seq ?? 0;
     this.opened(kept.board);
     return true;
@@ -367,7 +413,7 @@ export class Wire {
       return;
     }
     if (this.state !== 'opening') return;
-    const opened = said.ok as { seed: string; board: BoardSnapshot; table?: SharedTable; seq?: number; you?: string } | undefined;
+    const opened = said.ok as { seed: string; board: BoardSnapshot; table?: SharedTable; seq?: number; you?: string; chat?: ChatLine[] } | undefined;
     if (opened === undefined) {
       recordParting('server: open', null, null, { failed: said.error ?? 'no game' });
       this.close();
@@ -375,6 +421,7 @@ export class Wire {
     }
     this.you = opened.you ?? null;
     if (opened.table !== undefined) this.setTable(opened.table);
+    this.setChat(opened.chat);
     this.known = opened.seq ?? 0;
     this.opened(opened.board);
   }
@@ -535,6 +582,7 @@ export class Wire {
     const kept = said.ok as Kept | undefined;
     if (kept !== undefined && kept.project === this.demo.project.id) {
       if (kept.table !== undefined) this.setTable(kept.table);
+      this.setChat(kept.chat);
       this.standAt(kept.board);
       this.known = kept.seq ?? this.known;
       return;
@@ -551,13 +599,14 @@ export class Wire {
       return;
     }
     if (this.state !== 'lost') return;
-    const opened = fresh.ok as { board: BoardSnapshot; table?: SharedTable; seq?: number } | undefined;
+    const opened = fresh.ok as { board: BoardSnapshot; table?: SharedTable; seq?: number; chat?: ChatLine[] } | undefined;
     if (opened === undefined) {
       recordParting('server: open', null, null, { failed: fresh.error ?? 'no game' });
       this.close();
       return;
     }
     if (opened.table !== undefined) this.setTable(opened.table);
+    this.setChat(opened.chat);
     this.standAt(opened.board);
     this.known = opened.seq ?? 0;
   }
