@@ -148,7 +148,8 @@ test('a game hosted from the menu is a lobby: friends join with the link, take t
   await page.goto('/?menu');
   await page.getByTestId('menu-together').click();
   await page.locator('[data-testid="menu-together-list"]').getByTestId('menu-play-demo').click();
-  await page.waitForURL(/\?play&host$/);
+  // Found by the host's friends, as Play Together offers it first.
+  await page.waitForURL(/\?play&host=friends$/);
   await ready(page);
   const lobby = page.getByTestId('lobby');
   await expect(lobby).toBeVisible();
@@ -264,12 +265,12 @@ test('a game hosted from the menu is a lobby: friends join with the link, take t
   await back.goto('/?menu');
   await expect(back.getByTestId('menu-together')).toContainText('has a game waiting for you');
   await back.getByTestId('menu-together').click();
-  const waiting = back.getByTestId('menu-waiting');
+  // Among whatever else they may join - another test's public game - the one keeping their seat.
+  const waiting = back.getByTestId('menu-joinable').filter({ hasText: 'for you.' });
   await expect(waiting).toHaveCount(1);
   await expect(waiting).toContainText('kept');
-  await expect(waiting).toContainText('for you.');
   await back.screenshot({ path: 'test-results/menu-waiting.png' });
-  await waiting.getByTestId('menu-waiting-join').click();
+  await waiting.getByTestId('menu-joinable-join').click();
   await back.waitForURL((url) => url.search === again.search);
   await ready(back);
   await expect.poll(() => back.evaluate(() => window.__table!.table()!.seats), { timeout: 15_000 }).toEqual({ [theirs]: guestId });

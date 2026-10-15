@@ -82,8 +82,10 @@ in the menu choose **Change password** (beside Sign out). Until you do, `admin` 
    tunnel's address with the same ending (`/?invite=...`).
 
 4. **Host your game, and invite your friends.** In the menu, **Play Together** lists every game you can
-   load, and its saves: choose one to host. It opens as a lobby, **Gathering**, over the board, with the
-   invitation: a link to the address you opened the game at, ending in `?join=...`. If you opened it at
+   load, and its saves: choose one to host - and above them, **Who can find it**: your friends (the first
+   choice), everybody, or only those you send the link. Your friends, or everybody, then see your game in their
+   own Play Together and join it with **Join**, no link needed; you change who can find it in the lobby. It opens
+   as a lobby, **Gathering**, over the board, with the invitation, which works for anybody you send it to: a link to the address you opened the game at, ending in `?join=...`. If you opened it at
    `http://127.0.0.1:8430`, send your friends the tunnel's address with the same `?join=...` on the end
    (`https://<something>.trycloudflare.com/?join=...`). A friend with an account opens it, or pastes it into
    **Join a game** under Play Together, and joins your lobby. For a friend with no account yet the lobby has a
@@ -100,8 +102,12 @@ in the menu choose **Change password** (beside Sign out). Until you do, `admin` 
    you save it, into your saves, and only you load a save into it. A save remembers who played whom: host it
    again from Play Together and the lobby keeps each friend's character for them ("Kept for ..."), seating them
    in it the moment they join. **A friend coming back needs no new link:** signed in, their own Play Together
-   shows your game waiting for them ("Kara kept Violet for you"), and **Join** takes them to their seat. A
-   friend new to the game still needs the link.
+   shows your game waiting for them ("Kara kept Violet for you"), whoever you let find it, and **Join** takes
+   them to their seat.
+
+   **If you go,** the game goes on: once your page has been closed for half a minute, the running of it passes to
+   the first friend still at it, who says who plays whom, starts it, and saves it from then on - into their own
+   saves, for now; the game's earlier saves stay yours. Come back and you are a player at it.
 
 A game opened the ordinary way - New Game, Load Game - is still yours alone until somebody joins it with the
 link in the settings: it starts at once, with no lobby.

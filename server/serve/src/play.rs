@@ -51,10 +51,17 @@
 //! to it; past that it goes. A guest's page opens over the game's project, read before it is built
 //! (`GET /__play/join/<invite>`: `{ project }`, for anybody signed in who holds the invitation).
 //!
-//! A player coming back finds the games that hold a seat for them without being sent the link again
-//! (`GET /__play/waiting`: `{ games: [{ invite, host, project, characters, started }] }`, the signed-in account's
-//! own): those whose host loaded a save that kept that account's characters for it (`kept`), with each one's
-//! invitation, the host's name, the project's, and the kept characters' names.
+//! **Anybody opens a game for others** (phase 6, slice 3), and says who may find it (`visibility`): everybody signed
+//! in (`public`), the host's friends (`friends`, `friends.rs`), or nobody - only those sent its invitation
+//! (`invite`, a game opened the ordinary way). The games a player may join are listed for them (`GET /__play/games`:
+//! `{ games: [{ invite, host, project, players, started, visibility, kept }] }`): those they may find, and any that
+//! keeps a seat for them (`kept`, the characters' names) whoever may find it - never one they host. The host changes
+//! who may find it (`{ id, op: "visibility", visibility }`, `{ id, ok: { table } }`), and the table says it.
+//!
+//! **The running of a game is handed on** when its host has been gone a while (`HAND_ON_AFTER`; a page reloaded comes
+//! back well within it): to the first member, in the order they came, whose page is at the game - checked by the
+//! game's thread as it waits for its next message. The host it was is a member when they come back; every page is
+//! told the table, and the hand-on is numbered as a change of seats is (`seq`).
 //!
 //! Each player acts with their own (phase 5, slice 4): before anything of an account's is asked of its game, the
 //! game is told whom it plays for (`restoreSeating`, which no page may send) - the account, the host, who plays
@@ -71,6 +78,7 @@
 //! page, once, at `open`; a guest's page is given the project by the server.
 
 use crate::accounts::{account_of, now_ms, page_host, read_accounts, read_sessions, same_origin};
+use crate::friends::read_friends;
 use crate::saves::{is_slot_id, mint_id, read_save, read_slots, write_save, Slot};
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
 use axum::extract::{Path as Route, State};
@@ -97,6 +105,16 @@ pub const PLAY_URL: &str = "/__play";
 
 /// How long a game is kept after the last socket at it closes, for the pages to come back to it.
 pub const KEPT_FOR: Duration = Duration::from_secs(10 * 60);
+
+/// How long a host may be gone - their page closed, nothing come back - before the running of their game is handed
+/// on to somebody still at it. Long enough for a page reloaded to come back.
+pub const HAND_ON_AFTER: Duration = Duration::from_secs(30);
+
+/// How often a game's thread, waiting for a message, looks whether its host is gone.
+const TICK: Duration = Duration::from_millis(500);
+
+/// Who may find a game in the list of games to join: everybody, the host's friends, or nobody (its invitation alone).
+const VISIBILITIES: [&str; 3] = ["public", "friends", "invite"];
 
 /// The intents that tell a game how another stands - its dice, its walk, its log, its views' queues - which the
 /// page's own engine is told after the editor's changes, and the server's game never is. And a save's text,
@@ -175,6 +193,12 @@ struct Shared {
     kept: IndexMap<String, String>,
     /// The board last handed on, so an intent that changed nothing pushes nothing.
     seen: String,
+    /// Who may find it in the list of games to join (`VISIBILITIES`).
+    visibility: String,
+    /// Since when the host's page has not been at it, and how long that may go on before the running of it is
+    /// handed on.
+    host_gone: Option<Instant>,
+    hand_on_after: Duration,
 }
 
 /// A game being played: the way into its thread, and what is shared about it.
@@ -203,6 +227,8 @@ pub struct Tables {
     /// The tests' server (`--for-tests`): a game opened with its dice where the page's are, and the test driver's
     /// hands taken.
     for_tests: bool,
+    /// How long a host may be gone before their game is handed on.
+    hand_on_after: Duration,
 }
 
 /// A project's code run in QuickJS, compiled once for each body of code a game is built with.
@@ -243,6 +269,7 @@ fn table_of(shared: &Shared, root: &Path) -> Value {
         "members": shared.members.iter().map(|id| json!({ "id": id, "name": name(id) })).collect::<Vec<_>>(),
         "seats": shared.seats,
         "started": shared.started,
+        "visibility": shared.visibility,
         "kept": shared.kept.iter().map(|(character, id)| (character.clone(), json!({ "id": id, "name": name(id) }))).collect::<serde_json::Map<_, _>>(),
     })
 }
@@ -299,14 +326,35 @@ fn play_thread(shared: Arc<Mutex<Shared>>, root: PathBuf) -> mpsc::Sender<Job> {
         // How many intents the game has played: a page holds an answer to its prediction only when none of another
         // page's came in between since the board it predicted on (`seq`).
         let mut played: u64 = 0;
-        while let Ok(job) = jobs.recv() {
+        loop {
+            let job = match jobs.recv_timeout(TICK) {
+                Ok(job) => job,
+                Err(mpsc::RecvTimeoutError::Disconnected) => break,
+                // Nothing asked: whether the host is gone long enough for the game to be handed on - numbered, and
+                // everybody's selection kept among their own, as a change of seats is; every page told.
+                Err(mpsc::RecvTimeoutError::Timeout) => {
+                    if hand_on(&shared) {
+                        played += 1;
+                        let members = shared.lock().expect("the game").members.clone();
+                        for member in members {
+                            play_for(&mut slot, &shared, &member, &hooks);
+                            let chosen = slot.as_ref().map_or(Value::Null, |session| json!(session.party.selected()));
+                            shared.lock().expect("the game").selected.insert(member, chosen);
+                        }
+                        let held = shared.lock().expect("the game");
+                        push(&held, None, &json!({ "table": table_of(&held, &root) }));
+                    }
+                    continue;
+                }
+            };
             let op = job.message["op"].as_str().unwrap_or("").to_string();
-            if !matches!(op.as_str(), "open" | "seat" | "start") {
+            if !matches!(op.as_str(), "open" | "seat" | "start" | "visibility") {
                 play_for(&mut slot, &shared, &job.account, &hooks);
             }
             let mut said = match op.as_str() {
                 "seat" => seat(&shared, &job.account, &job.message, &root),
                 "start" => start(&shared, &job.account, &root),
+                "visibility" => visibility(&shared, &job.account, &job.message, &root),
                 // A page that joined, or came back: where the game is, as for one resumed.
                 "join" => respond(&mut slot, &json!({ "op": "resume" }), &hooks),
                 _ => respond(&mut slot, &job.message, &hooks),
@@ -376,7 +424,7 @@ fn play_thread(shared: Arc<Mutex<Shared>>, root: PathBuf) -> mpsc::Sender<Job> {
                         }
                     }
                 }
-                "join" | "seat" | "start" if said["ok"].is_object() => push(&held, from, &json!({ "table": table_of(&held, &root) })),
+                "join" | "seat" | "start" | "visibility" if said["ok"].is_object() => push(&held, from, &json!({ "table": table_of(&held, &root) })),
                 _ => {}
             }
             // And everybody told who plays whom after the save, the one who loaded it too.
@@ -509,6 +557,35 @@ fn start(shared: &Arc<Mutex<Shared>>, account: &str, root: &Path) -> Value {
     json!({ "ok": { "table": table_of(&held, root) } })
 }
 
+/// Who may find the game in the list of games to join, as its host says.
+fn visibility(shared: &Arc<Mutex<Shared>>, account: &str, message: &Value, root: &Path) -> Value {
+    let mut held = shared.lock().expect("the game");
+    if held.host != account {
+        return json!({ "error": "only the host says who may find the game" });
+    }
+    let Some(visibility) = message["visibility"].as_str().filter(|v| VISIBILITIES.contains(v)) else {
+        return json!({ "error": "public, friends or invite" });
+    };
+    held.visibility = visibility.to_string();
+    json!({ "ok": { "table": table_of(&held, root) } })
+}
+
+/// The running of a game handed on, when its host has been gone longer than they may be: to the first member whose
+/// page is at it. Whether it was.
+fn hand_on(shared: &Arc<Mutex<Shared>>) -> bool {
+    let mut held = shared.lock().expect("the game");
+    let Some(gone) = held.host_gone else { return false };
+    if gone.elapsed() < held.hand_on_after {
+        return false;
+    }
+    // The host is gone, so never among those whose page is at it.
+    let next = held.members.iter().find(|member| held.watching.iter().any(|(_, account, _)| account == *member)).cloned();
+    let Some(next) = next else { return false };
+    held.host = next;
+    held.host_gone = None;
+    true
+}
+
 /// The text a game saved, written into the account's slot - the slot named, or a fresh one - with who plays whom.
 fn saved(root: &Path, account: &str, asked: &Value, said: Value, seats: IndexMap<String, String>) -> Value {
     let Some(text) = said["ok"]["text"].as_str() else { return said };
@@ -538,13 +615,18 @@ impl Tables {
 
     /// Tables whose games are kept for `kept_for` after the last socket at them closes.
     pub fn keeping(root: PathBuf, kept_for: Duration) -> Tables {
-        Tables { root, inner: Arc::new(Mutex::new(Inner::default())), kept_for, for_tests: false }
+        Tables { root, inner: Arc::new(Mutex::new(Inner::default())), kept_for, for_tests: false, hand_on_after: HAND_ON_AFTER }
+    }
+
+    /// Tables whose games are handed on once their host has been gone for `after`.
+    pub fn handing_on_after(self, after: Duration) -> Tables {
+        Tables { hand_on_after: after, ..self }
     }
 
     /// The tests' tables: each game opened with its dice where the page's are, not at the server's own seed, and
     /// the test driver's hands taken.
     pub fn for_tests(self) -> Tables {
-        Tables { for_tests: true, ..self }
+        Tables { for_tests: true, hand_on_after: Duration::from_secs(3), ..self }
     }
 
     /// Why a message is refused before its game is asked, if it is: an intent that would tell the game how the
@@ -596,6 +678,9 @@ impl Tables {
             let mut held = found.shared.lock().expect("the game");
             held.watching.push((conn, account.to_string(), to.clone()));
             held.left = None;
+            if held.host == account {
+                held.host_gone = None;
+            }
         }
         inner.conns.insert(conn, (to, Some(game.to_string())));
     }
@@ -606,6 +691,10 @@ impl Tables {
             held.watching.retain(|(watcher, _, _)| *watcher != conn);
             if held.watching.is_empty() {
                 held.left = Some(Instant::now());
+            }
+            let host = held.host.clone();
+            if held.host_gone.is_none() && !held.watching.iter().any(|(_, account, _)| *account == host) {
+                held.host_gone = Some(Instant::now());
             }
         }
     }
@@ -662,6 +751,9 @@ impl Tables {
                     seen: String::new(),
                     started: message["lobby"] != true,
                     kept: IndexMap::new(),
+                    visibility: message["visibility"].as_str().filter(|v| VISIBILITIES.contains(v)).unwrap_or("invite").to_string(),
+                    host_gone: None,
+                    hand_on_after: self.hand_on_after,
                 }));
                 let door = play_thread(Arc::clone(&shared), self.root.clone());
                 inner.games.insert(game.clone(), Game { door, shared });
@@ -719,21 +811,31 @@ impl Tables {
         inner.at.contains_key(account)
     }
 
-    /// The games holding a seat for an account - a save their host loaded kept its characters for it - with each
-    /// one's invitation, its host's name, its project's, and the names of the characters kept: a player coming
-    /// back joins without being sent the link again.
-    pub fn waiting_for(&self, account: &str) -> Vec<Value> {
+    /// The games an account may join: those it may find - every public one, and its friends' friends-only ones - and
+    /// any that keeps a seat for it, whoever may find it; never one it hosts. Each with its invitation, its host's
+    /// name, its project's, how many are at it, whether it has started, who may find it, and the names of the
+    /// characters it keeps for the account. Those keeping a seat first.
+    pub fn joinable_for(&self, account: &str) -> Vec<Value> {
         let mut inner = self.inner.lock().expect("the tables");
         self.sweep(&mut inner);
         let accounts = read_accounts(&self.root);
+        let friends = read_friends(&self.root);
         let name = |id: &str| accounts.iter().find(|known| known.id == id).map_or_else(|| id.to_string(), |known| known.name.clone());
-        let mut waiting: Vec<Value> = inner
+        let mut joinable: Vec<Value> = inner
             .games
             .values()
             .filter_map(|game| {
                 let held = game.shared.lock().expect("the game");
+                if held.host == account {
+                    return None;
+                }
                 let theirs: Vec<&String> = held.kept.iter().filter(|(_, kept)| *kept == account).map(|(character, _)| character).collect();
-                if theirs.is_empty() {
+                let findable = match held.visibility.as_str() {
+                    "public" => true,
+                    "friends" => friends.are_friends(&held.host, account),
+                    _ => false,
+                };
+                if !findable && theirs.is_empty() {
                     return None;
                 }
                 let board: Value = serde_json::from_str(&held.seen).unwrap_or(Value::Null);
@@ -741,13 +843,16 @@ impl Tables {
                     "invite": held.invite,
                     "host": name(&held.host),
                     "project": held.document["name"].as_str().unwrap_or(""),
-                    "characters": theirs.iter().map(|character| character_name(&board, character)).collect::<Vec<_>>(),
+                    "players": held.members.len(),
                     "started": held.started,
+                    "visibility": held.visibility,
+                    "kept": theirs.iter().map(|character| character_name(&board, character)).collect::<Vec<_>>(),
                 }))
             })
             .collect();
-        waiting.sort_by(|a, b| (a["host"].as_str(), a["invite"].as_str()).cmp(&(b["host"].as_str(), b["invite"].as_str())));
-        waiting
+        let order = |game: &Value| (game["kept"].as_array().is_none_or(Vec::is_empty), game["host"].as_str().unwrap_or("").to_string(), game["invite"].as_str().unwrap_or("").to_string());
+        joinable.sort_by_key(order);
+        joinable
     }
 
     /// The project a game was opened over, for a page joining it with its invitation to open over.
@@ -801,11 +906,11 @@ async fn joining(State(tables): State<Tables>, headers: HeaderMap, Route(invite)
     }
 }
 
-/// The games holding a seat for whoever is signed in, to join without being sent the link again.
-async fn waiting(State(tables): State<Tables>, headers: HeaderMap) -> Response {
+/// The games whoever is signed in may join: those they may find, and those keeping a seat for them.
+async fn joinable(State(tables): State<Tables>, headers: HeaderMap) -> Response {
     match signed_in(&tables, &headers) {
         Err(refused) => refused.into_response(),
-        Ok(account) => Json(json!({ "games": tables.waiting_for(&account) })).into_response(),
+        Ok(account) => Json(json!({ "games": tables.joinable_for(&account) })).into_response(),
     }
 }
 
@@ -850,5 +955,5 @@ pub fn router(root: PathBuf) -> Router {
 
 /// The play route over tables made as they are wanted - the tests' (`Tables::for_tests`).
 pub fn router_for(tables: Tables) -> Router {
-    Router::new().route(PLAY_URL, get(handle)).route(&format!("{PLAY_URL}/join/{{invite}}"), get(joining)).route(&format!("{PLAY_URL}/waiting"), get(waiting)).with_state(tables)
+    Router::new().route(PLAY_URL, get(handle)).route(&format!("{PLAY_URL}/join/{{invite}}"), get(joining)).route(&format!("{PLAY_URL}/games"), get(joinable)).with_state(tables)
 }

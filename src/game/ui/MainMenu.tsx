@@ -10,10 +10,11 @@
  *   (Friends, beside them too, with how many are asking: `Friends.tsx`.)
  *   Store       art creators have published, with how they made it, and a vote on it (`Store.tsx`) -
  *               for whoever is signed in
- *   Play Together  where the server plays the game: any game Load Game lists, or a save of it, hosted for
- *               friends - opened as a lobby they gather in before it starts (`?host`, `Lobby.tsx`) - or
- *               another's joined with the link its host sent (`?join=`) - or, where a save its host loaded
- *               kept a seat for you, from the list of games waiting for you, no link needed (`waiting-games.ts`)
+ *   Play Together  where the server plays the game: the games you may join, no link needed - public ones, your
+ *               friends' friends-only ones, and any keeping a seat for you (`joinable-games.ts`) - another's
+ *               joined with the link its host sent (`?join=`), or any game Load Game lists, or a save of it,
+ *               hosted - opened as a lobby others gather in before it starts (`?host=`, `Lobby.tsx`), found
+ *               by whoever you say: everybody, your friends, or only those you send the link
  *
  * Every choice opens the page again with it written in the address, so a game starts on a clean
  * page. Saves are listed under the game they are of (`SaveSlot.project`), and are the signed-in
@@ -33,7 +34,8 @@ import { readFriends } from '../friends';
 import { listAccountSaves } from '../account-saves';
 import { serverAllowed } from '../play-socket';
 import { inviteFrom } from '../shared-game';
-import { listWaiting, waitingLine, type WaitingGame } from '../waiting-games';
+import { joinableLine, joinableSummary, listJoinable, type JoinableGame } from '../joinable-games';
+import type { Visibility } from '../wire';
 import './menu.css';
 
 /** Open the page again, on what was chosen. */
@@ -77,11 +79,13 @@ export function MainMenu(props: { account?: SignedIn | null; onSignOut?: () => v
     if (!onServer) return;
     void listAccountSaves(account.id).then((listed) => setSaves(listed ?? new SaveSlots(browserStore()).list()));
   }, [account?.id, onServer]);
-  // The games whose host kept a seat for this player, to join without the link.
-  const [waiting, setWaiting] = useState<WaitingGame[]>([]);
+  // The games this player may join without the link: those they may find, and those keeping a seat for them.
+  const [joinable, setJoinable] = useState<JoinableGame[]>([]);
   useEffect(() => {
-    if (onServer) void listWaiting().then(setWaiting);
+    if (onServer) void listJoinable().then(setJoinable);
   }, [account?.id, onServer]);
+  // Who may find a game hosted from here.
+  const [findable, setFindable] = useState<Visibility>('friends');
   const savesOf = (project: string): SaveSlot[] => saves.filter((slot) => projectOfSlot(slot) === project);
   // Every game, and the saves of each, opened as chosen - hosted for friends too (`?host`) from Play Together.
   const gameList = (also: string): preact.JSX.Element[] => [
@@ -151,7 +155,7 @@ export function MainMenu(props: { account?: SignedIn | null; onSignOut?: () => v
                 </button>
                 {onServer ? (
                   <button type="button" className="menu-choice" data-testid="menu-together" onClick={() => setView('together')}>
-                    Play Together<small>{waiting.length === 0 ? 'Host a game for friends, or join theirs' : `${waiting[0]!.host} has a game waiting for you`}</small>
+                    Play Together<small>{joinableSummary(joinable) ?? 'Host a game for friends, or join theirs'}</small>
                   </button>
                 ) : null}
                 {account === null ? null : (
@@ -163,15 +167,15 @@ export function MainMenu(props: { account?: SignedIn | null; onSignOut?: () => v
             </>
           ) : view === 'together' ? (
             <div className="menu-load" data-testid="menu-together-list">
-              {waiting.map((game) => (
-                <section key={game.invite} className="menu-game menu-join" data-testid="menu-waiting">
+              {joinable.map((game) => (
+                <section key={game.invite} className="menu-game menu-join" data-testid="menu-joinable" data-visibility={game.visibility}>
                   <header>
                     <h2>{game.project === '' ? 'A game' : game.project}</h2>
-                    <button type="button" className="menu-go" data-testid="menu-waiting-join" onClick={() => openPage(`join=${encodeURIComponent(game.invite)}`)}>
+                    <button type="button" className="menu-go" data-testid="menu-joinable-join" onClick={() => openPage(`join=${encodeURIComponent(game.invite)}`)}>
                       Join
                     </button>
                   </header>
-                  <p className="menu-waiting-line">{waitingLine(game)}</p>
+                  <p className="menu-waiting-line">{joinableLine(game)}</p>
                 </section>
               ))}
               <section className="menu-game menu-join">
@@ -200,8 +204,16 @@ export function MainMenu(props: { account?: SignedIn | null; onSignOut?: () => v
                 </form>
                 {joinRefused ? <p className="menu-join-refused" data-testid="menu-join-refused">That is not an invitation: paste the whole link your host sent.</p> : null}
               </section>
-              <p className="menu-sub">Or host one: friends join it, take their seats, and you start it together.</p>
-              {gameList('&host')}
+              <p className="menu-sub">Or host one: others join it, take their seats, and you start it together.</p>
+              <label className="menu-field menu-findable">
+                Who can find it
+                <select data-testid="menu-findable" value={findable} onChange={(e) => setFindable(e.currentTarget.value as Visibility)}>
+                  <option value="friends">Your friends</option>
+                  <option value="public">Everybody</option>
+                  <option value="invite">Only those you send the link</option>
+                </select>
+              </label>
+              {gameList(`&host=${findable}`)}
               <button type="button" className="menu-back" data-testid="menu-back" onClick={() => setView('main')}>
                 Back
               </button>

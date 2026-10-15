@@ -6,13 +6,18 @@
  * Somebody with no account yet is sent the player's own invitation with the game's: it makes their account, and
  * they land here (`accounts.ts`, `invitationAddress`) - while it is not spent.
  * Until then nobody plays anybody (`engine::game::seats`). Nothing at a game nobody shares,
- * or once it has started (`shared-game.ts`).
+ * or once it has started (`shared-game.ts`). Who may find the game in the list of games to join - everybody, the
+ * host's friends, or only those sent the link - the host says here, and the others see (phase 6, slice 3).
  */
 
 import { useEffect, useState } from 'preact/hooks';
-import { hosting, invitationLink, onSharedTable, playingAs, seat, seatFor, seatable, sharedTable, start } from '../shared-game';
+import { changeVisibility, hosting, invitationLink, onSharedTable, playingAs, seat, seatFor, seatable, sharedTable, start } from '../shared-game';
+import type { Visibility } from '../wire';
 import { invitationAddress, myInvitation, type Invitation } from '../accounts';
 import { InviteRow, SeatSelect } from './Players';
+
+/** Who may find the game, as the others are told it. */
+const FINDABLE: Record<Visibility, string> = { friends: "The host's friends", public: 'Everybody', invite: 'Only those sent the link' };
 
 export function Lobby(): preact.JSX.Element | null {
   const [table, setTable] = useState(sharedTable());
@@ -42,6 +47,20 @@ export function Lobby(): preact.JSX.Element | null {
               </div>
               <InviteRow link={invitationAddress(mine.code, table.invite)} testid="invite-new-link" />
             </>
+          )}
+        </div>
+        <div className="settings-section">
+          <div className="play-eyebrow">Who can find it</div>
+          {hosting() ? (
+            <select data-testid="lobby-findable" value={table.visibility ?? 'invite'} onChange={(e) => void changeVisibility(e.currentTarget.value as Visibility)}>
+              <option value="friends">Your friends</option>
+              <option value="public">Everybody</option>
+              <option value="invite">Only those you send the link</option>
+            </select>
+          ) : (
+            <div className="panel-facts" data-testid="lobby-findable-said">
+              {FINDABLE[table.visibility ?? 'invite']}
+            </div>
           )}
         </div>
         <div className="settings-section">

@@ -7,8 +7,16 @@ handful of working rules that are learned the expensive way rather than read.
 ## Phase 6: the server is the host
 
 Designed in `docs/SERVER.md` ("Phase 6, designed"): players invite players, anybody opens a lobby - public,
-friends-only or invite-only - friends both ways, chat at the table and between friends. Slices 1 (invitations)
-and 2 (friends) are done; next is slice 3, lobbies anybody opens.
+friends-only or invite-only - friends both ways, chat at the table and between friends. Slices 1 (invitations),
+2 (friends) and 3 (lobbies anybody opens) are done; next is slice 4, a game's saves the game's.
+
+## Lobbies anybody opens: public, friends-only or invite-only — done
+
+Play Together hosts a lobby for your friends, for everybody, or only for those you send the link (changed in the
+lobby by its host). Every player's Play Together lists the games they may join - public ones, their friends'
+friends-only ones, and any keeping a seat for them - joined with no link. When the host's page has been gone half a
+minute the running of the game passes to the first player still at it. Until slice 4 the new host saves into their
+own saves.
 
 ## Friends: asked by name, and the inviter from the start — done
 

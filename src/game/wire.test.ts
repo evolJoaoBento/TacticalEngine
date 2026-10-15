@@ -20,7 +20,7 @@ import { firstDifference, replicaCount } from './shadow';
 import { shippedContent } from './shipped';
 import { WasmEngine } from './wasm-engine';
 import { WasmGame } from './wasm-game';
-import { KEPT_BY_HOST, LOCAL, Wire, type Said, type SharedTable, type Transport } from './wire';
+import { KEPT_BY_HOST, LOCAL, Wire, type Said, type SharedTable, type Transport, type Visibility } from './wire';
 import { AccountSaves } from './account-saves';
 import type { RestMove } from './demo-abilities';
 import { talkingTo, talkingView } from './ui/play-views';
@@ -184,7 +184,7 @@ class EngineServer implements Transport {
     if (m['op'] === 'join') this.accounts.set(from, `guest-${from}`);
     const you = this.accountOf(from);
     try {
-      if (m['op'] !== 'open' && m['op'] !== 'seat' && m['op'] !== 'start' && this.kept !== null) this.playFor(you);
+      if (m['op'] !== 'open' && m['op'] !== 'seat' && m['op'] !== 'start' && m['op'] !== 'visibility' && this.kept !== null) this.playFor(you);
       switch (m['op']) {
         case 'open': {
           const seed = `${this.seed}:${++this.opens}`;
@@ -196,7 +196,7 @@ class EngineServer implements Transport {
           this.accounts.set(from, this.table.host);
           this.selected.clear();
           // A lobby, not started until its host says; told whom it plays for at once, as `play.rs` tells it.
-          this.table = { ...this.table, started: m['lobby'] !== true };
+          this.table = { ...this.table, started: m['lobby'] !== true, visibility: (m['visibility'] as Visibility | undefined) ?? 'invite' };
           this.playFor(this.table.host);
           this.chose(you);
           return { ok: { seed, board: engine.board(), table: this.table, game: this.table.game, invite: this.table.invite, seq: 0, you } };
@@ -240,6 +240,13 @@ class EngineServer implements Transport {
             this.playFor(member.id);
             this.chose(member.id);
           }
+          this.push(from, { table: this.table });
+          return { ok: { table: this.table } };
+        }
+        case 'visibility': {
+          // Who may find it: the host's to say, as `play.rs` rules it.
+          if (you !== this.table.host) return { error: 'only the host says who may find the game' };
+          this.table = { ...this.table, visibility: m['visibility'] as Visibility };
           this.push(from, { table: this.table });
           return { ok: { table: this.table } };
         }
@@ -893,12 +900,12 @@ describe('a shared game, on the wire', () => {
    * The host's page and a guest's, each its own page and engine, at one game on the server - the guest seated in
    * one of the party (`theirs`), the host playing the rest.
    */
-  async function sharing(name: string, seated = true, lobby = false) {
+  async function sharing(name: string, seated = true, lobby = false, visibility?: Visibility) {
     const bytes = readFileSync(WASM);
     const server = new EngineServer(await WasmEngine.load(bytes));
     const hostDemo = buildProjectScene(project(), `wire:${name}:host`);
     const host = new WasmGame(hostDemo, await WasmEngine.load(bytes), shippedContent());
-    const hostWire = new Wire(() => server.connection(), hostDemo, shippedContent(), { lobby });
+    const hostWire = new Wire(() => server.connection(), hostDemo, shippedContent(), { lobby, ...(visibility === undefined ? {} : { visibility }) });
     host.wireWith(hostWire);
     await hostWire.ready;
     const guestDemo = buildProjectScene(project(), `wire:${name}:guest`);
@@ -1092,8 +1099,16 @@ describe('a shared game, on the wire', () => {
   }, 120_000);
 
   it.skipIf(!built)('gathers in a lobby: nobody plays before the host starts it, the guest takes a seat, nothing parted', async () => {
-    const { server, hostDemo, host, hostWire, guestDemo, guest, guestWire, theirs, before } = await sharing('lobby', false, true);
+    const { server, hostDemo, host, hostWire, guestDemo, guest, guestWire, theirs, before } = await sharing('lobby', false, true, 'friends');
     expect(server.sent.find((m) => m['op'] === 'open')!['lobby']).toBe(true);
+    // Found by the host's friends, as the page asked; the host opens it to everybody, the guest may not, both told.
+    expect(server.sent.find((m) => m['op'] === 'open')!['visibility']).toBe('friends');
+    expect(guestWire.table!.visibility).toBe('friends');
+    expect(await guestWire.setVisibility('public')).toBe(false);
+    expect(await hostWire.setVisibility('public')).toBe(true);
+    await settle(server);
+    expect(guestWire.table!.visibility).toBe('public');
+    expect(hostWire.table!.visibility).toBe('public');
     expect(hostWire.table!.started).toBe(false);
     expect(guestWire.table!.started).toBe(false);
     // Nobody plays anybody yet, the host no more than the guest: nobody selected, everything refused on the page as

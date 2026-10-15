@@ -300,7 +300,7 @@ The slices:
    (`invitedBy`, kept since slice 1). Done 15 October 2026 (Progress, below).
 3. **Lobbies anybody opens** - public, friends-only or invite-only; a list of the games a player may join in Play
    Together (the games waiting for them - their seat kept - among them); the running of a game handed on when its
-   creator leaves.
+   creator leaves. Done 15 October 2026 (Progress, below).
 4. **A game's saves the game's** - kept for everybody who played it, any of whom hosts it again.
 5. **Chat at the table** - the lobby's and the game's.
 6. **Messages between friends.**
@@ -1753,4 +1753,26 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     the e2e (`friends.spec.ts`, on the server: asked through the menu, the other's menu counting it, accepted,
     each listing the other, removed by one and gone for both; `tunnel.spec.ts`: the friend made with the host's
     invitation finds the host among their friends).
-  - **Next**: phase 6, slice 3: lobbies anybody opens - public, friends-only or invite-only.
+  - **Phase 6, slice 3: lobbies anybody opens** (15 October 2026). A game says who may find it (`play.rs`,
+    `Shared::visibility`): everybody (`public`), the host's friends (`friends`, `Friends::are_friends`), or nobody but
+    those sent its invitation (`invite`, a game opened the ordinary way). Play Together hosts a lobby for whoever
+    the player chooses (`?host=friends|public|invite`, `visibilityAsked`; friends first), and the host changes it
+    in the lobby (`{ op: "visibility" }`, the table saying it to everybody). The games a player may join are listed
+    for them (`GET /__play/games`, `Tables::joinable_for`, replacing slice 5's list of games waiting): every public
+    one, their friends' friends-only ones, and any keeping a seat for them whoever may find it - never their own -
+    each joined from Play Together with no link (`joinable-games.ts`). Whose friends is the host's now, so a
+    hand-on changes who finds a friends-only game. The running of a game is handed on when its host's page has
+    been gone `HAND_ON_AFTER` (30 seconds; 3 on the tests' server) - looked at by the game's thread as it waits for a
+    message (`TICK`): to the first member, in the order they came, whose page is at it; numbered as a change of
+    seats is, everybody's selection kept among their own, every page told. The host it was is a member when they
+    come back; it does not go back. Known gap, slice 4's: a new host saves into their own saves, and the game's
+    earlier saves stay the first host's. Proved by the server's tests (`play_routes.rs`: found by friends and not a
+    stranger, by everybody, by nobody, never by its host, only the host saying who and only as one of the three, an
+    ordinary game invite-only; handed on to the first still at it past one whose page went, the host it was a member
+    on return and refused the host's word, the seq counting it; not handed on within the while, nor once the host is
+    back), the page's (`joinable-games.test.ts`, `shared-game.test.ts`, `wire.test.ts`: the lobby opened for friends,
+    opened to everybody by the host and not the guest, both told) and the server-mode e2e (`lobbies.spec.ts`: a
+    friend finds a friends-only lobby in Play Together and joins it, a stranger does not until the host opens it to
+    everybody; the host's page closed, the friend runs it and starts it, nothing parted; `shared.spec.ts`: the game
+    keeping a seat found among whatever else may be joined).
+  - **Next**: phase 6, slice 4: a game's saves the game's, for everybody who played it.

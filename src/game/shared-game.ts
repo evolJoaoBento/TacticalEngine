@@ -5,13 +5,14 @@
  * page's to answer (`answers`): the engine refuses an answer from anybody else, so the panels show it only to
  * whoever plays the character it is put to, and the others whom it waits on (`waitingOn`). A game opened as a
  * lobby (`?host`) is not started until its host says (`start`); until then the players take their own seats
- * (`seatFor`), and the lobby is shown over the board (`ui/Lobby.tsx`).
+ * (`seatFor`), and the lobby is shown over the board (`ui/Lobby.tsx`). Who may find it in the list of games to join is
+ * the host's to say (`?host=public|friends|invite`, `changeVisibility`; phase 6, slice 3).
  *
  * The Players section of the settings reads it (`ui/Players.tsx`); a test reads it too (`window.__table`). A page
  * that plays with no server has no table.
  */
 
-import type { Seating, SharedTable, Wire } from './wire';
+import type { Seating, SharedTable, Visibility, Wire } from './wire';
 
 /** A character the table can seat: its id and the name the page shows. */
 export interface Seatable {
@@ -23,6 +24,7 @@ let table: SharedTable | null = null;
 let you: () => string | null = () => null;
 let seatWith: ((character: string, account: string | null) => Promise<boolean>) | null = null;
 let startWith: (() => Promise<boolean>) | null = null;
+let visibilityWith: ((visibility: Visibility) => Promise<boolean>) | null = null;
 let party: () => Seatable[] = () => [];
 const heard = new Set<(table: SharedTable | null) => void>();
 
@@ -52,6 +54,7 @@ export function tableOf(wire: Wire | null, members: () => Seatable[] = () => [])
   you = () => wire?.you ?? null;
   seatWith = wire === null ? null : (character, account) => wire.seat(character, account);
   startWith = wire === null ? null : () => wire.startGame();
+  visibilityWith = wire === null ? null : (visibility) => wire.setVisibility(visibility);
   wire?.onTable(told);
 }
 
@@ -126,6 +129,11 @@ export function start(): Promise<boolean> {
   return startWith?.() ?? Promise.resolve(false);
 }
 
+/** Who may find the game in the list of games to join, as its host says: whether the server took it. */
+export function changeVisibility(visibility: Visibility): Promise<boolean> {
+  return visibilityWith?.(visibility) ?? Promise.resolve(false);
+}
+
 /** The characters the host may seat players in. */
 export function seatable(): Seatable[] {
   return party();
@@ -150,6 +158,12 @@ export function invitationOf(search: string = globalThis.location?.search ?? '')
 /** Whether the page was opened to host its game as a lobby, others gathering before it starts (`?host`). */
 export function lobbyAsked(search: string = globalThis.location?.search ?? ''): boolean {
   return new URLSearchParams(search).has('host');
+}
+
+/** Who the page asked may find the lobby it hosts (`?host=public|friends`); invitation alone for anything else. */
+export function visibilityAsked(search: string = globalThis.location?.search ?? ''): Visibility {
+  const asked = new URLSearchParams(search).get('host');
+  return asked === 'public' || asked === 'friends' ? asked : 'invite';
 }
 
 /**

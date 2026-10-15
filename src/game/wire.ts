@@ -71,6 +71,9 @@ export interface Transport {
  * Who is at a shared game, and who plays whom - a character's id to an account's - as the server says; and whether
  * it has started, which a game opened as a lobby has not until its host says (slice 5).
  */
+/** Who may find a game in the list of games to join: everybody, the host's friends, or nobody - its invitation alone. */
+export type Visibility = 'public' | 'friends' | 'invite';
+
 export interface SharedTable {
   game: string;
   host: string;
@@ -80,6 +83,8 @@ export interface SharedTable {
   started: boolean;
   /** The seats a save hosted again keeps for players not back yet: theirs as they join, nobody else's to take. */
   kept?: Record<string, { id: string; name: string }>;
+  /** Who may find it in the list of games to join. */
+  visibility?: Visibility;
 }
 
 /**
@@ -126,6 +131,8 @@ export interface WireOptions {
   join?: string;
   /** Open the game as a lobby, not started until the page's player starts it (`?host`). */
   lobby?: boolean;
+  /** Who may find the lobby in the list of games to join (`?host=public|friends|invite`). */
+  visibility?: Visibility;
   /** The waits between tries to connect again (`RETRIES`), and how a wait is waited - for a test. */
   retries?: readonly number[];
   later?: (run: () => void, ms: number) => void;
@@ -262,6 +269,16 @@ export class Wire {
     return true;
   }
 
+  /** Who may find the game in the list of games to join, as its host says: whether the server took it. */
+  async setVisibility(visibility: Visibility): Promise<boolean> {
+    if (this.state !== 'in' && this.state !== 'parted' && this.state !== 'asked') return false;
+    const said = await this.send({ op: 'visibility', visibility });
+    const table = (said.ok as { table?: SharedTable } | undefined)?.table;
+    if (table === undefined) return false;
+    this.setTable(table);
+    return true;
+  }
+
   /**
    * Who plays a character - an account at the game, or nobody (`null`) - as the host says: whether the server
    * took it. Nobody else may, and the server says so.
@@ -338,7 +355,7 @@ export class Wire {
 
   /** A game opened over the page's project and table - and its dice, which only the tests' server takes; as a lobby, if asked. */
   private opening(): Record<string, unknown> {
-    return { op: 'open', project: this.demo.project, shipped: this.shipped, table: { animated: this.demo.animated, askDefender: this.demo.askDefender }, rng: this.demo.rng.save(), ...(this.options.lobby === true ? { lobby: true } : {}) };
+    return { op: 'open', project: this.demo.project, shipped: this.shipped, table: { animated: this.demo.animated, askDefender: this.demo.askDefender }, rng: this.demo.rng.save(), ...(this.options.lobby === true ? { lobby: true, ...(this.options.visibility === undefined ? {} : { visibility: this.options.visibility }) } : {}) };
   }
 
   private async open(): Promise<void> {

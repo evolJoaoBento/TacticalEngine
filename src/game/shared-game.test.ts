@@ -4,18 +4,23 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { answers, hosting, invitationLink, invitationOf, inviteFrom, lobbyAsked, onSharedTable, plays, playsFor, seat, seatFor, seatable, sharedTable, start, started, tableOf, waitingOn } from './shared-game';
+import { answers, changeVisibility, hosting, invitationLink, invitationOf, inviteFrom, lobbyAsked, onSharedTable, plays, playsFor, seat, seatFor, seatable, sharedTable, start, started, tableOf, visibilityAsked, waitingOn } from './shared-game';
 import type { SharedTable, Wire } from './wire';
 
 const TABLE: SharedTable = { game: 'g', host: 'kara', invite: 'ab12', members: [{ id: 'kara', name: 'Kara' }], seats: {}, started: true };
 
 /** As much of a wire as the table reads: told the table, and asked to seat. */
-function wireTelling(you = 'kara'): { wire: Wire; tell: (table: SharedTable) => void; seated: [string, string | null][]; starts: number[] } {
+function wireTelling(you = 'kara'): { wire: Wire; tell: (table: SharedTable) => void; seated: [string, string | null][]; starts: number[]; found: string[] } {
   let heard: (table: SharedTable) => void = () => undefined;
   const seated: [string, string | null][] = [];
   const starts: number[] = [];
+  const found: string[] = [];
   const wire = {
     you,
+    setVisibility: (visibility: string) => {
+      found.push(visibility);
+      return Promise.resolve(true);
+    },
     startGame: () => {
       starts.push(1);
       return Promise.resolve(true);
@@ -28,7 +33,7 @@ function wireTelling(you = 'kara'): { wire: Wire; tell: (table: SharedTable) => 
       return Promise.resolve(true);
     },
   } as unknown as Wire;
-  return { wire, tell: (table) => heard(table), seated, starts };
+  return { wire, tell: (table) => heard(table), seated, starts, found };
 }
 
 describe('the shared game, as the page shows it', () => {
@@ -132,12 +137,22 @@ describe('the shared game, as the page shows it', () => {
     expect(seatFor('arty')).toBe('choose');
     expect(await start()).toBe(true);
     expect(host.starts).toEqual([1]);
+    // Who may find it, said through the wire.
+    expect(await changeVisibility('public')).toBe(true);
+    expect(host.found).toEqual(['public']);
     tableOf(null);
+    expect(await changeVisibility('friends')).toBe(false);
   });
 
   it('is hosted by asking at the address, and joined with the link the host sent or the invitation alone', () => {
     expect(lobbyAsked('?play&host')).toBe(true);
+    expect(lobbyAsked('?play&host=friends')).toBe(true);
     expect(lobbyAsked('?play')).toBe(false);
+    // Found by whoever the address says; by its invitation alone for anything else.
+    expect(visibilityAsked('?play&host=public')).toBe('public');
+    expect(visibilityAsked('?play&host=friends')).toBe('friends');
+    expect(visibilityAsked('?play&host')).toBe('invite');
+    expect(visibilityAsked('?play&host=everybody')).toBe('invite');
     const invite = '0123456789abcdef0123456789abcdef';
     expect(inviteFrom(` https://friends.example/?join=${invite} `)).toBe(invite);
     expect(inviteFrom(invite)).toBe(invite);
