@@ -249,8 +249,11 @@ impl Session {
         Some(json!({ "id": card.id, "domain": domain }))
     }
 
-    /// Everything a character can do, for an action bar (`abilityList`).
+    /// Everything a character can do, for an action bar (`abilityList`). A read that names nobody the actor: asking
+    /// whether each could be used names the character as it asks, and the actor is put back after - a page drawing
+    /// its bar is not acting, and at a shared game each page draws its own (`DRAWN`, `serve::play`).
     pub fn ability_list(&mut self, id: &str) -> Vec<AbilityView> {
+        let actor = self.world.scenario.actor_id.clone();
         let mut views = Vec::new();
         for ability in self.abilities_of(id) {
             let can = self.can_use_ability(id, &ability, &[]);
@@ -267,6 +270,7 @@ impl Session {
                 card: self.card_art_of(&ability),
             });
         }
+        self.world.scenario.actor_id = actor;
         views
     }
 

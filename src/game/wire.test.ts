@@ -964,6 +964,38 @@ describe('a shared game, on the wire', () => {
     expect(stranger.status()).toBe('closed');
   }, 120_000);
 
+  it.skipIf(!built)("draws each page's bar and talks with nothing sent that changed nothing, the actor nobody's", async () => {
+    const { server, hostDemo, host, guestDemo, guest, guestWire, theirs, before } = await sharing('drawn');
+    const kara = hostDemo.party.selected!;
+    const actor = hostDemo.scenario.actorId;
+    const sent = server.sent.length;
+    // Each page drawing itself, again and again: the bar read, the talks put where they are - none sent.
+    for (let frame = 0; frame < 5; frame++) {
+      expect(host.abilityList(kara).length).toBeGreaterThan(0);
+      guest.abilityList(theirs);
+      host.syncTalks();
+      guest.syncTalks();
+      await settle(server);
+    }
+    expect(server.sent.slice(sent)).toEqual([]);
+    expect([hostDemo.scenario.actorId, guestDemo.scenario.actorId]).toEqual([actor, actor]);
+    // A drawing that marks the game is sent: a thing looked at for the first time has its state made - once.
+    const thing = interactablesOf(hostDemo.scene).find((object) => !JSON.stringify(boardOf(hostDemo).replica.state).includes(`"${object.id}"`));
+    expect(thing).toBeDefined();
+    host.thingState(thing!.id);
+    host.thingState(thing!.id);
+    await settle(server);
+    expect(server.sent.slice(sent).map((m) => [m['call'], m['args']])).toEqual([['readThing', [thing!.id]]]);
+    expect(differ(hostDemo, server)).toBeNull();
+    // And the next real intent is in step on both pages, nothing parted.
+    host.moveSelectedTo(hostDemo.state.entity(kara)!.tile + 2);
+    await settle(server);
+    expect(server.sent.slice(sent).map((m) => m['call'])).toEqual(['readThing', 'moveSelectedTo']);
+    expect(differ(hostDemo, server)).toBeNull();
+    expect(differ(guestDemo, server, guestWire.you!)).toBeNull();
+    expect(replicaCount().first.slice(before.first.length)).toEqual([]);
+  }, 120_000);
+
   it.skipIf(!built)('stands an idle page where another page\'s intent leaves the game, with the walk it gave to draw', async () => {
     const { server, hostDemo, host, guestDemo, guestWire, before } = await sharing('pushed');
     const kara = hostDemo.party.selected!;

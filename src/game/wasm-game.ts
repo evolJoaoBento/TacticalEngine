@@ -75,6 +75,11 @@ export class WasmGame extends GameTable {
     this.fill();
   }
 
+  /** The engine's board as the page's game was last filled from it: another whenever an intent marked it. */
+  protected override revision(): unknown {
+    return this.filled;
+  }
+
   /** The page's game stood where the engine's board says, if it has changed since the page's last was. */
   private fill(): void {
     const text = this.engine.boardText();
@@ -98,7 +103,7 @@ export class WasmGame extends GameTable {
       throw failure;
     }
     this.fill();
-    // A question asked for the mark it leaves on the game (`abilityList`, a container or a thing read) is
+    // A question asked for the mark it leaves on the game (a container or a thing read) is
     // answered in the page's shapes: read off the page's game, now where the engine's is, which it marks alike.
     return compare.answer || read === undefined ? (engines as T) : read();
   }

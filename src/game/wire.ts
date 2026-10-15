@@ -125,6 +125,13 @@ export interface Views {
 export const LOCAL: readonly string[] = ['takeMotions', 'takeFloaters', 'rollShownAt', 'clearRolls'];
 
 /**
+ * The intents a page's drawing sends (`DRAWN`, `play.rs`): the conversations put where the selection says, a
+ * container's or a thing's state made as it is read. Sent only when they left a mark on the page's game (`did`,
+ * `client.ts`) - drawn again and again with nothing new, they are the page's alone.
+ */
+export const DRAWN: readonly string[] = ['readContainer', 'readThing', 'syncTalks'];
+
+/**
  * Where the wire stands: `opening` the server's game, `in` step, `parted` (waiting for what is on its way up,
  * to be stood where the last of it leaves the server's game), `asked` (the page showing a question the server's
  * game holds), `lost` (the connection dropped, and trying again), `closed`.

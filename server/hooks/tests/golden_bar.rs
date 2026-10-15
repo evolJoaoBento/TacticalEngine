@@ -64,6 +64,15 @@ macro_rules! held {
 }
 
 /// What happened, and then the view's queues drained.
+/// The browser's bar named the actor as it read - whoever its last check of a card named - and the frozen fixtures
+/// say so. The engine's read leaves no mark now (a page drawing its bar is not acting, `ability_list`), so the mark is
+/// made here as the browser made it: each card's check asked again, which names the actor and leaves it.
+fn marked_as_the_browser_read(session: &mut Session, id: &str) {
+    for ability in session.abilities_of(id) {
+        let _ = session.can_use_ability(id, &ability, &[]);
+    }
+}
+
 fn view(session: &mut Session, since: usize) -> Value {
     let state = session.state();
     let fight = session.encounter.as_ref().map_or(Value::Null, |e| {
@@ -124,13 +133,20 @@ fn every_card_is_used_as_the_browser_used_it() {
             let result = match step["step"].as_str().unwrap() {
                 "list" => match step["id"].as_str() {
                     None => Value::Null,
-                    Some(id) => to(&session.ability_list(id)),
+                    Some(id) => {
+                        let actor = session.world.scenario.actor_id.clone();
+                        let listed = to(&session.ability_list(id));
+                        assert_eq!(session.world.scenario.actor_id, actor, "{at}: the bar's read names nobody the actor");
+                        marked_as_the_browser_read(&mut session, id);
+                        listed
+                    }
                 },
                 "use" => match (step["id"].as_str(), step["ability"].as_str()) {
                     (Some(id), Some(ability)) => {
                         used += 1;
-                        // The writer reads the bar for a pick first, and the bar's reads leave the actor set.
+                        // The writer read the bar for a pick first, and its reads left the actor set.
                         session.ability_list(id);
+                        marked_as_the_browser_read(&mut session, id);
                         let point = step["point"].as_i64().map(|p| p as i32);
                         to(&session.use_ability(id, ability, &strings(&step["targets"]), point).unwrap_or_else(|e| panic!("{at}: {e}")))
                     }

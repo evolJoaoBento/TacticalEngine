@@ -27,6 +27,17 @@ async function player(browser: Browser, baseURL: string, name: string) {
   return { context, page, id, name };
 }
 
+/** How many intents a page has sent, counted off its sockets' frames from now on. */
+function counting(page: Page): () => number {
+  let calls = 0;
+  page.on('websocket', (socket) =>
+    socket.on('framesent', (frame) => {
+      if (String(frame.payload).includes('"op":"call"')) calls++;
+    }),
+  );
+  return () => calls;
+}
+
 /** A page up on its game, which the server plays and whose table it has been told. */
 async function ready(page: Page): Promise<void> {
   await page.waitForFunction(() => window.__engine !== undefined && window.__engine.frames > 2, null, { timeout: 60_000 });
@@ -125,6 +136,7 @@ test("a game's save is everybody's who played it: a friend hosts the host's camp
   expect((await friend.context.request.post('/__friends/answer', { headers: HEADERS(baseURL!), data: { from: host.id, accept: true } })).status()).toBe(200);
 
   // The host's own camp, kept in their browser alone, as New Game keeps one: hosted for friends.
+  const [hostSent, friendSent] = [counting(host.page), counting(friend.page)];
   await host.page.goto('/?play');
   await ready(host.page);
   const camp = `camp-${stamp}`;
@@ -159,6 +171,13 @@ test("a game's save is everybody's who played it: a friend hosts the host's camp
   await hostLobby.getByTestId('lobby-start').click();
   // Started on the host's page too - their own selected - before it is saved.
   await expect.poll(() => host.page.evaluate(() => window.__engine!.selected()), { timeout: 15_000 }).toBe(mine);
+  // Started, nobody doing anything: each page draws itself and sends next to nothing (it was some twenty intents a
+  // second, each page's drawing standing the other where the game was, which drew again).
+  const idle = [hostSent(), friendSent()];
+  await host.page.waitForTimeout(2000);
+  const drawn = [hostSent() - idle[0]!, friendSent() - idle[1]!];
+  console.log(`intents sent in two idle seconds, host and friend: ${drawn.join(', ')}`);
+  expect(Math.max(...drawn), `${drawn}`).toBeLessThanOrEqual(1);
   const slot = await host.page.evaluate(() => window.__engine!.saveAs('Our camp'));
   expect(slot).not.toBeNull();
   // The friend has it too: the same slot, saying who played.

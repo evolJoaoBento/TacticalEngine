@@ -53,7 +53,7 @@ import type { Walking } from './land';
 import type { Drop } from './party-drop';
 import { carriedItems, containerView, hudMembers, journalEntries, talkingTo, talkingView } from './ui/play-views';
 import type { OpenContainer } from './ui/PlayPanel';
-import { KEPT_BY_HOST, type Wire } from './wire';
+import { DRAWN, KEPT_BY_HOST, type Wire } from './wire';
 import type { WasmEngine } from './wasm-engine';
 
 import { userSettings } from './user-settings';
@@ -293,17 +293,23 @@ export abstract class GameTable implements GameClient, LocalPowers {
 
   /**
    * An intent: played (`play`), and - with a wire - sent up to the server's game and held to its answer. A read
-   * asked for the mark it leaves (`compare.answer` false) gives how it reads the page's game (`read`).
+   * asked for the mark it leaves (`compare.answer` false) gives how it reads the page's game (`read`). A drawing
+   * intent (`DRAWN`) that left no mark on the game is not sent: at a shared game each page's drawings, numbered by the
+   * server, stood the other page where the game was, which drew again - some twenty round trips a second.
    */
   // `any` by default: each intent's answer is declared on `GameClient`, which the method is held to.
   protected did<T = any>(call: string, args: readonly unknown[], read?: () => T, compare: { answer: boolean } = { answer: true }): T {
     // A question the server's game holds: answered there, not here; anything else played here, which refuses it.
     if (this.wire?.asking() === true) return this.wire.whileAsked(call, args, () => this.play<T>(call, args, read, compare));
     const sending = this.wire?.before() ?? false;
+    const was = this.revision();
     const answer = this.play<T>(call, args, read, compare);
-    if (sending) this.wire!.after(call, args, answer, compare);
+    if (sending && !(DRAWN.includes(call) && this.revision() === was)) this.wire!.after(call, args, answer, compare);
     return answer;
   }
+
+  /** The page's game as it last stood: another after any intent that left a mark on it. */
+  protected abstract revision(): unknown;
 
   /** An intent played, by whoever plays this table's game; a read for its mark answered by `read`. */
   protected abstract play<T>(call: string, args: readonly unknown[], read: (() => T) | undefined, compare: { answer: boolean }): T;
@@ -425,10 +431,8 @@ export abstract class GameTable implements GameClient, LocalPowers {
   }
   withinReach(...args: After<typeof withinReach>) { return withinReach(this.demo, ...args); }
   abilitiesOf(...args: After<typeof abilitiesOf>) { return abilitiesOf(this.demo, ...args); }
-  abilityList(...args: After<typeof abilityList>) {
-    // Read for the bar, it names the actor as it reads: the engine is asked it too, for the same mark.
-    return this.did('abilityList', args, () => abilityList(this.demo, ...args), { answer: false });
-  }
+  // Read for the bar, it leaves no mark: the page's own, as any read is.
+  abilityList(...args: After<typeof abilityList>) { return abilityList(this.demo, ...args); }
   abilityTargets(...args: After<typeof abilityTargets>) {
     const [id, ability] = args;
     return this.asked('targets', [id, ability.id], () => abilityTargets(this.demo, ...args), (e) => e.targets(id, ability.id));

@@ -236,9 +236,13 @@ export function canUseAbility(
   return { ok: true };
 }
 
-/** Everything a character can do, for an action bar. */
+/**
+ * Everything a character can do, for an action bar. A read that names nobody the actor: asking whether each could be
+ * used names the character as it asks (`canUseAbility`), and the actor is put back after, as the engine's is.
+ */
 export function abilityList(demo: DemoScene, characterId: string): AbilityView[] {
-  return abilitiesOf(demo, characterId).map((ability) => {
+  const actor = demo.scenario.actorId;
+  const views = abilitiesOf(demo, characterId).map((ability) => {
     const can = canUseAbility(demo, characterId, ability);
     return {
       ability,
@@ -251,6 +255,8 @@ export function abilityList(demo: DemoScene, characterId: string): AbilityView[]
       card: cardArtOf(demo, ability),
     };
   });
+  demo.scenario.actorId = actor;
+  return views;
 }
 
 // ---------------------------------------------------------------------------

@@ -1853,5 +1853,20 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     (`wire.test.ts`: another page's intent, pushed and not, before a save - no parting). On the way, measured: each
     page draws its abilities about every 50 ms once a game has started, and asks `syncTalks` as often - some twenty
     round trips a second, each answered with the whole board.
-  - **Next**: the drawing intents asked only when something changed (above), before an evening through the tunnel;
-    then a friend's messages reachable during a game (they are the menu's alone).
+  - **A page draws itself without telling the server** (15 October 2026). The twenty round trips a second (above)
+    were a loop between two pages: each page's drawing intents (`DRAWN`), numbered by the server between the other
+    page's, stood the other page where the game was (a gap in `seq`), which refreshed it, which drew - and sent -
+    again; and the bar's read of the cards (`abilityList`) named its character the game's actor, so the two pages'
+    reads fought over one mark. Two cuts. The bar's read leaves no mark - the engine's (`bar.rs`, `ability_list`)
+    and the page's (`demo-abilities.ts`) put the actor back after - and is the page's own, never sent (`client.ts`).
+    And a drawing intent is sent only when it marked the page's game (`did`, `client.ts`: the engine's board as the
+    page was last filled from it, `WasmGame.revision`, before and after) - a conversation moved, a container's or a
+    thing's state made; drawn again with nothing new, it is not. The frozen fixtures recorded the browser's mark, and
+    the bar's golden test makes it as the browser did (`golden_bar.rs`, `marked_as_the_browser_read`). Measured: two
+    idle seconds after a shared game starts, some forty intents from each page before; none after (`lobbies.spec.ts`,
+    counted off the sockets' frames - with the check taken out, the loop comes back). Proved by the page's test too
+    (`wire.test.ts`: two pages drawing their bars and talks five times over send nothing, the actor nobody's, and
+    the next real intent in step on both). Still open, written down: `syncTalks` puts a conversation where *the page's*
+    selection says, and two players' selections differ - with a conversation open, it may pass between their pages.
+  - **Next**: an evening through the tunnel; then a conversation at a shared game held by its talker's player
+    (`syncTalks`, above); then a friend's messages reachable during a game (they are the menu's alone).

@@ -9,9 +9,17 @@ handful of working rules that are learned the expensive way rather than read.
 Designed in `docs/SERVER.md` ("Phase 6, designed"): players invite players, anybody opens a lobby - public,
 friends-only or invite-only - friends both ways, chat at the table and between friends. Slices 1 (invitations),
 2 (friends), 3 (lobbies anybody opens), 4 (a game's saves the game's), 5 (chat at the table) and 6 (messages
-between friends) are done: the phase is, and who is around after it. Next, the drawing intents asked only when
-something changed (below); then what an evening played through the tunnel shows; then a friend's messages reachable
-during a game - they are the menu's alone.
+between friends) are done: the phase is, and who is around after it. Next, what an evening played through the
+tunnel shows; then a conversation at a shared game held by its talker's player (below); then a friend's messages
+reachable during a game - they are the menu's alone.
+
+## A page draws itself without telling the server — done
+
+Once a shared game had started each page sent the server some twenty intents a second, each answered with the whole
+board: two pages' drawings standing each other where the game was, which drew again. The bar's read of the cards now
+leaves no mark and is never sent; anything else a page sends as it draws goes only when it changed the game. Two idle
+seconds now send nothing. Still open: a conversation is put where the page's own selection says, and two players'
+selections differ - with one open, it may pass between their pages.
 
 ## Who is around — done
 
@@ -23,9 +31,7 @@ told at once. On the way: a host's save no longer counts a friend's move made a 
 
 The host's save sometimes parted when a friend's page drew its abilities a moment before: the drawing is played on
 the server and pushed to nobody, and it leaves the game's actor the friend's character. The save's answer now carries
-the game's number as it saved, and the page compares only when nothing came between. Measured on the way, and next:
-each page asks the server to draw its abilities and its talks some twenty times a second once a game has started,
-each answered with the whole board - to be asked only when something changed, before an evening through the tunnel.
+the game's number as it saved, and the page compares only when nothing came between.
 
 ## Messages between friends — done
 

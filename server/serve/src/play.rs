@@ -146,11 +146,13 @@ pub const TEST_HANDS: &[&str] = &["placeAt", "setGood", "wound", "markStress", "
 /// (`views`): the walks, the numbers over heads, the dice.
 const VIEWS: [(&str, &str); 3] = [("motions", "takeMotions"), ("floaters", "takeFloaters"), ("rolls", "takeRolls")];
 
-/// The intents a page sends as it draws itself - the bar's read of the cards, a container or a thing looked at,
-/// the conversations put where the selection says - whose marks on the game are the drawing page's: played and
-/// numbered, never pushed, or each page's drawing would push to the other, which draws again and pushes back.
-/// What they changed reaches the others with the next intent that is pushed.
-pub const DRAWN: &[&str] = &["abilityList", "readContainer", "readThing", "syncTalks"];
+/// The intents a page sends as it draws itself - a container or a thing looked at, the conversations put where the
+/// selection says - whose marks on the game are the drawing page's: played and numbered, never pushed, or each page's
+/// drawing would push to the other, which draws again and pushes back. What they changed reaches the others with the
+/// next intent that is pushed. A page sends one only when it marked the page's game (`client.ts`, `did`): numbered,
+/// each page's drawings stood the other where the game was, which drew again - some twenty round trips a second. The
+/// bar's read of the cards (`abilityList`) leaves no mark, and is never sent.
+pub const DRAWN: &[&str] = &["readContainer", "readThing", "syncTalks"];
 
 /// A connection: one socket, its answers and the pushes it is given leaving through one queue.
 pub type Conn = u64;
