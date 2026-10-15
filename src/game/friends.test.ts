@@ -1,10 +1,11 @@
 /**
  * A player's friends as the page asks the server for them (`friends.ts`): read, asked, answered and removed - each
- * write sent from the page, each answered with the friends as they stand after, or why not.
+ * write sent from the page, each answered with the friends as they stand after, or why not. And what friends write
+ * each other: a conversation read, written to, and read up to a message, with what is unread counted.
  */
 
 import { describe, expect, it } from 'vitest';
-import { FRIENDS_URL, answerFriend, askFriend, readFriends, removeFriend } from './friends';
+import { FRIENDS_URL, answerFriend, askFriend, readConversation, readFriends, readUpTo, removeFriend, unreadOf, writeTo } from './friends';
 
 const answer = (status: number, body: unknown) => async () => ({ ok: status >= 200 && status < 300, status, json: async () => body });
 const wren = { id: 'wren', name: 'Wren' };
@@ -14,10 +15,11 @@ describe('friends', () => {
     const asked: string[] = [];
     const read = await readFriends(async (url) => {
       asked.push(url);
-      return { ok: true, status: 200, json: async () => ({ friends: [wren, { id: 3 }, { name: 'Nobody' }], asking: [], asked: 'nobody' }) };
+      return { ok: true, status: 200, json: async () => ({ friends: [wren, { id: 3 }, { name: 'Nobody' }], asking: [], asked: 'nobody', unread: { wren: 2, pip: 0, moth: 'many' } }) };
     });
     expect(asked).toEqual([FRIENDS_URL]);
-    expect(read).toEqual({ friends: [wren], asking: [], asked: [] });
+    expect(read).toEqual({ friends: [wren], asking: [], asked: [], unread: { wren: 2 } });
+    expect(await readFriends(answer(200, { friends: [] }))).toEqual({ friends: [], asking: [], asked: [], unread: {} });
     expect(await readFriends(answer(401, { reason: 'sign in first' }))).toBeNull();
     expect(await readFriends(async () => Promise.reject(new Error('offline')))).toBeNull();
   });
@@ -26,9 +28,9 @@ describe('friends', () => {
     const sent: unknown[] = [];
     const recording = async (url: string, init?: RequestInit) => {
       sent.push({ url, method: init?.method, page: (init?.headers as Record<string, string>)['x-tactical-save'], body: JSON.parse(String(init?.body)) });
-      return { ok: true, status: 200, json: async () => ({ friends: [wren], asking: [], asked: [] }) };
+      return { ok: true, status: 200, json: async () => ({ friends: [wren], asking: [], asked: [], unread: {} }) };
     };
-    expect(await askFriend('Wren', recording)).toEqual({ friends: [wren], asking: [], asked: [] });
+    expect(await askFriend('Wren', recording)).toEqual({ friends: [wren], asking: [], asked: [], unread: {} });
     await answerFriend('wren', false, recording);
     await removeFriend('wren', recording);
     expect(sent).toEqual([
@@ -41,5 +43,32 @@ describe('friends', () => {
   it('say why not', async () => {
     expect(await askFriend('nobody', answer(404, { reason: 'there is no player of that name' }))).toEqual({ refused: 'there is no player of that name' });
     expect(await removeFriend('wren', async () => Promise.reject(new Error('offline')))).toEqual({ refused: 'the server could not be reached' });
+  });
+
+  it("count what friends have written unread: one friend's, or every friend's", () => {
+    const view = { friends: [wren], asking: [], asked: [], unread: { wren: 2, pip: 3 } };
+    expect([unreadOf(view, 'wren'), unreadOf(view, 'moth'), unreadOf(view), unreadOf(null)]).toEqual([2, 0, 5, 0]);
+  });
+
+  it('write to a friend, read what they wrote, and read it up to a message, from the page', async () => {
+    const said = { n: 4, from: 'wren', text: 'Hello', at: 1000 };
+    const sent: unknown[] = [];
+    const recording = async (url: string, init?: RequestInit) => {
+      sent.push(init?.method === 'POST' ? { url, page: (init.headers as Record<string, string>)['x-tactical-save'], body: JSON.parse(String(init.body)) } : { url });
+      const body = url.endsWith('/read') ? { friends: [wren], asking: [], asked: [], unread: {} } : { with: wren, messages: [said, { n: 5, from: 'wren' }, 'nothing'] };
+      return { ok: true, status: 200, json: async () => body };
+    };
+    expect(await readConversation('wren', recording)).toEqual({ with: wren, messages: [said] });
+    expect(await writeTo('wren', 'Hello', recording)).toEqual({ with: wren, messages: [said] });
+    expect(await readUpTo('wren', 4, recording)).toEqual({ friends: [wren], asking: [], asked: [], unread: {} });
+    expect(sent).toEqual([
+      { url: '/__friends/messages/wren' },
+      { url: '/__friends/say', page: '1', body: { to: 'wren', text: 'Hello' } },
+      { url: '/__friends/read', page: '1', body: { id: 'wren', upTo: 4 } },
+    ]);
+    // Nobody's friend, or no server: nothing to read; refused, why.
+    expect(await readConversation('moth', answer(404, { reason: "you can only read a friend's messages" }))).toBeNull();
+    expect(await readConversation('wren', async () => Promise.reject(new Error('offline')))).toBeNull();
+    expect(await writeTo('moth', 'Hi', answer(404, { reason: 'you can only write to a friend' }))).toEqual({ refused: 'you can only write to a friend' });
   });
 });

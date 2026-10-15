@@ -8,8 +8,16 @@ handful of working rules that are learned the expensive way rather than read.
 
 Designed in `docs/SERVER.md` ("Phase 6, designed"): players invite players, anybody opens a lobby - public,
 friends-only or invite-only - friends both ways, chat at the table and between friends. Slices 1 (invitations),
-2 (friends), 3 (lobbies anybody opens), 4 (a game's saves the game's) and 5 (chat at the table) are done; next is
-slice 6, messages between friends.
+2 (friends), 3 (lobbies anybody opens), 4 (a game's saves the game's), 5 (chat at the table) and 6 (messages
+between friends) are done: the phase is. Next, what an evening played through the tunnel shows; then who is online,
+and a friend's messages reachable during a game - they are the menu's alone.
+
+## Messages between friends — done
+
+From Friends, a friend's **Messages** opens what the two have written each other, and a line to write more. What a
+friend has written unread is counted on their line and on the menu's **Friends (N)**. The page asks for what is new
+every few seconds (a conversation open, every 3; the friends, every 10): nothing is pushed outside a game. A pair keeps
+its newest 200 messages; removing a friend forgets what the two wrote.
 
 ## Chat at the table — done
 

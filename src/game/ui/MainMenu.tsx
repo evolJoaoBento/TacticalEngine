@@ -7,7 +7,7 @@
  *   Edit Game   the project with the editor, as the app has always opened
  *   (Change password, beside Sign out, for whoever is signed in: `ChangePassword.tsx`.)
  *   (Invite, beside them: the player's own invitation for somebody new, and admin's players: `Invitations.tsx`.)
- *   (Friends, beside them too, with how many are asking: `Friends.tsx`.)
+ *   (Friends, beside them too, with how many are asking and how much friends have written unread: `Friends.tsx`.)
  *   Store       art creators have published, with how they made it, and a vote on it (`Store.tsx`) -
  *               for whoever is signed in
  *   Play Together  where the server plays the game: the games you may join, no link needed - public ones, your
@@ -32,7 +32,7 @@ import { Store } from './Store';
 import { ChangePassword } from './ChangePassword';
 import { Invitations } from './Invitations';
 import { Friends } from './Friends';
-import { readFriends } from '../friends';
+import { FRIENDS_EVERY, readFriends, unreadOf, type FriendsView } from '../friends';
 import { listAccountSaves } from '../account-saves';
 import { serverAllowed } from '../play-socket';
 import { inviteFrom } from '../shared-game';
@@ -68,10 +68,15 @@ export function MainMenu(props: { account?: SignedIn | null; onSignOut?: () => v
   const [joining, setJoining] = useState('');
   const [joinRefused, setJoinRefused] = useState(false);
   const account = props.account ?? null;
-  // How many players are asking to be friends, for the account's line.
+  // How many players are asking to be friends, and how much friends have written unread, for the account's line.
   const [asking, setAsking] = useState(0);
+  const waiting = (read: FriendsView | null): void => setAsking((read?.asking.length ?? 0) + unreadOf(read));
   useEffect(() => {
-    if (account !== null) void readFriends().then((read) => setAsking(read?.asking.length ?? 0));
+    if (account === null) return;
+    const ask = (): void => void readFriends().then(waiting);
+    ask();
+    const every = setInterval(ask, FRIENDS_EVERY);
+    return () => clearInterval(every);
   }, [account?.id]);
   const games = new GameProjects(browserStore());
   // The browser's saves - or, signed in where the server plays the game, the account's, kept there.
@@ -152,7 +157,7 @@ export function MainMenu(props: { account?: SignedIn | null; onSignOut?: () => v
           {view === 'password' && account !== null ? (
             <ChangePassword onBack={() => setView('main')} />
           ) : view === 'friends' && account !== null ? (
-            <Friends onBack={() => setView('main')} onChange={(read) => setAsking(read.asking.length)} />
+            <Friends you={account} onBack={() => setView('main')} onChange={waiting} />
           ) : view === 'invite' && account !== null ? (
             <Invitations account={account} onBack={() => setView('main')} />
           ) : view === 'main' ? (

@@ -1,25 +1,34 @@
 /**
  * A player's friends, from the main menu (`friends.ts`; the server's `friends.rs`): asking somebody by name, the
  * requests they have been sent - accepted or declined - the ones they sent, which they may take back, and their
- * friends, any of whom they may remove.
+ * friends, any of whom they may remove or write to (`FriendMessages.tsx`), each with how much they have written
+ * unread; asked again every few seconds (`FRIENDS_EVERY`), for what has come since.
  */
 
 import { useEffect, useState } from 'preact/hooks';
-import { answerFriend, askFriend, readFriends, removeFriend, type FriendsView } from '../friends';
+import { FRIENDS_EVERY, answerFriend, askFriend, readFriends, removeFriend, unreadOf, type FriendsView, type Person } from '../friends';
+import { FriendMessages } from './FriendMessages';
 import './menu.css';
 
-export function Friends(props: { onBack: () => void; onChange?: (view: FriendsView) => void }): preact.JSX.Element {
+export function Friends(props: { you: Person; onBack: () => void; onChange?: (view: FriendsView) => void }): preact.JSX.Element {
   const [view, setView] = useState<FriendsView | null>(null);
   const [name, setName] = useState('');
   const [refused, setRefused] = useState<string | null>(null);
+  // The friend being written to, if any.
+  const [talking, setTalking] = useState<Person | null>(null);
   const took = (next: FriendsView): void => {
     setView(next);
     props.onChange?.(next);
   };
   useEffect(() => {
-    void readFriends().then((read) => {
-      if (read !== null) took(read);
-    });
+    const ask = (): void => {
+      void readFriends().then((read) => {
+        if (read !== null) took(read);
+      });
+    };
+    ask();
+    const every = setInterval(ask, FRIENDS_EVERY);
+    return () => clearInterval(every);
   }, []);
   const act = async (done: Promise<FriendsView | { refused: string }>): Promise<boolean> => {
     const answer = await done;
@@ -31,6 +40,17 @@ export function Friends(props: { onBack: () => void; onChange?: (view: FriendsVi
     took(answer);
     return true;
   };
+
+  if (talking !== null) {
+    return (
+      <div className="menu-load" data-testid="friends">
+        <FriendMessages friend={talking} you={props.you} onBack={() => setTalking(null)} onRead={took} />
+        <button type="button" className="menu-back" data-testid="menu-back" onClick={props.onBack}>
+          Back
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="menu-load" data-testid="friends">
@@ -90,9 +110,15 @@ export function Friends(props: { onBack: () => void; onChange?: (view: FriendsVi
               {view.friends.map((person) => (
                 <li key={person.id} data-person={person.id} data-testid="friend">
                   <b>{person.name}</b>
-                  <button type="button" className="menu-link" data-testid="friend-remove" onClick={() => void act(removeFriend(person.id))}>
-                    Remove
-                  </button>
+                  <span>
+                    <button type="button" className="menu-link" data-testid="friend-write" onClick={() => setTalking(person)}>
+                      {unreadOf(view, person.id) === 0 ? 'Messages' : `Messages (${unreadOf(view, person.id)})`}
+                    </button>{' '}
+                    ·{' '}
+                    <button type="button" className="menu-link" data-testid="friend-remove" onClick={() => void act(removeFriend(person.id))}>
+                      Remove
+                    </button>
+                  </span>
                 </li>
               ))}
               {view.asked.map((person) => (

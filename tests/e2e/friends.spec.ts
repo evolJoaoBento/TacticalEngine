@@ -4,8 +4,9 @@ import { ON_SERVER } from './server-mode';
 /**
  * Friends (`docs/SERVER.md`, phase 6, slice 2), from the main menu of two players' pages, each in a browser of its
  * own and signed in to an account of its own: one asks the other by name; the other's menu says somebody is asking,
- * and they accept; each lists the other; one removes the other, and neither lists anybody. The server keeps the
- * friends, so this is played on the server alone.
+ * and they accept; each lists the other; they write each other (slice 6), what is unread said on the menu and read
+ * as it is shown, an answer coming without a reload; one removes the other, and neither lists anybody. The server
+ * keeps the friends, so this is played on the server alone.
  */
 
 test.skip(!ON_SERVER, 'friends are kept by the server: npm run test:e2e:server');
@@ -49,6 +50,31 @@ test('a player asks another by name, who accepts; each lists the other, until on
   await asking.page.reload();
   await asking.page.getByTestId('menu-friends').click();
   await expect(asking.page.getByTestId('friend')).toHaveText(new RegExp(askedName));
+
+  // Written to: the writer sees it; the other's menu says so, and the friend's line how much.
+  await asked.page.getByTestId('friend-write').click();
+  const askedChat = asked.page.getByTestId('friend-chat');
+  await expect(askedChat).toContainText('Nothing written yet.');
+  await askedChat.getByTestId('chat-input').fill('  Are you free on Friday?  ');
+  await askedChat.getByTestId('chat-send').click();
+  await expect(askedChat.getByTestId('chat-line')).toHaveText([`${askedName} Are you free on Friday?`]);
+  await expect(askedChat.getByTestId('chat-input')).toHaveValue('');
+  await asking.page.reload();
+  await expect(asking.page.getByTestId('menu-friends')).toHaveText('Friends (1)');
+  await asking.page.getByTestId('menu-friends').click();
+  await expect(asking.page.getByTestId('friend-write')).toHaveText('Messages (1)');
+  // Shown, it is read: nothing unread once back on the list.
+  await asking.page.getByTestId('friend-write').click();
+  const askingChat = asking.page.getByTestId('friend-chat');
+  await expect(askingChat.getByTestId('chat-line')).toHaveText([`${askedName} Are you free on Friday?`]);
+  await expect(asking.page.getByTestId('menu-friends')).toHaveText('Friends');
+  // Answered: the other's open conversation has it without a reload.
+  await askingChat.getByTestId('chat-input').fill('I am. Bring the dice.');
+  await askingChat.getByTestId('chat-send').click();
+  await expect(askedChat.getByTestId('chat-line')).toHaveText([`${askedName} Are you free on Friday?`, `${askingName} I am. Bring the dice.`]);
+  await asked.page.screenshot({ path: 'test-results/friends-messages.png' });
+  await asking.page.getByTestId('friend-messages-back').click();
+  await expect(asking.page.getByTestId('friend-write')).toHaveText('Messages');
 
   // Removed by one, gone for both.
   await asking.page.getByTestId('friend-remove').click();

@@ -15,6 +15,7 @@ pub mod files;
 pub mod friends;
 pub mod js;
 pub mod manifest;
+pub mod messages;
 pub mod play;
 pub mod saves;
 pub mod store;

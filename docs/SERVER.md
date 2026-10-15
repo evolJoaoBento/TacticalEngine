@@ -304,7 +304,7 @@ The slices:
 4. **A game's saves the game's** - kept for everybody who played it, any of whom hosts it again. Done 15 October
    2026 (Progress, below).
 5. **Chat at the table** - the lobby's and the game's. Done 15 October 2026 (Progress, below).
-6. **Messages between friends.**
+6. **Messages between friends.** Done 15 October 2026 (Progress, below).
 
 ## Running it
 
@@ -1806,4 +1806,23 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     joining later told what was said; `shared-game.test.ts`: heard, said, and nothing without a server) and the
     server-mode e2e (`lobbies.spec.ts`: host and friend talk in the lobby; started, what was said is in the panel and
     more is said there, the party not moved by the typing).
-  - **Next**: phase 6, slice 6: messages between friends.
+  - **Phase 6, slice 6: messages between friends** (15 October 2026). A friend writes a friend, outside any game
+    (`messages.rs`, through the friends' routes): `POST /__friends/say` `{ to, text }` (trimmed, 1 to 500 characters,
+    the text kept as written - the ids beside it lowercased, it not), `GET /__friends/messages/<id>` the conversation
+    (`{ with, messages: [{ n, from, text, at }] }`), `POST /__friends/read` `{ id, upTo }` read up to a message - and
+    the friends' view says how much each friend has written unread (`unread`, `{ <id>: count }`). Only a friend's: a
+    stranger's write and read refused. Kept in `data/messages.json`, under the friends' lock, numbered as they come; a
+    pair keeps its newest 200, and when two stop being friends what they wrote each other goes. Nothing pushes it -
+    there is no wire outside a game - so the page asks: an open conversation every 3 seconds, the friends every 10
+    (`CONVERSATION_EVERY`, `FRIENDS_EVERY`). The page: `friends.ts` (`readConversation`, `writeTo`, `readUpTo`,
+    `unreadOf`); `ui/FriendMessages.tsx`, a conversation opened from a friend's line in Friends (**Messages (N)**),
+    read up to its newest as it is shown; the menu's **Friends (N)** counts what is unread with who is asking. The
+    box is the table's (`ui/ChatBox.tsx`, out of `Chat.tsx`; its look in `ui/chat.css`, out of `hud.css`). Proved by
+    the server's tests (`friends_routes.rs`: written, trimmed, its case and accents kept, the other's unread and read
+    - never back - answered in order, nothing, too much and a stranger refused, 500 accented characters taken, the
+    newest 200 kept and another pair's not counted, removed friends' messages gone though they become friends again,
+    only the page writes), the page's (`friends.test.ts`) and the server-mode e2e (`friends.spec.ts`: one writes, the
+    other's menu and friend's line say so; shown, read; answered, the first's open conversation has it with no
+    reload).
+  - **Next**: phase 6 is done. What an evening played through the tunnel shows; and, outside the slices, who is
+    online now, and a friend's messages reachable during a game (they are the menu's alone).

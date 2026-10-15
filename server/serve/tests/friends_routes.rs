@@ -61,11 +61,11 @@ async fn friends_ask_by_name_and_accept_decline_or_remove() {
     };
     // Nobody signed in has none; a player has none to start.
     assert_eq!(send(&app, "GET", "/__friends", "", None, false).await.0, StatusCode::UNAUTHORIZED);
-    assert_eq!(mine(&wren).await, json!({ "friends": [], "asking": [], "asked": [] }));
+    assert_eq!(mine(&wren).await, json!({ "friends": [], "asking": [], "asked": [], "unread": {} }));
 
     // Wren asks Pip by name, whatever its case: Wren has asked, Pip is asked.
     let (status, asked, _) = post(&wren, "ask", json!({ "name": "PIP" })).await;
-    assert_eq!((status, asked), (StatusCode::OK, json!({ "friends": [], "asking": [], "asked": people(&[("pip", "Pip")]) })));
+    assert_eq!((status, asked), (StatusCode::OK, json!({ "friends": [], "asking": [], "asked": people(&[("pip", "Pip")]), "unread": {} })));
     assert_eq!(mine(&pip).await["asking"], people(&[("wren", "Wren")]));
     // Asked again, nothing more; nobody of that name, oneself, refused.
     assert_eq!(post(&wren, "ask", json!({ "name": "Pip" })).await.1["asked"], people(&[("pip", "Pip")]));
@@ -73,8 +73,8 @@ async fn friends_ask_by_name_and_accept_decline_or_remove() {
     assert_eq!(post(&wren, "ask", json!({ "name": "wren" })).await.0, StatusCode::UNPROCESSABLE_ENTITY);
     // Pip accepts: friends, both ways, the request gone.
     let (status, answered, _) = post(&pip, "answer", json!({ "from": "wren", "accept": true })).await;
-    assert_eq!((status, answered), (StatusCode::OK, json!({ "friends": people(&[("wren", "Wren")]), "asking": [], "asked": [] })));
-    assert_eq!(mine(&wren).await, json!({ "friends": people(&[("pip", "Pip")]), "asking": [], "asked": [] }));
+    assert_eq!((status, answered), (StatusCode::OK, json!({ "friends": people(&[("wren", "Wren")]), "asking": [], "asked": [], "unread": {} })));
+    assert_eq!(mine(&wren).await, json!({ "friends": people(&[("pip", "Pip")]), "asking": [], "asked": [], "unread": {} }));
     assert_eq!(post(&wren, "ask", json!({ "name": "pip" })).await.0, StatusCode::CONFLICT);
     // An answer to nobody's request is refused.
     assert_eq!(post(&pip, "answer", json!({ "from": "moth", "accept": true })).await.0, StatusCode::NOT_FOUND);
@@ -83,11 +83,11 @@ async fn friends_ask_by_name_and_accept_decline_or_remove() {
     post(&moth, "ask", json!({ "name": "wren" })).await;
     let (_, declined, _) = post(&wren, "answer", json!({ "from": "moth", "accept": false })).await;
     assert_eq!(declined["asking"], json!([]));
-    assert_eq!(mine(&moth).await, json!({ "friends": [], "asking": [], "asked": [] }));
+    assert_eq!(mine(&moth).await, json!({ "friends": [], "asking": [], "asked": [], "unread": {} }));
     // Two who ask each other are friends at once.
     post(&moth, "ask", json!({ "name": "pip" })).await;
     let (_, both, _) = post(&pip, "ask", json!({ "name": "moth" })).await;
-    assert_eq!(both, json!({ "friends": people(&[("wren", "Wren"), ("moth", "Moth")]), "asking": [], "asked": [] }));
+    assert_eq!(both, json!({ "friends": people(&[("wren", "Wren"), ("moth", "Moth")]), "asking": [], "asked": [], "unread": {} }));
     // A request taken back, and a friend removed - by either.
     post(&moth, "ask", json!({ "name": "wren" })).await;
     assert_eq!(post(&moth, "remove", json!({ "id": "wren" })).await.1["asked"], json!([]));
@@ -114,5 +114,81 @@ async fn an_account_made_with_an_invitation_is_its_holders_friend() {
     // Made without one, nobody's friend.
     let moth = player(&app, "Moth").await;
     assert_eq!(send(&app, "GET", "/__friends", "", Some(&moth), false).await.1["friends"], json!([]));
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[tokio::test]
+async fn friends_write_each_other_and_nobody_else() {
+    let root = folder("messages");
+    let app = serve::app(root.clone());
+    let (wren, pip, moth) = (player(&app, "Wren").await, player(&app, "Pip").await, player(&app, "Moth").await);
+    let post = |cookie: &str, route: &str, body: Value| {
+        let (app, cookie, path) = (app.clone(), cookie.to_string(), format!("/__friends/{route}"));
+        async move {
+            let (status, body, _) = send(&app, "POST", &path, &body.to_string(), Some(&cookie), true).await;
+            (status, body)
+        }
+    };
+    let get = |cookie: &str, path: &str| {
+        let (app, cookie, path) = (app.clone(), cookie.to_string(), path.to_string());
+        async move {
+            let (status, body, _) = send(&app, "GET", &path, "", Some(&cookie), false).await;
+            (status, body)
+        }
+    };
+    let texts = |conversation: &Value| conversation["messages"].as_array().unwrap().iter().map(|m| m["text"].as_str().unwrap().to_string()).collect::<Vec<_>>();
+    post(&wren, "ask", json!({ "name": "pip" })).await;
+    post(&pip, "answer", json!({ "from": "wren", "accept": true })).await;
+
+    // Nothing written yet; written, trimmed, its case and its accents as written.
+    assert_eq!(get(&pip, "/__friends/messages/wren").await, (StatusCode::OK, json!({ "with": { "id": "wren", "name": "Wren" }, "messages": [] })));
+    let (status, said) = post(&wren, "say", json!({ "to": "Pip", "text": "  Hello, Pip! Ça va?  " })).await;
+    assert_eq!(status, StatusCode::OK, "{said}");
+    assert_eq!(said["with"], json!({ "id": "pip", "name": "Pip" }));
+    assert_eq!((said["messages"][0]["n"].clone(), said["messages"][0]["from"].clone()), (json!(1), json!("wren")));
+    assert_eq!(texts(&said), ["Hello, Pip! Ça va?"]);
+    assert!(said["messages"][0]["at"].as_i64().unwrap() > 0);
+    // The other has it, unread; the writer has nothing unread.
+    assert_eq!(texts(&get(&pip, "/__friends/messages/WREN").await.1), ["Hello, Pip! Ça va?"]);
+    assert_eq!(get(&pip, "/__friends").await.1["unread"], json!({ "wren": 1 }));
+    assert_eq!(get(&wren, "/__friends").await.1["unread"], json!({}));
+    // Read, it is not unread; read again up to less, still not.
+    let (status, read) = post(&pip, "read", json!({ "id": "wren", "upTo": 1 })).await;
+    assert_eq!((status, read["unread"].clone()), (StatusCode::OK, json!({})));
+    assert_eq!(post(&pip, "read", json!({ "id": "wren", "upTo": 0 })).await.1["unread"], json!({}));
+    // Answered: the first has it unread, the conversation in order.
+    let (_, answered) = post(&pip, "say", json!({ "to": "wren", "text": "Fine. You?" })).await;
+    assert_eq!(texts(&answered), ["Hello, Pip! Ça va?", "Fine. You?"]);
+    assert_eq!(get(&wren, "/__friends").await.1["unread"], json!({ "pip": 1 }));
+
+    // Nothing, too much and a stranger refused; five hundred accented characters taken.
+    assert_eq!(post(&wren, "say", json!({ "to": "pip", "text": "   " })).await, (StatusCode::UNPROCESSABLE_ENTITY, json!({ "reason": "nothing said" })));
+    assert_eq!(post(&wren, "say", json!({ "to": "pip", "text": "a".repeat(501) })).await.0, StatusCode::UNPROCESSABLE_ENTITY);
+    assert_eq!(post(&wren, "say", json!({ "to": "pip", "text": "é".repeat(500) })).await.0, StatusCode::OK);
+    assert_eq!(post(&moth, "say", json!({ "to": "wren", "text": "Hi" })).await, (StatusCode::NOT_FOUND, json!({ "reason": "you can only write to a friend" })));
+    assert_eq!(get(&moth, "/__friends/messages/wren").await.0, StatusCode::NOT_FOUND);
+    assert_eq!(post(&moth, "read", json!({ "id": "wren", "upTo": 9 })).await.0, StatusCode::NOT_FOUND);
+    assert_eq!(get(&wren, "/__friends/elsewhere").await.0, StatusCode::NOT_FOUND);
+    assert_eq!(send(&app, "POST", "/__friends/say", r#"{"to":"pip","text":"Hi"}"#, Some(&wren), false).await.0, StatusCode::FORBIDDEN);
+
+    // A pair keeps its newest two hundred, and another pair's are not counted among them.
+    post(&moth, "ask", json!({ "name": "wren" })).await;
+    post(&wren, "answer", json!({ "from": "moth", "accept": true })).await;
+    post(&moth, "say", json!({ "to": "wren", "text": "Moth here" })).await;
+    for i in 0..200 {
+        post(&wren, "say", json!({ "to": "pip", "text": format!("line {i}") })).await;
+    }
+    let kept = texts(&get(&pip, "/__friends/messages/wren").await.1);
+    assert_eq!((kept.len(), kept[0].as_str(), kept[199].as_str()), (200, "line 0", "line 199"));
+    assert_eq!(texts(&get(&wren, "/__friends/messages/moth").await.1), ["Moth here"]);
+    assert_eq!(get(&pip, "/__friends").await.1["unread"], json!({ "wren": 200 }));
+
+    // Friends no more: what they wrote each other gone, friends again or not; another pair's kept.
+    post(&pip, "remove", json!({ "id": "wren" })).await;
+    assert_eq!(get(&pip, "/__friends/messages/wren").await.0, StatusCode::NOT_FOUND);
+    post(&pip, "ask", json!({ "name": "wren" })).await;
+    post(&wren, "answer", json!({ "from": "pip", "accept": true })).await;
+    assert_eq!(get(&pip, "/__friends/messages/wren").await.1["messages"], json!([]));
+    assert_eq!((get(&pip, "/__friends").await.1["unread"].clone(), get(&wren, "/__friends").await.1["unread"].clone()), (json!({}), json!({ "moth": 1 })));
     let _ = std::fs::remove_dir_all(&root);
 }

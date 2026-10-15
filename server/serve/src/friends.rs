@@ -1,5 +1,5 @@
 //! Friends (`docs/SERVER.md`, phase 6, slice 2): who each player counts as theirs - for the lobbies only friends
-//! may join, and the messages only friends send each other, later in the phase.
+//! may join, and the messages only friends send each other (`messages.rs`, slice 6).
 //!
 //! Kept in `data/friends.json`: the pairs that are friends, and the requests not answered yet (`{ friends: [[a, b]],
 //! asked: [{ from, to }] }`, accounts' ids). A player asks another by name; the other accepts or declines; either
@@ -7,15 +7,18 @@
 //! once. An account made with a player's invitation is that player's friend from the start (`accounts.rs`,
 //! `befriend`). What the page asks here, signed in:
 //!
-//! - `GET /__friends` - `{ friends, asking, asked }`, each `[{ id, name }]`: the player's friends, who has asked them,
-//!   and whom they have asked;
+//! - `GET /__friends` - `{ friends, asking, asked, unread }`, the first three `[{ id, name }]`: the player's friends,
+//!   who has asked them, and whom they have asked; and how many messages each friend has written them unread;
 //! - `POST /__friends/ask` `{ name }`, `POST /__friends/answer` `{ from, accept }`, `POST /__friends/remove` `{ id }`
-//!   - each answered with the same, as it stands after.
+//!   - each answered with the same, as it stands after; a friend removed, what the two wrote each other goes too;
+//! - a friend's messages: `GET /__friends/messages/<id>`, `POST /__friends/say`, `POST /__friends/read`
+//!   (`messages.rs`).
 //!
 //! The POSTs come only from the page (its header, its own origin), as every write the server takes does.
 
 use crate::accounts::{account_of, from_the_page, now_ms, read_accounts, read_sessions, Account};
 use crate::files::{read_json, write_json};
+use crate::messages::{read_messages, write_messages, Messages};
 use axum::body::{to_bytes, Body};
 use axum::extract::State;
 use axum::http::{header, HeaderMap, HeaderValue, Method, Response, StatusCode, Uri};
@@ -94,16 +97,21 @@ pub fn befriend(root: &Path, a: &str, b: &str) -> std::io::Result<()> {
     write_friends(root, &friends)
 }
 
-/// A player's friends as the page is told them: each friend, each who asked them, each they asked, by name.
-fn view(friends: &Friends, account: &str, accounts: &[Account]) -> Value {
-    let person = |id: &str| {
-        let name = accounts.iter().find(|known| known.id == id).map_or(id, |known| known.name.as_str());
-        json!({ "id": id, "name": name })
-    };
+/// An account as the page is told it: its id, and its name.
+fn person(accounts: &[Account], id: &str) -> Value {
+    let name = accounts.iter().find(|known| known.id == id).map_or(id, |known| known.name.as_str());
+    json!({ "id": id, "name": name })
+}
+
+/// A player's friends as the page is told them: each friend, each who asked them, each they asked, by name; and how
+/// many messages each friend has written them unread.
+fn view(friends: &Friends, messages: &Messages, account: &str, accounts: &[Account]) -> Value {
+    let person = |id: &str| person(accounts, id);
     json!({
         "friends": friends.of(account).iter().map(|id| person(id)).collect::<Vec<_>>(),
         "asking": friends.asked.iter().filter(|request| request.to == account).map(|request| person(&request.from)).collect::<Vec<_>>(),
         "asked": friends.asked.iter().filter(|request| request.from == account).map(|request| person(&request.to)).collect::<Vec<_>>(),
+        "unread": messages.unread(account),
     })
 }
 
@@ -129,8 +137,14 @@ fn respond(root: &Path, method: &str, path: &str, headers: &HeaderMap, body: Res
     let rest = path.strip_prefix(FRIENDS_URL).unwrap_or("").trim_start_matches('/');
     let _held = LOCK.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
     let mut friends = read_friends(root);
+    let mut messages = read_messages(root);
     if method == "GET" {
-        return if rest.is_empty() { (200, view(&friends, &account, &accounts)) } else { refuse(404, "no such route") };
+        return match rest.strip_prefix("messages/") {
+            None if rest.is_empty() => (200, view(&friends, &messages, &account, &accounts)),
+            Some(other) if friends.are_friends(&account, &other.to_lowercase()) => (200, messages.conversation(&account, person(&accounts, &other.to_lowercase()))),
+            Some(_) => refuse(404, "you can only read a friend's messages"),
+            None => refuse(404, "no such route"),
+        };
     }
     if let Some(refused) = from_the_page(method, |name| header_of(headers, name)) {
         return refuse(403, refused);
@@ -172,13 +186,43 @@ fn respond(root: &Path, method: &str, path: &str, headers: &HeaderMap, body: Res
             if !friends.part(&account, &field("id")) {
                 return refuse(404, "nothing between you to remove");
             }
+            messages.forget(&account, &field("id"));
+            if let Err(why) = write_messages(root, &messages) {
+                return refuse(500, &format!("the messages could not be kept: {why}"));
+            }
+        }
+        // Written to a friend: the conversation after. The text as written - not lowercased as the ids are.
+        "say" => {
+            let to = field("to");
+            if !friends.are_friends(&account, &to) {
+                return refuse(404, "you can only write to a friend");
+            }
+            if let Err(why) = messages.say(&account, &to, asked["text"].as_str().unwrap_or(""), now) {
+                return refuse(422, &why);
+            }
+            if let Err(why) = write_messages(root, &messages) {
+                return refuse(500, &format!("the messages could not be kept: {why}"));
+            }
+            return (200, messages.conversation(&account, person(&accounts, &to)));
+        }
+        // A friend's messages read, up to one: the friends after, what is unread with them.
+        "read" => {
+            let friend = field("id");
+            if !friends.are_friends(&account, &friend) {
+                return refuse(404, "you can only read a friend's messages");
+            }
+            messages.read(&account, &friend, asked["upTo"].as_u64().unwrap_or(0));
+            if let Err(why) = write_messages(root, &messages) {
+                return refuse(500, &format!("the messages could not be kept: {why}"));
+            }
+            return (200, view(&friends, &messages, &account, &accounts));
         }
         _ => return refuse(404, "no such route"),
     }
     if let Err(why) = write_friends(root, &friends) {
         return refuse(500, &format!("the friends could not be kept: {why}"));
     }
-    (200, view(&friends, &account, &accounts))
+    (200, view(&friends, &messages, &account, &accounts))
 }
 
 /// The friends' routes as an axum handler, over the repository at `root`.

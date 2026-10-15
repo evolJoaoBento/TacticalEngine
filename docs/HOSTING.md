@@ -74,7 +74,8 @@ in the menu choose **Change password** (beside Sign out). Until you do, `admin` 
    You, as admin, see every player there and who invited them, and give anybody a new invitation - one player,
    or **New for everybody**. Each changes their own password from the menu (**Change password**). Friends are in
    the menu too (**Friends**): ask a player by their name, and they accept or decline; whoever's invitation made
-   an account is that account's friend from the start. To let anybody
+   an account is that account's friend from the start. Beside each friend, **Messages** opens what you have written
+   each other, outside any game; what they have written you unread is counted there and on **Friends**. To let anybody
    who reaches the address make an account, invitation or none, start the server with `--sign-up`
    (`npm run server -- --sign-up`) for an evening, and again without it after.
 
