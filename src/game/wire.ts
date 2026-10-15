@@ -125,9 +125,10 @@ export interface Views {
 export const LOCAL: readonly string[] = ['takeMotions', 'takeFloaters', 'rollShownAt', 'clearRolls'];
 
 /**
- * The intents a page's drawing sends (`DRAWN`, `play.rs`): the conversations put where the selection says, a
- * container's or a thing's state made as it is read. Sent only when they left a mark on the page's game (`did`,
- * `client.ts`) - drawn again and again with nothing new, they are the page's alone.
+ * The intents a page's drawing sends (`DRAWN`, `play.rs`): the conversations put where their talkers' players'
+ * selections say, a container's or a thing's state made as it is read. Sent only when they left a mark on the page's
+ * game (`did`, `client.ts`) - drawn again and again with nothing new, they are the page's alone. A container's or a
+ * thing's is pushed to nobody (`UNTOLD`); a conversation set aside or brought back is, since the others wait on it.
  */
 export const DRAWN: readonly string[] = ['readContainer', 'readThing', 'syncTalks'];
 
@@ -195,6 +196,8 @@ export class Wire {
   private tries = 0;
   /** The page showing a question the server's game holds (`shownFrom`), and an answer to it on its way up. */
   private showing = false;
+  /** The conversations set aside as the board the page was last stood at gave them: the server's game holds them. */
+  private elsewhere: readonly string[] = [];
   private answering = false;
   /** Whether the page came back to the game the server kept (a reload). */
   resumed = false;
@@ -462,6 +465,32 @@ export class Wire {
     this.demo.pending = null;
   }
 
+  /** Whether a conversation set aside is held by the server's game alone: one the page was stood where it is. */
+  heldThere(who: string): boolean {
+    return this.elsewhere.includes(who);
+  }
+
+  /**
+   * Intents the page cannot play - a conversation only the server's game holds, set aside or brought back there -
+   * sent up with nothing predicted, the page stood where the last of them leaves the server's game, as it is after
+   * a parting, none counted.
+   */
+  unpredicted(calls: readonly (readonly [string, readonly unknown[]])[]): void {
+    const epoch = this.epoch;
+    this.state = 'parted';
+    for (const [call, args] of calls) {
+      this.inFlight++;
+      void this.send(this.message(call, args)).then((said) => {
+        if (epoch !== this.epoch || this.state === 'closed' || this.state === 'lost') return;
+        this.inFlight--;
+        const played = said.ok as Played | undefined;
+        if (played?.seq !== undefined) this.known = played.seq;
+        if (played === undefined) recordParting(`server ${call}: refused`, args, null, { failed: said.error });
+        if (this.state === 'parted' && this.inFlight === 0) this.restoreFrom(played?.board ?? null);
+      });
+    }
+  }
+
   /** Whether the page is showing a question the server's game holds, which it does not play (`whileAsked`). */
   asking(): boolean {
     return this.state === 'asked';
@@ -518,6 +547,7 @@ export class Wire {
       for (const { who, what, roll } of drawn.rolls) showRoll(demo, who, what, roll);
     }
     this.logs = { ours: demo.log.length, theirs: board.log.length };
+    this.elsewhere = board.aside;
     this.state = board.pending === null ? 'in' : 'asked';
     this.retell();
   }

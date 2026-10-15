@@ -1292,8 +1292,8 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     up without predicting it (`whileAsked`), the page saying it waits and refusing a second answer meanwhile,
     and the page is stood where the server's board says after - the next question shown the same way, or
     none and in step. Anything else is played on the page's game alone, which refuses it as it would with any
-    question open, and is not sent; the conversations are not set aside (`syncTalks`), which a stand-in must
-    not be. A question the page held that the server's game does not is dropped with the rest of the page's
+    question open, and is not sent; the conversations are not set aside here (`syncTalks`), which a stand-in must
+    not be - one of the page's player's is set aside there (a conversation its talker's player's, below). A question the page held that the server's game does not is dropped with the rest of the page's
     game. Only a conversation set aside, on either side - a runner too - still has the server told the
     page's game instead. A dropped connection keeps the question shown and shows it again where the kept game
     now is; a game gone lets it go.
@@ -1868,5 +1868,24 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     (`wire.test.ts`: two pages drawing their bars and talks five times over send nothing, the actor nobody's, and
     the next real intent in step on both). Still open, written down: `syncTalks` puts a conversation where *the page's*
     selection says, and two players' selections differ - with a conversation open, it may pass between their pages.
-  - **Next**: an evening through the tunnel; then a conversation at a shared game held by its talker's player
-    (`syncTalks`, above); then a friend's messages reachable during a game (they are the menu's alone).
+  - **A conversation its talker's player's** (15 October 2026). Played out between two pages, the risk written above
+    was not what happened: a page shown a conversation from the server's board (`asked`) sends no `syncTalks`, so
+    nobody else's selection moved it - and neither did its own player's, who could not step away from it once their
+    page had been stood anywhere. What did happen: a conversation set aside or brought back was a drawing intent,
+    pushed to nobody, so the other pages went on waiting on one set aside, and walked into one brought back. Four
+    cuts. The engine sets the conversation on screen aside by its talker's player's selection alone (`sync_talks`,
+    `may_play`): told nobody, as before. The server pushes a conversation moved (`UNTOLD`, `play.rs`: only a
+    container's or a thing's state made goes to nobody now) - safe, since only one player's drawing can move it. A
+    page's engine stood where the server's game is knows each conversation set aside by name (`restoreAside`, never
+    told the server; `SetAside` with no prompt), so its board and the server's agree, and it is over as the server's
+    is - a fight, the talker fallen, another room. And the conversation the page knows by name alone - set aside
+    there, or shown from the board - is moved where the page's selection says *there*: `client.ts` (`talkThere`)
+    sends `syncTalks` (and the selection, which a page shown a question keeps to itself) with nothing predicted, and
+    the page is stood where the answer leaves the game (`Wire.unpredicted`) - once for each selection, so a game that
+    will not move it (a fight held by a talk) is not asked with every frame. Proved by `seats.rs` (the guest's
+    selection moves nothing, the host's sets aside and brings back) and `wire.test.ts` (two pages: drawing sends
+    nothing; set aside, the guest told and walking; brought back to a page that knew it by name, the guest's walk
+    then refused at home and not sent; set aside and back again from the board; had to its end; nothing parted). A
+    single page shown its conversation from the board (a reload) now sets it aside as single play does.
+  - **Next**: an evening through the tunnel; then a friend's messages reachable during a game (they are the menu's
+    alone).

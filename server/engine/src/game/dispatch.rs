@@ -190,6 +190,11 @@ impl Session {
                 self.restore_walked(&a.get(0).clone())?;
                 Value::Null
             }
+            "restoreAside" => {
+                let talkers: Vec<String> = serde_json::from_value(a.get(0).clone()).map_err(|e| format!("restoreAside: {e}"))?;
+                self.restore_aside(&talkers);
+                Value::Null
+            }
             // The dice still to be shown, taken off the queue: what a server hands the other pages at a shared game.
             "takeRolls" => Value::Array(std::mem::take(&mut self.rolls).into_iter().map(|r| json!({ "who": r.who, "what": r.what, "roll": r.roll })).collect()),
             "clearRolls" => {

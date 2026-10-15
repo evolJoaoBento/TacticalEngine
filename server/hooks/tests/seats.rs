@@ -288,3 +288,39 @@ fn a_game_not_started_plays_nobody_the_host_no_more_than_the_rest() {
     session.dispatch("restoreSeating", &[json!({ "you": "guest", "host": "host", "seats": { guests: "guest" }, "started": true })]).unwrap();
     assert_eq!(session.party.selected(), Some(guests.as_str()));
 }
+
+#[test]
+fn a_conversation_is_its_talkers_players_set_aside_by_their_selection_alone() {
+    let mut session = demo();
+    let party = members(&session);
+    let (talker, hosts_other, guests) = (party[0].clone(), party[2].clone(), party[1].clone());
+    let seats = json!({ guests.clone(): "guest" });
+    // The host's talks to the Warden.
+    seat(&mut session, "host", seats.clone());
+    let beside = session.world.state.grid.index_of(13, 7);
+    session.dispatch("placeAt", &[json!(talker), json!(beside)]).unwrap();
+    session.dispatch("select", &[json!(talker)]).unwrap();
+    session.dispatch("useSelectedOn", &[json!("pillar-14-7")]).unwrap();
+    let talking = session.board();
+    assert_eq!(talking["pending"]["for"], json!(talker), "{}", talking["pending"]);
+    // The guest's page draws itself, the guest's own selected: the conversation stays where it is.
+    seat(&mut session, "guest", seats.clone());
+    assert_eq!(session.party.selected(), Some(guests.as_str()));
+    let (moved, board) = play(&mut session, "syncTalks", json!([]));
+    assert_eq!(moved, json!(false));
+    assert_eq!(board["pending"], talking["pending"]);
+    assert_eq!(board["aside"], json!([]));
+    // The host's selection sets it aside: another of the host's selected.
+    session.dispatch("restoreSeating", &[json!({ "you": "host", "host": "host", "seats": seats, "selected": hosts_other })]).unwrap();
+    assert_eq!(play(&mut session, "syncTalks", json!([])).0, json!(true));
+    assert_eq!(session.board()["aside"], json!([talker]));
+    // The guest's selection brings back nobody's but the guest's own.
+    seat(&mut session, "guest", seats.clone());
+    assert_eq!(play(&mut session, "syncTalks", json!([])).0, json!(false));
+    // The talker selected again by the host: back on screen, where it was.
+    session.dispatch("restoreSeating", &[json!({ "you": "host", "host": "host", "seats": seats, "selected": talker })]).unwrap();
+    let (moved, board) = play(&mut session, "syncTalks", json!([]));
+    assert_eq!(moved, json!(true));
+    assert_eq!(board["pending"], talking["pending"]);
+    assert_eq!(board["aside"], json!([]));
+}

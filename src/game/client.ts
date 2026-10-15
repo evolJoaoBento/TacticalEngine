@@ -54,6 +54,7 @@ import type { Drop } from './party-drop';
 import { carriedItems, containerView, hudMembers, journalEntries, talkingTo, talkingView } from './ui/play-views';
 import type { OpenContainer } from './ui/PlayPanel';
 import { DRAWN, KEPT_BY_HOST, type Wire } from './wire';
+import { talkingAside } from './talks';
 import type { WasmEngine } from './wasm-engine';
 
 import { userSettings } from './user-settings';
@@ -300,12 +301,41 @@ export abstract class GameTable implements GameClient, LocalPowers {
   // `any` by default: each intent's answer is declared on `GameClient`, which the method is held to.
   protected did<T = any>(call: string, args: readonly unknown[], read?: () => T, compare: { answer: boolean } = { answer: true }): T {
     // A question the server's game holds: answered there, not here; anything else played here, which refuses it.
-    if (this.wire?.asking() === true) return this.wire.whileAsked(call, args, () => this.play<T>(call, args, read, compare));
+    if (this.wire?.asking() === true) {
+      // The page's player's conversation on screen, somebody else of theirs selected: set aside there.
+      if (call === 'syncTalks' && this.talkThere()) this.wire.unpredicted([['select', [this.demo.party.selected]], ['syncTalks', []]]);
+      return this.wire.whileAsked(call, args, () => this.play<T>(call, args, read, compare));
+    }
     const sending = this.wire?.before() ?? false;
     const was = this.revision();
     const answer = this.play<T>(call, args, read, compare);
-    if (sending && !(DRAWN.includes(call) && this.revision() === was)) this.wire!.after(call, args, answer, compare);
+    // The selected one's conversation set aside, which the server's game holds: brought back there.
+    if (sending && call === 'syncTalks' && this.talkThere()) this.wire!.unpredicted([['syncTalks', []]]);
+    else if (sending && !(DRAWN.includes(call) && this.revision() === was)) this.wire!.after(call, args, answer, compare);
     return answer;
+  }
+
+  /** The selection the page last asked the server's game to put a conversation where it says (`talkThere`). */
+  private askedThere: string | null = null;
+
+  /**
+   * Whether a conversation of the page's player's that only the server's game holds is to be moved where the page's
+   * selection says - the page knowing it by name alone, set aside (`restoreAside`) or shown from the board: brought
+   * back when its talker is selected, set aside when somebody else of the player's is, out of a fight. Asked once for
+   * each selection, so a game that will not move it is not asked again with every frame the page draws.
+   */
+  private talkThere(): boolean {
+    const wire = this.wire!;
+    const selected = this.demo.party.selected;
+    if (selected === null || selected === this.askedThere) return false;
+    let moves: boolean;
+    if (wire.asking()) {
+      const pending = this.demo.pending as { dialogue?: unknown; for?: string | null } | null;
+      const talker = pending?.dialogue == null ? null : (pending.for ?? null);
+      moves = talker !== null && talker !== selected && plays(wire.seating(), talker) && !inCombat(this.demo);
+    } else moves = this.demo.pending === null && wire.heldThere(selected) && talkingAside(this.demo).includes(selected);
+    this.askedThere = moves ? selected : null;
+    return moves;
   }
 
   /** The page's game as it last stood: another after any intent that left a mark on it. */

@@ -31,6 +31,7 @@ import { invitationOf, lobbyAsked, tableOf, visibilityAsked } from './shared-gam
 import { nameOf } from './log';
 import { loadAccountSaves } from './account-saves';
 import { SaveSlots, browserStore, type SaveShelf } from './save-slots';
+import { talkingAside } from './talks';
 
 export type { GameClient, LocalPowers } from './client';
 
@@ -63,6 +64,8 @@ export class WasmGame extends GameTable {
     this.engine.call('restoreLog', [this.demo.log]);
     this.engine.call('restoreViews', [this.demo.motions, this.demo.floaters]);
     this.engine.call('restoreWalked', [walked]);
+    // The conversations set aside, by who is having each: the page's game knows no more of them (`restoreAside`).
+    this.engine.call('restoreAside', [talkingAside(this.demo)]);
     // Whom it plays for, last: the selection kept among the page's own, and the page's game filled if it moved.
     this.filled = this.engine.boardText();
     this.engine.call('restoreSeating', [this.seating()]);

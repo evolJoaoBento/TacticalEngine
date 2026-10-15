@@ -434,10 +434,10 @@ async fn a_game_is_shared_its_invitation_joins_it_and_each_intent_is_pushed_to_t
     tables.ask_on(host, "kara", json!({ "id": 5, "op": "ask", "ask": "pressure" }));
     told(&mut to_host).await;
     assert!(nothing_more(&mut to_guest).await, "nothing pushed for a question");
-    // Nor is what a page sends as it draws itself, whatever mark it leaves (`DRAWN`): it reaches the others with
-    // the next intent that is pushed.
-    for call in serve::play::DRAWN {
-        let args = if *call == "abilityList" { json!([member]) } else if call.starts_with("read") { json!(["nothing"]) } else { json!([]) };
+    // Nor is what a page sends as it draws itself, whatever mark it leaves (`UNTOLD`): it reaches the others with
+    // the next intent that is pushed. The conversations put where they are, moving none, nor.
+    for call in ["syncTalks"].iter().chain(serve::play::UNTOLD) {
+        let args = if call.starts_with("read") { json!(["nothing"]) } else { json!([]) };
         tables.ask_on(host, "kara", json!({ "id": 6, "op": "call", "call": call, "args": args }));
         told(&mut to_host).await;
     }
@@ -1053,4 +1053,54 @@ async fn whoever_is_at_a_game_talks_and_a_page_that_comes_is_told_what_was_said(
     assert_eq!(kept[99]["text"], "line 119");
     // Nothing said numbers an intent.
     assert_eq!(back["ok"]["seq"], opened["ok"]["seq"]);
+}
+
+#[tokio::test]
+async fn a_conversation_set_aside_or_brought_back_by_its_talkers_player_is_pushed_to_the_others() {
+    let fixture = fixture();
+    let root = root("talks");
+    let tables = Tables::new(root.clone()).for_tests();
+    let (host, mut to_host) = tables.connect();
+    let (guest, mut to_guest) = tables.connect();
+    tables.ask_on(host, "kara", json!({ "id": 1, "op": "open", "project": fixture["projects"][0], "shipped": fixture["shipped"], "table": {} }));
+    let opened = told(&mut to_host).await;
+    let invite = opened["ok"]["invite"].as_str().unwrap().to_string();
+    tables.ask_on(guest, "finn", json!({ "id": 1, "op": "join", "invite": invite }));
+    told(&mut to_guest).await;
+    told(&mut to_host).await;
+    let board = &opened["ok"]["board"];
+    let talker = board["replica"]["party"]["selected"].as_str().unwrap().to_string();
+    let party: Vec<String> = board["replica"]["state"]["entities"].as_object().unwrap().iter().filter(|(_, e)| e["faction"] == "party").map(|(id, _)| id.clone()).collect();
+    let others: Vec<&String> = party.iter().filter(|id| **id != talker).collect();
+    let (guests, hosts) = (others[0].clone(), others[1].clone());
+    tables.ask_on(host, "kara", json!({ "id": 2, "op": "seat", "character": guests, "account": "finn" }));
+    told(&mut to_host).await;
+    told(&mut to_guest).await;
+    // The host's talks to the Warden: the guest pushed the conversation on screen.
+    let width = board["replica"]["state"]["room"]["width"].as_i64().unwrap();
+    tables.ask_on(host, "kara", json!({ "id": 3, "op": "call", "call": "placeAt", "args": [talker, 7 * width + 13] }));
+    told(&mut to_host).await;
+    told(&mut to_guest).await;
+    tables.ask_on(host, "kara", json!({ "id": 4, "op": "call", "call": "useSelectedOn", "args": ["pillar-14-7"] }));
+    told(&mut to_host).await;
+    assert_eq!(told(&mut to_guest).await["push"]["board"]["pending"]["for"], talker.as_str());
+    // The guest's page drawing itself moves nothing, and nobody is pushed it.
+    tables.ask_on(guest, "finn", json!({ "id": 5, "op": "call", "call": "syncTalks", "args": [] }));
+    assert_eq!(told(&mut to_guest).await["ok"]["answer"], false);
+    assert!(nothing_more(&mut to_host).await, "nothing moved, nothing pushed");
+    // Another of the host's selected: set aside, and the guest told.
+    tables.ask_on(host, "kara", json!({ "id": 6, "op": "call", "call": "select", "args": [hosts] }));
+    told(&mut to_host).await;
+    tables.ask_on(host, "kara", json!({ "id": 7, "op": "call", "call": "syncTalks", "args": [] }));
+    assert_eq!(told(&mut to_host).await["ok"]["answer"], true);
+    let pushed = told(&mut to_guest).await;
+    assert_eq!((pushed["push"]["board"]["pending"].clone(), pushed["push"]["board"]["aside"].clone()), (Value::Null, json!([talker])));
+    // The talker selected again: brought back, and the guest told.
+    tables.ask_on(host, "kara", json!({ "id": 8, "op": "call", "call": "select", "args": [talker] }));
+    told(&mut to_host).await;
+    tables.ask_on(host, "kara", json!({ "id": 9, "op": "call", "call": "syncTalks", "args": [] }));
+    assert_eq!(told(&mut to_host).await["ok"]["answer"], true);
+    let pushed = told(&mut to_guest).await;
+    assert_eq!(pushed["push"]["board"]["pending"]["for"], talker.as_str());
+    assert_eq!(pushed["push"]["board"]["aside"], json!([]));
 }

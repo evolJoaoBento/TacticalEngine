@@ -136,7 +136,7 @@ const VISIBILITIES: [&str; 3] = ["public", "friends", "invite"];
 /// The intents that tell a game how another stands - its dice, its walk, its log, its views' queues - which the
 /// page's own engine is told after the editor's changes, and the server's game never is. And a save's text,
 /// which the server loads from the account's own folder (`load`).
-pub const NEVER_TOLD: &[&str] = &["restoreRng", "restoreWalk", "restoreLog", "restoreViews", "restoreWalked", "restoreSeating", "loadGameText"];
+pub const NEVER_TOLD: &[&str] = &["restoreRng", "restoreWalk", "restoreLog", "restoreViews", "restoreWalked", "restoreAside", "restoreSeating", "loadGameText"];
 
 /// The test driver's hands (`window.__engine`): somebody put somewhere, wounded, handed a card or a level, a
 /// fight started or a room entered by fiat. Only a server started for the tests (`--for-tests`) takes them.
@@ -146,13 +146,17 @@ pub const TEST_HANDS: &[&str] = &["placeAt", "setGood", "wound", "markStress", "
 /// (`views`): the walks, the numbers over heads, the dice.
 const VIEWS: [(&str, &str); 3] = [("motions", "takeMotions"), ("floaters", "takeFloaters"), ("rolls", "takeRolls")];
 
-/// The intents a page sends as it draws itself - a container or a thing looked at, the conversations put where the
-/// selection says - whose marks on the game are the drawing page's: played and numbered, never pushed, or each page's
-/// drawing would push to the other, which draws again and pushes back. What they changed reaches the others with the
-/// next intent that is pushed. A page sends one only when it marked the page's game (`client.ts`, `did`): numbered,
-/// each page's drawings stood the other where the game was, which drew again - some twenty round trips a second. The
-/// bar's read of the cards (`abilityList`) leaves no mark, and is never sent.
+/// The intents a page sends as it draws itself - a container or a thing looked at, the conversations put where their
+/// talkers' players' selections say. A page sends one only when it marked the page's game (`client.ts`, `did`):
+/// numbered, each page's drawings stood the other where the game was, which drew again - some twenty round trips a
+/// second. The bar's read of the cards (`abilityList`) leaves no mark, and is never sent.
 pub const DRAWN: &[&str] = &["readContainer", "readThing", "syncTalks"];
+
+/// The drawings whose marks are the drawing page's (`DRAWN`): played and numbered, never pushed - what they changed
+/// reaches the others with the next intent that is. A conversation set aside or brought back is pushed: whether one
+/// is on screen is whether everybody else waits on it (`engine::game::play`, `sync_talks`), and only its talker's
+/// player moves it, so no other page's drawing answers back.
+pub const UNTOLD: &[&str] = &["readContainer", "readThing"];
 
 /// A connection: one socket, its answers and the pushes it is given leaving through one queue.
 pub type Conn = u64;
@@ -424,7 +428,7 @@ fn play_thread(shared: Arc<Mutex<Shared>>, root: PathBuf) -> mpsc::Sender<Job> {
                     drop(held);
                     said = saved(&root, &job.account, &job.message, said, seats, players, &project);
                     // Numbered as the game stood when it was saved: another page's intent played since the saver's
-                    // last answer - a drawing one too, never pushed (`DRAWN`) - is no parting of the saver's page.
+                    // last answer - a drawing one too, never pushed (`UNTOLD`) - is no parting of the saver's page.
                     if said["ok"].is_object() {
                         said["ok"]["seq"] = json!(played);
                     }
@@ -462,7 +466,7 @@ fn play_thread(shared: Arc<Mutex<Shared>>, root: PathBuf) -> mpsc::Sender<Job> {
             // What the others are told: the board an intent left and what it gave them to draw; who is at the game.
             let mut held = shared.lock().expect("the game");
             match op.as_str() {
-                "call" | "open" if said["ok"].is_object() && !DRAWN.contains(&job.message["call"].as_str().unwrap_or("")) => {
+                "call" | "open" if said["ok"].is_object() && !UNTOLD.contains(&job.message["call"].as_str().unwrap_or("")) => {
                     let board = unselected(&said["ok"]["board"]);
                     let views = &said["ok"]["views"];
                     let drawn = VIEWS.iter().any(|(name, _)| views[name].as_array().is_some_and(|queue| !queue.is_empty()));

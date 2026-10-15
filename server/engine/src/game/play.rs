@@ -113,9 +113,10 @@ impl PendingScript {
 }
 
 /// A conversation set aside for somebody else: the prompt it was, the shop it had open, and the room it
-/// was set aside in - one entered afresh has a party of its own, and a conversation from before is over.
+/// was set aside in - one entered afresh has a party of its own, and a conversation from before is over. No
+/// prompt: one the page's engine knows by name alone, the server's game holding it (`restoreAside`).
 pub struct SetAside {
-    pending: PendingScript,
+    pending: Option<PendingScript>,
     shop: Option<String>,
     room: u64,
 }
@@ -749,27 +750,30 @@ impl Session {
     }
 
     /// Put the conversations where the selection says (`syncTalks`): the one on screen set aside when
-    /// somebody else is selected, the selected member's own brought back. Whether anything moved.
+    /// somebody else is selected, the selected member's own brought back. Whether anything moved. At a shared
+    /// game the conversation on screen is its talker's player's: set aside by their selection alone, never by
+    /// another player's, whose own is somebody else (`seats.rs`).
     pub fn sync_talks(&mut self) -> bool {
         let mut moved = self.break_off();
         let who = self.party.selected().map(str::to_string);
         if let Some(talker) = self.talker() {
-            if Some(&talker) != who.as_ref() && !self.in_combat() && self.party.hold(&self.world.state, &talker) {
+            if Some(&talker) != who.as_ref() && self.may_play(&talker) && !self.in_combat() && self.party.hold(&self.world.state, &talker) {
                 let open = self.open_container();
                 let shop = open.filter(|id| self.shop_of(id).is_some());
                 if shop.is_some() {
                     self.opened = None;
                 }
-                let pending = self.pending.take().expect("a conversation on screen");
+                let pending = self.pending.take();
                 self.talks.set(&talker, SetAside { pending, shop, room: self.room });
                 moved = true;
             }
         }
         if let Some(who) = who {
-            if self.talks.has(&who) && !self.waiting() {
+            // One known by name alone is brought back where it is held: the page asks the server's game.
+            if self.talks.get(&who).is_some_and(|t| t.pending.is_some()) && !self.waiting() {
                 let waiting = self.take_aside(&who);
                 self.party.release(&who);
-                self.pending = Some(waiting.pending);
+                self.pending = waiting.pending;
                 if waiting.shop.is_some() {
                     self.opened = waiting.shop;
                 }
@@ -777,6 +781,16 @@ impl Session {
             }
         }
         moved
+    }
+
+    /// The conversations set aside as a board gives them, known by who is having each (`restoreAside`): a page's
+    /// engine stood where the server's game is, which holds them and plays them on. Each is over as the server's
+    /// is - a fight, the one talking fallen, a room entered afresh (`break_off`) - and none is brought back here.
+    pub fn restore_aside(&mut self, talkers: &[String]) {
+        self.talks = Default::default();
+        for who in talkers {
+            self.talks.set(who, SetAside { pending: None, shop: None, room: self.room });
+        }
     }
 
     fn take_aside(&mut self, who: &str) -> SetAside {

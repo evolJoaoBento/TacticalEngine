@@ -24,6 +24,7 @@ import { KEPT_BY_HOST, LOCAL, Wire, type ChatLine, type Said, type SharedTable, 
 import { AccountSaves } from './account-saves';
 import type { RestMove } from './demo-abilities';
 import { talkingTo, talkingView } from './ui/play-views';
+import { talkingAside } from './talks';
 import { interactablesOf } from '../engine/scene/prop-functions';
 import { act } from '../../tests/fixtures/random-play';
 
@@ -33,6 +34,9 @@ const built = existsSync(WASM);
 
 /** What the server's game is never told (`serve::play::NEVER_TOLD`): how another game stands, or a save's text. */
 const NEVER_TOLD = ['restoreRng', 'restoreWalk', 'restoreLog', 'restoreViews', 'restoreWalked', 'restoreSeating', 'loadGameText'];
+
+/** The drawings pushed to nobody (`serve::play::UNTOLD`): a container's or a thing's state made as it is read. */
+const UNTOLD = ['readContainer', 'readThing'];
 
 /**
  * The server's game, answering a tick late and in order, a seed of its own at every open as the server's are;
@@ -302,7 +306,7 @@ class EngineServer implements Transport {
           const views = this.views(call);
           const seq = ++this.played;
           this.chose(you);
-          this.push(from, { push: { board: engine.board(), views, by: from, seq } });
+          if (!UNTOLD.includes(call)) this.push(from, { push: { board: engine.board(), views, by: from, seq } });
           return { ok: { answer: this.reword === null ? answer : this.reword(answer, this.calls), board: engine.board(), views, seq } };
         }
         default:
@@ -841,14 +845,21 @@ describe('the wire to the server\'s game', () => {
         expect(view!.lines.length).toBeGreaterThan(0);
         expect(talkingTo(demo)).not.toBeNull();
         if (rounds === 1) {
-          // Somebody else selected while the server's game holds the conversation: it is not set aside here -
-          // the page has no conversation of its own to set aside - and it stays on screen.
+          // Somebody else selected while the server's game holds the conversation: not set aside here - the page
+          // has no conversation of its own to set aside - but there, as in single play, the page stood where that
+          // leaves it; kara selected again, brought back there and shown again.
           const other = demo.party.members().find((id) => id !== 'kara')!;
           game.select(other);
           expect(demo.party.selected).toBe(other);
           expect(game.syncTalks()).toBe(false);
-          expect(boardOf(demo).pending).toEqual(theirs.pending);
+          await settle(server);
+          expect([wire.status(), demo.pending, talkingAside(demo)]).toEqual(['in', null, ['kara']]);
+          expect((server.engine.board() as BoardSnapshot).aside).toEqual(['kara']);
           game.select('kara');
+          game.syncTalks();
+          await settle(server);
+          expect(wire.status()).toBe('asked');
+          expect(boardOf(demo).pending).toEqual(theirs.pending);
         }
         // As the panel answers: an option by its own index - the first, then the last (walking away) - or on.
         const options = shown.options;
@@ -1280,6 +1291,97 @@ describe('a shared game, on the wire', () => {
     await settle(server);
     expect(hostDemo.restCall).toBeNull();
     expect(replicaCount().first.slice(before.first.length)).toEqual([]);
+  }, 120_000);
+
+  it.skipIf(!built)("keeps a conversation its talker's player's: set aside and brought back by them alone, everybody told", async () => {
+    const { server, hostDemo, host, hostWire, guestDemo, guest, guestWire, theirs, before } = await sharing('talks');
+    const kara = hostDemo.party.selected!;
+    const other = hostDemo.party.members().find((id) => id !== kara && id !== theirs)!;
+    const pillar = interactablesOf(hostDemo.scene).find((i) => i.id === 'pillar-14-7')!.position;
+    host.placeAt(kara, pillar.y * hostDemo.grid.width + pillar.x - 1);
+    await settle(server);
+    host.useSelectedOn('pillar-14-7');
+    await settle(server);
+    const where = () => {
+      const theirs = server.engine.board() as BoardSnapshot;
+      const page = (demo: DemoScene, wire: Wire) => [wire.status(), (demo.pending as { for?: string } | null)?.for ?? null, talkingAside(demo)];
+      return { server: [(theirs.pending as { for?: string } | null)?.for ?? null, theirs.aside], host: page(hostDemo, hostWire), guest: page(guestDemo, guestWire) };
+    };
+    const onScreen = { server: [kara, []], host: ['asked', kara, []], guest: ['asked', kara, []] };
+    const aside = { server: [null, [kara]], host: ['in', null, [kara]], guest: ['in', null, [kara]] };
+    // Kara's talking: the guest waits on it, the host plays it.
+    expect(where()).toEqual({ ...onScreen, host: ['in', kara, []] });
+    // The guest's page drawing itself, the guest's own selected, moves nothing and sends nothing.
+    const sent = server.sent.length;
+    for (let frame = 0; frame < 3; frame++) {
+      guest.syncTalks();
+      host.syncTalks();
+      await settle(server);
+    }
+    expect(server.sent.slice(sent)).toEqual([]);
+    expect(where()).toEqual({ ...onScreen, host: ['in', kara, []] });
+    // Another of the host's selected: set aside, the guest told - and free to walk.
+    host.select(other);
+    host.syncTalks();
+    await settle(server);
+    expect(where()).toEqual(aside);
+    const from = guestDemo.state.entity(theirs)!.tile;
+    expect(guest.moveSelectedTo(from + 2).moved).toBe(true);
+    await settle(server);
+    expect((server.engine.board() as BoardSnapshot).replica.state.entities[theirs]?.tile).toBe(guestDemo.state.entity(theirs)!.tile);
+    // The host's page, stood where the guest's walk left the game, knows kara's conversation by name alone: kara
+    // selected again, it is brought back where it is held, and both pages shown it from the board.
+    expect(where()).toEqual(aside);
+    host.select(kara);
+    host.syncTalks();
+    await settle(server);
+    expect(where()).toEqual(onScreen);
+    // The guest's walk now waits on it: refused by the guest's page, and not sent.
+    const waiting = server.sent.length;
+    expect(guest.moveSelectedTo(from).moved).toBe(false);
+    await settle(server);
+    expect(server.sent.length).toBe(waiting);
+    // Shown from the board, set aside and brought back there by the host's selection all the same.
+    host.select(other);
+    host.syncTalks();
+    host.syncTalks();
+    await settle(server);
+    expect(where()).toEqual(aside);
+    host.select(kara);
+    host.syncTalks();
+    await settle(server);
+    expect(where()).toEqual(onScreen);
+    // A game that will not move it is asked once for each selection, not with every frame the page draws.
+    host.select(other);
+    host.syncTalks();
+    await settle(server);
+    server.refuse = (call) => call === 'syncTalks';
+    host.select(kara);
+    const once = server.sent.length;
+    for (let frame = 0; frame < 3; frame++) {
+      host.syncTalks();
+      await settle(server);
+    }
+    expect(server.sent.slice(once).filter((m) => m['call'] === 'syncTalks')).toHaveLength(1);
+    expect(where()).toEqual(aside);
+    // Selected away and back, asked again.
+    server.refuse = null;
+    host.select(other);
+    host.syncTalks();
+    host.select(kara);
+    host.syncTalks();
+    await settle(server);
+    expect(where()).toEqual(onScreen);
+    // And had to its end by its talker's player, the game the server's and both pages' alike.
+    for (let n = 0; n < 12 && hostDemo.pending !== null; n++) {
+      const view = talkingView(hostDemo);
+      host.answerPending(view === null || view.options.length === 0 ? { kind: 'continue' } : { kind: 'choose', index: view.options[view.options.length - 1]!.index });
+      await settle(server);
+    }
+    expect(where()).toEqual({ server: [null, []], host: ['in', null, []], guest: ['in', null, []] });
+    expect(differ(hostDemo, server)).toBeNull();
+    expect(differ(guestDemo, server, guestWire.you!)).toBeNull();
+    expect(replicaCount().first.slice(before.first.length).map((p) => p.question)).toEqual(['server syncTalks: refused']);
   }, 120_000);
 
   it.skipIf(!built)('puts a question to whoever plays the character it is about, and nobody else answers it', async () => {

@@ -10,16 +10,21 @@ Designed in `docs/SERVER.md` ("Phase 6, designed"): players invite players, anyb
 friends-only or invite-only - friends both ways, chat at the table and between friends. Slices 1 (invitations),
 2 (friends), 3 (lobbies anybody opens), 4 (a game's saves the game's), 5 (chat at the table) and 6 (messages
 between friends) are done: the phase is, and who is around after it. Next, what an evening played through the
-tunnel shows; then a conversation at a shared game held by its talker's player (below); then a friend's messages
-reachable during a game - they are the menu's alone.
+tunnel shows; then a friend's messages reachable during a game - they are the menu's alone.
+
+## A conversation its talker's player's — done
+
+At a shared game a conversation is set aside and brought back by its talker's player's selection alone, and every
+other page is told at once: the others wait on it while it is on screen, and go on while it is set aside. A page that
+knows a conversation only from the server's board - after a reload, or after another player's walk stood it - sets it
+aside and brings it back through the server.
 
 ## A page draws itself without telling the server — done
 
 Once a shared game had started each page sent the server some twenty intents a second, each answered with the whole
 board: two pages' drawings standing each other where the game was, which drew again. The bar's read of the cards now
 leaves no mark and is never sent; anything else a page sends as it draws goes only when it changed the game. Two idle
-seconds now send nothing. Still open: a conversation is put where the page's own selection says, and two players'
-selections differ - with one open, it may pass between their pages.
+seconds now send nothing.
 
 ## Who is around — done
 
