@@ -18,6 +18,12 @@ A game's page played on the server has a Friends button above the table's chat, 
 much is unread; it opens the menu's friends - asking, answering, writing - on a sheet over the table, Escape shutting
 it.
 
+## A conversation at a shared game, in two browsers — done
+
+`tests/e2e/shared-talk.spec.ts`: the host's character talks to the Warden; the guest's page shows it held, whom it
+waits on said, the replies shut, the guest's walk waiting; Tab on the host's page sets it aside on both, the guest
+walks; brought back on both; ended by a click. Nothing parted, nothing to mend.
+
 ## Every socket beaten — done
 
 The server pings each socket and tells the page a beat every twenty seconds, so a tunnel never finds one idle; a

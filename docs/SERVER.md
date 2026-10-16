@@ -1891,7 +1891,13 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     tests' server keeping a list of its own) and `wire.test.ts` (two pages: drawing sends
     nothing; set aside, the guest told and walking; brought back to a page that knew it by name, the guest's walk
     then refused at home and not sent; set aside and back again from the board; had to its end; nothing parted). A
-    single page shown its conversation from the board (a reload) now sets it aside as single play does.
+    single page shown its conversation from the board (a reload) now sets it aside as single play does. Played in
+    two browsers since 16 October 2026 (`shared-talk.spec.ts`): the host's character opens the Warden's pillar; the
+    guest's page shows the conversation held - "Waiting for <host> to answer for <character>.", the replies shut -
+    and the guest's walk waits on it; Tab on the host's page sets it aside, gone from both pages, the one talking
+    marked "In conversation" on both, and the guest walks, the host's page told; the host selecting the talker brings
+    it back on both; a click on the host's page ends it, gone from both. Nothing parts. With the hold, the shut
+    replies or the mark taken out, it fails.
   - **A friend's messages during a game** (15 October 2026). The menu's friends - asking, answering, writing - were
     the menu's alone. Now a game's page played as an account on the server (`friends.ts`, `playAs`, told by
     `gameReady`) has a Friends button above the table's chat (`ui/FriendsInPlay.tsx`), saying how many are asking
@@ -1960,4 +1966,9 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     `reconnect.spec.ts`, whose socket lets everything through to the first beat and nothing after either way - the
     browser still answering the server's pings, so only the page can tell: it connects again inside the silence and
     plays on, nothing parted.
+  - **A conversation at a shared game, in two browsers** (16 October 2026). The conversation's rules at a shared
+    game had only the page's and the server's tests behind them (`wire.test.ts`, `play_routes.rs`, above); now
+    `shared-talk.spec.ts` plays them in two browsers, each signed in to an account of its own - held for the one it
+    is not put to, set aside and brought back by its talker's player alone, ended by a click. It found nothing to
+    mend.
   - **Next**: an evening through the tunnel.
