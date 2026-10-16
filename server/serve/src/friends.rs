@@ -20,7 +20,8 @@
 //! signed-in page asks here, its player is seen online (`Tables::saw`). A request, an answer, a friend removed or a message
 //! written is told at once to the other's pages at a game (`{ friends: { from } }`, `Tables::tell`), which ask again;
 //! a message read is told to nobody. So is a friend come to a game, gone from one or come online (`play.rs`,
-//! `told_around`); one gone quiet a while is not. Pages on the menu, at no game, ask every few seconds.
+//! `told_around`); one gone quiet a while is not. The menu's page is told the same, over the games' socket opened to
+//! listen (`play.rs`); every page asks again every few seconds besides, which is what keeps it seen.
 
 use crate::accounts::{account_of, from_the_page, now_ms, read_accounts, read_sessions, Account};
 use crate::files::{read_json, write_json};

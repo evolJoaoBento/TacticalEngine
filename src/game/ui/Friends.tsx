@@ -3,7 +3,8 @@
  * requests they have been sent - accepted or declined - the ones they sent, which they may take back, and their
  * friends, any of whom they may remove or write to (`FriendMessages.tsx`), each with how much they have written
  * unread and whether they are around - in a game, or online; asked again every few seconds (`FRIENDS_EVERY`), for
- * what has come since - and at a game at once when a friend does something (`onFriendDid`).
+ * what has come since - and at once when a friend does something (`onFriendDid`: at a game over the wire, on the
+ * menu over the socket it opens to listen).
  */
 
 import { useEffect, useState } from 'preact/hooks';
@@ -29,7 +30,7 @@ export function Friends(props: { you: Person; onBack: () => void; onChange?: (vi
     };
     ask();
     const every = setInterval(ask, FRIENDS_EVERY);
-    // At a game, asked again at once when a friend does something.
+    // Asked again at once when a friend does something.
     const stop = onFriendDid(ask);
     return () => {
       clearInterval(every);

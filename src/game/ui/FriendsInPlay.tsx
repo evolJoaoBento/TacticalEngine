@@ -2,8 +2,8 @@
  * A player's friends during a game (`docs/SERVER.md`, phase 6): the menu's (`Friends.tsx`) - asking, answering, and
  * writing to them (`FriendMessages.tsx`) - on a sheet over the table, opened from a button above the table's chat
  * that says how many are asking and how much they have written unread, asked again at once when a friend asks, answers
- * or writes (`onFriendDid`, the game's connection telling it) and every few seconds besides (`FRIENDS_EVERY`) while the
- * sheet is shut. Escape shuts the sheet. Nothing where the page plays as nobody on the server (`friends.ts`, `playAs`).
+ * or writes (`onFriendDid`, the game's wire telling it) and every few seconds besides (`FRIENDS_EVERY`) while the sheet
+ * is shut. Escape shuts the sheet. Nothing where the page plays as nobody on the server (`friends.ts`, `playAs`).
  */
 
 import { useEffect, useState } from 'preact/hooks';

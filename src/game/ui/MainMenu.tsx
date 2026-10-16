@@ -7,7 +7,8 @@
  *   Edit Game   the project with the editor, as the app has always opened
  *   (Change password, beside Sign out, for whoever is signed in: `ChangePassword.tsx`.)
  *   (Invite, beside them: the player's own invitation for somebody new, and admin's players: `Invitations.tsx`.)
- *   (Friends, beside them too, with how many are asking and how much friends have written unread: `Friends.tsx`.)
+ *   (Friends, beside them too, with how many are asking and how much friends have written unread: `Friends.tsx` -
+ *   told at once over the games' socket, opened to listen: `listenForFriends`.)
  *   Store       art creators have published, with how they made it, and a vote on it (`Store.tsx`) -
  *               for whoever is signed in
  *   Play Together  where the server plays the game: the games you may join, no link needed - public ones, your
@@ -32,9 +33,9 @@ import { Store } from './Store';
 import { ChangePassword } from './ChangePassword';
 import { Invitations } from './Invitations';
 import { Friends } from './Friends';
-import { FRIENDS_EVERY, readFriends, unreadOf, type FriendsView } from '../friends';
+import { FRIENDS_EVERY, listenForFriends, onFriendDid, readFriends, unreadOf, type FriendsView } from '../friends';
 import { listAccountSaves } from '../account-saves';
-import { serverAllowed } from '../play-socket';
+import { PlaySocket, serverAllowed } from '../play-socket';
 import { inviteFrom } from '../shared-game';
 import { joinableLine, joinableSummary, listJoinable, type JoinableGame } from '../joinable-games';
 import type { Visibility } from '../wire';
@@ -76,11 +77,20 @@ export function MainMenu(props: { account?: SignedIn | null; onSignOut?: () => v
     const ask = (): void => void readFriends().then(waiting);
     ask();
     const every = setInterval(ask, FRIENDS_EVERY);
-    return () => clearInterval(every);
+    const stop = onFriendDid(ask);
+    return () => {
+      clearInterval(every);
+      stop();
+    };
   }, [account?.id]);
   const games = new GameProjects(browserStore());
   // The browser's saves - or, signed in where the server plays the game, the account's, kept there.
   const onServer = account !== null && serverAllowed();
+  // Where the server plays, the menu listens for its friends' doings on the games' socket, and is told at once.
+  useEffect(() => {
+    if (!onServer) return;
+    return listenForFriends(() => new PlaySocket());
+  }, [account?.id, onServer]);
   const [saves, setSaves] = useState<SaveSlot[]>(() => (onServer ? [] : new SaveSlots(browserStore()).list()));
   useEffect(() => {
     if (!onServer) return;

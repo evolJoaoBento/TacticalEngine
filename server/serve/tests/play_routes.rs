@@ -216,7 +216,7 @@ async fn the_play_route_is_a_websocket_for_a_signed_in_page() {
 async fn a_game_left_longer_than_it_is_kept_goes() {
     let fixture = fixture();
     let tables = Tables::keeping(root("swept"), std::time::Duration::ZERO);
-    let (conn, mut said) = tables.connect();
+    let (conn, mut said) = tables.connect("kara");
     tables.ask_on(conn, "kara", json!({ "id": 1, "op": "open", "project": fixture["projects"][0], "shipped": fixture["shipped"], "table": {} }));
     let opened = said.recv().await.unwrap();
     assert!(opened["ok"].is_object(), "{opened}");
@@ -369,8 +369,8 @@ async fn a_game_is_shared_its_invitation_joins_it_and_each_intent_is_pushed_to_t
     let fixture = fixture();
     let root = root("shared");
     let tables = Tables::new(root.clone()).for_tests();
-    let (host, mut to_host) = tables.connect();
-    let (guest, mut to_guest) = tables.connect();
+    let (host, mut to_host) = tables.connect("kara");
+    let (guest, mut to_guest) = tables.connect("finn");
     tables.ask_on(host, "kara", json!({ "id": 1, "op": "open", "project": fixture["projects"][0], "shipped": fixture["shipped"], "table": {} }));
     let opened = told(&mut to_host).await;
     let invite = opened["ok"]["invite"].as_str().expect("an invitation").to_string();
@@ -487,8 +487,8 @@ async fn a_game_is_shared_its_invitation_joins_it_and_each_intent_is_pushed_to_t
 async fn a_shared_game_is_kept_while_anybody_is_at_it() {
     let fixture = fixture();
     let tables = Tables::keeping(root("kept-shared"), std::time::Duration::ZERO);
-    let (host, mut to_host) = tables.connect();
-    let (guest, mut to_guest) = tables.connect();
+    let (host, mut to_host) = tables.connect("kara");
+    let (guest, mut to_guest) = tables.connect("finn");
     tables.ask_on(host, "kara", json!({ "id": 1, "op": "open", "project": fixture["projects"][0], "shipped": fixture["shipped"], "table": {} }));
     let invite = told(&mut to_host).await["ok"]["invite"].as_str().unwrap().to_string();
     tables.ask_on(guest, "finn", json!({ "id": 1, "op": "join", "invite": invite }));
@@ -533,8 +533,8 @@ async fn a_guests_page_reads_the_games_project_with_its_invitation() {
 async fn each_player_acts_with_their_own_and_answers_the_questions_put_to_them() {
     let fixture = fixture();
     let tables = Tables::new(root("seats")).for_tests();
-    let (host, mut to_host) = tables.connect();
-    let (guest, mut to_guest) = tables.connect();
+    let (host, mut to_host) = tables.connect("kara");
+    let (guest, mut to_guest) = tables.connect("finn");
     let open = json!({ "id": 1, "op": "open", "project": fixture["projects"][1], "shipped": fixture["shipped"], "table": { "animated": false, "askDefender": true }, "rng": DICE });
     tables.ask_on(host, "kara", open);
     let opened = told(&mut to_host).await;
@@ -601,8 +601,8 @@ async fn each_player_acts_with_their_own_and_answers_the_questions_put_to_them()
 async fn a_lobby_gathers_its_players_who_take_their_seats_and_the_host_starts_it() {
     let fixture = fixture();
     let tables = Tables::new(root("lobby")).for_tests();
-    let (host, mut to_host) = tables.connect();
-    let (guest, mut to_guest) = tables.connect();
+    let (host, mut to_host) = tables.connect("kara");
+    let (guest, mut to_guest) = tables.connect("finn");
     // A game opened as nobody's lobby is played at once, as it always was.
     let alone = tables.ask("solo", json!({ "id": 1, "op": "open", "project": fixture["projects"][0], "shipped": fixture["shipped"], "table": {} })).await;
     assert_eq!(alone["ok"]["table"]["started"], true);
@@ -708,9 +708,9 @@ async fn a_shared_games_save_keeps_who_plays_whom_and_hosting_it_again_seats_eac
     let tables = Tables::new(root.clone()).for_tests();
     let open = |lobby: bool| json!({ "id": 1, "op": "open", "project": fixture["projects"][0], "shipped": fixture["shipped"], "table": {}, "lobby": lobby });
     // An evening: Finn and Mira at Kara's game, each seated in one of the party.
-    let (host, mut to_host) = tables.connect();
-    let (finn, mut to_finn) = tables.connect();
-    let (mira, mut to_mira) = tables.connect();
+    let (host, mut to_host) = tables.connect("kara");
+    let (finn, mut to_finn) = tables.connect("finn");
+    let (mira, mut to_mira) = tables.connect("mira");
     tables.ask_on(host, "kara", open(false));
     let opened = told(&mut to_host).await;
     let invite = opened["ok"]["invite"].as_str().unwrap().to_string();
@@ -745,7 +745,7 @@ async fn a_shared_games_save_keeps_who_plays_whom_and_hosting_it_again_seats_eac
     }
 
     // Next week: Kara hosts it again, as a lobby, before anybody is back. Their seats are kept for them.
-    let (host, mut to_host) = tables.connect();
+    let (host, mut to_host) = tables.connect("kara");
     tables.ask_on(host, "kara", open(true));
     let invite = told(&mut to_host).await["ok"]["invite"].as_str().unwrap().to_string();
     tables.ask_on(host, "kara", json!({ "id": 4, "op": "load", "slot": id }));
@@ -789,14 +789,14 @@ async fn a_shared_games_save_keeps_who_plays_whom_and_hosting_it_again_seats_eac
     assert_eq!(told(&mut to_host).await["ok"]["table"]["kept"], json!({ finns.as_str(): { "id": "finn", "name": "finn" } }));
     assert_eq!(tables.joinable_for("mira"), Vec::<Value>::new(), "nothing kept for Mira now");
     // Mira comes back: not seated in what the host gave away, and not to take Finn's, kept for him.
-    let (mira, mut to_mira) = tables.connect();
+    let (mira, mut to_mira) = tables.connect("mira");
     tables.ask_on(mira, "mira", json!({ "id": 1, "op": "join", "invite": invite }));
     assert_eq!(told(&mut to_mira).await["ok"]["table"]["seats"], json!({ miras.as_str(): "kara" }));
     told(&mut to_host).await;
     tables.ask_on(mira, "mira", json!({ "id": 2, "op": "seat", "character": finns, "account": "mira" }));
     assert_eq!(told(&mut to_mira).await["error"], "only a seat nobody has is yours to take");
     // Finn comes back: seated in his own at once, everybody told.
-    let (finn, mut to_finn) = tables.connect();
+    let (finn, mut to_finn) = tables.connect("finn");
     tables.ask_on(finn, "finn", json!({ "id": 1, "op": "join", "invite": invite }));
     let joined = told(&mut to_finn).await;
     assert_eq!(joined["ok"]["table"]["seats"], json!({ miras.as_str(): "kara", finns.as_str(): "finn" }));
@@ -823,7 +823,7 @@ async fn a_game_is_found_by_whoever_its_host_lets_find_it_and_the_host_changes_w
     // Kara and Finn are friends; Moth is nobody's.
     serve::friends::befriend(&root, "kara", "finn").unwrap();
     let tables = Tables::new(root.clone());
-    let (host, mut to_host) = tables.connect();
+    let (host, mut to_host) = tables.connect("kara");
     let open = |visibility: &str| json!({ "id": 1, "op": "open", "project": fixture["projects"][0], "shipped": fixture["shipped"], "table": {}, "lobby": true, "visibility": visibility });
     tables.ask_on(host, "kara", open("friends"));
     let opened = told(&mut to_host).await;
@@ -836,7 +836,7 @@ async fn a_game_is_found_by_whoever_its_host_lets_find_it_and_the_host_changes_w
     assert!(listed("moth").is_empty());
     assert!(listed("kara").is_empty());
     // Only the host says who may find it, and only as one of the three.
-    let (guest, mut to_guest) = tables.connect();
+    let (guest, mut to_guest) = tables.connect("finn");
     tables.ask_on(guest, "finn", json!({ "id": 1, "op": "join", "invite": invite }));
     told(&mut to_guest).await;
     // Kara told the table - and, Finn her friend, that he came to a game (`friends_routes.rs`).
@@ -859,7 +859,7 @@ async fn a_game_is_found_by_whoever_its_host_lets_find_it_and_the_host_changes_w
     tables.left(host);
     tables.left(guest);
     assert!(listed("moth").is_empty(), "nobody is at it");
-    let (host, mut to_host) = tables.connect();
+    let (host, mut to_host) = tables.connect("kara");
     tables.ask_on(host, "kara", json!({ "id": 4, "op": "resume" }));
     told(&mut to_host).await;
     assert_eq!(tables.joinable_for("moth")[0]["players"], 1, "only who is at it now");
@@ -868,7 +868,7 @@ async fn a_game_is_found_by_whoever_its_host_lets_find_it_and_the_host_changes_w
     told(&mut to_host).await;
     assert!(listed("moth").is_empty() && listed("finn").is_empty());
     // A game opened the ordinary way is invite-only.
-    let (other, mut to_other) = tables.connect();
+    let (other, mut to_other) = tables.connect("finn");
     tables.ask_on(other, "finn", json!({ "id": 1, "op": "open", "project": fixture["projects"][0], "shipped": fixture["shipped"], "table": {} }));
     assert_eq!(told(&mut to_other).await["ok"]["table"]["visibility"], "invite");
 }
@@ -877,11 +877,11 @@ async fn a_game_is_found_by_whoever_its_host_lets_find_it_and_the_host_changes_w
 async fn a_game_whose_host_is_gone_is_handed_on_to_somebody_still_at_it() {
     let fixture = fixture();
     let tables = Tables::new(root("handed-on")).handing_on_after(std::time::Duration::ZERO);
-    let (host, mut to_host) = tables.connect();
+    let (host, mut to_host) = tables.connect("kara");
     tables.ask_on(host, "kara", json!({ "id": 1, "op": "open", "project": fixture["projects"][0], "shipped": fixture["shipped"], "table": {}, "lobby": true }));
     let invite = told(&mut to_host).await["ok"]["invite"].as_str().unwrap().to_string();
-    let (finn, mut to_finn) = tables.connect();
-    let (mira, mut to_mira) = tables.connect();
+    let (finn, mut to_finn) = tables.connect("finn");
+    let (mira, mut to_mira) = tables.connect("mira");
     // Mira comes before Finn.
     for (conn, who, to) in [(mira, "mira", &mut to_mira), (finn, "finn", &mut to_finn)] {
         tables.ask_on(conn, who, json!({ "id": 1, "op": "join", "invite": invite }));
@@ -900,7 +900,7 @@ async fn a_game_whose_host_is_gone_is_handed_on_to_somebody_still_at_it() {
     assert_eq!(handed["table"]["host"], "finn", "{handed}");
     assert_eq!(handed["table"]["members"].as_array().unwrap().len(), 3);
     // Finn runs it now: Finn starts it, and the seq counts the hand-on.
-    let (host_again, mut to_kara) = tables.connect();
+    let (host_again, mut to_kara) = tables.connect("kara");
     tables.ask_on(finn, "finn", json!({ "id": 2, "op": "start" }));
     assert_eq!(told(&mut to_finn).await["ok"]["table"]["started"], true);
     assert!(nothing_more(&mut to_finn).await);
@@ -917,10 +917,10 @@ async fn a_game_whose_host_is_gone_is_handed_on_to_somebody_still_at_it() {
 async fn a_host_whose_page_comes_back_in_time_keeps_the_game() {
     let fixture = fixture();
     let tables = Tables::new(root("comes-back")).handing_on_after(std::time::Duration::from_millis(1000));
-    let (host, mut to_host) = tables.connect();
+    let (host, mut to_host) = tables.connect("kara");
     tables.ask_on(host, "kara", json!({ "id": 1, "op": "open", "project": fixture["projects"][0], "shipped": fixture["shipped"], "table": {}, "lobby": true }));
     let invite = told(&mut to_host).await["ok"]["invite"].as_str().unwrap().to_string();
-    let (finn, mut to_finn) = tables.connect();
+    let (finn, mut to_finn) = tables.connect("finn");
     tables.ask_on(finn, "finn", json!({ "id": 1, "op": "join", "invite": invite }));
     told(&mut to_finn).await;
     assert_eq!(tables.presence(&["kara".into(), "finn".into(), "moth".into()]), [("finn".into(), "playing"), ("kara".into(), "playing")].into());
@@ -935,13 +935,13 @@ async fn a_host_whose_page_comes_back_in_time_keeps_the_game() {
     assert_eq!(tables.presence(&["kara".into(), "finn".into(), "moth".into()]), [("finn".into(), "playing"), ("kara".into(), "online")].into());
     // A reload: it comes back within the while - Finn told it is here again - and the game is still the host's, long
     // after too; playing is what Kara is, seen on the menu or not.
-    let (again, mut to_again) = tables.connect();
+    let (again, mut to_again) = tables.connect("kara");
     tables.ask_on(again, "kara", json!({ "id": 2, "op": "resume" }));
     assert_eq!(told(&mut to_again).await["ok"]["table"]["host"], "kara");
     assert_eq!(told(&mut to_finn).await["table"]["here"], json!(["finn", "kara"]));
     assert_eq!(tables.presence(&["kara".into()]), [("kara".into(), "playing")].into());
     // A second page of Kara's at the game, and it going: nobody told anything, Kara is still here.
-    let (twice, mut to_twice) = tables.connect();
+    let (twice, mut to_twice) = tables.connect("kara");
     tables.ask_on(twice, "kara", json!({ "id": 1, "op": "resume" }));
     told(&mut to_twice).await;
     assert!(nothing_more(&mut to_finn).await, "Kara was here already");
@@ -957,13 +957,13 @@ async fn a_shared_games_save_is_hosted_again_by_anybody_who_played_it() {
     let tables = Tables::new(root.clone()).for_tests();
     let open = |lobby: bool| json!({ "id": 1, "op": "open", "project": fixture["projects"][0], "shipped": fixture["shipped"], "table": {}, "lobby": lobby });
     // Kara's game, Finn at it and seated; Kara saves it.
-    let (host, mut to_host) = tables.connect();
+    let (host, mut to_host) = tables.connect("kara");
     tables.ask_on(host, "kara", open(false));
     let opened = told(&mut to_host).await;
     let invite = opened["ok"]["invite"].as_str().unwrap().to_string();
     let party: Vec<String> = opened["ok"]["board"]["replica"]["state"]["entities"].as_object().unwrap().iter().filter(|(_, e)| e["faction"] == "party").map(|(id, _)| id.clone()).collect();
     let (karas, finns) = (party[0].clone(), party[1].clone());
-    let (finn, mut to_finn) = tables.connect();
+    let (finn, mut to_finn) = tables.connect("finn");
     tables.ask_on(finn, "finn", json!({ "id": 1, "op": "join", "invite": invite }));
     told(&mut to_finn).await;
     told(&mut to_host).await;
@@ -984,7 +984,7 @@ async fn a_shared_games_save_is_hosted_again_by_anybody_who_played_it() {
         tables.left(conn);
     }
     // Finn hosts it from his own saves: seated in his own, Kara's kept for her.
-    let (again, mut to_again) = tables.connect();
+    let (again, mut to_again) = tables.connect("finn");
     tables.ask_on(again, "finn", open(true));
     told(&mut to_again).await;
     tables.ask_on(again, "finn", json!({ "id": 2, "op": "load", "slot": id }));
@@ -1000,7 +1000,7 @@ async fn a_shared_games_save_is_hosted_again_by_anybody_who_played_it() {
     assert_eq!(serve::saves::read_save(&root, "kara", &id), serve::saves::read_save(&root, "finn", &id));
     assert_eq!(serve::saves::read_slots(&root, "kara").iter().find(|s| s.id == id).unwrap().saved_at, resaved["savedAt"].as_i64().unwrap());
     // A game nobody shared saves into its player's folder alone, with no players and no project beside it.
-    let (alone, mut to_alone) = tables.connect();
+    let (alone, mut to_alone) = tables.connect("moth");
     tables.ask_on(alone, "moth", open(false));
     told(&mut to_alone).await;
     tables.ask_on(alone, "moth", json!({ "id": 2, "op": "save", "name": "Mine", "where": "the vault" }));
@@ -1016,7 +1016,7 @@ async fn whoever_is_at_a_game_talks_and_a_page_that_comes_is_told_what_was_said(
     let accounts = ["kara", "finn"].map(|id| Account { id: id.into(), name: id.to_uppercase(), salt: "s".into(), hash: "h".into(), admin: false, created: 0, invitation: None, invited_by: None, rest: IndexMap::new() });
     write_accounts(&root, &accounts).unwrap();
     let tables = Tables::new(root.clone());
-    let (host, mut to_host) = tables.connect();
+    let (host, mut to_host) = tables.connect("kara");
     tables.ask_on(host, "kara", json!({ "id": 1, "op": "open", "project": fixture["projects"][0], "shipped": fixture["shipped"], "table": {}, "lobby": true }));
     let opened = told(&mut to_host).await;
     assert_eq!(opened["ok"]["chat"], json!([]), "nothing said yet");
@@ -1028,7 +1028,7 @@ async fn whoever_is_at_a_game_talks_and_a_page_that_comes_is_told_what_was_said(
     assert_eq!((line["from"].clone(), line["name"].clone(), line["text"].clone()), (json!("kara"), json!("KARA"), json!("Who is bringing the snacks?")));
     assert!(line["at"].as_i64().unwrap() > 0);
     // Finn comes, and is told what was said; Finn speaks, and Kara is told - Finn not told his own twice.
-    let (guest, mut to_guest) = tables.connect();
+    let (guest, mut to_guest) = tables.connect("finn");
     tables.ask_on(guest, "finn", json!({ "id": 1, "op": "join", "invite": invite }));
     assert_eq!(told(&mut to_guest).await["ok"]["chat"], json!([line]));
     told(&mut to_host).await;
@@ -1064,8 +1064,8 @@ async fn a_conversation_set_aside_or_brought_back_by_its_talkers_player_is_pushe
     let fixture = fixture();
     let root = root("talks");
     let tables = Tables::new(root.clone()).for_tests();
-    let (host, mut to_host) = tables.connect();
-    let (guest, mut to_guest) = tables.connect();
+    let (host, mut to_host) = tables.connect("kara");
+    let (guest, mut to_guest) = tables.connect("finn");
     tables.ask_on(host, "kara", json!({ "id": 1, "op": "open", "project": fixture["projects"][0], "shipped": fixture["shipped"], "table": {} }));
     let opened = told(&mut to_host).await;
     let invite = opened["ok"]["invite"].as_str().unwrap().to_string();

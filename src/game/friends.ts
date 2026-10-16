@@ -4,8 +4,12 @@
  * account made with a player's invitation is that player's friend from the start. And what friends write each other
  * (slice 6; the server's `messages.rs`): a conversation read, written to, and read up to a message. And which
  * friends are around (`online`, the server's `play.rs` `presence`). And whose friends a game's page shows (`playAs`):
- * the menu's are reachable during a game too (`ui/FriendsInPlay.tsx`).
+ * the menu's are reachable during a game too (`ui/FriendsInPlay.tsx`). A friend's doing - and their coming and going -
+ * is told at once over the games' socket: a game's page hears it on its wire, the menu opens the socket to listen
+ * (`listenForFriends`); either way `friendDid` tells whoever shows the friends, who ask again.
  */
+
+import type { Transport } from './wire';
 
 export const FRIENDS_URL = '/__friends';
 const HEADER = 'x-tactical-save';
@@ -85,7 +89,20 @@ export function onFriendDid(tell: (from: string) => void): () => void {
   return () => toldOfFriend.delete(tell);
 }
 
-/** How often an open conversation asks for what is new, and the friends for what is unread (ms) - at a game, as well as told. */
+/**
+ * The menu listening for its friends' doings, over the games' socket (`PlaySocket`, `play.rs`), nothing sent on it:
+ * each `{ friends: { from } }` told is a friend's. What to call to stop listening, which closes it.
+ */
+export function listenForFriends(open: () => Transport): () => void {
+  const socket = open();
+  socket.listen?.((message) => {
+    const from = (message['friends'] as { from?: unknown } | undefined)?.from;
+    if (typeof from === 'string') friendDid(from);
+  });
+  return () => socket.close();
+}
+
+/** How often an open conversation asks for what is new, and the friends for what is unread (ms) - as well as told. */
 export const CONVERSATION_EVERY = 3000;
 export const FRIENDS_EVERY = 10_000;
 

@@ -5,7 +5,8 @@ import { ON_SERVER } from './server-mode';
  * Friends (`docs/SERVER.md`, phase 6, slice 2), from the main menu of two players' pages, each in a browser of its
  * own and signed in to an account of its own: one asks the other by name; the other's menu says somebody is asking,
  * and they accept; each lists the other; they write each other (slice 6), what is unread said on the menu and read
- * as it is shown, an answer coming without a reload; each sees whether the other is around - online on the menu, in
+ * as it is shown, an answer coming without a reload - each told the other's doing at once, nothing reloaded; each sees
+ * whether the other is around - online on the menu, in
  * a game once at one; written to during that game, the game's page says so at once, and its friends are the menu's,
  * read and answered over the table, the other's going from a game of their own said at once too; one removes the other, and neither lists anybody. The server keeps the friends, so this is
  * played on the server alone.
@@ -39,9 +40,8 @@ test('a player asks another by name, who accepts; each lists the other, until on
   await asking.page.getByTestId('friend-ask').click();
   await expect(asking.page.getByTestId('friend-asked')).toContainText(askedName);
 
-  // Asked: the menu says so; accepted, each lists the other.
-  await asked.page.reload();
-  await expect(asked.page.getByTestId('menu-friends')).toHaveText('Friends (1)');
+  // Asked: the menu says so at once, told over the socket it listens on; accepted, each lists the other, at once too.
+  await expect(asked.page.getByTestId('menu-friends')).toHaveText('Friends (1)', { timeout: 3_000 });
   await asked.page.getByTestId('menu-friends').click();
   await expect(asked.page.getByTestId('friends-asking')).toContainText(askingName);
   await asked.page.screenshot({ path: 'test-results/friends-asking.png' });
@@ -49,14 +49,12 @@ test('a player asks another by name, who accepts; each lists the other, until on
   await expect(asked.page.getByTestId('friend')).toHaveText(new RegExp(askingName));
   await expect(asked.page.getByTestId('friends-asking')).toHaveCount(0);
   await expect(asked.page.getByTestId('menu-friends')).toHaveText('Friends');
-  await asking.page.reload();
-  await asking.page.getByTestId('menu-friends').click();
-  await expect(asking.page.getByTestId('friend')).toHaveText(new RegExp(askedName));
+  await expect(asking.page.getByTestId('friend')).toHaveText(new RegExp(askedName), { timeout: 3_000 });
   // The other, on the menu a moment ago, is online.
   await expect(asking.page.getByTestId('friend')).toHaveAttribute('data-presence', 'online');
   await expect(asking.page.getByTestId('friend-presence')).toHaveText('· online');
 
-  // Written to: the writer sees it; the other's menu says so, and the friend's line how much.
+  // Written to: the writer sees it; the other's menu says so at once, and the friend's line how much.
   await asked.page.getByTestId('friend-write').click();
   const askedChat = asked.page.getByTestId('friend-chat');
   await expect(askedChat).toContainText('Nothing written yet.');
@@ -64,9 +62,7 @@ test('a player asks another by name, who accepts; each lists the other, until on
   await askedChat.getByTestId('chat-send').click();
   await expect(askedChat.getByTestId('chat-line')).toHaveText([`${askedName} Are you free on Friday?`]);
   await expect(askedChat.getByTestId('chat-input')).toHaveValue('');
-  await asking.page.reload();
-  await expect(asking.page.getByTestId('menu-friends')).toHaveText('Friends (1)');
-  await asking.page.getByTestId('menu-friends').click();
+  await expect(asking.page.getByTestId('menu-friends')).toHaveText('Friends (1)', { timeout: 3_000 });
   await expect(asking.page.getByTestId('friend-write')).toHaveText('Messages (1)');
   // Shown, it is read: nothing unread once back on the list.
   await asking.page.getByTestId('friend-write').click();
@@ -134,12 +130,12 @@ test('a player asks another by name, who accepts; each lists the other, until on
   await asking.page.getByTestId('menu-friends').click();
   await asked.page.goto('/?menu');
 
-  // Removed by one, gone for both.
+  // Removed by one, gone for both - the other's list, open on the menu, told at once.
+  await asked.page.getByTestId('menu-friends').click();
+  await expect(asked.page.getByTestId('friend')).toHaveText(new RegExp(askingName));
   await asking.page.getByTestId('friend-remove').click();
   await expect(asking.page.getByTestId('friend')).toHaveCount(0);
-  await asked.page.reload();
-  await asked.page.getByTestId('menu-friends').click();
-  await expect(asked.page.getByTestId('friends-list')).toContainText('None yet');
+  await expect(asked.page.getByTestId('friends-list')).toContainText('None yet', { timeout: 3_000 });
   await asking.context.close();
   await asked.context.close();
 });

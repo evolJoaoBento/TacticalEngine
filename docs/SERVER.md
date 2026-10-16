@@ -1921,4 +1921,13 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     seconds. Proved by `friends_routes.rs` (come to a game, gone, come online each told once, nothing for asking
     again, nobody's friend telling nobody; `play_routes.rs`, a host told her friend came as he joins) and
     `friends.spec.ts` (a friend's going from their game said on the sheet well inside the while).
+  - **The menu told at once too** (16 October 2026). The menu, at no game, had only the asking every ten seconds.
+    Now it opens the games' socket (`/__play`) and sends nothing on it, to listen (`listenForFriends`, `friends.ts`;
+    `MainMenu.tsx`, where the server plays): the server knows each connection's account (`Connection`,
+    `Tables::connect` takes it), and `Tables::tell` goes to every connection of the account - a page at a game, a menu
+    listening - instead of the game's watchers. The asking every ten seconds stays: a socket is not reopened once
+    lost, and the asking is what keeps a menu's player seen. Proved by `friends_routes.rs` (a connection at no game
+    told a friend's message and comings as the game's is, nothing once gone), `friends.test.ts` (listened to, only a
+    friend's doing told, stopping closes it) and `friends.spec.ts`, whose menu pages reload nothing any more: asked,
+    accepted, written to and removed, each menu says so inside three seconds.
   - **Next**: an evening through the tunnel.

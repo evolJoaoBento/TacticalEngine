@@ -48,10 +48,10 @@
 //! `{ game, host, invite, members: [{ id, name }], seats: { character: account }, started, kept: { character:
 //! { id, name } }, here: [account] }` - `kept` the seats a loaded save gave players not at the game yet, `here` who
 //! is at it now (phase 6, who is online): the others told the table whenever somebody's last page there goes, or
-//! somebody's page comes back (a page that joins is told it as it joins). And from outside the game, to an account's
-//! pages at it alone: `{ friends: { from } }` when a friend asked, answered, removed or wrote to it (`friends.rs`,
-//! `Tables::tell`), or came to a game, left one or came online (`told_around`) - the page asks its friends again at
-//! once.
+//! somebody's page comes back (a page that joins is told it as it joins). And from outside any game, to an account's
+//! own connections alone - its pages at a game, and its menu, which opens the socket and sends nothing, to be told:
+//! `{ friends: { from } }` when a friend asked, answered, removed or wrote to it (`friends.rs`, `Tables::tell`), or
+//! came to a game, left one or came online (`told_around`) - the page asks its friends again at once.
 //!
 //! A game outlives the last socket at it for a while (`KEPT_FOR`), so a page that lost its connection comes back
 //! to it; past that it goes. A guest's page opens over the game's project, read before it is built
@@ -229,6 +229,14 @@ struct Shared {
     chat: Vec<Value>,
 }
 
+/// A socket's connection as the tables know it: its queue, whose it is, and the game it is at, if any.
+#[derive(Clone)]
+struct Connection {
+    to: queue::UnboundedSender<Value>,
+    account: String,
+    game: Option<String>,
+}
+
 /// A game being played: the way into its thread, and what is shared about it.
 struct Game {
     door: mpsc::Sender<Job>,
@@ -240,8 +248,8 @@ struct Inner {
     games: HashMap<String, Game>,
     /// The game each account is at.
     at: HashMap<String, String>,
-    /// Each connection's queue, and the game it watches.
-    conns: HashMap<Conn, (queue::UnboundedSender<Value>, Option<String>)>,
+    /// Each connection: its queue, whose it is, and the game it watches - none for a menu's, which listens alone.
+    conns: HashMap<Conn, Connection>,
     next: Conn,
     /// When each account's page last asked the server something outside a game (`saw`).
     seen: HashMap<String, Instant>,
@@ -724,14 +732,13 @@ impl Tables {
         Tables { online_for, ..self }
     }
 
-    /// Something for an account's pages at its game, whatever the game, outside it (`friends.rs`: a friend asked,
-    /// answered, removed or wrote to it). Nothing for an account at none.
+    /// Something for an account's connections, from outside any game (`friends.rs`: a friend asked, answered,
+    /// removed or wrote to it; `told_around`): its pages at a game, and its menu listening. Nothing for an account
+    /// with none.
     pub fn tell(&self, account: &str, message: &Value) {
-        let inner = self.inner.lock().expect("the tables");
-        let Some(found) = inner.at.get(account).and_then(|game| inner.games.get(game)) else { return };
-        for (_, whose, to) in &found.shared.lock().expect("the game").watching {
-            if whose == account {
-                let _ = to.send(message.clone());
+        for connection in self.inner.lock().expect("the tables").conns.values() {
+            if connection.account == account {
+                let _ = connection.to.send(message.clone());
             }
         }
     }
@@ -806,20 +813,20 @@ impl Tables {
         }
     }
 
-    /// A socket's connection: its queue, which its answers and the pushes it is given leave through.
-    pub fn connect(&self) -> (Conn, queue::UnboundedReceiver<Value>) {
+    /// An account's socket's connection: its queue, which its answers and whatever it is told leave through.
+    pub fn connect(&self, account: &str) -> (Conn, queue::UnboundedReceiver<Value>) {
         let (to, from) = queue::unbounded_channel();
         let mut inner = self.inner.lock().expect("the tables");
         inner.next += 1;
         let conn = inner.next;
-        inner.conns.insert(conn, (to, None));
+        inner.conns.insert(conn, Connection { to, account: account.to_string(), game: None });
         (conn, from)
     }
 
     /// A connection now at `game`: no longer at the one it was at, which nobody may be at any more. The others told
     /// the table if the account was not at it - unless `joining`, whose table the game's thread tells them.
     fn watch(inner: &mut Inner, root: &Path, conn: Conn, account: &str, game: &str, joining: bool) {
-        let Some((to, was)) = inner.conns.get(&conn).cloned() else { return };
+        let Some(Connection { to, game: was, .. }) = inner.conns.get(&conn).cloned() else { return };
         if was.as_deref() == Some(game) {
             return;
         }
@@ -838,7 +845,7 @@ impl Tables {
                 held.host_gone = None;
             }
         }
-        inner.conns.insert(conn, (to, Some(game.to_string())));
+        inner.conns.insert(conn, Connection { to, account: account.to_string(), game: Some(game.to_string()) });
     }
 
     /// A connection no longer at `game`: the others told the table if it was its account's last there.
@@ -877,7 +884,7 @@ impl Tables {
 
     /// A message from an account's connection: its answer goes into the connection's queue.
     pub fn ask_on(&self, conn: Conn, account: &str, message: Value) {
-        let Some(to) = self.inner.lock().expect("the tables").conns.get(&conn).map(|(to, _)| to.clone()) else { return };
+        let Some(to) = self.inner.lock().expect("the tables").conns.get(&conn).map(|connection| connection.to.clone()) else { return };
         self.route(account, message, Reply::To(conn, to));
     }
 
@@ -963,13 +970,10 @@ impl Tables {
     pub fn left(&self, conn: Conn) {
         let mut inner = self.inner.lock().expect("the tables");
         let mut gone = None;
-        if let Some((_, Some(game))) = inner.conns.remove(&conn) {
-            let whose = inner.games.get(&game).and_then(|found| found.shared.lock().expect("the game").watching.iter().find(|(watcher, _, _)| *watcher == conn).map(|(_, who, _)| who.clone()));
-            gone = whose.map(|account| {
-                let before = presence_in(&inner, &account, self.online_for);
-                (account, before)
-            });
+        if let Some(Connection { account, game: Some(game), .. }) = inner.conns.remove(&conn) {
+            let before = presence_in(&inner, &account, self.online_for);
             Tables::unwatch(&mut inner, &self.root, conn, &game);
+            gone = Some((account, before));
         }
         self.sweep(&mut inner);
         drop(inner);
@@ -1093,7 +1097,7 @@ async fn joinable(State(tables): State<Tables>, headers: HeaderMap) -> Response 
 /// A socket's life: each message handed to the account's game, and whatever the game says - its answers, and
 /// what the other pages' intents changed - sent on as it comes, until the socket closes.
 async fn play(mut socket: WebSocket, tables: Tables, account: String) {
-    let (conn, mut said) = tables.connect();
+    let (conn, mut said) = tables.connect(&account);
     loop {
         tokio::select! {
             message = socket.recv() => {

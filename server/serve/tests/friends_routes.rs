@@ -234,7 +234,7 @@ async fn friends_are_told_which_of_them_are_around_and_nobody_else_is() {
     assert_eq!(online(&wren).await, json!({ "pip": "online" }));
     // Wren at a game - their own, nobody else's - is playing, whether or not seen on the menu.
     let fixture: Value = serde_json::from_str(&std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../fixtures/replica.json")).unwrap()).unwrap();
-    let (conn, mut to_wren) = tables.connect();
+    let (conn, mut to_wren) = tables.connect("wren");
     tables.ask_on(conn, "wren", json!({ "id": 1, "op": "open", "project": fixture["projects"][0], "shipped": fixture["shipped"], "table": {} }));
     assert!(tokio::time::timeout(Duration::from_secs(5), to_wren.recv()).await.unwrap().unwrap()["ok"].is_object());
     assert_eq!(online(&pip).await, json!({ "wren": "playing" }));
@@ -262,7 +262,7 @@ async fn a_friends_doing_is_told_at_once_to_the_other_at_a_game_and_a_message_re
     let mut at = Vec::new();
     let mut invite = Value::Null;
     for account in ["wren", "pip"] {
-        let (conn, mut to) = tables.connect();
+        let (conn, mut to) = tables.connect(account);
         tables.ask_on(conn, account, json!({ "id": 1, "op": "open", "project": fixture["projects"][0], "shipped": fixture["shipped"], "table": {} }));
         let opened = tokio::time::timeout(Duration::from_secs(5), to.recv()).await.unwrap().unwrap();
         invite = opened["ok"]["invite"].clone();
@@ -270,7 +270,7 @@ async fn a_friends_doing_is_told_at_once_to_the_other_at_a_game_and_a_message_re
     }
     let (to_wren, to_pip) = at.split_at_mut(1);
     let (to_wren, to_pip) = (&mut to_wren[0], &mut to_pip[0]);
-    let (moth, mut to_moth) = tables.connect();
+    let (moth, mut to_moth) = tables.connect("moth");
     tables.ask_on(moth, "moth", json!({ "id": 1, "op": "join", "invite": invite }));
     assert!(tokio::time::timeout(Duration::from_secs(5), to_moth.recv()).await.unwrap().unwrap()["ok"].is_object());
     // Pip told Moth came.
@@ -315,7 +315,7 @@ async fn a_friend_come_to_a_game_gone_from_it_or_come_online_is_told_at_once_to_
         let tables = tables.clone();
         let fixture = fixture.clone();
         async move {
-            let (conn, mut to) = tables.connect();
+            let (conn, mut to) = tables.connect(account);
             tables.ask_on(conn, account, json!({ "id": 1, "op": "open", "project": fixture["projects"][0], "shipped": fixture["shipped"], "table": {} }));
             assert!(tokio::time::timeout(Duration::from_secs(5), to.recv()).await.unwrap().unwrap()["ok"].is_object());
             (conn, to)

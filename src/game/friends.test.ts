@@ -5,7 +5,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { FRIENDS_URL, answerFriend, askFriend, friendDid, onFriendDid, onPlayingAs, playAs, playingAs, presenceWord, readConversation, readFriends, readUpTo, removeFriend, unreadOf, writeTo } from './friends';
+import { FRIENDS_URL, answerFriend, askFriend, friendDid, listenForFriends, onFriendDid, onPlayingAs, playAs, playingAs, presenceWord, readConversation, readFriends, readUpTo, removeFriend, unreadOf, writeTo } from './friends';
 
 const answer = (status: number, body: unknown) => async () => ({ ok: status >= 200 && status < 300, status, json: async () => body });
 const wren = { id: 'wren', name: 'Wren' };
@@ -104,5 +104,23 @@ describe('friends', () => {
     stops[1]!();
     friendDid('wren');
     expect(told).toEqual([['pip'], ['pip', 'moth']]);
+  });
+
+  it("listens on the games' socket for a friend's doing - whose, and nothing that is not one - until stopped, which closes it", () => {
+    let hear: ((message: Record<string, unknown>) => void) | null = null;
+    let closed = 0;
+    const socket = { send: () => Promise.reject(new Error('nothing is sent')), close: () => closed++, listen: (heard: (message: Record<string, unknown>) => void) => (hear = heard) };
+    const told: string[] = [];
+    const stopTelling = onFriendDid((from) => told.push(from));
+    const stop = listenForFriends(() => socket);
+    expect(hear).not.toBeNull();
+    hear!({ friends: { from: 'pip' } });
+    hear!({ friends: {} });
+    hear!({ friends: { from: 3 } });
+    hear!({ table: { members: [] } });
+    expect(told).toEqual(['pip']);
+    stop();
+    expect(closed).toBe(1);
+    stopTelling();
   });
 });
