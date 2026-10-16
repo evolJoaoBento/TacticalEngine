@@ -15,6 +15,7 @@ use serve::play::Tables;
 use std::cell::RefCell;
 use std::path::PathBuf;
 use std::rc::Rc;
+use std::time::Duration;
 use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 use tokio_tungstenite::tungstenite::Message;
 
@@ -210,6 +211,78 @@ async fn the_play_route_is_a_websocket_for_a_signed_in_page() {
     let resumed: Value = serde_json::from_str(&again.next().await.unwrap().unwrap().into_text().unwrap()).unwrap();
     assert_eq!(resumed["id"], "c");
     assert_eq!(resumed["ok"]["board"]["replica"]["sceneId"], opened["ok"]["board"]["replica"]["sceneId"], "{resumed}");
+}
+
+#[tokio::test]
+async fn a_socket_is_beaten_and_one_gone_silent_is_closed() {
+    let root = root("beaten");
+    let account = Account { id: "kara".into(), name: "Kara".into(), salt: "s".into(), hash: "h".into(), admin: false, created: 0, invitation: None, invited_by: None, rest: IndexMap::new() };
+    write_accounts(&root, &[account]).unwrap();
+    let mut sessions = IndexMap::new();
+    sessions.insert("good-token".to_string(), Signed { account: "kara".into(), expires: i64::MAX });
+    write_sessions(&root, &sessions).unwrap();
+
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = listener.local_addr().unwrap();
+    let app = serve::app_over(root.clone(), serve::Settings::default(), Tables::new(root).beating(Duration::from_millis(100)));
+    tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+    let connect = || {
+        let mut request = format!("ws://{address}/__play").into_client_request().unwrap();
+        let headers = request.headers_mut();
+        headers.insert("origin", format!("http://{address}").parse().unwrap());
+        headers.insert("cookie", format!("{SESSION_COOKIE}=good-token").parse().unwrap());
+        tokio_tungstenite::connect_async(request)
+    };
+
+    // A page reading what comes all along - its socket answering each ping, as a browser's does of itself.
+    let (answering, _) = connect().await.unwrap();
+    let reading = tokio::spawn(async move {
+        let mut answering = answering;
+        let (mut pings, mut beats) = (0, 0);
+        let until = tokio::time::Instant::now() + Duration::from_millis(1500);
+        while let Ok(next) = tokio::time::timeout_at(until, answering.next()).await {
+            match next {
+                Some(Ok(Message::Ping(_))) => pings += 1,
+                Some(Ok(Message::Text(text))) => {
+                    assert_eq!(serde_json::from_str::<Value>(&text).unwrap(), json!({ "beat": 100 }));
+                    beats += 1;
+                }
+                other => panic!("the answering socket: {other:?}"),
+            }
+        }
+        (answering, pings, beats)
+    });
+
+    // A page that hears nothing - a network leaving its connection half open, no answer to a ping coming back:
+    // closed once three beats have gone by in silence. Read afterwards, the beats that came, then the end.
+    let (mut silent, _) = connect().await.unwrap();
+    tokio::time::sleep(Duration::from_millis(700)).await;
+    let ended = tokio::time::timeout(Duration::from_secs(2), async {
+        let mut came = 0;
+        loop {
+            match silent.next().await {
+                Some(Ok(Message::Close(_))) | Some(Err(_)) | None => return came,
+                Some(Ok(_)) => came += 1,
+            }
+        }
+    })
+    .await;
+    let came = ended.expect("the silent socket closed by the server");
+    // (Read late, its answer to the first ping meets a connection already gone, so not every beat that came is read.)
+    assert!((1..=6).contains(&came), "{came}: the beats before the silence ran out, and no more");
+    // The one that answers: beaten, a ping and the beat the page hears, and open yet, long past three beats.
+    let (mut answering, pings, beats) = reading.await.unwrap();
+    assert!(pings >= 10 && beats >= 10, "{pings} pings, {beats} beats");
+    answering.send(Message::Text(json!({ "id": "a", "op": "resume" }).to_string().into())).await.unwrap();
+    let resumed = loop {
+        if let Message::Text(text) = answering.next().await.unwrap().unwrap() {
+            let said: Value = serde_json::from_str(&text).unwrap();
+            if said.get("id").is_some() {
+                break said;
+            }
+        }
+    };
+    assert_eq!(resumed["id"], "a");
 }
 
 #[tokio::test]

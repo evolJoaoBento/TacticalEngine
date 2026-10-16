@@ -7,7 +7,9 @@ import { ON_SERVER } from './server-mode';
  * (`friends.ts`, `listenForFriends`), is opened again of itself, and a friend's request told at once after; a game's
  * page, sending nothing, notices its own go (`wire.ts`, `Transport.onClose`), connects again of itself and plays on in
  * step. Each socket is held by the test (`routeWebSocket`) and closed from the page's side, as a network that drops it
- * would. The sockets are the server's, so this is played on the server alone.
+ * would - or left open with nothing let through it either way, as a network that leaves it half open would, which the
+ * page knows by the server's beat stopping (`play.rs`, `BEAT_EVERY`; five seconds on the tests' server). The sockets
+ * are the server's, so this is played on the server alone.
  */
 
 test.skip(!ON_SERVER, 'the sockets are to the server: npm run test:e2e:server');
@@ -66,4 +68,42 @@ test("a game's page, its connection dropped while it sends nothing, connects aga
   expect(await playing.page.evaluate(() => window.__replica!.count().parted)).toBe(0);
   expect(playing.sockets.length).toBe(2);
   await playing.context.close();
+});
+
+test("a game's page that stops hearing the server's beat - its connection left half open - closes it and connects again", async ({ browser, baseURL }) => {
+  test.setTimeout(120_000);
+  const stamp = Date.now().toString(36).slice(-5);
+  const context = await signedIn(browser, baseURL!, `fin${stamp}`);
+  const page = await context.newPage();
+  const sockets: WebSocketRoute[] = [];
+  let beaten = 0;
+  // The first socket lets everything through until the server's first beat, and nothing at all after, either way;
+  // the browser's own socket to the server still answers its pings, so only the page can tell.
+  await page.routeWebSocket('**/__play', (socket) => {
+    const server = socket.connectToServer();
+    const first = sockets.push(socket) === 1;
+    let deaf = false;
+    server.onMessage((message) => {
+      if (deaf) return;
+      socket.send(message);
+      if (first && String(message).includes('"beat"')) {
+        beaten++;
+        deaf = true;
+      }
+    });
+    socket.onMessage((message) => {
+      if (!deaf) server.send(message);
+    });
+  });
+  await page.goto('/?play');
+  await page.waitForFunction(() => window.__replica?.server() === 'in', null, { timeout: 60_000 });
+  await expect.poll(() => beaten, { timeout: 15_000 }).toBe(1);
+  expect(sockets.length).toBe(1);
+  // Three beats gone by unheard: the page closes it, connects again, and is back at the game the server kept.
+  await expect.poll(() => sockets.length, { timeout: 30_000 }).toBe(2);
+  await expect.poll(() => page.evaluate(() => window.__replica!.server()), { timeout: 15_000 }).toBe('in');
+  await page.evaluate(() => window.__engine!.selectNext());
+  await expect.poll(() => page.evaluate(() => window.__replica!.server()), { timeout: 10_000 }).toBe('in');
+  expect(await page.evaluate(() => window.__replica!.count().parted)).toBe(0);
+  await context.close();
 });

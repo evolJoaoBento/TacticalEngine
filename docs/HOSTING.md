@@ -188,5 +188,8 @@ tunnel:
 ## Stopping
 
 Stop the tunnel, then the server (Ctrl+C). A game is kept for ten minutes after its player's connection
-drops - a page tries to connect again of itself for about a minute, and is back where it was - and goes
-when the server stops. Saves stay in `data/`.
+drops, and goes when the server stops. Saves stay in `data/`.
+
+A page whose connection drops tries to connect again of itself for about a minute, and is back where it was. The
+server beats every connection every twenty seconds, so the tunnel never shuts one as idle, and a connection that
+goes silent for a minute is closed and opened again.

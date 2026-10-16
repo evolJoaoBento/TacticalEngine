@@ -53,6 +53,11 @@
 //! `{ friends: { from } }` when a friend asked, answered, removed or wrote to it (`friends.rs`, `Tables::tell`), or
 //! came to a game, left one or came online (`told_around`) - the page asks its friends again at once.
 //!
+//! Every socket is beaten (`BEAT_EVERY`): a ping, which the browser answers of itself, and `{ beat: <ms> }`, which
+//! the page hears - so a proxy or a tunnel in between never finds it idle and shuts it, and either side knows a
+//! connection a network has left half open: the server closes a socket it has heard nothing on, not even the answer
+//! to a ping, for `SILENT_BEATS` beats, and the page one it has not been beaten on for as long (`play-socket.ts`).
+//!
 //! A game outlives the last socket at it for a while (`KEPT_FOR`), so a page that lost its connection comes back
 //! to it; past that it goes. A guest's page opens over the game's project, read before it is built
 //! (`GET /__play/join/<invite>`: `{ project }`, for anybody signed in who holds the invitation).
@@ -125,6 +130,13 @@ pub const HAND_ON_AFTER: Duration = Duration::from_secs(30);
 /// How long a player is counted online after their page last asked the server something (`saw`, `presence`): the
 /// menu asks for the friends every 10 seconds (`FRIENDS_EVERY`, `friends.ts`).
 pub const ONLINE_FOR: Duration = Duration::from_secs(25);
+
+/// How often a socket is beaten - a ping, and `{ beat }` for the page - well inside the minute or so a proxy or a
+/// tunnel lets a connection sit idle.
+pub const BEAT_EVERY: Duration = Duration::from_secs(20);
+
+/// How many beats a socket may go without anything heard on it before it is closed as gone.
+pub const SILENT_BEATS: u32 = 3;
 
 /// How often a game's thread, waiting for a message, looks whether its host is gone.
 const TICK: Duration = Duration::from_millis(500);
@@ -269,6 +281,8 @@ pub struct Tables {
     hand_on_after: Duration,
     /// How long an account is online after it was last seen.
     online_for: Duration,
+    /// How often each socket is beaten.
+    beat_every: Duration,
 }
 
 /// A project's code run in QuickJS, compiled once for each body of code a game is built with.
@@ -724,12 +738,17 @@ impl Tables {
 
     /// Tables whose games are kept for `kept_for` after the last socket at them closes.
     pub fn keeping(root: PathBuf, kept_for: Duration) -> Tables {
-        Tables { root, inner: Arc::new(Mutex::new(Inner::default())), kept_for, for_tests: false, hand_on_after: HAND_ON_AFTER, online_for: ONLINE_FOR }
+        Tables { root, inner: Arc::new(Mutex::new(Inner::default())), kept_for, for_tests: false, hand_on_after: HAND_ON_AFTER, online_for: ONLINE_FOR, beat_every: BEAT_EVERY }
     }
 
     /// Tables counting an account online for `online_for` after it was last seen.
     pub fn online_for(self, online_for: Duration) -> Tables {
         Tables { online_for, ..self }
+    }
+
+    /// Tables beating each socket every `every`.
+    pub fn beating(self, every: Duration) -> Tables {
+        Tables { beat_every: every, ..self }
     }
 
     /// Something for an account's connections, from outside any game (`friends.rs`: a friend asked, answered,
@@ -784,7 +803,7 @@ impl Tables {
     /// The tests' tables: each game opened with its dice where the page's are, not at the server's own seed, and
     /// the test driver's hands taken.
     pub fn for_tests(self) -> Tables {
-        Tables { for_tests: true, hand_on_after: Duration::from_secs(3), ..self }
+        Tables { for_tests: true, hand_on_after: Duration::from_secs(3), beat_every: Duration::from_secs(5), ..self }
     }
 
     /// Why a message is refused before its game is asked, if it is: an intent that would tell the game how the
@@ -1095,13 +1114,17 @@ async fn joinable(State(tables): State<Tables>, headers: HeaderMap) -> Response 
 }
 
 /// A socket's life: each message handed to the account's game, and whatever the game says - its answers, and
-/// what the other pages' intents changed - sent on as it comes, until the socket closes.
+/// what the other pages' intents changed - sent on as it comes, the socket beaten, until it closes or goes silent.
 async fn play(mut socket: WebSocket, tables: Tables, account: String) {
     let (conn, mut said) = tables.connect(&account);
+    let every = tables.beat_every;
+    let mut beat = tokio::time::interval_at(tokio::time::Instant::now() + every, every);
+    let mut heard = Instant::now();
     loop {
         tokio::select! {
             message = socket.recv() => {
                 let Some(Ok(message)) = message else { break };
+                heard = Instant::now();
                 let text = match message {
                     Message::Text(text) => text.to_string(),
                     Message::Close(_) => break,
@@ -1120,6 +1143,16 @@ async fn play(mut socket: WebSocket, tables: Tables, account: String) {
             out = said.recv() => {
                 let Some(out) = out else { break };
                 if socket.send(Message::Text(out.to_string().into())).await.is_err() {
+                    break;
+                }
+            }
+            _ = beat.tick() => {
+                // Nothing heard - not even the browser's answer to a ping - for so long: a connection left half open.
+                if heard.elapsed() >= every * SILENT_BEATS {
+                    break;
+                }
+                let told = json!({ "beat": every.as_millis() as u64 });
+                if socket.send(Message::Ping(Vec::new().into())).await.is_err() || socket.send(Message::Text(told.to_string().into())).await.is_err() {
                     break;
                 }
             }

@@ -18,12 +18,16 @@ A game's page played on the server has a Friends button above the table's chat, 
 much is unread; it opens the menu's friends - asking, answering, writing - on a sheet over the table, Escape shutting
 it.
 
+## Every socket beaten — done
+
+The server pings each socket and tells the page a beat every twenty seconds, so a tunnel never finds one idle; a
+socket either side has heard nothing on for three beats - a connection left half open - is closed, and the page
+connects again.
+
 ## A dropped connection noticed, and opened again — done
 
 A game's page whose connection drops while it sends nothing notices at once and connects again, back at the game the
-server kept; the menu's listening for friends is opened again too, after the same waits. A connection left half open,
-which neither side sees close, would want the server to ping it: worth doing if an evening through the tunnel shows a
-page that stops hearing without saying it is lost.
+server kept; the menu's listening for friends is opened again too, after the same waits.
 
 ## The menu told at once too — done
 

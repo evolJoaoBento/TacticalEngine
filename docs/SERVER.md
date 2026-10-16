@@ -1944,5 +1944,20 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     failure, the shortest again, spent, and nothing once stopped) and `reconnect.spec.ts`, which holds each socket
     (`routeWebSocket`) and closes it from the page's side: the menu opens another and is told a friend's request at
     once; a game's page opens another of itself and plays on, nothing parted. A connection a network leaves half
-    open, which nobody's side sees close, is not this: it would want the server to ping.
+    open, which nobody's side sees close, is not this: the next slice is.
+  - **Every socket beaten** (16 October 2026). A tunnel or a proxy shuts a connection it finds idle - a menu
+    listening sends nothing, nor does a page waiting on another's turn - and a network can leave one half open,
+    neither side ever told it closed: the server went on counting the player there, and the page heard nothing,
+    not knowing. Now the server beats every socket (`play.rs`, `BEAT_EVERY`, twenty seconds; five on the tests'
+    server): a ping, which the browser answers of itself, and `{ beat: <ms> }`, which the page hears. The server
+    closes a socket it has heard nothing on - not even a ping's answer - for three beats (`SILENT_BEATS`), and the
+    player is gone from it as when a page closes. The page (`PlaySocket`) keeps the beats from whoever listens, and
+    once beaten, closes a socket it has heard nothing on for three, saying it closed at once rather than when the
+    browser's own closing gives up - so the wire, or the menu, connects again (the slice before). A server that never
+    beats has nothing waited out. Proved by `play_routes.rs` (a socket that answers beaten and kept open, one that
+    answers nothing closed after three beats), `play-socket.test.ts` (the beat kept from the listener, anything heard
+    putting the silence off, closed and said at once with the browser's close lingering, nothing said twice) and
+    `reconnect.spec.ts`, whose socket lets everything through to the first beat and nothing after either way - the
+    browser still answering the server's pings, so only the page can tell: it connects again inside the silence and
+    plays on, nothing parted.
   - **Next**: an evening through the tunnel.

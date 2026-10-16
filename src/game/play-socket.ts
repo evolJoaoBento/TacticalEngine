@@ -8,12 +8,19 @@
  * game, the table changed - carries no `id`, and is given to whoever listens (`listen`). A socket that closes
  * fails whatever is still waiting, and says it has closed (`onClose`) - whether it had opened - so that a page
  * sending nothing hears of it too, and connects again.
+ *
+ * The server beats every socket (`play.rs`, `BEAT_EVERY`): `{ beat: <ms> }`, kept from whoever listens. Once beaten,
+ * a socket that hears nothing at all for `SILENT_BEATS` beats is a connection a network has left half open, which no
+ * close would ever be said on: it is closed, and said closed at once - not when the browser's own closing gives up.
  */
 
 import { whoAmI, type SignedIn } from './accounts';
 import type { Said, Transport } from './wire';
 
 export const PLAY_URL = '/__play';
+
+/** How many beats a socket may go without hearing anything before it is closed as gone, as the server's (`SILENT_BEATS`). */
+export const SILENT_BEATS = 3;
 
 export class PlaySocket implements Transport {
   private readonly socket: WebSocket;
@@ -24,6 +31,9 @@ export class PlaySocket implements Transport {
   private opened = false;
   private gone = false;
   private shut: ((opened: boolean) => void) | null = null;
+  /** How often the server beats this socket (ms), once it has; and the silence being waited out. */
+  private beat = 0;
+  private silence: ReturnType<typeof setTimeout> | null = null;
 
   constructor(url: string = `${location.origin.replace(/^http/, 'ws')}${PLAY_URL}`) {
     this.socket = new WebSocket(url);
@@ -33,24 +43,43 @@ export class PlaySocket implements Transport {
       this.held = null;
     });
     this.socket.addEventListener('message', (event) => {
-      const said = JSON.parse(String(event.data)) as Said & { id?: number };
+      if (this.gone) return;
+      const said = JSON.parse(String(event.data)) as Said & { id?: number; beat?: unknown };
+      if (typeof said.beat === 'number' && said.beat > 0) this.beat = said.beat;
+      this.alive();
+      if (said.beat !== undefined) return;
       if (typeof said.id !== 'number') return this.heard?.(said as Record<string, unknown>);
       const waiter = this.waiting.get(said.id);
       if (waiter === undefined) return;
       this.waiting.delete(said.id!);
       waiter.answer(said);
     });
-    this.socket.addEventListener('close', () => {
-      this.failAll();
-      this.gone = true;
-      this.shut?.(this.opened);
-    });
+    this.socket.addEventListener('close', () => this.ended());
+  }
+
+  /** Something heard: the silence waited out from now, once the server beats. */
+  private alive(): void {
+    if (this.beat === 0) return;
+    if (this.silence !== null) clearTimeout(this.silence);
+    this.silence = setTimeout(() => {
+      this.socket.close();
+      this.ended();
+    }, SILENT_BEATS * this.beat);
+  }
+
+  /** Closed - by either side, or gone silent: what waits failed, and said once. */
+  private ended(): void {
+    if (this.gone) return;
+    if (this.silence !== null) clearTimeout(this.silence);
+    this.failAll();
+    this.gone = true;
+    this.shut?.(this.opened);
   }
 
   send(message: Record<string, unknown>): Promise<Said> {
     const id = this.next++;
     const text = JSON.stringify({ ...message, id });
-    if (this.socket.readyState === WebSocket.CLOSING || this.socket.readyState === WebSocket.CLOSED) return Promise.reject(new Error('the connection closed'));
+    if (this.gone || this.socket.readyState === WebSocket.CLOSING || this.socket.readyState === WebSocket.CLOSED) return Promise.reject(new Error('the connection closed'));
     return new Promise<Said>((answer, fail) => {
       this.waiting.set(id, { answer, fail });
       if (this.held !== null) this.held.push(text);

@@ -123,6 +123,48 @@ describe('the socket to the server\'s game', () => {
     expect(shut).toEqual([true, false]);
   });
 
+  it('keeps the beats from whoever listens, and once beaten, closes a socket that hears nothing for three, said at once', async () => {
+    vi.useFakeTimers();
+    try {
+      vi.stubGlobal('WebSocket', FakeSocket);
+      const socket = new PlaySocket('ws://page/__play');
+      const fake = FakeSocket.last!;
+      // A browser whose closing lingers, as one does on a connection gone half open: the socket says it at once.
+      fake.close = () => {
+        fake.readyState = FakeSocket.CLOSING;
+      };
+      const heard: unknown[] = [];
+      socket.listen((message) => heard.push(message));
+      const shut: boolean[] = [];
+      socket.onClose((opened) => shut.push(opened));
+      fake.fire('open');
+      // Never beaten - a server that does not - nothing is waited out, whatever is heard.
+      fake.fire('message', JSON.stringify({ table: { game: 'early' } }));
+      vi.advanceTimersByTime(600_000);
+      expect(shut).toEqual([]);
+      fake.fire('message', JSON.stringify({ beat: 1000 }));
+      vi.advanceTimersByTime(2000);
+      // Anything heard puts the silence off.
+      fake.fire('message', JSON.stringify({ table: { game: 'g' } }));
+      vi.advanceTimersByTime(2999);
+      expect(shut).toEqual([]);
+      const waiting = socket.send({ op: 'resume' });
+      vi.advanceTimersByTime(1);
+      expect(shut).toEqual([true]);
+      expect(fake.readyState).toBe(FakeSocket.CLOSING);
+      await expect(waiting).rejects.toThrow('the connection closed');
+      await expect(socket.send({ op: 'resume' })).rejects.toThrow('the connection closed');
+      expect(heard).toEqual([{ table: { game: 'early' } }, { table: { game: 'g' } }]);
+      // The browser's close, coming at last, says nothing more; nor does anything heard after.
+      fake.fire('message', JSON.stringify({ table: { game: 'late' } }));
+      fake.fire('close');
+      expect(shut).toEqual([true]);
+      expect(heard).toEqual([{ table: { game: 'early' } }, { table: { game: 'g' } }]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('is for somebody signed in, in development, on a dev server that keeps accounts, unless turned off', async () => {
     const asked: string[] = [];
     const me = (status: number, body: unknown = {}) => {
