@@ -139,3 +139,23 @@ test('a player asks another by name, who accepts; each lists the other, until on
   await asking.context.close();
   await asked.context.close();
 });
+
+test("a friend whose page closes is gone from the other's list in a few seconds, not left to go quiet", async ({ browser, baseURL }) => {
+  const stamp = Date.now().toString(36).slice(-5);
+  const [leavingName, stayingName] = [`cy${stamp}`, `di${stamp}`];
+  const leaving = await player(browser, baseURL!, leavingName);
+  const staying = await player(browser, baseURL!, stayingName);
+  const headers = { 'x-tactical-save': '1', origin: baseURL!, 'content-type': 'application/json' };
+  expect((await leaving.context.request.post('/__friends/ask', { headers, data: { name: stayingName } })).status()).toBe(200);
+  const asking = ((await (await staying.context.request.get('/__friends')).json()) as { asking: { id: string }[] }).asking[0]!.id;
+  expect((await staying.context.request.post('/__friends/answer', { headers, data: { from: asking, accept: true } })).status()).toBe(200);
+  await staying.page.getByTestId('menu-friends').click();
+  const friend = staying.page.getByTestId('friend');
+  await expect(friend).toHaveAttribute('data-presence', 'online', { timeout: 15_000 });
+  // The page closed: its connection with it, and none opened again - gone within a few seconds (`GONE_AFTER`, three
+  // on the tests' server), the other told at once; not the half a minute and more it took to go quiet.
+  await leaving.page.close();
+  await expect(friend).toHaveAttribute('data-presence', 'away', { timeout: 8_000 });
+  await leaving.context.close();
+  await staying.context.close();
+});

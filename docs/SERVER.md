@@ -1971,4 +1971,14 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     `shared-talk.spec.ts` plays them in two browsers, each signed in to an account of its own - held for the one it
     is not put to, set aside and brought back by its talker's player alone, ended by a click. It found nothing to
     mend.
+  - **Gone, told at once** (16 October 2026). A player whose page closed - or whose network went - stayed online to
+    their friends until they went quiet (`ONLINE_FOR`, 25 seconds), and nobody was told: a friend's list found it at
+    its next asking, half a minute and more later. Every page where the server plays now holds a connection - a game's
+    wire, the menu's listening - so the server knows when an account's last one closes (`left`). Then, unless another
+    opens in a while (`GONE_AFTER`, ten seconds - a page going from the menu to a game, or connecting again, opens
+    its own well inside it; three on the tests' server), the account is gone: its being seen forgotten, so it is
+    online no more, and its friends told (`gone`, `told_around`). A page asking again is online again, its friends told.
+    Proved by `friends_routes.rs` (a connection closed and another opened inside the while: nothing; closed and none
+    opened: online through the while, then gone and told, though seen moments before; asking again: online, told) and
+    `friends.spec.ts` (a friend's page closed: away on the other's open list inside eight seconds).
   - **Next**: an evening through the tunnel.

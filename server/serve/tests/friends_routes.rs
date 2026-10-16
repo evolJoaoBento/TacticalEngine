@@ -344,3 +344,49 @@ async fn a_friend_come_to_a_game_gone_from_it_or_come_online_is_told_at_once_to_
     assert!(told(&mut to_pip).is_empty() && told(&mut to_wren).is_empty());
     let _ = std::fs::remove_dir_all(&root);
 }
+
+#[tokio::test]
+async fn a_friend_whose_last_connection_closes_is_gone_in_a_while_their_friends_told_unless_another_opens() {
+    let root = folder("gone");
+    let tables = Tables::new(root.clone()).online_for(Duration::from_secs(60)).going_after(Duration::from_millis(300));
+    let app = serve::app_over(root.clone(), serve::Settings::default(), tables.clone());
+    let (wren, pip) = (player(&app, "Wren").await, player(&app, "Pip").await);
+    let post = |cookie: &str, route: &str, body: Value| {
+        let (app, cookie, path) = (app.clone(), cookie.to_string(), format!("/__friends/{route}"));
+        async move { assert_eq!(send(&app, "POST", &path, &body.to_string(), Some(&cookie), true).await.0, StatusCode::OK) }
+    };
+    let seen = |cookie: &str| {
+        let (app, cookie) = (app.clone(), cookie.to_string());
+        async move { assert_eq!(send(&app, "GET", "/__friends", "", Some(&cookie), false).await.0, StatusCode::OK) }
+    };
+    post(&wren, "ask", json!({ "name": "pip" })).await;
+    post(&pip, "answer", json!({ "from": "wren", "accept": true })).await;
+    let from = |who: &str| vec![json!({ "friends": { "from": who } })];
+    let around = |tables: &Tables| tables.presence(&["wren".to_string()]).get("wren").copied();
+    // Pip's menu listening; Wren's menu up, online - its asking just now.
+    let (_, mut to_pip) = tables.connect("pip");
+    let (wren_menu, _to_wren) = tables.connect("wren");
+    seen(&wren).await;
+    assert_eq!(around(&tables), Some("online"));
+    assert!(told(&mut to_pip).is_empty());
+    // Wren's connection closed and another opened inside the while - a page going from the menu to a game, or
+    // connecting again: still online, nobody told.
+    tables.left(wren_menu);
+    let (wren_again, _to_wren) = tables.connect("wren");
+    tokio::time::sleep(Duration::from_millis(500)).await;
+    assert!(told(&mut to_pip).is_empty());
+    assert_eq!(around(&tables), Some("online"));
+    // Closed, and none opened: online for the while yet, then gone - seen moments before, all the same - and Pip told.
+    tables.left(wren_again);
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    assert!(told(&mut to_pip).is_empty());
+    assert_eq!(around(&tables), Some("online"));
+    tokio::time::sleep(Duration::from_millis(400)).await;
+    assert_eq!(told(&mut to_pip), from("wren"));
+    assert_eq!(around(&tables), None);
+    // Back, asking: online, and Pip told.
+    seen(&wren).await;
+    assert_eq!(told(&mut to_pip), from("wren"));
+    assert_eq!(around(&tables), Some("online"));
+    let _ = std::fs::remove_dir_all(&root);
+}

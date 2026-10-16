@@ -18,6 +18,11 @@ A game's page played on the server has a Friends button above the table's chat, 
 much is unread; it opens the menu's friends - asking, answering, writing - on a sheet over the table, Escape shutting
 it.
 
+## Gone, told at once — done
+
+A player whose last connection closes - the page shut, the network gone - is gone to their friends ten seconds later
+unless another opens, and their friends are told at once, rather than finding it half a minute and more later.
+
 ## A conversation at a shared game, in two browsers — done
 
 `tests/e2e/shared-talk.spec.ts`: the host's character talks to the Warden; the guest's page shows it held, whom it

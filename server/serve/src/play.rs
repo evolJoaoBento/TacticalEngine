@@ -51,7 +51,8 @@
 //! somebody's page comes back (a page that joins is told it as it joins). And from outside any game, to an account's
 //! own connections alone - its pages at a game, and its menu, which opens the socket and sends nothing, to be told:
 //! `{ friends: { from } }` when a friend asked, answered, removed or wrote to it (`friends.rs`, `Tables::tell`), or
-//! came to a game, left one or came online (`told_around`) - the page asks its friends again at once.
+//! came to a game, left one or came online (`told_around`), or went - its last connection closed a while, none
+//! opened since (`gone`, `GONE_AFTER`) - the page asks its friends again at once.
 //!
 //! Every socket is beaten (`BEAT_EVERY`): a ping, which the browser answers of itself, and `{ beat: <ms> }`, which
 //! the page hears - so a proxy or a tunnel in between never finds it idle and shuts it, and either side knows a
@@ -130,6 +131,10 @@ pub const HAND_ON_AFTER: Duration = Duration::from_secs(30);
 /// How long a player is counted online after their page last asked the server something (`saw`, `presence`): the
 /// menu asks for the friends every 10 seconds (`FRIENDS_EVERY`, `friends.ts`).
 pub const ONLINE_FOR: Duration = Duration::from_secs(25);
+
+/// How long after an account's last connection closes it is gone - online no more, its friends told - unless one has
+/// opened again: long enough for a page going from the menu to a game, or connecting again, to open its own.
+pub const GONE_AFTER: Duration = Duration::from_secs(10);
 
 /// How often a socket is beaten - a ping, and `{ beat }` for the page - well inside the minute or so a proxy or a
 /// tunnel lets a connection sit idle.
@@ -283,6 +288,8 @@ pub struct Tables {
     online_for: Duration,
     /// How often each socket is beaten.
     beat_every: Duration,
+    /// How long after an account's last connection closes it is gone.
+    gone_after: Duration,
 }
 
 /// A project's code run in QuickJS, compiled once for each body of code a game is built with.
@@ -738,7 +745,7 @@ impl Tables {
 
     /// Tables whose games are kept for `kept_for` after the last socket at them closes.
     pub fn keeping(root: PathBuf, kept_for: Duration) -> Tables {
-        Tables { root, inner: Arc::new(Mutex::new(Inner::default())), kept_for, for_tests: false, hand_on_after: HAND_ON_AFTER, online_for: ONLINE_FOR, beat_every: BEAT_EVERY }
+        Tables { root, inner: Arc::new(Mutex::new(Inner::default())), kept_for, for_tests: false, hand_on_after: HAND_ON_AFTER, online_for: ONLINE_FOR, beat_every: BEAT_EVERY, gone_after: GONE_AFTER }
     }
 
     /// Tables counting an account online for `online_for` after it was last seen.
@@ -749,6 +756,11 @@ impl Tables {
     /// Tables beating each socket every `every`.
     pub fn beating(self, every: Duration) -> Tables {
         Tables { beat_every: every, ..self }
+    }
+
+    /// Tables counting an account gone `after` its last connection closes, none opened since.
+    pub fn going_after(self, after: Duration) -> Tables {
+        Tables { gone_after: after, ..self }
     }
 
     /// Something for an account's connections, from outside any game (`friends.rs`: a friend asked, answered,
@@ -775,8 +787,8 @@ impl Tables {
     }
 
     /// An account's friends told at their games (`tell`) if it is around otherwise than it was `before` - come to a
-    /// game or gone from one, come online. Gone quiet a while (`online_for`) is nothing happening, and told nobody: a
-    /// friend's page asks again in a while for that.
+    /// game or gone from one, come online, gone (`gone`). Gone quiet a while (`online_for`) - a page with no socket - is
+    /// nothing happening, and told nobody: a friend's page asks again in a while for that.
     fn told_around(&self, account: &str, before: Option<&'static str>) {
         if presence_in(&self.inner.lock().expect("the tables"), account, self.online_for) == before {
             return;
@@ -803,7 +815,7 @@ impl Tables {
     /// The tests' tables: each game opened with its dice where the page's are, not at the server's own seed, and
     /// the test driver's hands taken.
     pub fn for_tests(self) -> Tables {
-        Tables { for_tests: true, hand_on_after: Duration::from_secs(3), beat_every: Duration::from_secs(5), ..self }
+        Tables { for_tests: true, hand_on_after: Duration::from_secs(3), beat_every: Duration::from_secs(5), gone_after: Duration::from_secs(3), ..self }
     }
 
     /// Why a message is refused before its game is asked, if it is: an intent that would tell the game how the
@@ -985,20 +997,48 @@ impl Tables {
         }
     }
 
-    /// A socket closed: its game is kept for a while once nobody is at it, and goes after.
+    /// A socket closed: its game is kept for a while once nobody is at it, and goes after. The account's last, it is
+    /// gone in a while (`gone_after`) unless another opens.
     pub fn left(&self, conn: Conn) {
         let mut inner = self.inner.lock().expect("the tables");
-        let mut gone = None;
-        if let Some(Connection { account, game: Some(game), .. }) = inner.conns.remove(&conn) {
-            let before = presence_in(&inner, &account, self.online_for);
-            Tables::unwatch(&mut inner, &self.root, conn, &game);
-            gone = Some((account, before));
+        let (mut gone, mut last) = (None, None);
+        if let Some(Connection { account, game, .. }) = inner.conns.remove(&conn) {
+            if let Some(game) = game {
+                let before = presence_in(&inner, &account, self.online_for);
+                Tables::unwatch(&mut inner, &self.root, conn, &game);
+                gone = Some((account.clone(), before));
+            }
+            if !inner.conns.values().any(|connection| connection.account == account) {
+                last = Some(account);
+            }
         }
         self.sweep(&mut inner);
         drop(inner);
         if let Some((account, before)) = gone {
             self.told_around(&account, before);
         }
+        if let (Some(account), Ok(runtime)) = (last, tokio::runtime::Handle::try_current()) {
+            let (tables, after) = (self.clone(), self.gone_after);
+            runtime.spawn(async move {
+                tokio::time::sleep(after).await;
+                tables.gone(&account);
+            });
+        }
+    }
+
+    /// An account whose last connection closed a while ago: online no more - its page closed, or its network gone -
+    /// unless one has opened since, and its friends told, rather than left to find it gone quiet.
+    fn gone(&self, account: &str) {
+        let before = {
+            let mut inner = self.inner.lock().expect("the tables");
+            if inner.conns.values().any(|connection| connection.account == account) {
+                return;
+            }
+            let before = presence_in(&inner, account, self.online_for);
+            inner.seen.remove(account);
+            before
+        };
+        self.told_around(account, before);
     }
 
     /// Whether an account is at a game kept.
