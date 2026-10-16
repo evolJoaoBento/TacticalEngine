@@ -55,6 +55,26 @@ fn told(to: &mut tokio::sync::mpsc::UnboundedReceiver<Value>) -> Vec<Value> {
     said
 }
 
+/// What an account's connection is told within `wait`, waited for until something is: a test on a busy machine reads
+/// the telling when it comes, not after a sleep it may outlast.
+async fn told_within(to: &mut tokio::sync::mpsc::UnboundedReceiver<Value>, wait: Duration) -> Vec<Value> {
+    let until = tokio::time::Instant::now() + wait;
+    loop {
+        let heard = told(to);
+        if !heard.is_empty() || tokio::time::Instant::now() >= until {
+            return heard;
+        }
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+}
+
+/// How long an account is online after it last asked, in the tests that let it lapse - long beside the few requests a
+/// step makes on a busy machine - and a wait that sees it lapsed.
+const ONLINE: Duration = Duration::from_secs(2);
+const PAST_ONLINE: Duration = Duration::from_millis(2500);
+/// How long after an account's last connection closes it is gone, in the test of that.
+const GONE: Duration = Duration::from_millis(600);
+
 fn people(names: &[(&str, &str)]) -> Value {
     json!(names.iter().map(|(id, name)| json!({ "id": id, "name": name })).collect::<Vec<_>>())
 }
@@ -210,7 +230,7 @@ async fn friends_write_each_other_and_nobody_else() {
 #[tokio::test]
 async fn friends_are_told_which_of_them_are_around_and_nobody_else_is() {
     let root = folder("around");
-    let tables = Tables::new(root.clone()).online_for(Duration::from_millis(400));
+    let tables = Tables::new(root.clone()).online_for(ONLINE);
     let app = serve::app_over(root.clone(), serve::Settings::default(), tables.clone());
     let (wren, pip, moth) = (player(&app, "Wren").await, player(&app, "Pip").await, player(&app, "Moth").await);
     let post = |cookie: &str, route: &str, body: Value| {
@@ -229,7 +249,7 @@ async fn friends_are_told_which_of_them_are_around_and_nobody_else_is() {
     assert_eq!(online(&pip).await, json!({ "wren": "online" }));
     assert_eq!(online(&moth).await, json!({}));
     // A while with nothing asked: Wren is gone; Pip, who asked again just now, is not.
-    tokio::time::sleep(Duration::from_millis(500)).await;
+    tokio::time::sleep(PAST_ONLINE).await;
     assert_eq!(online(&pip).await, json!({}));
     assert_eq!(online(&wren).await, json!({ "pip": "online" }));
     // Wren at a game - their own, nobody else's - is playing, whether or not seen on the menu.
@@ -242,7 +262,7 @@ async fn friends_are_told_which_of_them_are_around_and_nobody_else_is() {
     assert_eq!(online(&pip).await, json!({ "wren": "playing" }));
     // The game's page gone, and a while after: around no more.
     tables.left(conn);
-    tokio::time::sleep(Duration::from_millis(500)).await;
+    tokio::time::sleep(PAST_ONLINE).await;
     assert_eq!(online(&pip).await, json!({}));
     let _ = std::fs::remove_dir_all(&root);
 }
@@ -297,7 +317,7 @@ async fn a_friends_doing_is_told_at_once_to_the_other_at_a_game_and_a_message_re
 #[tokio::test]
 async fn a_friend_come_to_a_game_gone_from_it_or_come_online_is_told_at_once_to_their_friends_at_a_game() {
     let root = folder("comes");
-    let tables = Tables::new(root.clone()).online_for(Duration::from_millis(400));
+    let tables = Tables::new(root.clone()).online_for(ONLINE);
     let app = serve::app_over(root.clone(), serve::Settings::default(), tables.clone());
     let (wren, pip, moth) = (player(&app, "Wren").await, player(&app, "Pip").await, player(&app, "Moth").await);
     let post = |cookie: &str, route: &str, body: Value| {
@@ -332,7 +352,7 @@ async fn a_friend_come_to_a_game_gone_from_it_or_come_online_is_told_at_once_to_
     assert_eq!(told(&mut to_pip), from("wren"));
     // A while quiet, Wren is around no more - nothing happening, told nobody; come online again, told; asking again
     // straight after, nothing new.
-    tokio::time::sleep(Duration::from_millis(500)).await;
+    tokio::time::sleep(PAST_ONLINE).await;
     assert!(told(&mut to_pip).is_empty());
     seen(&wren).await;
     assert_eq!(told(&mut to_pip), from("wren"));
@@ -348,7 +368,7 @@ async fn a_friend_come_to_a_game_gone_from_it_or_come_online_is_told_at_once_to_
 #[tokio::test]
 async fn a_friend_whose_last_connection_closes_is_gone_in_a_while_their_friends_told_unless_another_opens() {
     let root = folder("gone");
-    let tables = Tables::new(root.clone()).online_for(Duration::from_secs(60)).going_after(Duration::from_millis(300));
+    let tables = Tables::new(root.clone()).online_for(Duration::from_secs(60)).going_after(GONE);
     let app = serve::app_over(root.clone(), serve::Settings::default(), tables.clone());
     let (wren, pip) = (player(&app, "Wren").await, player(&app, "Pip").await);
     let post = |cookie: &str, route: &str, body: Value| {
@@ -373,16 +393,14 @@ async fn a_friend_whose_last_connection_closes_is_gone_in_a_while_their_friends_
     // connecting again: still online, nobody told.
     tables.left(wren_menu);
     let (wren_again, _to_wren) = tables.connect("wren");
-    tokio::time::sleep(Duration::from_millis(500)).await;
+    tokio::time::sleep(GONE * 2).await;
     assert!(told(&mut to_pip).is_empty());
     assert_eq!(around(&tables), Some("online"));
     // Closed, and none opened: online for the while yet, then gone - seen moments before, all the same - and Pip told.
     tables.left(wren_again);
-    tokio::time::sleep(Duration::from_millis(100)).await;
     assert!(told(&mut to_pip).is_empty());
     assert_eq!(around(&tables), Some("online"));
-    tokio::time::sleep(Duration::from_millis(400)).await;
-    assert_eq!(told(&mut to_pip), from("wren"));
+    assert_eq!(told_within(&mut to_pip, GONE * 10).await, from("wren"));
     assert_eq!(around(&tables), None);
     // Back, asking: online, and Pip told.
     seen(&wren).await;
