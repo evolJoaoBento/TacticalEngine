@@ -71,7 +71,10 @@ export function onPlayingAs(tell: (player: Person | null) => void): () => void {
 
 const toldOfFriend = new Set<(from: string) => void>();
 
-/** A friend asked, answered, removed or wrote to this player: told by the game's connection (`play.rs`, `{ friends }`). */
+/**
+ * A friend asked, answered, removed or wrote to this player, or came to a game, left one or came online: told by the
+ * game's connection (`play.rs`, `{ friends }`).
+ */
 export function friendDid(from: string): void {
   for (const tell of toldOfFriend) tell(from);
 }

@@ -7,7 +7,7 @@ import { ON_SERVER } from './server-mode';
  * and they accept; each lists the other; they write each other (slice 6), what is unread said on the menu and read
  * as it is shown, an answer coming without a reload; each sees whether the other is around - online on the menu, in
  * a game once at one; written to during that game, the game's page says so at once, and its friends are the menu's,
- * read and answered over the table; one removes the other, and neither lists anybody. The server keeps the friends, so this is
+ * read and answered over the table, the other's going from a game of their own said at once too; one removes the other, and neither lists anybody. The server keeps the friends, so this is
  * played on the server alone.
  */
 
@@ -122,7 +122,16 @@ test('a player asks another by name, who accepts; each lists the other, until on
   await askingChat.getByTestId('chat-send').click();
   await expect(onTheSheet).toHaveText('Messages (2)', { timeout: 3_000 });
   await asked.page.keyboard.press('Escape');
-  await asking.page.getByTestId('friend-messages-back').click();
+  // The friend comes to a game of their own, and goes: the list on the sheet, opened between, told the going at once.
+  await asking.page.goto('/?play');
+  await asking.page.waitForFunction(() => window.__replica?.server() === 'in', null, { timeout: 60_000 });
+  await friendsInPlay.click();
+  const around = asked.page.getByTestId('friends-sheet').getByTestId('friend-presence');
+  await expect(around).toHaveText('· in a game');
+  await asking.page.goto('/?menu');
+  await expect(around).toHaveText('· online', { timeout: 3_000 });
+  await asked.page.keyboard.press('Escape');
+  await asking.page.getByTestId('menu-friends').click();
   await asked.page.goto('/?menu');
 
   // Removed by one, gone for both.

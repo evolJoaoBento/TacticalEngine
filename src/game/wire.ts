@@ -278,7 +278,7 @@ export class Wire {
     if (this.chat.length > 0) heard(this.chat);
   }
 
-  /** Told whenever a friend of the page's player asked, answered, removed or wrote to them - whose doing. */
+  /** Told whenever a friend of the page's player asked, answered, removed or wrote to them, or came or went - whose doing. */
   onFriends(heard: (from: string) => void): void {
     this.friendsHeard.push(heard);
   }

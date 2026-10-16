@@ -1912,4 +1912,13 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     page there is at no game. Proved by `friends_routes.rs` (each doing told to the other alone, a third at the
     game told nothing, a read told nobody), `wire.test.ts` and `friends.test.ts` (heard, and only as it is said), and
     `friends.spec.ts` (each of the three told well inside the while it would otherwise wait).
+  - **A friend's coming and going told at once at a game** (16 October 2026). Whether a friend was in a game or
+    online waited for the friends to be asked again. Now an account's friends at a game are told the same nudge
+    (`{ friends: { from } }`) whenever it is around otherwise than it was: its page come to a game (`route`), its
+    last page gone from one (`left`), come online (`saw`) - each compared with what it was just before
+    (`presence_in`, which `presence` now answers from too; `told_around`), so asking again while online tells
+    nobody. Gone quiet a while (`ONLINE_FOR`) is nothing happening, and still waits for the asking every few
+    seconds. Proved by `friends_routes.rs` (come to a game, gone, come online each told once, nothing for asking
+    again, nobody's friend telling nobody; `play_routes.rs`, a host told her friend came as he joins) and
+    `friends.spec.ts` (a friend's going from their game said on the sheet well inside the while).
   - **Next**: an evening through the tunnel.

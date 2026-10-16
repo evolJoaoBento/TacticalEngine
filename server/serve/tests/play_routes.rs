@@ -839,7 +839,11 @@ async fn a_game_is_found_by_whoever_its_host_lets_find_it_and_the_host_changes_w
     let (guest, mut to_guest) = tables.connect();
     tables.ask_on(guest, "finn", json!({ "id": 1, "op": "join", "invite": invite }));
     told(&mut to_guest).await;
-    told(&mut to_host).await;
+    // Kara told the table - and, Finn her friend, that he came to a game (`friends_routes.rs`).
+    let mut kara_told = vec![told(&mut to_host).await, told(&mut to_host).await];
+    kara_told.sort_by_key(|said| said["table"].is_null());
+    assert_eq!(kara_told[0]["table"]["members"].as_array().map(Vec::len), Some(2), "{kara_told:?}");
+    assert_eq!(kara_told[1], json!({ "friends": { "from": "finn" } }));
     tables.ask_on(guest, "finn", json!({ "id": 2, "op": "visibility", "visibility": "public" }));
     assert_eq!(told(&mut to_guest).await["error"], "only the host says who may find the game");
     tables.ask_on(host, "kara", json!({ "id": 2, "op": "visibility", "visibility": "everybody" }));

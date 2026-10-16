@@ -18,6 +18,11 @@ A game's page played on the server has a Friends button above the table's chat, 
 much is unread; it opens the menu's friends - asking, answering, writing - on a sheet over the table, Escape shutting
 it.
 
+## A friend's coming and going told at once at a game — done
+
+A friend come to a game, gone from one or come online is said at once on the friends of a player at a game; one gone
+quiet a while still waits for the friends to be asked again.
+
 ## A friend's doing told at once at a game — done
 
 A request, an answer, a friend removed or a message written reaches the other's page at a game at once, on the game's

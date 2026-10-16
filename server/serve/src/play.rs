@@ -50,7 +50,8 @@
 //! is at it now (phase 6, who is online): the others told the table whenever somebody's last page there goes, or
 //! somebody's page comes back (a page that joins is told it as it joins). And from outside the game, to an account's
 //! pages at it alone: `{ friends: { from } }` when a friend asked, answered, removed or wrote to it (`friends.rs`,
-//! `Tables::tell`) - the page asks its friends again at once.
+//! `Tables::tell`), or came to a game, left one or came online (`told_around`) - the page asks its friends again at
+//! once.
 //!
 //! A game outlives the last socket at it for a while (`KEPT_FOR`), so a page that lost its connection comes back
 //! to it; past that it goes. A guest's page opens over the game's project, read before it is built
@@ -287,6 +288,18 @@ fn fresh_hex(bytes: usize) -> String {
     let mut buffer = vec![0u8; bytes];
     getrandom::fill(&mut buffer).expect("the system's randomness");
     hex::encode(buffer)
+}
+
+/// What an account is to its friends now (`Tables::presence`): `playing` with a page at a game, else `online` seen
+/// within `online_for`, else nothing.
+fn presence_in(inner: &Inner, account: &str, online_for: Duration) -> Option<&'static str> {
+    if inner.games.values().any(|game| game.shared.lock().expect("the game").watching.iter().any(|(_, who, _)| who == account)) {
+        Some("playing")
+    } else if inner.seen.get(account).is_some_and(|seen| seen.elapsed() < online_for) {
+        Some("online")
+    } else {
+        None
+    }
 }
 
 /// Who is at a game now, each once, by id.
@@ -724,8 +737,27 @@ impl Tables {
     }
 
     /// An account's page asked the server something outside a game (`friends.rs`): online a while.
+    /// Come online, its friends at a game are told.
     pub fn saw(&self, account: &str) {
-        self.inner.lock().expect("the tables").seen.insert(account.to_string(), Instant::now());
+        let before = {
+            let mut inner = self.inner.lock().expect("the tables");
+            let before = presence_in(&inner, account, self.online_for);
+            inner.seen.insert(account.to_string(), Instant::now());
+            before
+        };
+        self.told_around(account, before);
+    }
+
+    /// An account's friends told at their games (`tell`) if it is around otherwise than it was `before` - come to a
+    /// game or gone from one, come online. Gone quiet a while (`online_for`) is nothing happening, and told nobody: a
+    /// friend's page asks again in a while for that.
+    fn told_around(&self, account: &str, before: Option<&'static str>) {
+        if presence_in(&self.inner.lock().expect("the tables"), account, self.online_for) == before {
+            return;
+        }
+        for friend in read_friends(&self.root).of(account) {
+            self.tell(&friend, &json!({ "friends": { "from": account } }));
+        }
     }
 
     /// Who of `accounts` is around now: `playing` with a page at a game (theirs alone too), else `online` seen within
@@ -734,20 +766,7 @@ impl Tables {
         let mut inner = self.inner.lock().expect("the tables");
         let online_for = self.online_for;
         inner.seen.retain(|_, seen| seen.elapsed() < online_for);
-        let playing: Vec<String> = inner.games.values().flat_map(|game| here(&game.shared.lock().expect("the game"))).collect();
-        accounts
-            .iter()
-            .filter_map(|account| {
-                let presence = if playing.contains(account) {
-                    "playing"
-                } else if inner.seen.contains_key(account) {
-                    "online"
-                } else {
-                    return None;
-                };
-                Some((account.clone(), presence))
-            })
-            .collect()
+        accounts.iter().filter_map(|account| presence_in(&inner, account, online_for).map(|presence| (account.clone(), presence))).collect()
     }
 
     /// Tables whose games are handed on once their host has been gone for `after`.
@@ -928,11 +947,13 @@ impl Tables {
             return refuse(reply, "the host keeps this game's saves");
         }
         inner.at.insert(account.to_string(), game.clone());
+        let before = presence_in(&inner, account, self.online_for);
         if let Some(conn) = reply.conn() {
             Tables::watch(&mut inner, &self.root, conn, account, &game, matches!(message["op"].as_str(), Some("open" | "join")));
         }
         let door = inner.games[&game].door.clone();
         drop(inner);
+        self.told_around(account, before);
         if let Err(mpsc::SendError(job)) = door.send(Job { message, account: account.to_string(), reply }) {
             refuse(job.reply, "the game has ended");
         }
@@ -941,10 +962,20 @@ impl Tables {
     /// A socket closed: its game is kept for a while once nobody is at it, and goes after.
     pub fn left(&self, conn: Conn) {
         let mut inner = self.inner.lock().expect("the tables");
+        let mut gone = None;
         if let Some((_, Some(game))) = inner.conns.remove(&conn) {
+            let whose = inner.games.get(&game).and_then(|found| found.shared.lock().expect("the game").watching.iter().find(|(watcher, _, _)| *watcher == conn).map(|(_, who, _)| who.clone()));
+            gone = whose.map(|account| {
+                let before = presence_in(&inner, &account, self.online_for);
+                (account, before)
+            });
             Tables::unwatch(&mut inner, &self.root, conn, &game);
         }
         self.sweep(&mut inner);
+        drop(inner);
+        if let Some((account, before)) = gone {
+            self.told_around(&account, before);
+        }
     }
 
     /// Whether an account is at a game kept.

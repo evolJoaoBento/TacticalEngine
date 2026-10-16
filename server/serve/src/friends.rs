@@ -19,7 +19,8 @@
 //! The POSTs come only from the page (its header, its own origin), as every write the server takes does. Whatever a
 //! signed-in page asks here, its player is seen online (`Tables::saw`). A request, an answer, a friend removed or a message
 //! written is told at once to the other's pages at a game (`{ friends: { from } }`, `Tables::tell`), which ask again;
-//! a message read is told to nobody. Pages on the menu, at no game, ask every few seconds.
+//! a message read is told to nobody. So is a friend come to a game, gone from one or come online (`play.rs`,
+//! `told_around`); one gone quiet a while is not. Pages on the menu, at no game, ask every few seconds.
 
 use crate::accounts::{account_of, from_the_page, now_ms, read_accounts, read_sessions, Account};
 use crate::files::{read_json, write_json};

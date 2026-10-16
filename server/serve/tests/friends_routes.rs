@@ -1,7 +1,7 @@
 //! The `/__friends` routes end to end, over a folder of their own: a request by name, accepted or declined; two who
 //! ask each other friends at once; either removing the other; an account made with a player's invitation that
 //! player's friend from the start; what friends write each other; which friends are around; and what is told at once
-//! to a friend at a game.
+//! to a friend at a game - a friend's doing, and their coming and going.
 
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
@@ -43,6 +43,16 @@ async fn player(app: &axum::Router, name: &str) -> String {
     let (status, body, cookie) = send(app, "POST", "/__accounts/register", &json!({ "name": name, "password": "hunter22" }).to_string(), None, true).await;
     assert_eq!(status, StatusCode::OK, "{body}");
     cookie.unwrap()
+}
+
+/// What a connection has been told so far. A friend's doing is told before its answer is given back, so what is in
+/// the queue then is all it will be told.
+fn told(to: &mut tokio::sync::mpsc::UnboundedReceiver<Value>) -> Vec<Value> {
+    let mut said = Vec::new();
+    while let Ok(message) = to.try_recv() {
+        said.push(message);
+    }
+    said
 }
 
 fn people(names: &[(&str, &str)]) -> Value {
@@ -265,14 +275,6 @@ async fn a_friends_doing_is_told_at_once_to_the_other_at_a_game_and_a_message_re
     assert!(tokio::time::timeout(Duration::from_secs(5), to_moth.recv()).await.unwrap().unwrap()["ok"].is_object());
     // Pip told Moth came.
     assert!(tokio::time::timeout(Duration::from_secs(5), to_pip.recv()).await.unwrap().unwrap()["table"].is_object());
-    // Told before the answer is given back, so what is in a queue now is all it will be told.
-    let told = |to: &mut tokio::sync::mpsc::UnboundedReceiver<Value>| {
-        let mut said = Vec::new();
-        while let Ok(message) = to.try_recv() {
-            said.push(message);
-        }
-        said
-    };
     let from = |who: &str| vec![json!({ "friends": { "from": who } })];
     // Asked: the asked told, the asker not.
     post(&wren, "ask", json!({ "name": "pip" })).await;
@@ -289,5 +291,56 @@ async fn a_friends_doing_is_told_at_once_to_the_other_at_a_game_and_a_message_re
     // Removed: the one removed told.
     post(&pip, "remove", json!({ "id": "wren" })).await;
     assert_eq!((told(to_wren), told(to_pip)), (from("pip"), vec![]));
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[tokio::test]
+async fn a_friend_come_to_a_game_gone_from_it_or_come_online_is_told_at_once_to_their_friends_at_a_game() {
+    let root = folder("comes");
+    let tables = Tables::new(root.clone()).online_for(Duration::from_millis(400));
+    let app = serve::app_over(root.clone(), serve::Settings::default(), tables.clone());
+    let (wren, pip, moth) = (player(&app, "Wren").await, player(&app, "Pip").await, player(&app, "Moth").await);
+    let post = |cookie: &str, route: &str, body: Value| {
+        let (app, cookie, path) = (app.clone(), cookie.to_string(), format!("/__friends/{route}"));
+        async move { assert_eq!(send(&app, "POST", &path, &body.to_string(), Some(&cookie), true).await.0, StatusCode::OK) }
+    };
+    let seen = |cookie: &str| {
+        let (app, cookie) = (app.clone(), cookie.to_string());
+        async move { assert_eq!(send(&app, "GET", "/__friends", "", Some(&cookie), false).await.0, StatusCode::OK) }
+    };
+    post(&wren, "ask", json!({ "name": "pip" })).await;
+    post(&pip, "answer", json!({ "from": "wren", "accept": true })).await;
+    let fixture: Value = serde_json::from_str(&std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../fixtures/replica.json")).unwrap()).unwrap();
+    let open = |account: &'static str| {
+        let tables = tables.clone();
+        let fixture = fixture.clone();
+        async move {
+            let (conn, mut to) = tables.connect();
+            tables.ask_on(conn, account, json!({ "id": 1, "op": "open", "project": fixture["projects"][0], "shipped": fixture["shipped"], "table": {} }));
+            assert!(tokio::time::timeout(Duration::from_secs(5), to.recv()).await.unwrap().unwrap()["ok"].is_object());
+            (conn, to)
+        }
+    };
+    let from = |who: &str| vec![json!({ "friends": { "from": who } })];
+    // Pip at a game; Wren comes to one: Pip told.
+    let (_, mut to_pip) = open("pip").await;
+    assert!(told(&mut to_pip).is_empty());
+    let (wren_at, mut to_wren) = open("wren").await;
+    assert_eq!(told(&mut to_pip), from("wren"));
+    // Wren's page gone from it: told.
+    tables.left(wren_at);
+    assert_eq!(told(&mut to_pip), from("wren"));
+    // A while quiet, Wren is around no more - nothing happening, told nobody; come online again, told; asking again
+    // straight after, nothing new.
+    tokio::time::sleep(Duration::from_millis(500)).await;
+    assert!(told(&mut to_pip).is_empty());
+    seen(&wren).await;
+    assert_eq!(told(&mut to_pip), from("wren"));
+    seen(&wren).await;
+    assert!(told(&mut to_pip).is_empty());
+    // Moth, nobody's friend, online and at a game: nobody told; nor Wren, gone from the game, of Pip's comings.
+    seen(&moth).await;
+    open("moth").await;
+    assert!(told(&mut to_pip).is_empty() && told(&mut to_wren).is_empty());
     let _ = std::fs::remove_dir_all(&root);
 }
