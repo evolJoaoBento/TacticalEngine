@@ -188,4 +188,5 @@ tunnel:
 ## Stopping
 
 Stop the tunnel, then the server (Ctrl+C). A game is kept for ten minutes after its player's connection
-drops, and goes when the server stops. Saves stay in `data/`.
+drops - a page tries to connect again of itself for about a minute, and is back where it was - and goes
+when the server stops. Saves stay in `data/`.

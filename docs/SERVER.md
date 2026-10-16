@@ -1246,7 +1246,8 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
       names the index; a file in the folder the index does not list is not a save to read. The dev server
       passes `/__saves` through (`SAVES_URL`).
   - **A connection that comes back** (`wire.ts`). A dropped connection loses what was on its way; the page
-    plays on, sending nothing (`lost`), and connects again after half a second, then a second, two, four
+    plays on, sending nothing (`lost` - since 16 October 2026 as the socket closes, not only when a message sent
+    on it fails), and connects again after half a second, then a second, two, four
     and on to thirty (`RETRIES`), closing when they are spent. Back, it asks for the game the server kept
     (`resume`, which now says the project the game is of): kept, of this project, the server is told the
     page's game, which went on without it; gone - the server restarted, ten minutes passed - a fresh game
@@ -1925,9 +1926,23 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     Now it opens the games' socket (`/__play`) and sends nothing on it, to listen (`listenForFriends`, `friends.ts`;
     `MainMenu.tsx`, where the server plays): the server knows each connection's account (`Connection`,
     `Tables::connect` takes it), and `Tables::tell` goes to every connection of the account - a page at a game, a menu
-    listening - instead of the game's watchers. The asking every ten seconds stays: a socket is not reopened once
-    lost, and the asking is what keeps a menu's player seen. Proved by `friends_routes.rs` (a connection at no game
+    listening - instead of the game's watchers. The asking every ten seconds stays: what is done while the socket
+    is shut is not told, and the asking is what keeps a menu's player seen. Proved by `friends_routes.rs` (a connection at no game
     told a friend's message and comings as the game's is, nothing once gone), `friends.test.ts` (listened to, only a
     friend's doing told, stopping closes it) and `friends.spec.ts`, whose menu pages reload nothing any more: asked,
     accepted, written to and removed, each menu says so inside three seconds.
+  - **A dropped connection noticed, and opened again** (16 October 2026). A game's page connected again when its
+    connection dropped (`RETRIES`, above) - but knew it had dropped only when an intent sent on it failed, so a page
+    sending nothing, waiting on another's turn, heard nothing more until its player did something. And the menu's
+    listening was never opened again. Now the socket says it has closed (`PlaySocket::onClose`, whether it had
+    opened, at once to whoever asks after; `Transport.onClose`): the wire is lost on it as on a failed message, its
+    connection's number keeping a late word from an old one for nothing (`hear`), and the menu opens its socket
+    again after the wire's waits, longer each time one fails to open, from the shortest once one had, and listens no
+    more once they are spent - the asking every ten seconds still there. Proved by `play-socket.test.ts`,
+    `wire.test.ts` (an idle host's page dropped: lost at once, back at the game kept, the guest's walk standing it
+    where it leaves the game, the old connection's late word nothing), `friends.test.ts` (opened again, longer each
+    failure, the shortest again, spent, and nothing once stopped) and `reconnect.spec.ts`, which holds each socket
+    (`routeWebSocket`) and closes it from the page's side: the menu opens another and is told a friend's request at
+    once; a game's page opens another of itself and plays on, nothing parted. A connection a network leaves half
+    open, which nobody's side sees close, is not this: it would want the server to ping.
   - **Next**: an evening through the tunnel.

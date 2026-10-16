@@ -123,4 +123,59 @@ describe('friends', () => {
     expect(closed).toBe(1);
     stopTelling();
   });
+
+  it("opens the socket again when it closes - longer each time it fails to open, from the shortest once one had - until stopped or the tries are spent", () => {
+    const sockets: { hear: (message: Record<string, unknown>) => void; shut: (opened: boolean) => void; closed: number }[] = [];
+    const open = () => {
+      const socket = { hear: (_: Record<string, unknown>) => undefined as void, shut: (_: boolean) => undefined as void, closed: 0 };
+      sockets.push(socket);
+      return {
+        send: () => Promise.reject(new Error('nothing is sent')),
+        close: () => socket.closed++,
+        listen: (heard: (message: Record<string, unknown>) => void) => (socket.hear = heard),
+        onClose: (shut: (opened: boolean) => void) => (socket.shut = shut),
+      };
+    };
+    const waits: number[] = [];
+    let waiting: (() => void) | null = null;
+    const later = (run: () => void, ms: number) => {
+      waits.push(ms);
+      waiting = run;
+    };
+    const told: string[] = [];
+    const stopTelling = onFriendDid((from) => told.push(from));
+    const stop = listenForFriends(open, { retries: [5, 10], later });
+    // Dropped: opened again after the shortest wait, and heard on.
+    sockets[0]!.shut(true);
+    expect(waits).toEqual([5]);
+    waiting!();
+    expect(sockets.length).toBe(2);
+    sockets[1]!.hear({ friends: { from: 'pip' } });
+    expect(told).toEqual(['pip']);
+    // That one never opens: a longer wait. The next opens, and drops: the shortest again.
+    sockets[1]!.shut(false);
+    expect(waits).toEqual([5, 10]);
+    waiting!();
+    sockets[2]!.shut(true);
+    expect(waits).toEqual([5, 10, 5]);
+    // Two never open: the tries spent, no more - the menu asks as it always has.
+    waiting!();
+    sockets[3]!.shut(false);
+    waiting!();
+    sockets[4]!.shut(false);
+    expect(waits).toEqual([5, 10, 5, 10]);
+    expect(sockets.length).toBe(5);
+    // Stopped, a socket closing - as the one it closes does - opens nothing, though a wait had begun.
+    const again = listenForFriends(open, { retries: [5], later });
+    sockets[5]!.shut(true);
+    expect(waits).toEqual([5, 10, 5, 10, 5]);
+    again();
+    expect(sockets[5]!.closed).toBe(1);
+    waiting!();
+    expect(sockets.length).toBe(6);
+    sockets[5]!.shut(false);
+    expect(waits).toEqual([5, 10, 5, 10, 5]);
+    stop();
+    stopTelling();
+  });
 });

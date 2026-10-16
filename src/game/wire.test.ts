@@ -158,15 +158,20 @@ class EngineServer implements Transport {
     this.closed = true;
   }
 
-  /** A connection of its own to this server's game, which can drop - what is on its way lost with it. */
+  /**
+   * A connection of its own to this server's game, which can drop - what is on its way lost with it, and whoever
+   * holds it told it closed, as a socket says so.
+   */
   connection(): Transport & { drop: () => void } {
     let dropped = false;
+    let shut: ((opened: boolean) => void) | null = null;
     const waiting = new Set<(why: Error) => void>();
     const number = ++this.connections;
     return {
       listen: (heard) => this.ears.set(number, (message) => {
         if (!dropped) heard(message);
       }),
+      onClose: (then) => (shut = then),
       send: (message) => {
         if (dropped) return Promise.reject(new Error('dropped'));
         return new Promise<Said>((answer, fail) => {
@@ -189,6 +194,7 @@ class EngineServer implements Transport {
         this.ears.delete(number);
         for (const fail of waiting) fail(new Error('dropped'));
         waiting.clear();
+        shut?.(true);
       },
     };
   }
@@ -1025,6 +1031,58 @@ describe('a shared game, on the wire', () => {
     expect(guestDemo.state.entity(kara)!.tile).not.toBe(from);
     expect(differ(guestDemo, server, guestWire.you!)).toBeNull();
     expect(guestDemo.motions.some((motion) => motion.id === kara)).toBe(true);
+    expect(replicaCount().first.slice(before.first.length)).toEqual([]);
+  }, 120_000);
+
+  it.skipIf(!built)("notices an idle page's connection dropping, connects again at once, and is stood where another's intent leaves the game", async () => {
+    const bytes = readFileSync(WASM);
+    const server = new EngineServer(await WasmEngine.load(bytes));
+    const hostDemo = buildProjectScene(project(), 'wire:idle-drop:host');
+    const host = new WasmGame(hostDemo, await WasmEngine.load(bytes), shippedContent());
+    const connections: ReturnType<EngineServer['connection']>[] = [];
+    const tries: number[] = [];
+    const hostWire = new Wire(() => connections[connections.push(server.connection()) - 1]!, hostDemo, shippedContent(), {
+      retries: [5, 10],
+      later: (run, ms) => {
+        tries.push(ms);
+        setTimeout(run, 0);
+      },
+    });
+    host.wireWith(hostWire);
+    await hostWire.ready;
+    const guestDemo = buildProjectScene(project(), 'wire:idle-drop:guest');
+    const guest = new WasmGame(guestDemo, await WasmEngine.load(bytes), shippedContent());
+    const guestWire = new Wire(() => server.connection(), guestDemo, shippedContent(), { join: hostWire.table!.invite });
+    guest.wireWith(guestWire);
+    await guestWire.ready;
+    const theirs = hostDemo.party.members().find((id) => id !== hostDemo.party.selected)!;
+    await hostWire.seat(theirs, guestWire.you!);
+    await settle(server);
+    const before = replicaCount();
+    // The host's page sends nothing, waiting on the guest - and its connection drops: lost at once, not when the page
+    // next plays, and connected again, back at the game the server kept.
+    connections[0]!.drop();
+    expect(hostWire.status()).toBe('lost');
+    await settle(server);
+    expect(hostWire.status()).toBe('in');
+    expect(tries).toEqual([5]);
+    expect(connections.length).toBe(2);
+    expect(server.sent.filter((m) => m['op'] === 'resume').length).toBe(1);
+    // Back, it hears the game again: the guest's walk stands the idle page where it leaves the game.
+    guest.select(theirs);
+    await settle(server);
+    const from = guestDemo.state.entity(theirs)!.tile;
+    guest.moveSelectedTo(from + 3);
+    await settle(server);
+    expect(hostDemo.state.entity(theirs)!.tile).toBe(guestDemo.state.entity(theirs)!.tile);
+    expect(hostDemo.state.entity(theirs)!.tile).not.toBe(from);
+    expect(differ(hostDemo, server)).toBeNull();
+    // The connection that dropped, saying so again late, is nothing now: still in, nothing tried again.
+    connections[0]!.drop();
+    await settle(server);
+    expect(hostWire.status()).toBe('in');
+    expect(tries).toEqual([5]);
+    expect(connections.length).toBe(2);
     expect(replicaCount().first.slice(before.first.length)).toEqual([]);
   }, 120_000);
 

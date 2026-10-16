@@ -18,6 +18,13 @@ A game's page played on the server has a Friends button above the table's chat, 
 much is unread; it opens the menu's friends - asking, answering, writing - on a sheet over the table, Escape shutting
 it.
 
+## A dropped connection noticed, and opened again — done
+
+A game's page whose connection drops while it sends nothing notices at once and connects again, back at the game the
+server kept; the menu's listening for friends is opened again too, after the same waits. A connection left half open,
+which neither side sees close, would want the server to ping it: worth doing if an evening through the tunnel shows a
+page that stops hearing without saying it is lost.
+
 ## The menu told at once too — done
 
 The menu opens the games' socket to listen, sending nothing: a friend's request, answer, message, removal, coming or

@@ -20,8 +20,8 @@
  * the wire closes, and the editor's playtest is the page's alone. In development only, and only for somebody
  * signed in.
  *
- * A connection that drops loses what was on its way; the page plays on, sending nothing, and the wire
- * connects again after a while, and again, longer each time (`RETRIES`), and asks for the game the server kept
+ * A connection that drops loses what was on its way - noticed as it closes (`Transport.onClose`), the page idle or
+ * not; the page plays on, sending nothing, and the wire connects again after a while, and again, longer each time (`RETRIES`), and asks for the game the server kept
  * (`resume`, for ten minutes after a socket closes): kept, of this project, the page is stood where it is -
  * what it played alone in between undone; gone, a fresh one is opened, and the page stood where that is. A
  * page reloaded asks first for the game kept (`resume`): kept, of this project, the page is stood where that
@@ -65,6 +65,8 @@ export interface Transport {
   close(): void;
   /** What the server says unasked - another page's intent, the table changed - given to `heard` as it comes. */
   listen?(heard: (message: Record<string, unknown>) => void): void;
+  /** Told once the connection has closed, whatever closed it - and whether it had opened first. */
+  onClose?(shut: (opened: boolean) => void): void;
 }
 
 /**
@@ -229,11 +231,17 @@ export class Wire {
     if (this.state === 'opening') await this.open();
   }
 
-  /** What the server says unasked, heard on the connection there is now. */
+  /**
+   * What the server says unasked, heard on the connection there is now - and that connection closing, which is the
+   * wire lost as a message failing on it is: a page sending nothing, waiting on another's turn, connects again too.
+   */
   private hear(): void {
     const connection = this.connection;
     this.transport.listen?.((message) => {
       if (connection === this.connection) this.heard(message);
+    });
+    this.transport.onClose?.(() => {
+      if (connection === this.connection) this.lose();
     });
   }
 

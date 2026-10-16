@@ -1,7 +1,7 @@
 /**
  * The page's socket to its game on the server (`play-socket.ts`), over a stand-in for the browser's
  * WebSocket: messages written out when given and held until it opens, answers found by their id whatever
- * order they come in, a close failing what still waits; and when the page asks for the wire at all.
+ * order they come in, a close failing what still waits and said; and when the page asks for the wire at all.
  */
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -102,6 +102,25 @@ describe('the socket to the server\'s game', () => {
     const unopened = held.send({ op: 'open' });
     held.close();
     await expect(unopened).rejects.toThrow('the connection closed');
+  });
+
+  it('says it has closed - once, whether it had opened - and at once to whoever asks after', () => {
+    vi.stubGlobal('WebSocket', FakeSocket);
+    const socket = new PlaySocket('ws://page/__play');
+    const fake = FakeSocket.last!;
+    const shut: boolean[] = [];
+    socket.onClose((opened) => shut.push(opened));
+    fake.fire('open');
+    expect(shut).toEqual([]);
+    fake.close();
+    expect(shut).toEqual([true]);
+    const late: boolean[] = [];
+    socket.onClose((opened) => late.push(opened));
+    expect(late).toEqual([true]);
+    // One that never opened says so.
+    new PlaySocket('ws://page/__play').onClose((opened) => shut.push(opened));
+    FakeSocket.last!.close();
+    expect(shut).toEqual([true, false]);
   });
 
   it('is for somebody signed in, in development, on a dev server that keeps accounts, unless turned off', async () => {

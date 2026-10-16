@@ -6,7 +6,8 @@
  * then, not after the intent that follows - and held until the socket is open; answers come back in the order
  * the messages went, each found by its `id`. What the server says unasked - another page's intent at a shared
  * game, the table changed - carries no `id`, and is given to whoever listens (`listen`). A socket that closes
- * fails whatever is still waiting, and the wire with it.
+ * fails whatever is still waiting, and says it has closed (`onClose`) - whether it had opened - so that a page
+ * sending nothing hears of it too, and connects again.
  */
 
 import { whoAmI, type SignedIn } from './accounts';
@@ -20,10 +21,14 @@ export class PlaySocket implements Transport {
   private readonly waiting = new Map<number, { answer: (said: Said) => void; fail: (why: Error) => void }>();
   private held: string[] | null = [];
   private heard: ((message: Record<string, unknown>) => void) | null = null;
+  private opened = false;
+  private gone = false;
+  private shut: ((opened: boolean) => void) | null = null;
 
   constructor(url: string = `${location.origin.replace(/^http/, 'ws')}${PLAY_URL}`) {
     this.socket = new WebSocket(url);
     this.socket.addEventListener('open', () => {
+      this.opened = true;
       for (const text of this.held ?? []) this.socket.send(text);
       this.held = null;
     });
@@ -35,7 +40,11 @@ export class PlaySocket implements Transport {
       this.waiting.delete(said.id!);
       waiter.answer(said);
     });
-    this.socket.addEventListener('close', () => this.failAll());
+    this.socket.addEventListener('close', () => {
+      this.failAll();
+      this.gone = true;
+      this.shut?.(this.opened);
+    });
   }
 
   send(message: Record<string, unknown>): Promise<Said> {
@@ -56,6 +65,12 @@ export class PlaySocket implements Transport {
 
   listen(heard: (message: Record<string, unknown>) => void): void {
     this.heard = heard;
+  }
+
+  /** Told once the socket has closed - at once, if it already has - and whether it had opened first. */
+  onClose(shut: (opened: boolean) => void): void {
+    this.shut = shut;
+    if (this.gone) shut(this.opened);
   }
 
   private failAll(): void {
