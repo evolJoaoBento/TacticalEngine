@@ -773,7 +773,7 @@ starting rule), so it is said once.
 | Mode | Around the board | What a click or drag does |
 |---|---|---|
 | **Inspector** (1) | The selected thing's properties, on the right | Click a prop to see what it is drawn with, what it does and whether it is solid (an object from an older project is shown as it always was). Press on anything placed, a creature, a prop, an object or a party start, and drag to move it: it lifts off the ground, hangs under the pointer with its bottom swinging behind the way it goes, and drops with a bump where you let go, at the height it stood. It never lands on another of its kind (props stack), and a party start stays in the room; one undo puts it back. The editor draws a party start as the character who begins there - party member 1 on start 1, and round again if the party outnumbers the starts - in the model play gives them, rimmed in white; a start nobody fills is a blue pawn in a ring. Click a start and the side pane shows that character's sheet, the same form as the Party workspace, and an edit there is an edit to the party. An object with no model is a gold ring with a gem |
-| **Terrain** (2) | Tools on the left rail; **Tiles** and **Props** in the strip along the bottom; the tool's options on the right | Build stacked tiles anywhere (brush 1×1, 3×3, 5×5); erase tiles at a chosen level; raise/lower ground; place props; **Select** picks up a placed tile - the topmost on the cell - and carries it: the Z ladder goes to its level, the wheel lifts it while held, Alt turns it, and it lands where you let go, on top of whatever is there. One undo puts it back. With Select in hand the **Z ladder** stays out: it shows the height of the prop or tile Select last took hold of and raises or lowers it, a quarter tile a rung, each an undo step - or is the build plane when Select holds nothing. Kinds of tile are named for the model they are drawn with (Grass Ground, Stone Stairs, Stone Block, Stone Wall, Dirt Ground, Grass Dirt Ground; the three drawn with the stone block say which is which) |
+| **Terrain** (2) | Tools on the left rail; **Tiles** and **Props** in the strip along the bottom; the tool's options on the right | Build stacked tiles anywhere (brush 1×1, 3×3, 5×5); erase tiles at a chosen level; raise/lower ground; place props; **Select** picks up a placed tile - the topmost on the cell - and carries it: the Z ladder goes to its level, the wheel lifts it while held, Alt turns it, and it lands where you let go, on top of whatever is there. One undo puts it back. With Select in hand the **Z ladder** stays out: it shows the height of the prop or tile Select last took hold of and raises or lowers it, a quarter tile a rung, each an undo step - or is the build plane when Select holds nothing. Kinds of tile are named for the model they are drawn with (Grass Ground, Stone Stairs, Stone Block, Stone Wall, Dirt Ground, Grass Dirt Ground; the three drawn with the stone block say which is which). A material's zip dropped on the strip is imported as four tiles of it (see **Surfaces**, below) |
 | **Encounters** (3) | Tools on the left rail; the SRD's creatures by tier in the strip, with a search; the encounter on the right | Place the picked creature in the encounter - **Copy as new** in the side makes a creature of the project's own from the one picked, drawn with its model and placed from the strip like any other, and a creature of the project's own has its whole stat block there to change (name, tier, role, Difficulty, Hit Points, Stress, thresholds, attack, to hit, range, damage and its type, description) and **Delete creature**; a change that would not leave a whole stat block is refused, and says why; press on a placed creature and drag to move it, as in the Inspector (Select carries party starts too); toggle trigger cells that start it; toggle party start tiles; erase a creature, then a trigger cell, then a party start (never the last one). The selected creature's panel ends with **Interaction**: None, **Friendly** (on nobody's side until its conversation says otherwise; clicking it in play talks) or **Threshold** (fights until a blow leaves it at or under the **% of Hit Points** given, 50 to start, then stops the fight to talk - once), and the **Conversation** it opens. Friendly and Threshold need a conversation to exist first. **Sells things** gives it a shop: what it is **Paid in** (gold to start), what it **Buys back at** (the share of a thing's worth it pays when the party sells, as a %: empty is 50, up to 100, 0 buys nothing), and a line for each thing it sells with a **price** and **how many** (empty is no end to them); its conversation opens the shop with **Open a shop** in a reply or a consequence node |
 | **Interaction** (4) | The conversations, on the left | Click one to open its graph |
 
@@ -1084,6 +1084,39 @@ from it) and creates a one-step quest. Click a quest to open its form: name, sum
 journal says), and each step's id and text with a **hidden** box (the step stays out of the
 journal until a `revealObjective` effect shows it or it is completed), **✕** (a quest keeps at
 least one) and **+ Step**.
+
+### Surfaces (imported materials)
+
+**Content → Tiles** has a **Surfaces** section at the top. Press **+ Surface** and pick a material's
+zip from [ambientCG](https://ambientcg.com) (for example `Bricks076_1K-JPG.zip`), or its images
+loose. You can also drop the zip on the Tiles page or on the Terrain strip. You get **four tiles
+made of that material**: a block, a wall, a floor slab and a staircase. They appear in the Terrain
+strip's Tiles tab with the block already picked, ready to stamp. One undo removes the material and
+all four tiles.
+
+The pieces are plain boxes; all the detail is in the material. Its height map makes the faces look
+carved (mortar sinks behind bricks, stones stand out) and catch the light, on walls and on floors
+seen at a slant alike. The texture runs on from one piece to the next, so a wall of many blocks
+looks like one wall, and a half-height wall shows half the texture rather than a squashed copy.
+
+What the importer reads, by the end of each file's name: **Color** (or basecolor, albedo,
+diffuse), **NormalGL** (or NormalDX, or normal), **Roughness**, **AmbientOcclusion**,
+**Displacement** (or height) and **Metalness**. Poly Haven's names (`_diff_1k`, `_nor_gl_1k`,
+`_rough_1k`, `_disp_1k`) work too. Only the colour map is required; without a height map the
+material is drawn flat, its normals still catching the light. Files it doesn't read (an opacity
+map, a preview, `.usdc` and `.mtlx` files) are listed after the import.
+
+The select beside **+ Surface** sets how big the maps are kept: 512 pixels, 1K (the default) or 2K.
+The material is carried in the project file, like an imported model: at 1K one material is about
+3-4 MB, at 512 about a quarter of that. **Check** warns when the project's materials pass 8 MB.
+Saving leaves out a material no tile is drawn in.
+
+Click a material to tune it, and the board redraws as you drag: **Size** (how many tiles one
+repeat of the texture covers), **Depth** (how far it reads into a face), **Normal strength** and
+**Roughness**. **✕** removes the material and its four tiles. A kind of tile you made yourself can
+be drawn in a material too, with its **Surface** select. A piece drawn in a material is the
+material's colour: the stone, wood and grass tints apply only to plain pieces. Imported
+materials draw in play as well as in the editor.
 
 ### Models (glTF import)
 

@@ -437,6 +437,7 @@ export function TerrainSide(props: {
                 key={material}
                 class={controller.state.buildMaterial === material ? 'ph-chip ph-on' : 'ph-chip'}
                 style={{ borderBottom: `3px solid ${BUILD_MATERIALS[material]}` }}
+                title="The tint a plain piece is drawn in. A piece drawn in an imported material is the material's own colour, whatever this says."
                 onClick={() => {
                   controller.set('buildMaterial', material);
                   props.onChange();

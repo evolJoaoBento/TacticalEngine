@@ -350,6 +350,22 @@ fn terrain_type() -> Schema {
         opt("model", string().min(1.0)),
         opt("scale", number().positive()),
         opt("structure", string().min(1.0)),
+        opt("surface", content_id()),
+    ])
+}
+
+/// `tileSurfaceSchema`: an imported material, its three packed maps and how they are tuned - every tuning defaulted.
+fn tile_surface() -> Schema {
+    object(vec![
+        req("id", content_id()),
+        req("name", string()),
+        opt("source", string()),
+        req("maps", object(vec![req("color", string().min(1.0)), req("normalHeight", string().min(1.0)), req("orm", string().min(1.0))])),
+        req("parallax", boolean()),
+        def("size", number().positive().max(16.0), one),
+        def("depth", number().min(0.0).max(0.25), || json!(0.06)),
+        def("normalScale", number().min(0.0).max(4.0), one),
+        def("roughness", number().min(0.0).max(2.0), one),
     ])
 }
 
@@ -433,6 +449,7 @@ fn project_holds_together(project: &Map<String, Value>, found: &mut Refinements)
     duplicates(project, "dialogues", "dialogue", found);
     duplicates(project, "items", "item", found);
     duplicates(project, "assets", "asset", found);
+    duplicates(project, "surfaces", "surface", found);
     duplicates(project, "quests", "quest", found);
     duplicates(project, "projectPlans", "project plan", found);
     duplicates(project, "party", "character", found);
@@ -496,6 +513,8 @@ pub fn project() -> &'static Schema {
             // Project plans (`content/projects.ts`): optional, so a project with none reads as it always did.
             opt("projectPlans", array(project_plan())),
             def("assets", array(model_asset()), empty_list),
+            // Imported materials: optional, so a project with none reads as it always did.
+            opt("surfaces", array(tile_surface())),
             def("adversaryModels", record(string(), string().min(1.0)), empty_object),
             listed("classes", Kind::Class),
             listed("ancestries", Kind::Ancestry),

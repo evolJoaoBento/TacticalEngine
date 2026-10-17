@@ -69,6 +69,12 @@ export interface TerrainType {
    * never names a structure behaves exactly as it did.
    */
   readonly structure?: string;
+  /**
+   * An imported material every piece of this kind is drawn in, when it is drawn as a box rather
+   * than with a model: the project's `surfaces`, by id. A `model` wins - a kind naming both is
+   * drawn with the model. Absent means the plain box in the kind's colour, as before.
+   */
+  readonly surface?: string;
 }
 
 export const MAX_TERRAIN_TYPES = 256;
@@ -90,6 +96,7 @@ export function terrain(
     ...(overrides.model === undefined ? {} : { model: overrides.model }),
     ...(overrides.scale === undefined ? {} : { scale: overrides.scale }),
     ...(overrides.structure === undefined ? {} : { structure: overrides.structure }),
+    ...(overrides.surface === undefined ? {} : { surface: overrides.surface }),
   };
 }
 

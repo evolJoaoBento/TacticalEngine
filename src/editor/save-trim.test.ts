@@ -8,7 +8,7 @@
 import { describe, it, expect } from 'vitest';
 import { blankScene } from '../engine/scene/grid-from-scene';
 import { projectSchema, sceneSchema } from '../engine/scene/schema';
-import { withoutUnusedEmbedded } from './asset-edits';
+import { withoutUnusedEmbedded, withoutUnusedSurfaces } from './asset-edits';
 
 const EMBEDDED = 'data:application/octet-stream;base64,AAAA';
 
@@ -27,6 +27,30 @@ function project() {
     ],
   });
 }
+
+describe("a saved project's imported materials", () => {
+  const maps = { color: 'data:image/webp;base64,AA', normalHeight: 'data:image/png;base64,AB', orm: 'data:image/webp;base64,AC' };
+  const withSurfaces = () =>
+    projectSchema.parse({
+      ...project(),
+      surfaces: [
+        { id: 'bricks', name: 'Bricks', maps, parallax: true },
+        { id: 'forgotten', name: 'Forgotten', maps, parallax: false },
+      ],
+      terrainPalette: [{ id: 'grass' }, { id: 'bricks-wall', structure: 'wall', surface: 'bricks' }],
+    });
+
+  it('leaves out a material no kind of tile is drawn in, and the project being edited as it was', () => {
+    const open = withSurfaces();
+    expect(withoutUnusedSurfaces(open).surfaces!.map((s) => s.id)).toEqual(['bricks']);
+    expect(open.surfaces).toHaveLength(2);
+    // Every one in use, or none at all: the very same project.
+    const used = { ...open, surfaces: open.surfaces!.slice(0, 1) };
+    expect(withoutUnusedSurfaces(used)).toBe(used);
+    const none = project();
+    expect(withoutUnusedSurfaces(none)).toBe(none);
+  });
+});
 
 describe('a saved project', () => {
   it('leaves out an embedded model nothing names, and keeps every other', () => {

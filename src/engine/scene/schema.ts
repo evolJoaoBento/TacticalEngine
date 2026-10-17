@@ -324,7 +324,46 @@ export const terrainTypeSchema = z.object({
    * question is asked, the same move `buildingTileSchema.shape` made.
    */
   structure: z.string().min(1).optional(),
+  /**
+   * An imported material every piece of this kind is drawn in, by the id of one of the
+   * project's `surfaces`, when it is drawn as a box; a `model` wins.
+   */
+  surface: contentIdSchema.optional(),
 });
+
+/**
+ * An imported material (`docs/MANUAL.md`, Surfaces): what an ambientCG zip, or a set of loose maps, became - three
+ * packed textures and how they are tuned. Importing one gives the project four kinds of tile drawn in it, a block, a
+ * wall, a floor slab and a staircase (`content/tile-surface-kit.ts`); a kind names it by `surface`.
+ *
+ * Called a surface, not a material, because `material` is a piece's stone, wood or grass tint
+ * (`BuildingTile.material`). Nothing rides in a map's alpha: a 2D canvas keeps premultiplied alpha, and would ruin the
+ * colour of every texel it made transparent.
+ */
+export const tileSurfaceSchema = z.object({
+  id: contentIdSchema,
+  name: z.string(),
+  /** Where it came from, for credits: "ambientCG Bricks076". Free text. */
+  source: z.string().optional(),
+  maps: z.object({
+    /** The colour, sRGB. */
+    color: z.string().min(1),
+    /** Linear: red and green the normal's X and Y (OpenGL's way up), blue the height. */
+    normalHeight: z.string().min(1),
+    /** Linear: red the ambient occlusion, green the roughness, blue the metalness. */
+    orm: z.string().min(1),
+  }),
+  /** Whether it had a height map: without one it is drawn with no parallax at all. */
+  parallax: z.boolean(),
+  /** How many tiles one repeat of the texture covers. */
+  size: z.number().positive().max(16).default(1),
+  /** How deep the parallax reads, in tiles; 0 turns it off. */
+  depth: z.number().min(0).max(0.25).default(0.06),
+  normalScale: z.number().min(0).max(4).default(1),
+  /** What the roughness map is multiplied by. */
+  roughness: z.number().min(0).max(2).default(1),
+});
+export type TileSurface = z.infer<typeof tileSurfaceSchema>;
 
 /**
  * A piece of logic in code the project carries. The body is a JavaScript
@@ -418,6 +457,11 @@ export const projectSchema = z
     projectPlans: z.array(projectPlanSchema).optional(),
     /** Imported models, by id. Content names them exactly as it names a procedural model. */
     assets: z.array(modelAssetSchema).default([]),
+    /**
+     * Imported materials, by id, which kinds of tile are drawn in (`TerrainType.surface`). Optional rather than
+     * defaulted: a project with none reads exactly as it did before there were any.
+     */
+    surfaces: z.array(tileSurfaceSchema).optional(),
     /**
      * What each adversary type is drawn with, by adversary id. A type with no
      * entry here falls back to the game's own map and then to the adversary id
@@ -525,6 +569,13 @@ export const projectSchema = z
         ctx.addIssue({ code: 'custom', path: ['assets', i, 'id'], message: `duplicate asset id "${asset.id}"` });
       }
       assetIds.add(asset.id);
+    });
+    const surfaceIds = new Set<string>();
+    (project.surfaces ?? []).forEach((surface, i) => {
+      if (surfaceIds.has(surface.id)) {
+        ctx.addIssue({ code: 'custom', path: ['surfaces', i, 'id'], message: `duplicate surface id "${surface.id}"` });
+      }
+      surfaceIds.add(surface.id);
     });
     const questIds = new Set<string>();
     project.quests.forEach((quest, i) => {

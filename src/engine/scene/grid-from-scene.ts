@@ -42,6 +42,7 @@ export function paletteForProject(project: Pick<ProjectDoc, 'terrainPalette' | '
         ...(type.model === undefined ? {} : { model: type.model }),
         ...(type.scale === undefined ? {} : { scale: type.scale }),
         ...(type.structure === undefined ? {} : { structure: type.structure }),
+        ...(type.surface === undefined ? {} : { surface: type.surface }),
       }),
     ),
   );

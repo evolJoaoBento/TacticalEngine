@@ -8,7 +8,9 @@
  * WebGL context: the strip falls back rather than this throwing.
  */
 
-import { Box3, DirectionalLight, Group, HemisphereLight, PerspectiveCamera, Scene, Sphere, Vector3, WebGLRenderer, type Object3D } from 'three';
+import { Box3, BoxGeometry, DirectionalLight, Group, HemisphereLight, Mesh, PerspectiveCamera, Scene, Sphere, Vector3, WebGLRenderer, type Object3D } from 'three';
+import { buildingParts } from '../scene/building';
+import type { SurfaceLibrary } from './surface-library';
 import { seatOnTile, type AssetLibrary } from './assets';
 import { TILE_UNDER } from './authoring-marks';
 import { ModelResources, buildModel } from './procedural/build';
@@ -141,6 +143,33 @@ export class ModelThumbnails {
     return picture;
   }
 
+  /**
+   * A kind of tile drawn in an imported material: its structure's boxes in the material, framed on its tile as a model
+   * is - or null while the material's maps are not in, and the card is its colour meanwhile. Kept under the material's
+   * revision, so a tuning edit draws it again; the boxes it built let go once it is drawn.
+   */
+  surfaceUrl(surfaces: SurfaceLibrary, surface: string, structure: string): string | null {
+    const material = surfaces.materialFor(surface);
+    if (material === null) return null;
+    const key = `surface:${surface}:${structure}:${surfaces.revisionOf(surface)}`;
+    const kept = this.pictures.get(key);
+    if (kept !== undefined) return kept;
+    const renderer = this.context();
+    if (renderer === null) return null;
+    const box = new BoxGeometry(1, 1, 1);
+    const shown = new Group();
+    for (const [x, y, z, sx, sy, sz] of buildingParts(structure)) {
+      const part = new Mesh(box, material);
+      part.position.set(x, y, z);
+      part.scale.set(sx, sy, sz);
+      shown.add(part);
+    }
+    const picture = this.draw(renderer, shown, 'tile');
+    box.dispose();
+    this.pictures.set(key, picture);
+    return picture;
+  }
+
   /** The model alone: what `object` builds, without the tile beneath it or the rim round it. */
   private bare(id: string): Object3D {
     const spec = this.assets?.spec(id);
@@ -266,6 +295,12 @@ function sharedFor(registry: ModelRegistry, assets: AssetLibrary | null): ModelT
 /** The strip's picture of a model: on its tile, rimmed. What `main.ts` asks through. */
 export function thumbnailOf(registry: ModelRegistry, assets: AssetLibrary | null, modelId: string, fallback?: string): Thumbnail | null {
   return sharedFor(registry, assets).picture(modelId, fallback);
+}
+
+/** The strip's picture of a kind of tile drawn in an imported material, or null while its maps are not in. */
+export function surfaceThumbnailOf(registry: ModelRegistry, assets: AssetLibrary | null, surfaces: SurfaceLibrary, surface: string, structure: string): Thumbnail | null {
+  const url = sharedFor(registry, assets).surfaceUrl(surfaces, surface, structure);
+  return url === null ? null : { url, standIn: false };
 }
 
 /** A portrait of a model -- the model alone -- as a data URL, or null when nothing can be drawn. */

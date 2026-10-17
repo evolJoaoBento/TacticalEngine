@@ -293,4 +293,23 @@ describe('projectSchema', () => {
   it('requires at least one scene', () => {
     expect(projectSchema.safeParse(project({ scenes: [] })).success).toBe(false);
   });
+
+  it('keeps imported materials, their tunings defaulted, and the surface a kind of tile is drawn in', () => {
+    const maps = { color: 'data:image/png;base64,AA', normalHeight: 'data:image/png;base64,AB', orm: 'data:image/png;base64,AC' };
+    const parsed = projectSchema.parse(project({ surfaces: [{ id: 'bricks', name: 'Bricks', maps, parallax: true }], terrainPalette: [{ id: 'bricks-wall', structure: 'wall', surface: 'bricks' }] }));
+    expect(parsed.surfaces).toEqual([{ id: 'bricks', name: 'Bricks', maps, parallax: true, size: 1, depth: 0.06, normalScale: 1, roughness: 1 }]);
+    expect(parsed.terrainPalette![0]!.surface).toBe('bricks');
+    // None given, none there: a project written before materials reads as it did.
+    expect(projectSchema.parse(project()).surfaces).toBeUndefined();
+    // A map missing, a depth past the most, a surface id that is no id.
+    expect(projectSchema.safeParse(project({ surfaces: [{ id: 'bricks', name: 'Bricks', maps: { color: 'x', orm: 'y' }, parallax: true }] })).success).toBe(false);
+    expect(projectSchema.safeParse(project({ surfaces: [{ id: 'bricks', name: 'Bricks', maps, parallax: true, depth: 0.5 }] })).success).toBe(false);
+    expect(projectSchema.safeParse(project({ terrainPalette: [{ id: 'x', surface: 'Bricks 076' }] })).success).toBe(false);
+  });
+
+  it('rejects two imported materials by one id', () => {
+    const maps = { color: 'a', normalHeight: 'b', orm: 'c' };
+    const bad = projectSchema.safeParse(project({ surfaces: [{ id: 'bricks', name: 'A', maps, parallax: false }, { id: 'bricks', name: 'B', maps, parallax: false }] }));
+    expect(bad.success ? [] : bad.error.issues.map((i) => [i.path.join('.'), i.message])).toEqual([['surfaces.1.id', 'duplicate surface id "bricks"']]);
+  });
 });

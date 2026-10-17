@@ -188,7 +188,10 @@ adapter: the rest of the core does not know it exists.
 | `render/authoring-marks.ts` | What the editor draws for things with no body of their own: a party start nobody fills (the legacy blue ring, with a pawn to take hold of) and an object with no model (a gold ring and a gem). `setAuthoring` draws them; play never does. A start the party fills is drawn as that character's model, named `spawn:<i>` all the same, so carrying finds it. |
 | `render/layout.ts` | The only place that knows tile-to-world scale. |
 | `render/terrain-mesh.ts` | Continuous legacy ground mesh per terrain type. |
-| `scene/building.ts`, `render/building-view.ts` | Sparse construction schema and chunked instanced LOD; `editor/building.ts` owns reversible cell edits. |
+| `scene/building.ts`, `render/building-view.ts` | Sparse construction schema and chunked instanced LOD; `editor/building.ts` owns reversible cell edits. A chunk holds one instanced mesh per look - the plain box, or each imported material its pieces are drawn in - and is built again when a material it uses is (`signature`). |
+| `render/tile-surface.ts` | An imported material's shader: `MeshStandardMaterial` with its map chunks replaced - UVs projected from world position per face, parallax occlusion from the height map, the packed maps sampled with `textureGrad`. `REPLACED` names the chunks, held to three's by a test. |
+| `render/surface-library.ts` | `SurfaceLibrary` - the `AssetLibrary` of materials: each surface's three maps loaded once, a near (parallax) and a flat material shared by every piece; tuned in place (`revisionOf`), rebuilt only when its materials are new objects (`generationOf`). |
+| `content/tile-surface-kit.ts` | Importing a material without a browser: which file is which map, the material's name, its four kinds of tile, the maps packed into three textures (`packMaps`), the mean colour. |
 | `render/procedural/` | `spec.ts`, `registry.ts` (falls back to a placeholder rather than throwing; `missing()` lists unresolved ids), `build.ts`, `library/{heroes,monsters,props}.ts`. The props library is empty: all fourteen were retired for imported models (`scene/retired-models.ts`). |
 
 There is **no `src/engine/audio/` and no `src/engine/input/`**. `CONTEXT.md` and
@@ -877,6 +880,28 @@ the last four commits are that pattern. Do not amend the reviewed commit; the pa
 
 ## 10. Content and licensing
 
+### (f) Importing a tile material
+
+What happens when an author drops an ambientCG zip, file by file, for anybody changing it.
+
+1. **`editor/surface-import.ts`** - `filesOf` unzips (`fflate`); `importSurface` asks the kit which file is which map,
+   decodes each with colour management off, draws them at the chosen size on an `OffscreenCanvas`, packs them
+   (`packMaps`) and encodes three data URLs - the normal and height losslessly. `addImported` adds the result through
+   the controller and picks the new block in the strip.
+2. **`engine/content/tile-surface-kit.ts`** - the decisions, all unit-tested: `classifySurfaceFiles`, `refusalOf`,
+   `surfaceIdentity`, `kindsForSurface` (the four kinds, ids moved along past taken ones), `packMaps`, `meanColor`.
+3. **`editor/surface-edits.ts`** - `importTileSurface` adds the material and its four kinds as one undo step;
+   `updateTileSurface` tunes (a slider drag absorbed into one step); `removeTileSurface` takes the kinds with it.
+4. **The data** - `projectSchema.surfaces` (`TileSurface`, optional) and `TerrainType.surface`, mirrored in
+   `server/engine/src/scene/document.rs` (`tile_surface`, the zod defaults filled) and the scene golden's `SAMPLE`.
+5. **Drawing** - `paletteForProject` carries `surface`; `BuildingView` draws a kind with a surface and no model in the
+   `SurfaceLibrary`'s material, the kind's colour until its maps are in; `thumbnails.ts` draws its card.
+6. **Saving and checking** - `withoutUnusedSurfaces` leaves out a material no kind names; `checkSurfaces` reports a kind
+   naming a material the project lacks, a model beside a surface, and the materials' weight.
+7. **Tests** - `tile-surface.test.ts`, `surface-library.test.ts`, `building-view.test.ts`, `tile-surface-kit.test.ts`,
+   `surface-edits.test.ts`, and `tests/e2e/tile-surfaces.spec.ts` over `tests/fixtures/tile-surface/` (made by
+   `tools/make-tile-surface-fixture.mjs`).
+
 ### Content packs
 
 A **pack** is the lists a character is built from — classes, ancestries, communities, subclasses,
@@ -964,6 +989,25 @@ when the source changes; browser tests cover broken directory art, corrupt impor
 ---
 
 ## 11. Gotchas
+
+- **An imported material keeps nothing in alpha.** A 2D canvas stores premultiplied alpha, so a texel made
+  transparent loses its colour on export. The height rides in the normal map's blue channel and the normal's Z is
+  rebuilt in the shader (`tile-surface.ts`); every packed alpha is 255.
+
+- **Parallax samples with `textureGrad`, its derivatives taken before the loop.** A derivative inside control flow
+  that differs between neighbouring pixels is undefined, and shows as sparkling seams. `tile-surface.test.ts` checks
+  the order.
+
+- **A building chunk is reused only if its look is the same too.** `BuildingView` keeps a chunk whose tile objects are
+  identical; a material that lands after the first sync, or a palette edit pointing a kind elsewhere, changes its
+  `signature`, which forces the rebuild. A tuning edit changes uniforms on the same materials and rebuilds nothing.
+
+- **Upgrading three can make every imported material flat without an error.** The shader replaces chunks by name
+  (`REPLACED`); a renamed chunk would make the replace do nothing. `tile-surface.test.ts` holds each name to
+  `ShaderLib.standard`, so an upgrade that renames one fails there instead.
+
+- **Each imported material costs about 16 MB of GPU memory at 1K** (three textures with mipmaps). Ten materials are
+  about 160 MB; texture compression (KTX2) is the cure, and is in the backlog.
 
 - **Name a creature with `nameOf` (`game/log.ts`), never its stat block.** A placement's own name
   rides on the entity (`EntityState.name`) and comes first; `adversaryDef(...).name` is what it is,

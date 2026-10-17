@@ -9,6 +9,11 @@
  * A project that declares no palette means "the engine's four". Adding to it writes those
  * four down first, because a list with one entry in it would say the project had one kind
  * of ground and every scene painted on the others would fall back to it.
+ *
+ * And the project's imported materials (**Surfaces**, `surface-import.ts`): a zip from ambientCG - or a material's
+ * images loose - dropped here, or picked with **+ Surface**, becomes a material and four kinds of tile drawn in it, a
+ * block, a wall, a floor slab and a staircase, ready in the Terrain strip. Each material is tuned here, and removed
+ * here with its four kinds; a kind of tile made by hand may be drawn in one too.
  */
 
 import { useState } from 'preact/hooks';
@@ -21,6 +26,7 @@ import { defaultPalette, tileIdTaken, tilesStandingOn, type TileType } from '../
 import { JumpRulesEditor } from './JumpRulesEditor';
 import { Icon } from './icons';
 import { AiBadge, artMarkHandlers } from './AiMark';
+import { SURFACE_SIZES, addImported, type SurfaceSize } from '../surface-import';
 
 /** The back arrow every workspace returns to the board with, before its title, styled like the others'. */
 const CLOSE_BUTTON: Record<string, string | number> = {
@@ -44,6 +50,17 @@ const NEW_COLOR = '#6b6350';
 /** What `open` holds while the jump rules are showing: no kind of tile can be called this, since an id has no space in it. */
 const JUMP_RULES = 'jump rules';
 
+/** What `open` holds while a material is showing: its id after this, which no kind of tile's id can be. */
+const SURFACE = 'surface ';
+
+/** A material's sliders: what each tunes, its range, and what it is called. */
+const TUNINGS = [
+  { key: 'size', label: 'Size, in tiles per repeat', min: 0.25, max: 8, step: 0.25 },
+  { key: 'depth', label: 'Depth', min: 0, max: 0.2, step: 0.01 },
+  { key: 'normalScale', label: 'Normal strength', min: 0, max: 2, step: 0.05 },
+  { key: 'roughness', label: 'Roughness', min: 0, max: 2, step: 0.05 },
+] as const;
+
 export function TilesWorkspace(props: {
   session: EditorSession;
   /**
@@ -60,6 +77,21 @@ export function TilesWorkspace(props: {
   const { controller, session } = props;
   const [open, setOpen] = useState<string | null>(null);
   const [adding, setAdding] = useState('');
+  const [size, setSize] = useState<SurfaceSize>(1024);
+  /** What the last import said: under way, why it failed, or the files it did not read. */
+  const [importing, setImporting] = useState<string | null>(null);
+  const surfaces = session.project.surfaces ?? [];
+  const surface = open !== null && open.startsWith(SURFACE) ? (surfaces.find((s) => s.id === open.slice(SURFACE.length)) ?? null) : null;
+
+  /** A material imported from the files given, its four kinds added, and its block picked in the strip. */
+  const importFiles = async (files: readonly File[]): Promise<void> => {
+    if (files.length === 0) return;
+    setImporting('Importing…');
+    const { id, said } = await addImported(controller, files, size, (taken) => tileIdTaken(session.project, taken));
+    if (id !== null) setOpen(`${SURFACE}${id}`);
+    setImporting(said);
+    props.onChange();
+  };
 
   // The declared palette, or the engine's four shown as what adding would write down. The
   // same function the edits use to write them, rather than a copy of it here that had
@@ -91,7 +123,16 @@ export function TilesWorkspace(props: {
   };
 
   return (
-    <div class="ph-workspace-panel" data-testid="tiles-panel">
+    <div
+      class="ph-workspace-panel"
+      data-testid="tiles-panel"
+      // A material dropped anywhere on the panel is imported, as + Surface would.
+      onDragOver={(e) => e.preventDefault()}
+      onDrop={(e) => {
+        e.preventDefault();
+        void importFiles([...(e.dataTransfer?.files ?? [])]);
+      }}
+    >
       <div class="ph-workspace-list" data-testid="tile-list">
         <div class="ph-row">
           <button style={CLOSE_BUTTON} data-testid="close-tiles" onClick={props.onClose} aria-label="Back" title="Back to the board">
@@ -99,6 +140,55 @@ export function TilesWorkspace(props: {
           </button>
           <strong style={{ flex: 1 }}>Tiles</strong>
         </div>
+
+        <div class="ph-heading" title="Imported materials: each gives four kinds of tile drawn in it">Surfaces</div>
+        {surfaces.map((made) => (
+          <div key={made.id} class="ph-row">
+            <button class={open === `${SURFACE}${made.id}` ? 'ph-item ph-on' : 'ph-item'} data-surface={made.id} onClick={() => setOpen(`${SURFACE}${made.id}`)}>
+              {made.name !== '' ? made.name : made.id} <small>{made.parallax ? 'with depth' : 'flat'}</small>
+            </button>
+            <button
+              class="ph-mini"
+              title="Remove this material and its four tiles"
+              data-testid={`remove-surface-${made.id}`}
+              onClick={() => {
+                if (!confirm(`Remove "${made.name || made.id}"? This removes its four tiles too.`)) return;
+                controller.removeSurface(made.id);
+                if (open === `${SURFACE}${made.id}`) setOpen(null);
+                props.onChange();
+              }}
+            >
+              ✕
+            </button>
+          </div>
+        ))}
+        <div class="ph-row">
+          <label class="ph-mini" style={{ cursor: 'pointer', whiteSpace: 'nowrap' }} title="An ambientCG zip, or a material's images: each becomes four tiles">
+            + Surface
+            <input
+              type="file"
+              accept=".zip,image/*"
+              multiple
+              data-testid="surface-file"
+              style={{ display: 'none' }}
+              onChange={(e) => {
+                const input = e.currentTarget;
+                void importFiles([...(input.files ?? [])]).then(() => (input.value = ''));
+              }}
+            />
+          </label>
+          <select class="ph-select" data-testid="surface-resolution" aria-label="How big its maps are kept" value={size} onChange={(e) => setSize(Number(e.currentTarget.value) as SurfaceSize)}>
+            {SURFACE_SIZES.map((side) => (
+              <option key={side} value={side}>{side === 512 ? '512 px' : `${side / 1024}K`}</option>
+            ))}
+          </select>
+        </div>
+        {importing === null ? null : (
+          <div class="ph-note" data-testid="surface-status">
+            {importing}
+          </div>
+        )}
+        <div class="ph-heading">Kinds of tile</div>
 
         {types.map((type) => (
           <div key={type.id} class="ph-row">
@@ -177,6 +267,43 @@ export function TilesWorkspace(props: {
 
       {open === JUMP_RULES ? (
         <JumpRulesEditor session={session} onChange={props.onChange} />
+      ) : surface !== null ? (
+        <div class="ph-workspace-body" data-testid="surface-editor">
+          <div class="ph-heading">{surface.name !== '' ? surface.name : surface.id}</div>
+          <label class="ph-heading" style={FIELD}>
+            Name
+            <input class="ph-input" style={CONTROL} data-testid="surface-name" value={surface.name} onChange={(e) => {
+              controller.updateSurface(surface.id, { name: e.currentTarget.value });
+              props.onChange();
+            }} />
+          </label>
+          {TUNINGS.map((tuning) => (
+            <label key={tuning.key} class="ph-heading" style={{ display: 'block' }}>
+              {tuning.label} <small>{surface[tuning.key]}</small>
+              <input
+                type="range"
+                style={CONTROL}
+                data-testid={`surface-${tuning.key}`}
+                min={tuning.min}
+                max={tuning.max}
+                step={tuning.step}
+                value={surface[tuning.key]}
+                disabled={tuning.key === 'depth' && !surface.parallax}
+                onInput={(e) => {
+                  controller.updateSurface(surface.id, { [tuning.key]: Number(e.currentTarget.value) });
+                  props.onChange();
+                }}
+              />
+            </label>
+          ))}
+          <div class="ph-note">
+            {surface.parallax
+              ? 'Depth is how far the material reads into a face, in tiles: mortar sinking behind bricks.'
+              : 'This material came with no height map, so it is drawn flat: its normals still catch the light.'}{' '}
+            {surface.source === undefined ? null : <>From {surface.source}.</>} Its four tiles are in the Terrain strip; each is a
+            kind of tile here, below.
+          </div>
+        </div>
       ) : tile === null ? (
         <div class="ph-workspace-body ph-hint">Pick a kind of tile to change what it is.</div>
       ) : (
@@ -292,6 +419,22 @@ export function TilesWorkspace(props: {
             <option value="">Colour, not a model</option>
             {(props.models ?? []).map((id) => (
               <option key={id} value={id}>{id}</option>
+            ))}
+          </select>
+          <div class="ph-heading">Surface</div>
+          <select
+            class="ph-select"
+            data-testid="tile-surface"
+            aria-label={`What material ${tile.id} is drawn in`}
+            value={tile.surface ?? ''}
+            onChange={(e) => {
+              const picked = e.currentTarget.value;
+              edit(picked === '' ? { surface: undefined } : { surface: picked });
+            }}
+          >
+            <option value="">None: its colour</option>
+            {surfaces.map((made) => (
+              <option key={made.id} value={made.id}>{made.name !== '' ? made.name : made.id}</option>
             ))}
           </select>
           {tile.model === undefined ? null : (

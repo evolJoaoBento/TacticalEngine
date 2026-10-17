@@ -570,9 +570,14 @@ it flinches, the fall to its last frame as it goes down, and the idle otherwise.
 no clip named keeps what is playing, and a file with nothing named loops its first clip as
 before.
 
-**Still open:** textures come with the file but nothing authors materials — no tinting, no texture
-swap, no override of what the file ships with. (The file picker that used to be listed here landed
-on 2026-09-12.)
+**Materials for built pieces** (17 October 2026): an ambientCG zip imported in the Tiles workspace gives a project four
+kinds of tile drawn in it - a block, a wall, a floor slab and a staircase - with parallax occlusion from its height map,
+UVs projected from world position so neighbouring pieces run on as one surface (`render/tile-surface.ts`,
+`docs/MANUAL.md`, "Surfaces").
+
+**Still open:** an imported model's own textures cannot be swapped or tinted; a material cannot paint the ground (the
+terrain mesh has no UVs); no self-shadowing in the parallax; no texture compression; a material's silhouette stays a
+box. (The file picker that used to be listed here landed on 2026-09-12.)
 
 ### ~~10. Presentation the prototype had and this does not~~ — mostly closed
 

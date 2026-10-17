@@ -16,6 +16,8 @@ import type { ArtKey } from '../../game/art-provenance';
 
 /** What the strip needs to draw a mode's tabs and report a pick. */
 export interface LibraryStripProps {
+  /** Files dropped on the strip: a material's zip on the Terrain strip, imported as four tiles. */
+  onDropFiles?: (files: File[]) => void;
   activeTab?: string;
   onTab?: (tab: string) => void;
   tabs: readonly LibraryTab[];
@@ -41,9 +43,9 @@ export function LibraryStrip(props: LibraryStripProps): preact.JSX.Element {
   const items = searching ? filterLibrary(props.tabs, query) : (tab?.items ?? []);
 
   const face = (item: LibraryItem): preact.JSX.Element | null => {
-    // A kind of tile is its model's picture when it names a model, over the colour it declares,
-    // which is what the card is when it names none - or while the picture is still being drawn.
-    if (item.swatch !== undefined && item.model === undefined) return null;
+    // A kind of tile is its model's picture when it names a model - or its material's, drawn in it - over the colour
+    // it declares, which is what the card is when it names neither, or while the picture is still being drawn.
+    if (item.swatch !== undefined && item.model === undefined && item.surface === undefined) return null;
     const picture = props.thumbnail?.(item) ?? null;
     if (picture === null) return item.swatch !== undefined ? null : <span class="ph-glyph">{item.label.slice(0, 1)}</span>;
     return (
@@ -59,7 +61,20 @@ export function LibraryStrip(props: LibraryStripProps): preact.JSX.Element {
   };
 
   return (
-    <footer class="ph-library ph-panel" data-testid={props.testId}>
+    <footer
+      class="ph-library ph-panel"
+      data-testid={props.testId}
+      onDragOver={props.onDropFiles === undefined ? undefined : (e) => e.preventDefault()}
+      onDrop={
+        props.onDropFiles === undefined
+          ? undefined
+          : (e) => {
+              e.preventDefault();
+              const files = [...(e.dataTransfer?.files ?? [])];
+              if (files.length > 0) props.onDropFiles!(files);
+            }
+      }
+    >
       <div class="ph-library-tabs">
         {props.tabs.map((t) => (
           <button

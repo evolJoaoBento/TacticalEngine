@@ -36,6 +36,18 @@ export function withoutUnusedEmbedded(project: ProjectDoc, alsoNamed: Iterable<s
   return kept.length === project.assets.length ? project : { ...project, assets: kept };
 }
 
+/**
+ * The project as a save writes it, without the imported materials no kind of tile is drawn in: a material is a few
+ * megabytes, and one imported and then let go of should not ride along in every file after it. Like
+ * `withoutUnusedEmbedded`, the project being edited is not touched.
+ */
+export function withoutUnusedSurfaces(project: ProjectDoc): ProjectDoc {
+  if (project.surfaces === undefined) return project;
+  const named = new Set((project.terrainPalette ?? []).flatMap((kind) => (kind.surface === undefined ? [] : [kind.surface])));
+  const kept = project.surfaces.filter((surface) => named.has(surface.id));
+  return kept.length === project.surfaces.length ? project : { ...project, surfaces: kept };
+}
+
 export function addAsset(asset: ModelAsset): Edit {
   return {
     label: `Add model ${asset.id}`,

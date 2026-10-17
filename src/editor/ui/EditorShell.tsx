@@ -54,6 +54,7 @@ import { ProjectsWorkspace } from './ProjectsWorkspace';
 import { EffectChoicesContext } from './plans-context';
 import { ModelsWorkspace } from './ModelsWorkspace';
 import { TilesWorkspace } from './TilesWorkspace';
+import { addImported } from '../surface-import';
 import { memory, restoreInto } from '../model-memory';
 import { currentUser } from '../../game/accounts';
 import { listYourModels, yourModelsMissingFrom } from '../../game/your-models';
@@ -340,13 +341,20 @@ export function EditorShell(props: EditorShellProps): preact.JSX.Element {
             bump();
           }}
           tabs={[
-            tilesTab(props.terrainTypes),
+            tilesTab(props.terrainTypes, new Map((session.project.surfaces ?? []).map((s) => [s.id, s.name]))),
             propsTab(props.propModels, session.project.assets.map((a) => a.id), controller.propPresets),
           ]}
           picked={terrainPicked}
           onPick={pickForTerrain}
           thumbnail={props.thumbnail}
           artKey={artKey}
+          // A material's zip dropped where the author is looking: four tiles of it here, the block in hand.
+          onDropFiles={(files) =>
+            void addImported(controller, files).then(({ id, said }) => {
+              if (id === null) alert(said);
+              bump();
+            })
+          }
         />,
         <TerrainSide key="side" session={session} controller={controller} onChange={bump} onNavigate={props.onNavigateBuilding} />,
       ];

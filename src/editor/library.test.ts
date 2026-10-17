@@ -51,6 +51,21 @@ describe('the library', () => {
     ]);
   });
 
+  it("draws a kind drawn in an imported material as its structure in it, found by the material's name - a model winning", () => {
+    const tab = tilesTab(
+      [
+        { id: 'bricks076-wall', name: 'Bricks 076 Wall', color: '#8a5a44', structure: 'wall', surface: 'bricks076' },
+        { id: 'crate', name: 'Crate', model: 'crate', structure: 'block', surface: 'bricks076' },
+      ],
+      new Map([['bricks076', 'Bricks 076']]),
+    );
+    expect(tab.items.map((i) => [i.id, i.surface ?? null, i.swatch])).toEqual([
+      ['bricks076-wall', { id: 'bricks076', structure: 'wall' }, '#8a5a44'],
+      ['crate', null, '#5d8a4a'],
+    ]);
+    expect(filterLibrary([tab], 'bricks 076').map((i) => i.id)).toEqual(['bricks076-wall', 'crate']);
+  });
+
   it('draws a kind that names a model as that model, keeping its colour for while the picture comes', () => {
     const tab = tilesTab([
       { id: 'road', name: 'Road', color: '#6b6350', model: 'dirt-ground', structure: 'floor' },

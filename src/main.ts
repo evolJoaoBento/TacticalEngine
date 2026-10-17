@@ -13,11 +13,12 @@
  */
 
 import { Fragment, h, render } from 'preact';
-import { PCFShadowMap, Plane, PerspectiveCamera, Raycaster, Vector2, Vector3, WebGLRenderer, type Intersection, type Mesh, type Object3D } from 'three';
+import { PCFShadowMap, Plane, PerspectiveCamera, Raycaster, TextureLoader, Vector2, Vector3, WebGLRenderer, type Intersection, type Mesh, type Object3D } from 'three';
+import { SurfaceLibrary } from './engine/render/surface-library';
 import { EditorController } from './editor/controller';
 import { placementRotation } from './editor/placement-rotation';
 import { EDITOR_MODES, type EditorMode } from './editor/modes';
-import { EditorSession, addAsset, removeAsset, addScene, removeScene, renameScene, setStartScene, updateInteractable, importPack, packChanges, withoutUnusedEmbedded } from './editor/session';
+import { EditorSession, addAsset, removeAsset, addScene, removeScene, renameScene, setStartScene, updateInteractable, importPack, packChanges, withoutUnusedEmbedded, withoutUnusedSurfaces } from './editor/session';
 import { EditorShell } from './editor/ui/EditorShell';
 import { PlayPanel, TONE, type Inspection } from './game/ui/PlayPanel';
 import { interactablesOf } from './game/prop-use';
@@ -45,7 +46,7 @@ import { BuildingView, type BuildingStats } from './engine/render/building-view'
 import { BUILD_LIMIT, isBuildCoordinate } from './engine/scene/building';
 import { Z_STEP, roundToStep } from './editor/height-ladder';
 import { AssetLibrary, modelAssetSchema, type ModelAsset } from './engine/render/assets';
-import { portraitOf, thumbnailOf } from './engine/render/thumbnails';
+import { portraitOf, surfaceThumbnailOf, thumbnailOf } from './engine/render/thumbnails';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { NO_TILE, type Spot, type TileGrid } from './engine/grid/grid';
 import { groundSlide, mapExtent, spotToWorld, tileAtWorld, tileCenter, worldToSpot } from './engine/render/layout';
@@ -346,6 +347,8 @@ const assets = new AssetLibrary(
     }),
   game.board.project.assets,
 );
+/** The project's imported materials, each loaded once and shared by every piece drawn in it (`surface-library.ts`). */
+const surfaces = new SurfaceLibrary((url) => new TextureLoader().loadAsync(url), Math.min(8, renderer.capabilities.getMaxAnisotropy()));
 
 /**
  * What each adversary type is drawn with, held here rather than read off the
@@ -376,7 +379,7 @@ const view = new SceneView(game.board.grid, {
 });
 view.setScenery(game.board.scene);
 view.syncTokens(game.board.state);
-const buildings = new BuildingView();
+surfaces.setAll(game.board.project.surfaces ?? []); const buildings = new BuildingView({ surfaces });
 view.scene.add(buildings.root);
 // `game.board.grid`, not `activeGrid`: that binding is declared further down, initialised to this
 buildings.sync(game.board.scene, game.board.grid.palette);
@@ -393,7 +396,8 @@ let project: ProjectDoc = game.board.project;
 let session = new EditorSession(project);
 /** What an edit redraws - and a room does not change shape under a fight or a question, so it does not grow then. */
 const editorHooks = {
-  onChange: (change: string): void => { if (change === 'terrain') rebuildTerrain(); if (change === 'content') syncEditorContent(); },
+  // A kind of tile added, changed or imported is new to the strip too: the panel drawn again when the palette changed.
+  onChange: (change: string): void => { if (change === 'terrain') { const was = JSON.stringify(activeGrid.palette.types); rebuildTerrain(); if (mode === 'edit' && JSON.stringify(activeGrid.palette.types) !== was) renderPanel(); } if (change === 'content') syncEditorContent(); },
   growable: (): boolean => activeScene().id !== game.board.scene.id || game.saveBlockedBy() === null,
 };
 let editor = new EditorController({ session, sceneId: game.board.scene.id, ...editorHooks });
@@ -404,7 +408,7 @@ editor.setMode('inspect');
 // A file arriving changes what the Models panel can offer - a clip list it could not know until
 // the file was here. The view already redraws itself on this; the panel has to be told too, or the
 // dropdowns stay empty until something else re-renders them. The curtain reads the same library.
-assets.onChange(() => { if (mode === 'edit') renderPanel(); else refreshPlay(); });
+assets.onChange(() => { if (mode === 'edit') renderPanel(); else refreshPlay(); }); surfaces.onChange(() => { if (mode === 'edit') renderPanel(); }); // a material's maps in: its cards drawn
 liftCurtainWhenReady(assets, () => state.frames);
 
 // The library's own plus the project's, read afresh so a model added mid-session is offered.
@@ -476,7 +480,7 @@ function rebuildTerrain(): void {
   // A room that grew is another grid: the view is pointed at it, as it is at another room.
   if (!game.takeGround(scene, activeGrid, grid)) return rebindScene(activeGrid);
   view.rebuildTerrain(scene.tints);
-  buildings.sync(scene, activeGrid.palette);
+  surfaces.setAll(session.project.surfaces ?? []); buildings.sync(scene, activeGrid.palette); // the materials as the project has them now
   // The scenery hangs off the ground that was just replaced, in either mode:
   // this is the one place that redraws it, so undo and redo do not have to.
   syncEditorContent();
@@ -602,7 +606,7 @@ function renderPanel(): void {
       characterContent: characterContentFor(game.board.project),
       characterPack: characterContentFor(),
       preview: (card) => h(CardPreview, { card, content: characterContentFor(game.board.project) }),
-      thumbnail: (item) => item.tab.startsWith('tier-') ? thumbnailOf(view.registry, assets, adversaryModels[item.id] ?? DEMO_MODELS[item.id] ?? item.id, 'husk') : thumbnailOf(view.registry, assets, item.model ?? item.id),
+      thumbnail: (item) => item.tab.startsWith('tier-') ? thumbnailOf(view.registry, assets, adversaryModels[item.id] ?? DEMO_MODELS[item.id] ?? item.id, 'husk') : item.surface !== undefined ? surfaceThumbnailOf(view.registry, assets, surfaces, item.surface.id, item.surface.structure) : thumbnailOf(view.registry, assets, item.model ?? item.id),
       playingScene: game.board.scene.id,
       onPlay: () => setMode('play'),
       onPlayHere: () => playAt(editor.sceneId, null),
@@ -662,7 +666,7 @@ function renderPanel(): void {
 }
 
 async function saveProject(): Promise<void> {
-  const text = JSON.stringify(withoutPackEntries(withoutUnusedEmbedded(session.project, Object.values(DEMO_MODELS))), null, 2); // an embedded model nothing names stays in the browser, not the file; what a listed pack lays, the pack lays again
+  const text = JSON.stringify(withoutPackEntries(withoutUnusedSurfaces(withoutUnusedEmbedded(session.project, Object.values(DEMO_MODELS)))), null, 2); // an embedded model nothing names stays in the browser, not the file; what a listed pack lays, the pack lays again
   const outcome = savesDefault && (await saveDefault(text)) === 'written' ? 'written' : await saveProjectFile(text, `${session.project.id}.json`);
   // A closed dialog is not a save: the project stays dirty and the tab still warns.
   if (outcome !== 'cancelled') session.markSaved();
@@ -1167,7 +1171,7 @@ function rebindScene(grown?: TileGrid): void {
   // The same view, pointed at the other room: its caches, its lights and the
   // party's own tokens carry over; the ground and the scenery do not.
   view.rebind(activeGrid, { tints: scene.tints, decos: scene.decos, objects: scene.interactables });
-  buildings.sync(scene, activeGrid.palette);
+  surfaces.setAll(session.project.surfaces ?? []); buildings.sync(scene, activeGrid.palette);
   // The same room, grown: the camera slides as far as the ground did, and nothing seems to move.
   if (grown === undefined) frameCamera();
   else orbit.slide(groundSlide(grown, activeGrid, view.layout));

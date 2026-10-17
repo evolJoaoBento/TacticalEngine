@@ -126,6 +126,9 @@ export function validateProject(
   checkEmbeddedAssets(project, (severity, message, entity) => {
     problems.push({ severity, message, ...(entity === undefined ? {} : { entity }) });
   });
+  checkSurfaces(project, (severity, message, entity) => {
+    problems.push({ severity, message, ...(entity === undefined ? {} : { entity }) });
+  });
   checkJumpRules(project, options.knownConditions, (severity, message) => problems.push({ severity, message }));
   return problems;
 }
@@ -1223,6 +1226,28 @@ function checkEmbeddedAssets(
       asset.id,
     );
   }
+}
+
+/**
+ * The imported materials kinds of tile are drawn in (`TileSurface`): one a kind names that the project has not got - it
+ * would draw as a plain box, which is a mistake with no other way of being seen; one a kind names beside a model, which
+ * the model wins; and how heavy they all are together, carried in the document as they are.
+ */
+export function checkSurfaces(
+  project: ProjectDoc,
+  add: (severity: ProblemSeverity, message: string, entity?: string) => void,
+): void {
+  const surfaces = new Set((project.surfaces ?? []).map((surface) => surface.id));
+  for (const kind of project.terrainPalette ?? []) {
+    if (kind.surface === undefined) continue;
+    if (!surfaces.has(kind.surface)) add('error', `Kind of tile "${kind.name || kind.id}" is drawn in surface "${kind.surface}", which the project does not have.`, kind.id);
+    else if (kind.model !== undefined) add('warning', `Kind of tile "${kind.name || kind.id}" is drawn with the model "${kind.model}"; its surface "${kind.surface}" is ignored.`, kind.id);
+  }
+  let bytes = 0;
+  for (const surface of project.surfaces ?? []) {
+    for (const url of Object.values(surface.maps)) bytes += Math.floor(((url.length - url.indexOf(',') - 1) * 3) / 4);
+  }
+  if (bytes >= EMBEDDED_WARN_BYTES) add('warning', `Imported materials are carried inside the project at ${(bytes / 1_048_576).toFixed(1)} MB; saving and loading will feel it.`);
 }
 
 /**

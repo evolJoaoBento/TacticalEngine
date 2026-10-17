@@ -39,6 +39,10 @@ own art, which `equipment.lock.json` names. The source is at
 - **Kreon**, the play UI's font: Copyright 2018 The Kreon Project Authors, used under the SIL Open
   Font License 1.1, which travels with it in `public/fonts/kreon/OFL.txt`.
 
+- **Materials imported into a project.** A material an author imports (`docs/MANUAL.md`, "Surfaces") is carried in
+  their project, not distributed from here; ambientCG's are CC0, and the material's `source` keeps the credit anyway.
+  The test material in `tests/fixtures/tile-surface/` is drawn by `tools/make-tile-surface-fixture.mjs`: our own work.
+
 - **Card art.** `public/cards/` is ignored by git and nothing in it is distributed from here. Cards
   draw their own emblems when the directory is empty. (The equipment cards' pictures are not this
   art: they are the project's own, and covered above.)

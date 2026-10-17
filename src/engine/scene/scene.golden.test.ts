@@ -147,7 +147,7 @@ const SAMPLE: Raw = {
   formatVersion: 6,
   id: 'sample',
   name: 'Sample',
-  terrainPalette: [{ id: 'grass' }, { id: 'wall', passable: false, cost: 2, providesCover: true, blocksSight: true, color: '#333', model: 'wall', scale: 1.5, structure: 'block' }],
+  terrainPalette: [{ id: 'grass' }, { id: 'wall', passable: false, cost: 2, providesCover: true, blocksSight: true, color: '#333', model: 'wall', scale: 1.5, structure: 'block' }, { id: 'bricks-block', structure: 'block', surface: 'bricks' }],
   structureTypes: [{ id: 'arch', name: 'Arch', atoms: [{ shape: 'wall', at: [0, 0.5, 0] }, { shape: 'floor' }] }],
   propPresets: [{ id: 'crate', label: 'Crate', model: 'crate', span: 2, rotation: 1.5, solid: true, function: { kind: 'container', items: [{ item: 'rope' }] } }],
   scenes: [
@@ -199,6 +199,8 @@ const SAMPLE: Raw = {
   lootTables: first('lootTables'),
   quests: first('quests'),
   assets: [{ id: 'rat', url: 'rat.glb', scale: 0.5, clips: { idle: 'Idle', walk: 'Walk' }, pivot: 'file' }, ...first('assets')],
+  // Size, normal strength and roughness left out, so their defaults are what the Rust fills in too.
+  surfaces: [{ id: 'bricks', name: 'Bricks', source: 'ambientCG Bricks076', maps: { color: 'data:image/png;base64,AA', normalHeight: 'data:image/png;base64,AB', orm: 'data:image/png;base64,AC' }, parallax: true, depth: 0.1 }],
   adversaryModels: { rat: 'rat' },
   cards: first('cards'),
   weapons: first('weapons'),
@@ -233,7 +235,7 @@ const SAMPLE: Raw = {
 };
 
 /** How deep each part of the project is broken: a scene furthest, since it is what this port adds. */
-const DEPTH: Record<string, number> = { scenes: 6, party: 5, structureTypes: 4, propPresets: 5, assets: 3, terrainPalette: 3, jump: 2, adversaryModels: 2 };
+const DEPTH: Record<string, number> = { scenes: 6, party: 5, structureTypes: 4, propPresets: 5, assets: 3, surfaces: 3, terrainPalette: 3, jump: 2, adversaryModels: 2 };
 
 function placesIn(value: unknown, left: number, at: Path): Path[] {
   if (left <= 0 || value === null || typeof value !== 'object') return [];
