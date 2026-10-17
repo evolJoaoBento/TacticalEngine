@@ -37,6 +37,10 @@ it first and expect Playwright to use it.
 | read the board | `zones()` for the ground a spell holds (tiles per zone), `floaters()` for the numbers rising over heads right now (read them in the same tick - they live 1.4 s) |
 | objects | `objects()`, `use(id)`, `objectState(id)` |
 
+Signed in on the dev server, the page plays with the Rust server's game, which takes the test hands
+(`setCards`, `standNear`, `startFight`, `wound`...) only when started for the tests (`--for-tests`, as the
+e2e server mode does): there they are undone. Sign out, or use the e2e suite, to drive with them.
+
 Always `setDiceSpeed(0)` first, or the dice animation makes everything
 wait. A check *clicked* through the UI is thrown on a card of its own,
 which holds the dice until `[data-testid="accept"]` is clicked whatever the

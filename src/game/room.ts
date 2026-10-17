@@ -29,9 +29,7 @@ import { TriggerIndex } from '../engine/scene/triggers';
 import { compileHooks, type HookMap } from '../engine/script/hooks';
 import { SceneScriptWorld, type SceneScriptWorldOptions, type ScenarioState } from '../engine/script/world';
 import { DEMO_ADVERSARIES, DEMO_BAND_TILES, DEMO_CHARACTERS, movementFor } from './demo-rules';
-import type { DemoScene, UseOutcome } from './demo-scene';
-import { note, type LogLine } from './log';
-import { arriveByPortal } from './prop-use';
+import type { DemoScene } from './demo-scene';
 
 /** Everything that belongs to one room rather than to the campaign. */
 interface SceneRuntime {
@@ -284,69 +282,6 @@ function traitsFor(
   return best;
 }
 
-/** What each party member is carrying, pool-wise, right now. */
-function poolsOf(demo: Pick<DemoScene, 'state'>): Map<string, PartyPools> {
-  const pools = new Map<string, PartyPools>();
-  for (const entity of demo.state.entitiesOf('party')) {
-    pools.set(entity.id, {
-      hitPoints: { ...entity.hitPoints },
-      stress: { ...entity.stress },
-      armorSlots: { ...entity.armorSlots },
-      ...(entity.good === undefined ? {} : { good: { ...entity.good } }),
-    });
-  }
-  return pools;
-}
-
-/**
- * Move the party to another scene.
- *
- * Wounds, Stress, Light and Shadow travel; where everyone stood does not — the
- * party arrives on the new scene's spawn points. A room already visited is
- * restored to how it was left, minus its party entities, which are replaced with
- * the ones that actually walked in.
- */
-export function travelTo(demo: DemoScene, sceneId: string): boolean {
-  const target = demo.project.scenes.find((candidate) => candidate.id === sceneId);
-  if (target === undefined || target.id === demo.scene.id) return false;
-
-  // Remember the room being left, so coming back finds the chest still open.
-  demo.snapshots.set(demo.scene.id, demo.state.snapshot());
-
-  const selected = demo.party.selected;
-  const runtime = buildRuntime(target, demo.characters, demo.scenario, {
-    pools: poolsOf(demo),
-    bad: demo.state.bad,
-    lootTables: new Map(demo.project.lootTables.map((table) => [table.id, table])),
-    project: demo.project,
-  });
-
-  const remembered = demo.snapshots.get(target.id);
-  if (remembered !== undefined) {
-    const arrivals = runtime.state.entitiesOf('party').map((e) => ({ ...e }));
-    // `restore` replaces everything, the stale party included; put the real one
-    // back on the spawns afterwards.
-    runtime.state.restore(remembered);
-    for (const entity of runtime.state.entitiesOf('party')) {
-      runtime.state.removeEntity(entity.id);
-    }
-    const spawns = target.spawns;
-    arrivals.forEach((entity, i) => {
-      const spawn = spawns[i % Math.max(spawns.length, 1)];
-      const tile = spawn === undefined ? NO_TILE : tileOf(runtime.grid, spawn);
-      runtime.state.addEntity({ ...entity, tile });
-    });
-  }
-
-  // A marked spot is a tile, and a tile means nothing in another room.
-  demo.world.forgetSpots();
-  install(demo, runtime, selected);
-  arriveByPortal(demo);
-  // `SceneDoc.intro` has been an authored field nothing ever read.
-  if (target.intro !== '') note(demo, target.intro, 'narration');
-  return true;
-}
-
 /**
  * Make a freshly built runtime the one being played.
  *
@@ -497,21 +432,4 @@ export function takeGround(demo: DemoScene, scene: SceneDoc, active: TileGrid, f
   }
   if (selected !== null && demo.party.members().includes(selected)) demo.party.select(selected);
   return false;
-}
-
-/**
- * Act on a `goto` a script asked for, once the script has finished asking the
- * player things.
- *
- * Travelling mid-script would carry the rest of that script into the wrong room,
- * so the destination is remembered and spent here.
- */
-export function settleTravel(demo: DemoScene, lines: LogLine[]): UseOutcome {
-  if (demo.destination === null || demo.pending !== null) {
-    return { status: demo.pending === null ? 'done' : 'waiting', lines };
-  }
-  const before = demo.log.length;
-  travelTo(demo, demo.destination);
-  demo.destination = null;
-  return { status: 'done', lines: [...lines, ...demo.log.slice(before)] };
 }

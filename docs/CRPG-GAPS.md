@@ -33,11 +33,12 @@ two thirds.
 | Characters | SRD classes/ancestries/communities/armor/weapons; sheets deriving the real numbers |
 | Scripting | One schema for conditions and effects; a stepper that pauses for input |
 | Interaction | Use a thing: keys, locked text, an action roll, effects and prose per outcome |
-| Editor | Terrain/height/props/objects/enemies/triggers/spawns, undo, validation, JSON save+load |
+| Editor | Terrain/height/props/objects/enemies/triggers/spawns, creatures of the project's own (copied from one, stat block edited; features not yet), undo, validation, JSON save+load |
 | UI | Narrative log with tone, the conversation panel, and the roll prompt a script raises |
 | Campaign | Two scenes, travel between them, and state that outlives a room |
 | Saving | A campaign put down and picked up: rooms, pack, flags, and the dice position |
 | Quests | Start, tick, finish; a journal; a demo quest across two rooms |
+| Accounts & store | Sign in on the dev server, each player's games and saves their own; a store of published art where creators show their work - How I Made It and Process Proof - and are marked AI until they do, with a Human-Crafted Authenticity vote on work shown; for sale only with the work shown and never AI generated (no payments yet; dev server only); every engine model listed, and Get puts a model into the player's own models, which every project they open has and which a project they open adds to on the fly |
 | Presentation | Orbit/pan/zoom camera, hover cursor, party HUD with pips, dice read out |
 | Progression | Tiered level-ups with recorded advancements, subclasses, domain cards, multiclass |
 | Equipping | Weapons and armor from the pack onto a character, reversible, pools reconciled |
@@ -97,7 +98,7 @@ node's effects — a reply that starts a conversation nobody wrote is an error b
 crash.
 
 **Talking to creatures (2026-09-24).** A placed creature can carry a conversation
-(`game/interaction.ts`): friendly ones stand on nobody's side and are talked to when clicked; a
+(the engine's game layer, `server/engine/src/game/`): friendly ones stand on nobody's side and are talked to when clicked; a
 threshold one stops the fight when a blow leaves it low enough, turns friendly, and talks - once.
 A consequence node does rather than says, and **Change sides** (`setAttitude`) turns a creature
 friendly or hostile from a reply or a consequence; a conversation opened with a creature binds it
@@ -152,6 +153,13 @@ Multiclass, the last two costing both picks), or from what the previous tier's s
 unmarked; one new domain card per level from the character's domains at or below their level; at
 levels 2, 5 and 8 a new Experience and +1 Proficiency; trait marks cleared at 5 and 8; multiclass
 opens one domain of the second class. A plan is legal or nothing happens.
+
+**The Proficiency box counts** (fixed 29 September 2026, found porting it to Rust). It used to cost
+both picks and add nothing: `levelUp` added `takenNow.get('proficiency')`, a key its `tier:kind` map
+never held. Now a tier achievement's +1 goes onto the sheet and the box, like a Hit Point box, is
+counted where the sheet is derived (`progressionBonuses`), so a save that took it before the fix reads
+right without being touched. Scripts read the derived number too (`proficiencyOf`), which also brings
+a card's Proficiency bonus into "d8 using your Proficiency".
 
 There are no experience points — the GM says when — so levelling is a `levelUp` **effect** a
 designer places as a milestone; the demo grants one when the strongbox opens. The HUD offers a
@@ -324,6 +332,30 @@ describing the pit once the word is won.
 
 **Still open:** nothing.
 
+**Project plans** sit beside the quests (`content/projects.ts`, the project's `projectPlans`): the SRD's Work on
+a Project downtime move, made a designer's tool. A plan is whatever the designer wants - a blade to forge, a book
+to decipher - and is two things to the engine: the **work** it takes, counted in Work on a Project moves spent on
+long rests, the party's together; and its **reward**, in the one effect vocabulary, so finishing it can give gear
+or a narrative item (`addItem`), set a flag the story reads later, start a quest, tell a page of story - anything
+a script can do, with whoever finished it acting. The party comes by a plan through one effect, `learnPlan`
+("Teach a project plan"), wherever effects are written: a reply, a chest, a blueprint whose use teaches it. The
+work done is the party's (`ScenarioState.projects`, written only once a plan is learned) and travels into a save.
+The rest panel offers "Work on a project" on a long rest when there is one to work at, with a choice of which; the
+journal lists each plan learned with its work ("Husk-iron blade - project, 1 of 2"); the log says when one is
+learned, worked at and finished. The editor has a Projects workspace (name, description, the work it takes, the
+reward as an effect list) and the effect editor's "Teach a project plan"; validation checks a reward as it checks
+an item's use, errs on a plan taught that is not there, and warns of a plan nothing teaches. The demo carries a
+worked example: Tobin the Pedlar sells the smith's notes at the camp, reading them teaches the husk-iron blade, two
+moves forge it, and whoever finishes it learns Unbroken.
+
+**A card given** is an effect too (`grantCard`, "Give a card"): it puts a card in a character's hands - the one
+acting (a plan's finisher, an item's user, the one talking) unless the effect names a party member - so a project's
+reward, a teacher's lesson or a relic's gift can be a new ability. The engine adds it to the character's domain
+cards (`game/cards.rs`: in the vault if the loadout is full, swapped in on a rest like any other), the log says
+"Quim learns Unbroken.", and a card already held, or one no content has, changes nothing. The effect editor picks
+the card from the project's and the packs' cards and the receiver from the party; validation errs on a card there
+is not and on a receiver who is not in the party.
+
 The editor has a quest list and a form — name, summary, steps — because a quest is a list and a
 list is edited as a list; the graph was the right call for conversations, not for this. The
 effect editor offers the four quest effects with the quest picked from a dropdown and the
@@ -426,6 +458,12 @@ inspect. Save and load a project as JSON. The placer stamps kinds of tile that a
 chosen level, and a walk over the cell reads whichever kind ends up on top. Ground is the substrate a
 cell already holds — still drawn, still saved, edited in the Tiles workspace — and is no longer
 painted. Elevation stays its own tool because low walls and tall walls play differently.
+
+**A project's own structures load** (fixed 30 September 2026, found porting the documents to Rust).
+Whether a piece's structure exists was asked of a registry that only building a grid for a project
+sets, so on a fresh page a project that declared a structure and built with it was refused ("No
+structure called ..."), and the demo opened in its place. The project's schema asks it now, of the
+engine's four structures and the project's own.
 
 A **scene list** sits in the panel: switch, add, rename, delete, and choose which scene the
 project opens on. Editing a scene is decoupled from playing one — browsing rooms in the editor

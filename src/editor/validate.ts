@@ -105,6 +105,12 @@ export function validateProject(
   checkItemUses(project, options, (severity, message, entity) => {
     problems.push({ severity, message, ...(entity === undefined ? {} : { entity }) });
   });
+  checkProjectPlans(project, (severity, message, entity) => {
+    problems.push({ severity, message, ...(entity === undefined ? {} : { entity }) });
+  });
+  checkCardsGiven(project, options, (severity, message, entity) => {
+    problems.push({ severity, message, ...(entity === undefined ? {} : { entity }) });
+  });
   checkAbilitiesAndCode(project, options, (severity, message, entity) => {
     problems.push({ severity, message, ...(entity === undefined ? {} : { entity }) });
   });
@@ -745,24 +751,88 @@ function checkItemUses(
   const dialogueIds = new Set(project.dialogues.map((d) => d.id));
   const tableIds = new Set(project.lootTables.map((t) => t.id));
   const itemIds = new Set(itemsFor(project).map((i) => i.id));
-  for (const item of project.items) {
-    const quests = questReferences(project, item.id, add);
-    walkEffects(item.use, (effect) => {
+  // An item's use, and a project plan's reward: the same checks, the one effect vocabulary.
+  const uses = (what: string, owner: string, effects: readonly Effect[]): void => {
+    const quests = questReferences(project, owner, add);
+    walkEffects(effects, (effect) => {
       quests.effect(effect);
       if (effect.kind === 'goto' && !sceneIds.has(effect.scene)) {
-        add('error', `Item "${item.id}" travels to scene "${effect.scene}", which does not exist.`, item.id);
+        add('error', `${what} "${owner}" travels to scene "${effect.scene}", which does not exist.`, owner);
       }
       if (effect.kind === 'startDialogue' && !dialogueIds.has(effect.dialogue)) {
-        add('error', `Item "${item.id}" starts conversation "${effect.dialogue}", which does not exist.`, item.id);
+        add('error', `${what} "${owner}" starts conversation "${effect.dialogue}", which does not exist.`, owner);
       }
       if (effect.kind === 'loot' && effect.table !== undefined && !tableIds.has(effect.table)) {
-        add('error', `Item "${item.id}" draws from loot table "${effect.table}", which does not exist.`, item.id);
+        add('error', `${what} "${owner}" draws from loot table "${effect.table}", which does not exist.`, owner);
       }
       if ((effect.kind === 'addItem' || effect.kind === 'removeItem') && !itemIds.has(effect.item)) {
-        add('error', `Item "${item.id}" refers to item "${effect.item}", which does not exist.`, item.id);
+        add('error', `${what} "${owner}" refers to item "${effect.item}", which does not exist.`, owner);
       }
     });
-    walkConditionsIn(item.use, quests.condition);
+    walkConditionsIn(effects, quests.condition);
+  };
+  for (const item of project.items) uses('Item', item.id, item.use);
+  for (const plan of project.projectPlans ?? []) uses('Project plan', plan.id, plan.reward);
+}
+
+/**
+ * Every effect list a project writes outside its cards: the things in its rooms (and their checks), its
+ * conversations (each node's arrival, each reply and its check), its items' uses and its project plans' rewards.
+ */
+function walkProjectEffects(project: ProjectDoc, visit: (effect: Effect) => void): void {
+  for (const scene of project.scenes) {
+    // Props with a function included: a quest step completed by a strongbox is completed.
+    for (const interactable of interactablesOf(scene)) {
+      walkEffects(interactable.effects, visit);
+      if (interactable.check !== undefined) walkCheck(interactable.check, visit);
+    }
+  }
+  for (const dialogue of project.dialogues) {
+    for (const node of dialogue.nodes) {
+      walkEffects(node.onEnter, visit);
+      for (const choice of node.choices ?? []) {
+        walkEffects(choice.effects, visit);
+        if (choice.check !== undefined) walkCheck(choice.check, visit);
+      }
+    }
+  }
+  for (const item of project.items) walkEffects(item.use, visit);
+  for (const plan of project.projectPlans ?? []) walkEffects(plan.reward, visit);
+}
+
+/**
+ * A "Give a card" effect naming a card there is not - checked against the project's cards and the content it is
+ * checked against, when there is that - or a receiver who is not in the party.
+ */
+function checkCardsGiven(
+  project: ProjectDoc,
+  options: ValidationOptions,
+  add: (severity: ProblemSeverity, message: string, entity?: string) => void,
+): void {
+  const packed = options.characterContent?.cards;
+  const cards = packed === undefined ? null : new Set([...project.cards.map((card) => card.id), ...packed.keys()]);
+  const party = new Set(project.party.map((sheet) => sheet.id));
+  walkProjectEffects(project, (effect) => {
+    if (effect.kind !== 'grantCard') return;
+    if (cards !== null && !cards.has(effect.card)) add('error', `A "Give a card" effect gives card "${effect.card}", which does not exist.`, effect.card);
+    if (effect.to !== undefined && !party.has(effect.to)) add('error', `A "Give a card" effect gives a card to "${effect.to}", who is not in the party.`, effect.to);
+  });
+}
+
+/** A plan taught that the project has not got; a plan nothing teaches (`content/projects.ts`). */
+function checkProjectPlans(
+  project: ProjectDoc,
+  add: (severity: ProblemSeverity, message: string, entity?: string) => void,
+): void {
+  const plans = new Set((project.projectPlans ?? []).map((plan) => plan.id));
+  const taught = new Set<string>();
+  walkProjectEffects(project, (effect) => {
+    if (effect.kind !== 'learnPlan') return;
+    taught.add(effect.plan);
+    if (!plans.has(effect.plan)) add('error', `A "Teach a project plan" effect names plan "${effect.plan}", which does not exist.`, effect.plan);
+  });
+  for (const plan of project.projectPlans ?? []) {
+    if (!taught.has(plan.id)) add('warning', `Project plan "${plan.id}" is never taught by anything: no "Teach a project plan" effect names it.`, plan.id);
   }
 }
 
@@ -819,23 +889,7 @@ function checkQuests(
     }
     if (effect.kind === 'revealObjective') started.add(effect.quest);
   };
-  for (const scene of project.scenes) {
-    // Props with a function included: a quest step completed by a strongbox is completed.
-    for (const interactable of interactablesOf(scene)) {
-      walkEffects(interactable.effects, visit);
-      if (interactable.check !== undefined) walkCheck(interactable.check, visit);
-    }
-  }
-  for (const dialogue of project.dialogues) {
-    for (const node of dialogue.nodes) {
-      walkEffects(node.onEnter, visit);
-      for (const choice of node.choices ?? []) {
-        walkEffects(choice.effects, visit);
-        if (choice.check !== undefined) walkCheck(choice.check, visit);
-      }
-    }
-  }
-  for (const item of project.items) walkEffects(item.use, visit);
+  walkProjectEffects(project, visit);
   for (const quest of project.quests) {
     if (!started.has(quest.id)) {
       add('warning', `Quest "${quest.id}" is never started by anything.`, quest.id);

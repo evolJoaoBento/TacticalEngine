@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from './fixtures';
 
 /**
  * The Inspector's Select carries anything placed in a room - a prop, an object, a creature, a party

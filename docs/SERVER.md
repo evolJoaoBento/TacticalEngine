@@ -1,0 +1,2005 @@
+# The server: Rust, and the rules in it
+
+The plan for turning Tactical Engine into a client and a server, as the user chose it on 29 September
+2026. This file is the plan and the record of how far it has got; `docs/BACKLOG.md` points here.
+
+## What was chosen
+
+- **A Rust server that runs the game.** The rules - combat, scripts, dialogue, the grid, movement,
+  saves - are ported from TypeScript to Rust and computed on the server. The server also holds the
+  assets, the accounts, the Store, each player's models, the projects and the saves.
+- **The client stays TypeScript**: three.js rendering, input, the editor's UI. It connects to the
+  server the way a browser connects to a website.
+- **Why**: play from anywhere (sign in on any machine and your games are there), **co-op** (several
+  players in one game), and **light clients** (a phone does not run the rules).
+- **Where first**: this machine, as the dev server runs now; a public host once it works.
+
+## The shape
+
+```
+Browser (TypeScript, three.js, Preact)          Rust server (this repository's server/)
+  renders the board, plays the events   <-- WS --  runs a game session: the engine crate
+  sends intents: move, attack, use,     -- WS -->    steps the rules, seeded dice
+    answer a prompt, end the turn                  + a sandboxed JS runtime for project hooks
+  the editor's UI                       <-HTTPS->  accounts, sessions, the Store, your models,
+  (playtest: the engine as WebAssembly)              assets, projects, saves
+```
+
+- **HTTPS** carries what the dev plugins carry today, **under the same paths**: `/__accounts/*`,
+  `/__store/*`, `/__models/*`, `/__art-provenance`, the default project. The plugins in `tools/*.ts`
+  and the e2e stand-ins for them are the contract; the Rust server answers it route by route.
+- **A WebSocket per game session** carries play: the client sends intents, the server answers with
+  what happened (log lines, dice, floaters, prompts) and the state to draw. The client's game layer
+  becomes a view of that state.
+- **Two crates, kept apart**: `engine` is the rules alone - no files, no clock, no network, no tokio -
+  so it compiles to WebAssembly for the editor's playtest as well as into the server; `serve` is axum,
+  and owns everything that touches the disk or a socket.
+
+## How the port stays honest: the TypeScript engine is the oracle
+
+The rules are about 20,000 lines of TypeScript (`src/engine` without `render`) and about 9,000 more in
+`src/game` (movement, rooms, interaction, saves, shops), behind some 2,700 unit tests. A port that is
+"close" silently breaks content, so every module is ported against **golden fixtures**:
+
+1. A TypeScript test drives the module through many cases and compares against
+   `server/fixtures/<module>.json` (`UPDATE_GOLDEN=1` writes it instead). So a fixture is always
+   what TypeScript really does.
+2. A Rust test replays the same fixture and asserts the same answers.
+3. Only when both pass is the module ported.
+
+This works because the engine is **deterministic**: every roll comes from `core/rng.ts`, SplitMix32
+over 32-bit integers with FNV-1a for text seeds, and nothing in `src/engine` calls `Math.random` (a hook
+that tries is refused). Rust reproduces it bit for bit with wrapping `u32` arithmetic; the seed hash
+reads UTF-16 code units, as JavaScript's `charCodeAt` does.
+
+The TypeScript engine keeps working the whole way: the port grows beside it, and the client switches
+to the server only when a whole session plays the same. Single-player parity comes first; co-op is
+added after, so the rules are not redesigned while they are being transliterated.
+
+**Since phase 5 the oracle is gone for the game layer** (3 October 2026): the page plays the Rust, and the
+TypeScript game's rules are deleted. Its fixtures (`server/fixtures/session.json`, `play.json`, `kit.json`,
+`walk.json`, `fight.json`, `ask.json`, `bar.json`, `replica.json`) are frozen - the Rust is still held to them,
+and nothing writes them again - and a rule changes in Rust alone, held by the Rust's own tests and the e2e
+suite. `src/engine`, which the editor still reads, keeps its own golden tests.
+
+## Things to get right
+
+- **Project hooks are JavaScript** (`script/hooks.ts`: `project.code[]`, compiled with `new
+  Function`). The shipped SRD pack carries 3, the default project 2; everything else a card does is
+  data. The server runs them in an embedded JS engine (QuickJS through `rquickjs`) with the same
+  `ctx` API, no host access, and limits on memory and time. On a server with other players'
+  projects this is a **security boundary**, not the honest-mistake guard it is in a browser.
+- **The schemas' defaults are load-bearing.** zod's `.default()` chains let a project written years
+  ago still load. serde must parse the same JSON: `#[serde(default)]` field by field, checked against
+  the shipped projects and packs as fixtures.
+- **Floating point**: `+ - * /` and `Math.sqrt` are exact in IEEE on both sides; the rest is not, and
+  is reproduced as V8 computes it (`server/engine/src/js.rs`). `Math.hypot` is V8's scaled Kahan sum, not
+  `f64::hypot` - which differs in the last bit on the grid's own inputs, and fails the fixture - and
+  `Math.round` rounds a half upwards (`Math.round(-0.5)` is -0), where `f64::round` goes away from zero:
+  at a body's rim by the map's edge that is whether a tile is on the board. `Math.max`/`min` keep +0
+  over -0. The typed arrays keep their precision (`lift` is `f32`). And a
+  float read from JSON must be read exactly: `serde_json` needs `float_roundtrip`, or a number the
+  TypeScript wrote comes back a digit off (found on the Store's timestamps).
+- **A value-level fixture can hide a byte-level difference**: both sides of the comparison go through
+  the same parser. Anything the other side reads back as a file is also checked as bytes.
+- **The script interpreter** (`script/runner.ts`, `script/world.ts`, about 4,600 lines) is the
+  hardest module; its fixtures are the shipped pack's cards and the default project's scenes played
+  through, not cases written by hand.
+- **Co-op changes the rules' edges** - whose turn, who sees what, who answers a prompt. It is a phase
+  of its own, after parity.
+
+## Phases
+
+| Phase | What | Done when |
+|---|---|---|
+| 0 | This plan; the Rust toolchain; the `server/` workspace; `core/rng` ported with golden fixtures | TS and Rust both reproduce `server/fixtures/rng.json` |
+| 1 | The platform server: axum serves the built client and the `/__*` routes - accounts, then the Store, your models, the models manifest and ancestries, art provenance, the default project; the Vite dev server proxies to it; each TS plugin deleted as its route moves | `accounts-store.spec.ts`, `your-models.spec.ts` and the round-trip scripts pass against the Rust server |
+| 2 | The rules, bottom up, each against fixtures: `grid`, `rules`, `character`, `dialogue`, `content` (serde schemas), `combat`, `script` (effects, runner, world, hooks in QuickJS), then the game layer - the scene document and the room stood up from it, the party, the session (`demo-scene.ts`: building from a project, the fight loop, the GM's turn, prompts), and `movement`, `room`, `interaction`, `leap`, `save`, `shop`, `equip` on it | every module's fixture passes in Rust |
+| 3 | Game sessions on the server: the WebSocket protocol, the client's game layer as a view, the editor's playtest on the engine built to WebAssembly | the full e2e suite passes with play on the server |
+| 4 | Co-op: several players in a session, turn ownership, visibility, reconnecting | two browsers play one fight |
+| 5 | The internet: HTTPS, a real admin password, upload and rate limits, backups, a host | reachable from outside this machine |
+| 6 | The server is the host: players invite players, anybody opens a lobby - public, friends-only or invite-only - friends, chat | (designed below) |
+
+## Phase 3, designed (its four decisions taken, 1 October 2026)
+
+**Where it starts.** `src/main.ts` holds a `DemoScene` and reads it directly - 161 reads of `demo.`, and
+about seventy functions of `src/game/` called - and the play UI (`src/game/ui/`) reads the same object
+through `play-views.ts`. The game runs in the page. Phase 3 moves it behind a socket without the page
+noticing more than it must.
+
+**The shape.**
+
+- **One interface between the page and the game** (`GameClient`, in TypeScript): every call `main.ts` and
+  the UI make today, and every read, as methods - `move`, `attack`, `endTurn`, `useAbility`, `answer`,
+  `useOn`, `take`, `buy`, `sell`, `equip`, `useItem`, `swap`, `rest`, `levelUp`, `travel`, `save`, `load`,
+  `select`; and the state as one view. Two implementations: the one the page has now, over a `DemoScene`;
+  and one over a socket. Written first, against the TypeScript, with nothing on the server - so the e2e
+  suite proves the seam before anything moves across it.
+- **The view is what the fixtures already record.** Every replay since part 4 has compared a `view()`
+  after each step - the scene, the fight, what is asked, who is selected, Shadow, every creature's pools and
+  conditions, the sheets, the new log lines, floaters, motions, rolls, the things in the room, the
+  scenario. That is the state message: the server sends it after every intent, and the fixtures have held
+  Rust and TypeScript to it for some thousands of steps. What the views read besides (`abilityList`,
+  `gearView`, `loadoutView`, `shopContents`, the HUD's members) is asked as a query and answered.
+- **Intents up, views down.** The client sends `{ id, call, args }`; the server answers `{ id, result }`
+  and then the view. A call is a `Session` method, already ported and already held to a fixture; the
+  socket's half on the server is a dispatcher over them, not new rules.
+- **Asked often, answered here.** What the pointer asks on every move - the reachable ground, the walk a
+  click would make (`previewWalk`), the push and jump tiles, a shape under a card, the hover line - cannot
+  cross a network at sixty a second. The engine built to WebAssembly answers them in the page, from the
+  last view's state; it decides nothing, the server does.
+- **Walks are instant; showing them is not.** The server resolves a walk at once, as it does headless now,
+  and the client plays the motions it is sent, holding back the log lines that follow until the walk has
+  arrived - which is what `arrival.ts` does now with a walk that has not happened yet. **A walk cut short
+  is the client's to say** (decided): a click mid-walk lands everyone where they are drawn, as
+  `landWalkers` does, and the client sends those spots; the server accepts a spot on the path it resolved
+  and refuses any other, so a landing can only shorten a walk the server already allowed.
+- **Saves move to the server** (decided), per account, in git-ignored `data/` beside the accounts. The save
+  slots in a browser's storage are moved up the first time that browser signs in, and the browser's
+  copies are then left alone rather than deleted.
+- **A game outlives its socket for a while** (decided): a dropped connection leaves the session on the
+  server, and the player signing in again within the window is put back into it where it stood. How long
+  the window is, and whether a session past it is saved to the auto slot before it goes, are slice 3's to
+  settle; phase 4 builds its reconnecting on this.
+- **The editor's playtest runs on the WebAssembly engine**, in the page, the hooks run by the browser's
+  own JavaScript through the `HooksFor` factory - so the editor needs no server to try a scene, and
+  changing the ground under a game (`takeGround`) stays local.
+- **Done when** the e2e suite passes with play on the server; then the TypeScript game layer is deleted,
+  and the fixtures' writers with it - the Rust is the rules from then on.
+
+- **The right-click panel is the page's** (decided): `inspection` (`src/game/inspect.ts`) - a party
+  member's class and level, gear, pools, Light, Evasion and conditions; a creature's name, tier, role,
+  pools, Difficulty, conditions and the cards its stat block prints; a thing's name - is worked out in the
+  page from the last view, with no round trip. What the view does not carry yet - a creature's stat-block
+  cards, a character's class name and Evasion - comes down with it, read once per room rather than asked
+  per click.
+
+**Slices, in order.** (1) `GameClient` over `DemoScene`, the page and UI moved onto it, e2e green - a
+TypeScript refactor only. (2) The engine to WebAssembly (a C face, as it turned out, not `wasm-bindgen`),
+and the per-pointer queries answered by it, held to the TypeScript's answers. (3) The socket - re-planned
+below. (4) Walks shown after they are decided. (5) Saves on the server. (6) The editor's playtest on
+WebAssembly. (7) The e2e suite run with play on the server, until it passes; then the TypeScript game
+layer goes.
+
+**Slice 3, re-planned (1 October 2026): the page plays the Rust engine, and the socket checks it.** A
+socket answers later; `GameClient` answers now - `main.ts` uses an intent's answer on the line that asks for
+it, 120 times, and all 203 e2e specs drive the game synchronously inside `page.evaluate`. Making the seam
+asynchronous would rewrite the suite that is the proof. So the game the page plays becomes the engine built
+to WebAssembly - already the whole engine, held to the TypeScript's fixtures - which answers every intent at
+once, in the page; the same intent goes up the socket, the server (the authority) plays it too and sends its
+board back, and where the two part the page is restored from the server's. Same project, same seed, same
+engine: they part only where something is wrong, which the comparison says. Co-op (phase 4) is the same
+mechanism with another player's intents arriving as boards. In four:
+
+- **3a** - the Rust plays the page's timing: `animated`, a fight a walk wakes held until the tokens arrive
+  (`ambush`, `arrive`), a use or a talk held until the walk up ends (`approaching`, `arrived`,
+  `cancelApproach`) - headless Rust starts both at once, and the e2e suite's `moveTo; arrive(); inCombat()`
+  would change meaning.
+- **3b** - the board defined once, in the engine (`Session::board`: the replica snapshot, the fight's view
+  and log, the question open as the panel draws it - its kind, its prompt, the conversation's view and
+  prompt, whom or what it is with - the log, the queues a view drains, the dice's state); and
+  `WasmGame implements GameClient & LocalPowers` over the engine in the page, its board a facade over
+  `Session::board` with only the reads the page makes; run beside `LocalGame` and compared after every
+  intent, then flipped on behind a switch once e2e is green both ways. (The board was 3a's, and moved: the
+  replica golden stands a fresh session up each step and has no history - no log, no live question, no
+  fight's log - to hold a board to, and folding one into every play golden would churn eight fixtures for a
+  shape guessed ahead of its reader. Compared live after every intent of the whole e2e suite, it is held
+  harder than a fixture would hold it.) The default project's own cards run
+  project code (Mark the Page, Rally the Line: `run` effects), so the page's engine needs the page's hooks:
+  a host import that calls the hook's JavaScript, whose `ctx` reads the world back through an export -
+  re-entering the engine mid-call, which the face must allow by holding the world aside for the hook rather
+  than borrowed.
+- **3c** - the server's host: `Session` and QuickJS are not `Send`, so each game is a thread of its own,
+  asked over a channel and answering on a oneshot; `/__play` a websocket behind the session cookie; the
+  dispatcher held to an existing fixture's steps.
+- **3d** - the wire: each intent sent, the server's board compared, the page restored where they part; the
+  seed the server's, sent at open; the dice's state in the board, a one-number check before the deep one.
+  A question restored from the server mid-way is the one path that waits on the wire: the page shows it from
+  the board and sends the answer up without predicting it.
+
+## Phase 4, designed (its three decisions taken, 3 October 2026)
+
+Phase 3 is done by its measure - the suite passes with its games played on the server - and its plan's next
+step is the TypeScript game layer deleted. The page's views read the TypeScript game (`Board` is live
+`DemoScene` objects, read every frame), so the page has to stop *playing* it before it can go.
+
+- **The oracle is quarantined first** (decided): the page stops loading the TypeScript game, which stays,
+  with its tests and the writers of the golden fixtures, as a dev-only oracle; deleting it is a later slice
+  of its own, after which the fixtures are frozen and a rule changes in Rust alone.
+- **Builds compile the engine** (decided): `npm run build` and `npm run build:server` build
+  `public/wasm/engine.wasm` first, so the Rust toolchain is needed wherever the site is built. Nothing
+  binary enters git.
+- **The layer is `src/game`'s play code** (decided): the intents and the rules - `demo-scene`'s play,
+  movement, abilities, interaction, saves and the rest. `src/engine` stays: the editor's validation and
+  previews read it, and so does filling the page's model from the engine's board.
+- **Filled, not played**: after each intent the page's model is stood where the engine's board says
+  (`restoreFromBoard`) rather than played beside it. Measured over 299 boards of random play: 0.47 ms at the
+  median, 1.7 ms at the 90th centile, 3.6 ms at worst, the board's JSON about 20 KB - and only when the board
+  changed, which the drains every frame do not. So the views stay as they are; the views reading the engine's
+  board directly is a later, separate job.
+
+The slices:
+
+1. **The engine always plays** - `WasmGame` the page's game wherever the engine is built, in a build as in
+   development; the builds compile it; the page's own game only by asking for it (`?engine=ts`,
+   `VITE_ENGINE=ts`) while it is the oracle. The e2e suite's modes become the engine's and the engine's on
+   the server.
+2. **Filled from the engine's board** - `WasmGame` stops playing each intent in the page's game and stands
+   it where the engine's board says when that changed; a question shown from the board as the wire shows the
+   server's (`shownFrom`); the conversations set aside put on the board, in both engines, and shown the same
+   way - the one thing a board could not give back.
+3. **Quarantined** - the play code moved where the page's bundle cannot import it, run by its tests and the
+   fixture writers alone.
+4. **Later**: the oracle deleted; the views reading the engine's board.
+
+## Phase 5, designed: multiplayer (its four decisions taken, 3 October 2026)
+
+The game is to be played by several people at once. Phases 3 and 4 built the spine: the server's game is the
+one that counts, the page predicts each intent with the same engine and is stood where the server's board says
+where they part, and there are accounts, sessions, a game kept across a dropped connection, and saves on the
+server. What is missing is the game being shared.
+
+- **Co-op, the engine the GM** (decided): several players share one game, each playing their own characters;
+  the engine plays the GM's side as it does now. A human GM is for later.
+- **Hosted on the user's machine, friends joining over the internet** (decided): the Rust server reached through
+  a tunnel or a forwarded port - so HTTPS, a production build that plays with the server, and a server that
+  trusts no page.
+- **Free outside a fight, the spotlight inside one** (decided): out of a fight anyone acts with their own
+  characters at any time, the server putting the intents in order; in a fight the party's turn is shared - any
+  player acts with their own character - and then the GM's, as the engine runs it now.
+- **The oracle deleted first** (decided): the page no longer plays the TypeScript rules, and multiplayer's own
+  rules - who plays whom, the shared turn - are written once, in Rust. The fixtures the TypeScript wrote are
+  frozen: the Rust is still held to them, but nothing writes them again.
+
+The slices:
+
+0. **The oracle deleted** - (a) out of every path that runs it: `LocalGame` and its rules table, the mirror,
+   `?engine=ts`, the suite's TypeScript mode, the fixtures' writers (the fixtures kept, frozen); (b) the rules
+   themselves and the tests that play them (42 of the 78 test files under `src/game`), the views' tests that
+   need a game played standing on the engine instead.
+1. **The server's game trusted alone** - it is never told a page's game (a page out of step is only ever stood
+   where the server says); a save loaded from the server's own copy; a walk cut short is held to the path the
+   server resolved; the test driver's hands only on a server started for tests. The project and its content
+   still come from the page, once, when a game is opened - in single play they are the player's own; the
+   server's own copy of them is the shared game's (slice 3).
+2. **In a build** - the page plays with the server wherever the server serves it, not in development alone;
+   ready for a tunnel (the session cookie secure over HTTPS, the origin checked through a proxy); how to run it
+   for friends, written down (`docs/HOSTING.md`).
+3. **A shared game** - a game with an id of its own, opened by its host over a project and joined by others with
+   an invitation; every change to it pushed to every player's page, which is stood where it says, walks and
+   numbers over heads drawn; who plays which character (seats), set by the host.
+4. **Who may act** - every intent held to the player's seats; the selection each player's own; the turn as
+   decided; a question asked of the player whose character it is, the others shown that it waits; a
+   conversation its talker's player's.
+5. **The lobby** - opening a game, inviting, joining, taking seats, starting; a shared game's saves its host's.
+   Done 13 October 2026 (Progress, below).
+
+## Phase 6, designed: the server is the host (its four decisions taken, 14 October 2026)
+
+Phase 5 made one player's machine a host friends join. The server is to be the host instead: a place players come
+to, where anybody opens a game for others, not a game one player lends out.
+
+- **An account is made with a player's invitation** (decided), until sign-in with Google or the like replaces it:
+  each player holds one invitation, which makes one account and is spent; admin renews one player's, or
+  everybody's at once. A game's invitation makes no account. On the owner's machine an account is made without
+  one too, and `--sign-up` still opens the door to anybody for an evening.
+- **A game's creator runs it, handed on** (decided): whoever opens a lobby says who plays whom, starts it, loads and
+  saves it; when they leave, the running of it passes to somebody still at the table and the game goes on. Its saves
+  are the game's, not the creator's folder's: anybody who played it can host it again.
+- **Friends both ways** (decided): asked by name and accepted (or not), removed by either; and whoever's invitation
+  made an account is that account's friend from the start.
+- **Chat at the table and between friends** (decided): everybody at a game, in its lobby and in play; and a
+  friend's private messages, outside any game.
+
+The slices:
+
+1. **Invitations** - one per player, spent by the account it makes (`invitedBy`), renewed by admin; the sign-in card
+   reads it (`?invite=`), the menu shows it (Invite), the lobby offers it with the game's for somebody new. Done 14
+   October 2026 (Progress, below).
+2. **Friends** - requests by name, accepted or declined, removed; the inviter and the invited friends from the start
+   (`invitedBy`, kept since slice 1). Done 15 October 2026 (Progress, below).
+3. **Lobbies anybody opens** - public, friends-only or invite-only; a list of the games a player may join in Play
+   Together (the games waiting for them - their seat kept - among them); the running of a game handed on when its
+   creator leaves. Done 15 October 2026 (Progress, below).
+4. **A game's saves the game's** - kept for everybody who played it, any of whom hosts it again. Done 15 October
+   2026 (Progress, below).
+5. **Chat at the table** - the lobby's and the game's. Done 15 October 2026 (Progress, below).
+6. **Messages between friends.** Done 15 October 2026 (Progress, below).
+
+## Running it
+
+```bash
+cd server && cargo test                                         # the Rust port against its fixtures
+npx vitest run src/engine/grid/grid.golden.test.ts src/engine/rules/rules.golden.test.ts src/engine/character/character.golden.test.ts src/engine/dialogue/dialogue.golden.test.ts src/engine/content/content.golden.test.ts src/engine/combat/combat.golden.test.ts src/engine/script/script.golden.test.ts src/engine/script/conditions.golden.test.ts src/engine/script/runner.golden.test.ts src/engine/script/hooks.golden.test.ts src/engine/scene/scene.golden.test.ts src/engine/scene/room.golden.test.ts src/engine/scene/party.golden.test.ts   # the engine core's fixtures are still what TypeScript does (runner.golden writes runner.json and world.json); the game layer's are frozen
+npm run build:server && npm run server                          # the game from the Rust server alone, on 8430
+npm run server                                                  # (npm run dev starts it too, for the routes alone)
+npx vitest run tests/unit/accounts.golden.test.ts tests/unit/store.golden.test.ts   # the fixtures are still what TypeScript does
+npx vitest run src/engine/core/rng.golden.test.ts               # the fixture is still what TypeScript does
+UPDATE_GOLDEN=1 npx vitest run src/engine/core/rng.golden.test.ts   # write it afresh after a TS change
+```
+
+The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide the linker), with the
+`wasm32-unknown-unknown` target for the engine's WebAssembly build:
+`cargo build -p tactical-engine --target wasm32-unknown-unknown`.
+
+## Progress
+
+- **Phase 0** - done 29 September 2026. This plan; Rust stable installed; the `server/` workspace with
+  the `engine` crate (`tactical-engine`, `server/engine/src/rng.rs`), which builds to WebAssembly; and
+  `core/rng` ported - `src/engine/core/rng.golden.test.ts` writes `server/fixtures/rng.json` (15 seeds:
+  text with accents and an emoji, numbers negative, fractional and past 2^32; every call the generator
+  has), and `server/engine/tests/golden_rng.rs` replays it bit for bit.
+- **Phase 1** - started 29 September 2026.
+  - **The accounts are the Rust server's.** `server/serve` (`tactical-serve`, axum) answers
+    `/__accounts/me`, `register`, `login` and `logout` as `tools/accounts.ts` did - the same
+    `data/accounts.json` and `data/sessions.json`, written as `JSON.stringify(value, null, 2)` writes
+    them, since the TypeScript Store and your-models routes read them too. Passwords hash to the byte as
+    Node's `scryptSync` does (the salt's hex text is the salt), so an account either side made signs in
+    on the other. `tests/unit/accounts.golden.test.ts` writes `server/fixtures/accounts.json` - hashes,
+    sign-in bodies (the 200-character limit counted in UTF-16 units), cookies, origins - and
+    `server/serve/tests/golden_accounts.rs` replays it; `accounts_routes.rs` drives every route and
+    refusal, in the order TypeScript gives them. `tools/rust-server.ts` builds and starts the server with
+    the dev server and proxies the route to it; the TypeScript route is gone, leaving only its 404 for the
+    tests' server. Tried end to end through 8420 - the admin that Node hashed signs in, a session Rust
+    issued opens the Store and your models, and the real menu signs in and out in Chromium.
+  - One deliberate difference: a stored hash of fewer than 10 or more than 64 bytes matches nothing
+    (Node would compare two empty buffers and say yes).
+  - **The Store is the Rust server's** (`server/serve/src/store.rs`): listings, publishing, showing the
+    work later, votes, pictures, Get into a player's own models (`your_models.rs`, the import alone - the
+    your-models routes are still the dev plugin's, over the same index), engine models listed, take-down.
+    `tests/unit/store.golden.test.ts` writes `server/fixtures/store.json` - uploads (Node's lenient
+    base64), about 36 publishes and 22 updates at every edge (JavaScript's `trim` and UTF-16 lengths, nulls,
+    non-objects), votes, views, engine listings, old listings migrated, and a listings file with
+    fractional timestamps that must come back **to the byte**; `golden_store.rs` replays it,
+    `store_routes.rs` drives every route. Tried end to end through 8420: the show-your-work and the
+    models round trips answer as they did in TypeScript, the TypeScript your-models routes read the index
+    the Rust Get wrote, and the listings file the TypeScript wrote is byte-identical after the Rust server
+    rewrote it four times.
+  - Found by that byte check: `serde_json` parses floats fast, not exactly, so one timestamp in several
+    came back a digit off. Its `float_roundtrip` feature parses as JavaScript does; the byte test fails
+    without it.
+  - Deliberately different: a body of JSON `null` to `publish` or `update` hung the TypeScript (it threw
+    outside its try, and nothing answered); the Rust server answers as for `{}`.
+  - **Your models are the Rust server's** (`server/serve/src/your_models.rs`): the list, a player's files
+    served to anybody signed in, imports of a file or of another player's model. `golden_your_models.rs`
+    replays `server/fixtures/your-models.json` - served urls, import bodies, a folder filled in order to
+    the same ids - and writes back an index the TypeScript wrote, to the byte; `your_models_routes.rs`
+    drives the routes. The proxy key for the files is `/__models/u/`, with its slash, so the models routes
+    still in TypeScript (`/__models/ancestry`, `/__models/add`) are not caught. Tried end to end in a
+    real browser on 8420 - Get in the Store, then the model under *Your models* in the editor - which
+    found the models watcher reloading the page on a Get (fixed; `docs/BACKLOG.md`).
+  - Found by the byte check: a model's keys are in the order of its history - `listing` after `added`
+    when it was imported and then got from the Store, before it when got first - so an index entry is
+    kept as the ordered object it is, not a struct. (The Store's listings could do the same only for
+    fields a later version adds, or a listing from before claims; neither is in any file yet.)
+  - **The engine's models are the Rust server's** (`server/serve/src/manifest.rs`): + Model to the engine
+    (`/__models/add`, into `public/models`) and a model's ancestry for every project
+    (`/__models/ancestry`, the tracked `projects/model-ancestries.json`). `golden_manifest.rs` replays
+    `server/fixtures/model-manifest.json` - ids from file names (`İstanbul` is `i-stanbul`, as JavaScript
+    lower-cases it), ancestry files, about 80 changes and 66 uploads judged, the folder listed in
+    JavaScript's sort, and the ancestries file written after every change, to the byte. The list itself
+    still reaches the page as the dev server's virtual module - moving it means the page asking for it,
+    which is phase 3 - so the dev server now watches the ancestries file as it watched the folder, and a
+    write by either side refreshes the next page's list. Tried end to end through 8420: an ancestry set
+    and seen in the page's list, a model added and listed, every refusal; the real ancestries file
+    restored byte for byte after.
+  - Found doing it: the dev server stopped the Rust server when its HTTP server reported closed, which a
+    browser's keep-alive can hold off for good - so on a restart the old server kept the port, and the
+    new dev server passed routes to a server built from older code. It is stopped when the dev server
+    is closed now, or its process ends.
+  - **The art marks and the default project are the Rust server's** (`server/serve/src/art_and_project.rs`):
+    `/__art/provenance` into the tracked `projects/art-provenance.json`, and `/projects/default.json`
+    read fresh and saved (`/__project/save`) as the editor sent it. The marks file's keys are in
+    JavaScript's `localeCompare` order - `_ - : .`, digits, letters case set aside, then lower before
+    upper (`model:apple` before `model:Arty`) - which `locale_order` reproduces for the characters a key
+    has; `golden_art_and_project.rs` holds it to the byte over 27 changes. The page still loads the marks
+    as the dev server's virtual module, which now watches the file.
+  - **Every route a dev plugin answered is the Rust server's.** What is left of the dev server is serving
+    the page itself, the models, the card art and the two virtual lists (models, marks).
+  - Found on the way, and it cost data: two plugins changed at once restarted the dev server twice
+    over; one restart found 8420 still held and slid onto 8421, the tests' port, and a full e2e run
+    reused it - running on the file-booted project, which saves - so a test's save rewrote
+    `projects/default.json` (restored from git). `vite.config.ts` now has `strictPort: true` and
+    `playwright.config.ts` `reuseExistingServer: false`: a taken port is an error, never a server to use.
+    And the Rust server the dev server starts is held on `globalThis`: a restart loads the plugin afresh,
+    so several at once (a few `tools/*.ts` saved together) each thought they owned a server, and an older
+    one kept the port. Now each restart stops whatever is running first - five restarts at once left
+    exactly one server, started after the last.
+  - **The game runs from the Rust server alone.** `npm run build:server` (Vite's `server` mode) builds the
+    client into `dist-server` in seconds - it copies none of `public/`'s 1.1 GB, and saves back as the dev
+    server does (`savesChanges`), where a static build is read-only - and `npm run server` serves it:
+    `site()` in `server/serve/src/lib.rs` puts a file in `public/` first (live: a model added to the
+    engine is there without building again), then the build's, then the page, and under them every
+    route. Nothing outside those two folders is reached (`..`, encoded or not, never gets to `data/`).
+    **The private card art** in `public/cards/` is served only when the server listens on this machine
+    alone; beyond it `/cards/` is the build's empty index, as a static site's is (`site_routes.rs`).
+    Tried in a real browser on 8430, no Vite: signed in, the Store's 52 listings, the card art, the Hollow
+    Vault drawn with its 38 models, no request failed; Ctrl+S in the editor saved through the server (204).
+  - **Phase 1 is done.** What Vite still does in development is serve the page itself.
+  - **The two lists the page opens with are asked of the server** (`src/game/engine-lists.ts`, a top-level
+    `await`): `GET /__models/shipped` and `GET /__art/marks`, read on every request, so a model added while
+    the server runs is in the next page's list with no build - tried from the Rust server alone (51 models,
+    a file copied in, 52 after a reload) and through the dev server. The tests' server answers both itself;
+    a static build does not ask. (The first cut answered the tests' server with a 404 - the page fell back
+    as meant, but the browser logs a 404 as a console error, and 116 e2e tests failed on it.) The dev server's two file watchers retired with it; the one
+    that reloads the other open pages when a model arrives stays. This is the first thing the page is
+    told at run time rather than at build time - the shape phase 3 carries on.
+- **Phase 2** - started 29 September 2026.
+  - **The grid is ported** (`server/engine/src/grid`: `terrain`, `tile_grid`, `los`, `pathfinding`,
+    `walk`, with `rules/cover`): tiles and what stands on them, sight and cover, reachability and A*,
+    and the walk - a creature's body, its smoothed line, its cost. `src/engine/grid/grid.golden.test.ts`
+    builds four grids through the real API (the default palette with stacked pieces, lifts, a barred
+    edge and a void cell; a palette of its own with fractional costs and smoke; a flat room, all ties;
+    a corridor) and writes `server/fixtures/grid.json`: every tile's answers, sight and cover for every
+    pair under three margins (about 27,000), traces, 1,500 reachability fields and 375 sets of paths
+    under five movement rules and five contexts, and the walk over 3,400 spots, 480 segments, 240
+    settlings and 120 smoothed lines with everything measured along them. `golden_grid.rs` replays it,
+    every float to the last bit. The TypeScript's binary heap is ported sift for sift, since which of
+    two equally cheap tiles comes first decides which route is walked; a heap that breaks ties the
+    other way fails the fixture, and so do Rust's own `round` and `hypot`.
+  - **The rules are ported** (`server/engine/src/rules`: `dice`, `duality`, `gm_die`, `range`,
+    `countdown`, `cover`, `damage`, `resources`, `jump`). `src/engine/rules/rules.golden.test.ts` drives every
+    function over edge-heavy inputs into `server/fixtures/rules.json`, and every roll records where the dice
+    stream stood after it - so the Rust draws the same dice in the same order, and refuses (a fractional or
+    impossible count, bad sides) without drawing any, as the TypeScript throws. `parseDice` is the
+    TypeScript's four regular expressions matched by hand: JavaScript's `\s` (U+FEFF yes, U+0085 no) and its
+    replacement rule (`'$11d$2'` is group one then a one, so `d6+d8` is refused). Three deliberate
+    mutations - Rust's whitespace, a fractional count let through, the Help dice drawn before the advantage
+    die - each fail the fixture; the last one did not until two cases rolled with both, which the fixture now has.
+  - **The character is ported** (`server/engine/src/character`: `progression`, `sheet`, `schema`; with
+    `server/engine/src/content`: `pack`, `abilities`, `features`). The engine crate takes `serde` and
+    `serde_json` now (both build to wasm32): a sheet, a plan and the content read from the JSON the
+    TypeScript keeps, and the rule types they carry (`Trait`, `Traits`, `RangeBand`, `DamageType`,
+    `DiceExpression`, `ParsedDamage`, `DamageThresholds`, `MarkPool`, `Currency`) serialize as it writes
+    them. A content table keeps a `Map`'s order - the cards granted to a sheet come in it, and laying a
+    project over the shipped content replaces an entry where it stands. `character.golden.test.ts` takes
+    the content the game plays with (the demo pack, the shipped SRD characters laid over it, their
+    abilities, and a few probe cards and abilities for the grants and modifiers the shipped ones leave
+    out) and writes `server/fixtures/character.json`: 68 sheets derived (numbers, cards, modifiers in
+    order, attack and defender profiles, pools, granted and lent cards) and queried; one sheet of each of
+    the twelve classes levelled by legal plans drawn off a seeded stream, 88 levels in all - the nine SRD
+    classes to ten, the demo's three (one domain of five cards each) until their cards run out at level 3
+    or 4; 2,264 plans tried, every refusal in the same words and order; what each gear feature plainly
+    says; and what `parseSheet` lets in.
+    `golden_character.rs` replays it; 27 of 28 deliberate mutations fail it (the 28th, a pair of any
+    length let past the schema, is still refused by serde's `[T; 2]`). The modifiers' `when` is kept as
+    the JSON it was written in - read in full by the script's schema - until the conditions' evaluation
+    is ported.
+  - **A defect found by the port, and fixed on both sides**: the Proficiency advancement cost both picks
+    and added nothing (`levelUp` added `takenNow.get('proficiency')`, a key its `tier:kind` map never
+    held). Both now count the box where the sheet is derived, as a Hit Point box is, and the fixture was
+    written afresh (`docs/CRPG-GAPS.md`).
+  - **Dialogue is ported** (`server/engine/src/dialogue`: `schema`, `layout`, `runner`), with the
+    hand-written schema checks now shared (`server/engine/src/schema.rs`) and JavaScript's string `sort()`
+    order (`js::utf16_cmp`: by UTF-16 unit, so a character past U+FFFF sorts before U+E000-U+FFFF). The
+    walk stands on `script/`, which is not ported, so it asks `script/`'s four questions - does a
+    condition hold, run these effects, answer this prompt, what modifier would a check add - of a
+    `DialogueHost`. `dialogue.golden.test.ts` wraps the real TypeScript modules (`vi.mock` over the
+    originals) to record every one of those questions the dialogue itself asks, with its answer, step by
+    step - not the ones a script asks inside a run - while a seeded player drives the game's dialogues
+    and a set written for the corners through 1,689 steps. `golden_dialogue.rs` walks the same
+    graphs against that tape: the same questions in the same order (a node's view is built twice on
+    entering it, as the TypeScript builds it), none left unasked, the same view, prompt and journal.
+    When `script` is ported its world becomes the host, and the tape comes out. `parse_dialogue` is on
+    the zod-alike now, reading conditions, effects and checks with the script's schemas, and its refusals
+    are compared with zod's word for word. 19 of 20 deliberate mutations
+    fail the fixture; the 20th (an empty node list let past the schema) is still refused, since the
+    start cannot be one of no nodes. Several of the game's own nodes are never shown in the replay:
+    they are walked through by design, or gated on quest state the fixture's small world lacks.
+  - **A quirk kept on purpose**: choosing a reply while another reply's script waits on a prompt - the
+    dialogue allows it - starts a new script but reads its journal on from where the old one stood, so
+    the new script's first entries are dropped (`consumed` is not reset). The Rust does the same; the
+    fixture has a play that shows it.
+  - **The content schemas are ported** (`server/engine/src/content`: `schema`, `document`), on a
+    zod-alike (`server/engine/src/zod.rs`): schemas as data - strings, numbers, sets, literals, lists,
+    objects with optional and defaulted fields, unions, tagged unions, refinements - read the way zod
+    4.5.4 reads them, because `readPack` shows the player zod's own words. So the output is zod's (defaults
+    put in as written, unknown keys dropped) and a refusal is zod's, every issue with its path and message
+    in its order. zod's rules, pinned by probes and then by the fixture: a wrong type, a word not in a set,
+    a failed union or a fractional integer stops that value and skips its object's refinements; a bound,
+    a pattern or an integer past the safe range is reported and checking goes on; a length is checked on
+    anything that has one, even after its type failed, and worded by what it found (a string's `min` given
+    `[]` says "expected array to have >=1 items"); a union falls back to the one option that failed only
+    on checks, or else "Invalid input". Every schema the engine reads content with is here: weapon,
+    armor, class, ancestry, community, subclass, card, experience, adversary, ability, condition, code,
+    item, loot table, quest - and `readPack`, `packOf`, `describePack`. Conditions and effects are read
+    with the script's schemas. `content.golden.test.ts` reads 1,807 real entries (the
+    shipped SRD characters and the default project as written, the starter pack, the equipment
+    catalogue), breaks samples of each kind at every field two levels down twelve ways, writes out 29
+    corners and 12 documents, into `server/fixtures/content.json`. `golden_content.rs` compares every
+    one of the 5,988 breaks word for word (156 of them waited, refused inside a condition or effect, until
+    the script's schemas were ported). Of 24 deliberate mutations 22 fail it; the other two are equivalent here (a string length
+    counted in bytes - no content string has a minimum above one - and a default read through its own
+    schema, which every default passes). Every weapon, armour, class, ancestry, subclass and card the
+    schemas read also reads into the character's types.
+  - **One difference, until the scene is ported**: `readPack` brings an older document up to date first
+    (`scene/migrate.ts`), and that is not ported. Everything the server reads is at the current format
+    (6), so `read_pack` refuses an older or unversioned document by name instead of reading it half-right.
+  - **Combat is ported** (`server/engine/src/combat`: `targeting`, `area`, `adversary_features`, `attack`,
+    `defense`, `encounter`), on the part of the scene state a fight reads and writes
+    (`server/engine/src/scene/state.rs`: creatures in the order they came, with their tile and spot, pools,
+    conditions and side; the Shadow pool; each encounter's progress - the rest comes with the scene's port).
+    The rule results now serialize as the TypeScript writes them (a Duality roll, the GM's Die, a damage
+    roll, resolved damage), the character's attack and defender profiles are combat's, and an ability
+    carries what a reaction to damage needs (its kind, trigger, cost, what it does, whether it fires by
+    itself). `combat.golden.test.ts` draws everything off seeded streams over two of the grid fixture's
+    grids: 800 targetings, 240 areas and moves under pressure, stat blocks' features (Relentless, Momentum,
+    Terrifying, Horde, Minion, read off names and brackets as JavaScript reads them), 700 attacks - each
+    from its own seed, the dice stream's position after recorded, then landed on a scene - 500 defences by
+    policy and by plan with their previews, and eight encounters of 120 turns each under both turn
+    policies. `golden_combat.rs` replays all of it; 28 of 32 deliberate mutations fail it, and the other
+    four are equivalent (a space `parseDice` ignores, a zero reduction passed or not, a ward loop that
+    stops or goes on past nothing to save, Armor Slots planned against damage they cannot touch).
+  - **A defect fixed on the way**: `tilesInArea` scanned from `origin - reach`, and with a band table whose
+    reach ends part-way across a tile it scanned the spaces between tiles, answering fractional "tiles"
+    and missing real ones. Nothing calls it with such a table yet. The scan is bounded in whole tiles now,
+    in both languages (`src/engine/combat/area.test.ts`).
+  - **Script, in five parts.** At 7,000 lines it is ported the way phase 2 has gone, bottom up: (1) the
+    schema, (2) the conditions' evaluation, with marks, zones and countdowns, (3) the runner, (4) the
+    world, (5) hooks in QuickJS. `rquickjs` does not build for `wasm32-unknown-unknown` as the engine crate
+    must, so the hooks may live in the serve crate, or behind a feature, with the engine asking for them
+    through a trait - to be settled when that part comes.
+  - **The script's schema is ported** (`server/engine/src/script/schema.rs`): target selectors, the 31
+    conditions and the 80 effects, checks and choice options, on the zod-alike - which gained `lazy` (the
+    vocabulary holds itself: a branch holds effects, `not` holds a condition), `record` (hook arguments;
+    a bad key is fatal, and an own `__proto__` is dropped from the output as JavaScript's assignment drops
+    it) and `null` - and the walks that visit every effect and condition inside a script.
+    `script.golden.test.ts` reads every selector, condition and effect the shipped content and the default
+    project carry, and one of every kind written out (the content leaves about thirty kinds unused), 795 in
+    all, breaks samples of each kind at every field two levels down twelve ways - 8,532 breaks - and walks
+    each effect. `golden_script.rs` compares every one word for word. With it, nothing is opaque any more:
+    the content schemas read conditions and effects in full, and the dialogue schema is on the zod-alike.
+    15 of 16 deliberate mutations fail the fixtures; the 16th (the amount union's options in another
+    order) is equivalent, as its options never overlap by type.
+  - **The conditions' evaluation is ported** (`server/engine/src/script/conditions.rs`, with `marks`,
+    `zones` and `countdowns`): `evaluate` walks a condition asking a `ConditionContext` - twenty reads of
+    the world: flags, variables, pools, bands, factions, who a selector names, whether a hook is defined
+    and what it answers - and a `DiceHand` for `chance`, in the TypeScript's order and with its
+    short-circuits; `compare` is JavaScript's `===` between script values and orders only numbers; a
+    hook's reads are gathered (the actor, then the fight) before it is asked, as the TypeScript gathers
+    them. As with dialogue, the world is not ported, so `conditions.golden.test.ts` wraps a real one and
+    tapes every question the evaluation asks, with its answer: 207 conditions - every one the content
+    carries and a set written so each kind is met both ways - in three worlds (a character acting, an
+    adversary, nobody), under four bindings, with and without dice: 3,315 evaluations and 4,703 taped
+    questions. `golden_conditions.rs` asks them again, in order, none left over, to the same verdicts.
+    Countdown boards - armed in `Map` order, ticked on action-roll and Hit Point cues, looped with their
+    start re-rolled, reaped as their owners fall or leave, ended with the scene - are replayed from the
+    stream's position before each advance to its position after; zone and countdown snapshots read as zod
+    reads them (the zod-alike gained `nullable`); mark keys parse alike. 25 of 25 deliberate mutations
+    fail the fixtures, three of them only once a case was added for each (a `spent` count the evaluator
+    must ignore, a variable read twice, a looping start rolled below one).
+  - **The runner is ported** (`server/engine/src/script/runner.rs`): `ScriptRunner` runs a script's effects
+    off a stack of frames, stops at a prompt (a check to roll, a roll to answer, a choice, a dialogue) and
+    picks up where it stopped when the prompt is answered, as the TypeScript does - the journal, the
+    counts a script reads back (`spent`, Hit Points taken and dealt, targets hit), the last action roll,
+    the flags a card reads after (`spotlightToGm`, `rolled`, `cancelled`, `vaulted`). What it asks of the
+    world is `ScriptWorld`, 72 methods beside the conditions' reads; the five that draw dice (loot,
+    damage, an attack, a reaction roll, a hook's effect) are handed the runner's stream. `evaluate` now
+    takes one context that is both the world and the dice, so a gate inside the runner can roll. The world
+    was not ported yet, so `runner.golden.test.ts` wraps a real one as the conditions' fixture does and tapes
+    every call the runner makes, its arguments and its answer, and the stream's position after each call
+    that drew from it; hooks are taped, not run. 217 scripts - every one the default project and the SRD
+    pack carry, and 47 written for the corners - each played four times from a seeded start (who acts, in
+    or out of a fight, with the cards that answer rolls and blows or without) by a seeded player who
+    mostly answers straight and now and then cancels or answers nonsense: 868 runs, 1,284 steps, 4,731
+    taped calls, all 64 kinds of journal line (the counts since the world's port, whose probed runs play
+    with more content). `golden_runner.rs` replays them against the tape, which
+    moves the stream to where the world left it, and holds every step's status, journal, flags and stream
+    position to the fixture. 37 of 41 deliberate mutations fail it; the other four are equivalent (the
+    Experiences read before the targets rather than after, a lowered roll said though the lift is never
+    negative, zones kept when a moving effect prompts though none does, half Proficiency floored at one
+    though Proficiency never falls below one).
+  - **The world is ported** (`server/engine/src/script/world/`, split as the TypeScript's sections are):
+    `SceneScriptWorld` over a live `SceneState` and the `ScenarioState` that outlives it - everything the
+    runner and the conditions ask through their traits, and what a fight asks beyond them: the modifiers a
+    creature holds and wears, read from its own chair; its defences; advantage on either scale of a roll;
+    the reactions it may answer with and their gates; the swing a stat block prints; a defence and the
+    damage that lands through thresholds and armour; an attack with a swarm piling in; summons and
+    replacements; zones and who is standing in them; the clocks a fight counts; walks, blinks and pushes.
+    The content it reads is borrowed for its life (`WorldContent`), so a changed project is a new world;
+    hooks come through a `Hooks` trait, taped until part 5. With it came the rest of the scene state (the
+    room's things and doors, who blocks whom, attitudes, conditions cleared, the snapshot and its restore
+    - one from a room since grown is refused, reshaping being the scene document's), condition
+    definitions, stat blocks and loot tables as types (`content::conditions`, `adversaries`, `items` with
+    `rollLoot`), `AbilityDef` widened to what the world reads, `js::locale_cmp` (the ICU root order
+    `localeCompare` breaks ties by: `_` sorts before `-`) and `JsObject` (a plain object's key order), and
+    serde_json's `preserve_order`, so JSON read keeps the order JavaScript wrote it in. The save's schema
+    for a scenario snapshot comes with the save module.
+    `runner.golden.test.ts` also writes `server/fixtures/world.json` from the same runs: the ten worlds and
+    four sets of content they began in - read off the TypeScript's world itself - every hook run at any
+    depth, what each step changed, and what was left waiting to be heard. `golden_world.rs` derives the
+    characters from their sheets (held to what the TypeScript derived), stands the Rust world up, and runs
+    the Rust runner against it: every call answered by the world and held to the tape, each step's changes
+    held to the TypeScript's. One run in four (217) is then probed, in a world carrying content written
+    for the corners the demo's never reaches - conditions that pay out, aid an Armor Slot, answer a fall,
+    swap the Light Die, stop a creature or end of themselves; a card a condition lends; tokens that lift a
+    roll; features printed on the stat blocks - with 30,285 direct calls of 124 kinds: on one probed run in
+    four a scripted pass, a rule at a time (every world call the runner's runs never make is asked there),
+    then eighty calls off a seeded stream that mostly go back to whoever the last one was about. The probes
+    were grown against deliberate mutations: 72 written first, the fixture strengthened until each failed
+    it; then 18 written fresh, 13 of which failed at once and the rest once a probe asked their question;
+    then 3 more for the calls added last. 93 of 93 fail it now, with the runner's 37 of 41 as before.
+  - **Hooks are ported** (`server/hooks`, the `tactical-hooks` crate, on `rquickjs`; the engine's side is
+    `server/engine/src/script/hooks.rs`). The engine stays free of any JavaScript engine, and still builds
+    to wasm32: it asks a `Hooks` trait, and lends the hook a `HookReader` over the world while it runs -
+    `ctx.pool`, `ctx.select` against the bindings the hook was run under (which `HookReads` now carries),
+    and the rest. The crate compiles a project's code as `compileHooks` does - `new Function`, the same 24
+    names shadowed, `Math.random` refusing - and builds each call's `ctx` from the TypeScript's own code run
+    inside QuickJS (`prelude.js`): `hookReads`; `createRng` started from the scenario's stream, so its
+    errors are the TypeScript's words and the stream is taken up where the hook left it; the queue and the
+    log. Each call gets a runtime of its own, with no host but the reads and limits on memory (32 MB),
+    stack and work - interrupt checks counted, not timed, so a hook stopped is stopped on every machine. A
+    runtime to itself is also what lets a read reach another hook: a modifier gated on one, read while a
+    hook asks a Difficulty. A read the TypeScript's world throws on - a pool no creature has - throws in the
+    hook here too. Where QuickJS and V8 differ: an error the engine raises itself is worded its own way
+    (its kind is the same), there is no `Intl`, and a hook past its limits fails where the browser would
+    carry on.
+    `hooks.golden.test.ts` runs the five hooks the default project and the SRD pack carry (25 cases) and
+    47 cases written for the rest of the `ctx` - every read, of every kind of argument; every die; the last
+    roll; the queue; what a hook may not touch; what it throws; the language, numbers and sorting - through
+    the engine's own `compileHooks`, `hookReads` and `runHook` in the demo world, taping each read that
+    reaches the world, into `server/fixtures/hooks.json`. `golden_hooks.rs` holds QuickJS to the same
+    reads, outcome, queue and dice: an error in the hook's words or the shims' word for word, the engine's
+    by its kind. The runner's fixture gained a hook of its own, run and asked in every run's project, and
+    `world.json` the code each content was played with, so `golden_runs.rs` replays all 868 runs with
+    nothing taped - the Rust runner, the Rust world, the hooks compiled and run in QuickJS - to the same
+    prompts, journal, dice and world. `boundary.rs` holds what the TypeScript cannot show: a loop, an
+    allocation and a recursion stopped; nothing reachable but the reads; the dice the scenario's stream; a
+    read reaching a hook. 25 of 26 deliberate mutations - in the prelude, the bridge and the world's reader - fail them; the 26th (a log's tone written as undefined rather than left out) is equivalent, JSON having no undefined, and the runner's 37 of 41 and the world's 93 of 93 hold on the fixtures as they now stand. The serve crate builds no worlds yet:
+    `QuickJsHooks::compile` is where the game layer's port plugs a project's code in.
+- **The game layer, in six parts.** The row above first named seven modules, about 1,800 lines. Each
+  of them works on the session (`DemoScene`, `game/demo-scene.ts`, 4,373 lines), on the party
+  (`scene/party.ts`, 784) and on scene code not yet ported (about 2,300 lines): some 9,000 lines in all,
+  which phase 3 needs on the server anyway. Bottom up: (1) the scene document - (1a) the documents, their
+  schema and their migration, (1b) a room stood up from one: its grid, its state, reshaping, triggers,
+  prop functions, interaction - (2) the party; (3) the session built from a project (`room`, the log,
+  roster and pools, travel), hooks reaching it through a factory; (4) movement, leaps, interaction, props
+  and talk, and what drives a script from play; (5) the fight loop - attacks, the GM's turn, defence and
+  death prompts; (6) `shop`, `equip`, gear, and `save` with the scenario snapshot's schema.
+  - **The documents are ported** (`server/engine/src/scene/document.rs`, `migrate.rs`): the scene and
+    project schemas on the zod-alike, with what they are built of - the prop functions and the shop, the
+    building layer's pieces, structures and keys, a model asset, the jump rules, and a character sheet
+    as zod reads it (`character::schema::sheet_schema`; `parse_sheet` stays the door a lone sheet comes
+    in by) - and `migrateDocument`, every step, following JavaScript's ways with an object's keys (a key
+    renamed moves to the end, one assigned keeps its place) and building ids as the TypeScript does
+    (`toContentId`, NFKD by `unicode-normalization`). `read_pack` migrates now, as `readPack` does, where
+    it refused an older document by name. The zod-alike gained `multipleOf` (zod's own tolerance),
+    `trim`, `tuple` and a record refined whole; and `js::number_to_string` writes a large whole number
+    as JavaScript does - its shortest digits and then zeros, `1152921504606847000` for 2^60 - where it
+    wrote every digit, which no earlier fixture had reached.
+    `scene.golden.test.ts` writes `server/fixtures/scene.json`: the documents older builds really wrote
+    (the captured version-1 project and save, the version-3 project), the default project with its
+    version taken off so every step walks real data, and 17 written for each step's corners, migrated;
+    the projects read whole and as packs; a sample project using every part of the schema broken twelve
+    ways at 200 places, deeper inside a scene (2,400 cases); 25 corners the breaks cannot reach; names
+    made into ids. `golden_scene.rs` replays it, issue for issue and field for field. 36 of 37
+    deliberate mutations fail it; the 37th (a document of this version migrated rather than returned)
+    is equivalent, every step being skipped and the version written as it was.
+  - **A defect fixed on the way**: whether a building piece's structure exists was asked of a registry
+    only a grid built for a project sets, so a project building with a structure of its own was refused
+    on a fresh page ("No structure called ..."). The project's schema asks it now, of the engine's four
+    and the project's own, in both languages (`src/engine/scene/schema.test.ts`).
+  - **A room stands up from its document** (`server/engine/src/scene/`): `building` (the four atoms, the
+    structures a project declares, what a piece is to somebody standing on it), `deco_span`,
+    `grid_from_scene` (a project's palette and structures, the grid with its building layer stacked and
+    its solid props barred, an unknown terrain id reported once), `prop_functions` (each function as the
+    object it plays as, portals paired, objects made props), `triggers`, `reshape` (a room grown, and a
+    snapshot counted again from the corner that moved), `interact` (a use refused or run), and
+    `state::scene_state_from_scene` with `placements_of`. The TypeScript's structure registry, which
+    `paletteForProject` refills as a side effect, is a value here (`Structures`), handed to whoever builds
+    a grid, so one project's structures never leak into another's room. `SceneState::restore` now
+    reshapes a snapshot taken before the room grew, where it refused one.
+    `room.golden.test.ts` writes `server/fixtures/room.json`: the demo's rooms (and the proof that one
+    built there is the demo's own room, grid and state), the default project's, the captured version-1
+    project's with its objects as they were and made props, and 120 rooms written from a seed - pieces at
+    every shape, level and stretch, stacked, tied, numbered and a million tiles off, props solid and
+    spanning and with nested functions, overlapping triggers, bystanders and friends, creatures off the
+    board and without a stat block, heights past an `Int16Array`'s reach; then rooms grown and games
+    restored across the growth and back, snapshots shifted, 300 prop functions, portals, and 4,400 uses
+    refused or run. `golden_room.rs` replays it. `runner.golden.test.ts` adds to `world.json` every
+    usable thing in the demo's vault used three times over from nine starts, prompts answered;
+    `server/hooks/tests/golden_runs.rs` replays those against the real world with the hooks run, dice
+    for dice. 49 of 50 deliberate mutations fail the two; the 50th (a pair id trimmed or not before
+    it is looked for) is equivalent, since the schema trims every pair id a document holds.
+  - **The party is ported** (`server/engine/src/scene/party.rs`): selection and Tab, the party's order,
+    who walks with whom (link, unlink, the ranks closed behind somebody leaving a group), who is held;
+    the ground a member reaches and the ground their movement covers - the straighter line's reach past
+    the count of squares, and inside a circle only what a walk reaches without leaving it; a walk planned
+    and made, aimed at a spot, begun mid-walk, a step within one's own tile, cut short where the
+    allowance or the circle runs out and backed up to where a body can stand; the followers walking down
+    the leader's trail a pace apart, the ones it cannot place left standing unless walked into or left
+    behind; and a walk stopped where the figure got to. The TypeScript's `Party` holds its scene; this one
+    holds only what is its own - selection, groups, order, held members, trails - and is handed the
+    scene each time, so the state stays the one owner of who stands where. (`alongTheLine`, private and
+    called by nothing, was not ported, and is gone from the TypeScript too.)
+    `party.golden.test.ts` writes `server/fixtures/party.json`: 113 sessions of 30 to 40 orders - the
+    demo's vault with the demo's own party, and rooms written from a seed with walls, marsh, raised
+    ground, pieces, solid props, a door and creatures in the way, under party options and movement rules
+    of every sort, the rules changed and members falling part-way - each order's answer and, after it,
+    everybody's tile and spot with the party's selection, order, groups, held members and trails.
+    `golden_party.rs` replays it. 41 of 42 deliberate mutations fail it; the 42nd (a walk inside a
+    circle measured for leaving it as well as for every point being in it) is equivalent, a circle being
+    convex.
+  - **A game is played from a project** (`server/engine/src/game/`): `Session::build` is
+    `buildProjectScene` - the project's objects made props, every sheet derived with the project's content, the opening room
+    stood up (`build_runtime`: its grid, every placement's stat block - the project's own before the shipped
+    pack, none substituted - the party on the spawns with the pools it carries, the party's control, the
+    triggers and the world). Then what happens between actions: `refresh_world`, `set_sheet`,
+    `sync_roster` (a sheet added arrives beside the party, one removed walks off), `sync_pools`,
+    `gather_party` and `free_tile_near`, `travel_to` (a room remembered comes back as it was left),
+    `sync_authored_encounters` (a room made to agree with its document, back from the editor),
+    `enter_saved_scene`; and the log's `note`, with the creatures a line names found in it in UTF-16
+    units, as JavaScript finds them. `game/rules.rs` is the demo's house rules, `game/content.rs` the
+    content a project plays with.
+    - **What the app ships is handed in** (`Shipped`: the characters with the equipment catalogue, the stat
+      blocks, the abilities, the conditions), not embedded: the engine carries no content, and where the
+      server reads it from is phase 3's to settle. **So are the hooks** (`HooksFor`): the engine runs no
+      JavaScript, and keeping a project's last compile, as `hooksFor` does, is the caller's to do.
+    - **The world now shares its content** (`Rc<WorldContent>`) instead of borrowing it, so a session can
+      own the world it plays in. The world owns the room's state and the scenario, and a world rebuilt is
+      built over them. The world's reads that handed back references into the content while it changed
+      itself read from a content handle the caller holds (`held_by_in` and its siblings), `reactions_for`
+      answers owned abilities, and `defend` takes the content it reads its reactions from. What the world
+      reads of the project is fixed when it is built, as the TypeScript's traits are; the sheets, which the
+      TypeScript's world reads live, are handed to it again whenever they change.
+    - **Left for the parts that play them**: the log's words for a script's journal (`record`), the
+      destination a script asked for (`settleTravel`), what waits on the player, a fight and the GM's
+      turn, and arriving by portal. `openProject`'s renaming of retired models and adding of shipped ones
+      are the renderer's - so a project the server writes back would differ from the browser's in model
+      ids.
+    `session.golden.test.ts` writes `server/fixtures/session.json`: the shipped content once, the three
+    projects once each (the demo's, the default project, and the default project carrying a stat block, a
+    condition, a step height and an old object of its own), and fifteen sessions of forty steps - travel,
+    the roster, sheets written back, wounds, the party gathered (on a member, deep in a wall), a save
+    loaded, the world rebuilt, placements renamed, dropped and added and triggers moved as the editor
+    does, lines with names that overlap - each followed by the room, everybody in it, the party, the rooms
+    remembered, the log's new lines, the world's content and the scenario. `server/hooks/tests/
+    golden_session.rs` replays it with the hooks compiled in QuickJS. 43 of 47 deliberate mutations fail
+    it; of the rest two are equivalent (a Hit Point floor no sheet reaches; an object left an object,
+    which plays as the prop it would have become - `room.json` holds the making of it) and two wait for
+    what reaches them (zones read again, and marked spots forgotten, when nothing between actions sets
+    either). The world's 93 still all fail `golden_world.rs` after the change to how it holds its content.
+  - **Part 4 is two halves.** What the game state part 4 needs, inventoried: a prompt waiting (a
+    script's, with the conversation it opened), the fight (only begun - its loop is part 5's), where a
+    script sends the party, the conversations, and what a view is handed (motions, numbers over heads, dice)
+    are real; `ambush` and `approaching` exist only so a fight waits for tokens to finish drawing, and on a
+    server a walk arrives in the same call, so they are not ported; the GM's turn is part 5's. The log's
+    words for a journal land here, not with the fight: every use of a thing goes through `record`, whose
+    reaction to a party's roll ends conditions that last until it - a world change on the first lock picked.
+    (4a) using things and talking, out of a fight; (4b) walking - triggers begin fights - the movement
+    circle, closing on a thing or a target, leaps.
+  - **Things are used and creatures talked to** (`server/engine/src/game/play.rs`): `use_selected_on` - in
+    reach, refused in the thing's own words, run - and the prompt it stops on held until
+    `answer_pending`, the conversation `settle` opens on a `startDialogue` had reply by reply
+    (`answer_dialogue`, `resume_outer`), `record` (the journal written down and acted on: the room's things
+    and where a script sends the party, pools, a party roll's conditions spent), `settle_travel`, a
+    creature on nobody's side talked to (`talk_now`), a container's window read and taken from, a portal's
+    partner in this room or another (arriving beside it when travel settles), and a conversation set aside
+    for somebody else and brought back (`sync_talks`). `game/log.rs` writes a journal down - every
+    sentence, the dice, the numbers over heads, the tokens' motions - and a conversation's lines.
+    - **A prompt waits between calls**: a script runner can be put down (`ScriptRunner::suspend`) and
+      picked up again with the world and the dice (`SuspendedRunner::attach`), and the dialogue runner holds
+      its dialogue by `Rc`, so a conversation in progress waits in the session.
+    - **The fight's parts refuse, loudly**: a card offered on a roll to a table that asks (`ask_defender`)
+      returns an error naming it, rather than doing something else quietly. (A journal that starts a fight
+      refused here until 4b; a creature answering the party's roll and a countdown a roll moves, until 5a.)
+      `sync_roster` walks a member the project dropped off the board only out of a fight, as the TypeScript
+      does.
+    - What the app ships gained the catalogue's item names (`Shipped::items`), for loot and keys.
+    `play.golden.test.ts` writes `server/fixtures/play.json`: the demo's project, the default project, and a
+    proving ground built on it (a portal to another room and one with no partner, a conversation nobody
+    wrote, a stair that sends the party away and then asks for a roll, a condition that ends on the next
+    roll and one that swells Hit Points, loot named from the catalogue, a party with no talent and a card
+    that answers a failed roll), 24 sessions of 40 steps and a tour of the proving ground - things used,
+    prompts answered, conversations had and set aside, windows read, taken from and shut, travel - each
+    followed by the prompt waiting, the window open, everybody's place and pools, the log's new lines, what
+    a view is handed, the room's things and the scenario. A session is cut where a fight would begin.
+    `server/hooks/tests/golden_play.rs` replays it with the hooks compiled. 55 of 60 deliberate mutations
+    fail it; of the rest two are equivalent here (travel settled while a prompt waits, which nothing does
+    until a finished script can raise another; a conversation's outer script with no target, when the
+    conversation hands its own to every script inside it) and three needed a fight: `fight.json` now fails
+    a swing's miss, and talking to the dead and a conversation set aside broken off with somebody still
+    standing are not reached there either.
+  - **The party walks, pushes and jumps** (`server/engine/src/game/{movement,leap,fight}.rs`), in a fight
+    and out of one: a click's meaning (`aim_of_move` - the walk, the nearest reachable spot out of a fight,
+    as far as the circle allows in one, or a push), the walk (`walk_the_move`: a trigger stops it where it
+    fires and begins its fight at once, since nothing waits for tokens to arrive; the others follow out of a
+    fight), the movement circle and the push circle, the ground lit and the ground a push would open,
+    closing on a thing, a creature to talk to or a target to strike, and the previews. The rolled moves are
+    real: a push past the circle (`run_for_it` - the roll is the action; a success pushes the circle out a
+    step and walks on, a failure holds them and hands the spotlight over), and a jump (`plan_jump`, a
+    run-up found at a tenth of a tile, the arc kept clear of walls and ground, `leap_to` and the landing -
+    getting up, going on alone, a trigger landed on, falling hurt, the fail condition). Both wait on their
+    roll as a prompt (`OnDone::Run`, `OnDone::Leap`) when the dice are not rolled for them.
+    - **A fight begins, stops and is closed** (`fight.rs`): an attitude turned hostile, a trigger, or a
+      journal's `started` begins it; `ended` stands everybody down under a truce; `close_fight` ends the
+      scene's conditions and the creatures' countdowns and forgets per-scene uses, once, in the log's words.
+      Every action in a fight is spent (`act`), under the table's spotlight rules.
+    - **What a fight answers was part 5's**: here `settle_fight` ran only when nothing waited to be
+      answered, and returned an error naming what did; 5a plays all of it.
+    - The project's jump rules are read (`jump_rules_for`, each field the engine's where it says nothing).
+    `walk.golden.test.ts` writes `server/fixtures/walk.json` (about 5.8 MB): the demo, the default project, a
+    drill yard built on it (a trip-wire that lays its user prone, a horn that begins the fight, a white flag
+    that ends it, a platform three blocks up, a trigger on its corner) and the drill yard for somebody who
+    cannot jump; 30 sessions of clicks - moves, previews, reach, approaches, talk, strikes, uses, answers,
+    selection, travel, pushes and jumps with the arc and the Jump button's landings - and six tours of the
+    drill yard, one fight each: prone and up, a jump asked, asked again, let go and made, onto the platform
+    and off it, the fight begun by a landing or by the horn after a flag with no fight, pushes answered and
+    let go, a detour inside the circle, one put outside it, the flag waved and the horn blown again. Each
+    step is followed by the fight (its view, log and circles) and everything `play.json` records. A step that
+    would settle a fight with a blow still queued, and a jump whose fall hurts, are probed and not made.
+    `server/hooks/tests/golden_walk.rs` replays it (about 7 s at `opt-level = 1`, a minute unoptimised). 61 of
+    66 deliberate mutations fail it; of the rest two are equivalent (a strike previewed from where they
+    already stand, to which a walk plans no route anyway; a failed push's spotlight, which a failed roll
+    already hands over), one is equivalent here (whether closing on a thing came up short, which only an
+    animated view reads), and two are not reached (a fight begun again while it is on, and a spot inside the
+    circle whose only way there leaves it).
+  - **Part 5 is three halves.** `askDefender` draws the line: with nobody at the table asked, every
+    question a fight puts to a player can wait, so (5a) is the fight loop played that way; (5b) is the
+    questions - the defence a hit is taken with, a card offered on a roll, a blow, a wound or a miss, and the
+    death move asked (Blaze of Glory, Risk It All, a card instead); (5c) is the action bar - a card used on
+    the character's turn (`useAbility`: its targets, a point, a shape, tokens), which the six-part plan put in
+    neither part 5 nor part 6.
+  - **The fight is played** (`server/engine/src/game/{turn,features,answer,swing,blow,fight}.rs`), with nobody
+    at the table asked anything:
+    - **The GM's turn** (`turn.rs`): the party's turn ended (`end_turn`), what they carried for a moment
+      shaken off, and the adversaries the encounter has waiting spotlighted while the Shadow lasts - Relentless
+      keeping its place, a granted spotlight not billed, one it cannot pay for ending the turn. Each shakes off
+      what holds it (a Shadow spent on what stops it acting), uses a feature worth using, or walks up (within
+      Close for free, Very Far as the whole action) and swings. What a stat block's script does to the queue -
+      a swarm that swung with it, arrivals, allies rallied at half strength, itself again, a creature replaced -
+      is `after_adversary_script`. The spotlight counts are the session's `spotlit`, which the world's
+      `spotlight_spent` reads (`bindTurn`), tied again whenever the world is rebuilt and not after travel, as
+      the TypeScript ties it.
+    - **A stat block's features** (`features.rs`): the one worth using (`adversary_feature` - one aimed at the
+      nearest it can reach, one that works on itself, its own side, a summons, a clock or a rally that has
+      somebody to call, or one that catches two of the party), what it costs the GM, its uses, the reactions
+      it plays on its own, the script it runs (aimed at the nearest of the party), and the countdowns - ticked
+      by the party's rolls and hits, and going off with their owner acting.
+    - **What answers a moment** (`answer.rs`): the party's cards - a free one plays itself, and one whose
+      script asks something waits as a prompt (`OnDone::Reaction`) holding whatever swing it was about; a
+      stat block's reactions; the wounds (`playDamageReactions`, drained until quiet), a creature's own, an
+      ally's and a bystander's; a party roll; a swing at somebody; the riders on a hit and a miss; a debt a
+      condition leaves for whoever swings; ground that bites.
+    - **The party's swing** (`swing.rs`): closed on, rolled, the roll put to the room before anything comes
+      of it, the damage put to it, and the blow landed - counted again when a card grew it, named its band,
+      forced it or doubled it, rebuilt when a card threw the dice again (`as_answered`, `as_rerolled`);
+      minions fall to it. **The GM's** (`blow.rs`): what the room adds (`boostDamage`), a rally's half, the
+      defence the engine decides, an aura's step down, Momentum and Terrifying, the riders.
+    - **The settle** (`fight.rs`): the ground, the wounds, a creature that stops to talk at its threshold, a
+      creature's last word (once per creature - entities carry a serial, since a summons can take a fallen
+      one's id and the TypeScript tells them apart by the object), the death move (Avoid Death with its scar;
+      a last stand that answers the fall instead), who is left standing, the countdowns a death sets off.
+    - **A question being answered is still open**: the TypeScript's `answerPending`, `answerDialogue`,
+      `resumeOuter` and `settle` leave the question in `pending` while its journal is recorded, and everything
+      a fight settles reads that - a death move the answer's own roll caused waits. The session counts the
+      depth (`answering`) and the fight asks `waiting()`. A creature's conversation over picks a GM's turn it
+      stopped up again. `AbilityDef` gained text, target and uses, and `AdversaryDef` its features.
+    - **A table that asks was refused** here, loudly - a defence, a card offered, a death move asked each
+      returned an error naming them - until 5b.
+    `fight.golden.test.ts` writes `server/fixtures/fight.json` (about 14 MB): the demo, the default project,
+    a pit built on it and the pit alone - stat blocks of its own that are Relentless, carry Momentum, are
+    Terrifying, are Minions or a Horde, with cards printed on them for every moment a fight raises, cards
+    given to the party that play themselves at every moment theirs (a choice mid-swing, a reroll, a blow
+    grown, a Stress cleared, a hold, a revival on a critical), a debt, a last stand, an aura, a lucky die, a
+    creature that stops to talk, a white flag, and a lever that drops whoever pulls it wrong and arms a trap
+    - in 28 sessions of up to 80 steps (a fight begun, swings, the turn ended, walks, the selection, things
+    used, prompts answered) and two tours (the flag, a stood-down creature struck, a creature held). After
+    each step its answer, the GM's turn, the fight, everybody's pools and conditions, the Shadow, the scars,
+    the log, and what a view is handed. `server/hooks/tests/golden_fight.rs` replays it (about 40 s at
+    `opt-level = 1`, six minutes unoptimised). 96 of 106 deliberate mutations fail it; of the rest three are equivalent (a fresh
+    creature the GM cannot pay for skipped rather than ending the turn, when everything behind it costs the
+    same; a card seen twice, when one ability answers one trigger; a card's Stress, when only free cards play
+    with nobody asked) and seven are not reached (a creature talked round still waiting in the queue, a second
+    pass of wounds that nothing logs between, a party member revived and falling again, a fight a script
+    stopped in the middle of the GM's turn, a rally dearer than the allies it calls, a lieutenant's rally on
+    the spotlight with nobody to call, and a rallied blow's odd total halved).
+  - **The table is asked** (`server/engine/src/game/ask.rs`): with `ask_defender` on, every question a fight
+    puts to a player is put and answered as the page puts it. The question has the session's `asked`, the
+    other half of the TypeScript's one `pending` - never set while a script waits, and `waiting()` counts it.
+    - **How a hit is taken** (`defenseChoices`, `offerOrLand`, `offerMiss`): take it, an Armor Slot, the
+      reactions the defender can pay for alone and with a slot - each with the Hit Points it would leave, and
+      a plan that changes nothing left out - the defender's cards' own scripts, an ally's card to step in front
+      or make the GM roll again; and a card to answer a miss. The answer (`applyDefenseChoice`) lands a plan,
+      plays a script and puts the blow again with what it said (`answeredWith`: softened, avoided, stepped
+      down, seen coming), moves the blow to the ally who stepped in, or rolls the attack or its damage again.
+      A card that stops to ask something of its own holds the blow (`OnDone::Answered`, `OnDone::Dodged`).
+    - **A card offered** (`askReaction`): on a roll before anything comes of it, on the damage, on a wound,
+      a hit, a miss or a roll - one character at a time, the rest queued behind, a swing waiting on the answer
+      at the stage it was stopped, and a script stopped mid-roll carried on with what the cards said
+      (`offerOnRoll`, `answerFrom`).
+    - **The death move** (`askDeathMove`): Avoid Death, Blaze of Glory (the one last swing, critical, at the
+      nearest the weapon reaches, and the veil), Risk It All (the Duality Dice), or a card that answers the
+      fall - and the three put again when the card was not enough.
+    - A defect from 4a fixed on the way: a raised roll's line read the number as text, and said
+      "Another  goes behind the roll."
+    `fight.golden.test.ts` also writes `server/fixtures/ask.json` (about 9 MB), its own file so `fight.json`
+    stays as it was: the demo and the pit with cards in the party's hands worth asking about (wards, plate, a
+    rune, a guard, a jinx, a parry, a sidestep, a riposte and a taunt, a push, a named roll, a reroll, a
+    heavier blow, a cheer, a card against the fall), the boss's swing made direct and the swarm's of no kind,
+    three of the party on their last Hit Point - 17 sessions with the table asked, each question answered
+    with one of its options (now and then one that is not there, or stepping back), the death moves taken in
+    turn. `golden_fight.rs` replays it too (about 15 s at `opt-level = 1`). 43 of 49 deliberate mutations
+    of the questions and their answers fail it; of the rest one is equivalent (a card already spent offered
+    again as a plan, when a plan ends the hit and a redirect is never a plan) and five are not reached (a
+    defender with nothing but "take it", Risk It All with Shadow higher and with the dice matched, a card
+    against the fall that was not enough, and a named roll paid for on a script's roll).
+  - **The action bar** (`server/engine/src/game/bar.rs`): the abilities a character has, in bar order, with
+    the cards a condition lends (`abilitiesOf`); whom one may be aimed at (`abilityTargets` - a foe, an ally, a
+    fallen ally for a card that raises one, anybody, a group, only those it is worth aiming at - and a roll's
+    own selector, `scriptTargets`); the tiles a card aimed at the ground may land on and whom it would catch
+    there (`pointTiles`, `shapeAt`); whether it can be used now and why not (`canUseAbility` - not standing,
+    a question open, a passive or a reaction, nothing the engine can run, only in a fight, the GM's turn,
+    already acted, a cost in Shadow, Light or Stress, uses spent, its gate, nothing to aim at), and the bar as
+    a view reads it (`abilityList`, with the card's words and its art); and using it (`useAbility`): the only
+    valid pick taken when none was given, a group gathered, the price paid, the script run, the action spent
+    in a fight when the script is done (`OnDone::Used`), the card put back - its price returned - when its
+    roll is stepped away from, the vault. Tokens are placed again when what refills them comes round
+    (`refillTokens`). `AbilityDef` gained `inCombatOnly` and `action`, its tokens what refills them.
+    `bar.golden.test.ts` writes `server/fixtures/bar.json` (about 6 MB): the demo, the default project and a
+    workshop built on it (a card in every hand for each way a card is aimed and limited, words on the card, a
+    card a condition lends, a knot of foes by the door) - 16 sessions of the bar read, cards used on a pick
+    that is there, one that is not, a tile or nothing, rolls answered or stepped back from, tokens refilled,
+    with the fight going on around them, some with the table asked - and two tours (a mark that leaves one
+    foe the only pick, the bar of one with no Stress slot left, a fallen ally raised).
+    `server/hooks/tests/golden_bar.rs` replays it (about 7 s at `opt-level = 1`). 37 of 39 deliberate
+    mutations fail it; of the rest one is equivalent (acting twice, when under the spotlight a member who
+    has acted is still ready while the party holds it) and one is not reached (a card aimed at the ground
+    with nowhere to land, when every band reaches some floor).
+  - **The tests build at `opt-level = 1`** (`[profile.test]` in `server/Cargo.toml`): the fight's three
+    replays took most of ten minutes unoptimised, and `cargo test --workspace` now takes about two (the replica's
+    fresh sessions are one of them). The
+    times above at `opt-level = 1` are what `cargo test` gives; nothing need be set to get them.
+  - **The kit** (`server/engine/src/game/kit.rs`, part 6a): the shops - what a seller still has, a limited
+    line counted on its saved state (`shopContents`), the party's purse, buying and the word when it cannot
+    pay (`buyFrom`), what a seller pays for one thing - its share, half unless it says, of its own price or
+    the item's worth, never nothing, never its own coin (`offerFor`) - what the party could sell it and
+    selling (`sellables`, `sellTo`), and a shop's wares taken through the container window, which is buying;
+    wielding and wearing (`equipItem`, `unequipItem`: hands counted, a two-handed weapon freeing the
+    secondary, armour not changed in a fight, the old piece back in the pack when an item stands for it,
+    Armor Slots following the armour) and the HUD's line (`gearOf`); the binder's cards (`gearCard`,
+    `gearView`); using an item (`useItem`: a consumable spent before its script runs, the action in a fight,
+    a roll left waiting); the loadout and the vault as the sheet shows them, with the cards granted and lent
+    and the numbers an attack would meet (`loadoutView`), a card recalled for its Stress or free at a rest
+    (`swapCard`); a rest, short or long (`rest`: the loadouts set first, each character's two moves, Light
+    for those preparing, uses, tokens, marked spots and conditions a rest ends, the GM's Shadow); the
+    cards a stat block prints (`statBlockCards`); and (6b) a level taken between fights - who has one
+    waiting (`awaitingLevel`), and taking it (`applyLevelUp`: refused in a fight or a question, the plan
+    checked whole by `level_up`, the pools grown with nothing marked cleared, the world told). Level-up was
+    in none of the six parts, as the action bar was in neither 5 nor 6. The item stand-in in `game/content.rs` is the whole item
+    now (`ItemName`: its kind, words, gear, worth, tier, picture and use).
+    `kit.golden.test.ts` writes `server/fixtures/kit.json` (about 7 MB, saves included): the default project and a workshop
+    built on it (a stall with a limited line, a fence that buys nothing, a pawnbroker paid in carapace, an
+    empty stall; a scroll that asks a roll, a salve that braces until a rest, a relic, a weapon with no gear
+    and one pointing at gear nobody has; more cards in each hand than a loadout takes; abilities a rest, a
+    long rest and a scene refresh, a token a rest refills; cards a stat block prints) - 11 sessions of
+    buying, selling, equipping, using, recalling, resting, and levels granted and taken on plans drawn from
+    each character's own domains, with the fight going on around them, and a tour of every refusal.
+    `server/hooks/tests/golden_kit.rs` replays it (about 4 s at `opt-level = 1`). 70 of 71 deliberate
+    mutations fail it; the one left is equivalent (an item carried at nought shown in the pack, when taking
+    the last of something takes its line away).
+  - **Saves** (`server/engine/src/game/save.rs`, part 6c): the save's schema (`saveSchema`) and the two it is
+    built of, `scenarioSnapshotSchema` and `sceneSnapshotSchema`, on the zod-alike - what came later
+    defaulted, the sheets read by the sheet's own schema; why a save is refused now (`saveBlockedBy`: a
+    fight, a question open or a conversation set aside - an approaching ambush cannot be, headless); the
+    campaign as it stands (`saveGame`: the rooms left and the one being played, where the dice had got to,
+    the sheets, the last 200 lines of the log) and as text (`serialiseSave`, written as `JSON.stringify`
+    writes it - `stringify` puts no `.0` on a whole number); and putting it back (`loadGame`: another
+    project's save, a room it does not hold and a room the project has since lost refused before anything
+    is touched; the scenario refilled, a sheet that will not derive refused, a member the project does not
+    list put into it, the room entered as it was left, the rooms left remembered, the dice, the log and the
+    selection put back), and `loadGameText` - not JSON, migrated at the door, read through the schema.
+    A `LogLine` reads back from a save (`LogLine::read`). `MarkPool` and `Currency` now write `max` first,
+    as the TypeScript's `resources.ts` builds them, so a save of rooms never loaded is the TypeScript's to
+    the byte. Not every save can be: after a load the TypeScript's rooms keep the key order the save's schema
+    read them in (`{marked, max}`, a name last), which a room of structs does not remember - so a save's
+    text is held as what it says, and the replay checks only that no whole number is written as a float.
+    The kit's fixture carries the saves: each session saves, travels between the two rooms, and loads its
+    own save back - as text, as it stands, from version 4 (before a room said its size, which version 5
+    gives the vault), with a member the project does not list - and saves spoiled (not JSON, a number that
+    is not one, a newer build, another project's, a room not saved, a room since deleted, a sheet naming
+    gear nobody has), and the tour saves in a fight, in a question and after more than 200 lines of log.
+    20 of 21 deliberate mutations of `save.rs` fail it; the one left is equivalent (a sheet saved without
+    its schema's parse, when a Rust sheet is already in the schema's shape).
+  - **Part 6 is done, and with it the six-part game layer.**
+  - **Phase 2 is done** (1 October 2026). The audit of every exported function in `src/game/` with no Rust
+    function of the same name found no rule missing. What decides something is ported under another name:
+    `fightOverLine` is `closeFight`'s line (`fight.rs`), `pushPrompt` the push's question (`leap.rs`),
+    `pushCircle` and `underPressure` are `movement.rs`'s, `jumpOffered`, `jumpAim`, `jumpReaches`, `jumpTo`
+    and `runForIt` are `leap.rs`'s, `showContainer` is in `sync_talks`, `adversaryDefOf` is
+    `game/content.rs`'s. The rest is the page's: a walk's timing (`arrived`, `cancelApproach`, `standingNow`,
+    `landWalkers`, `spotOfWorld`), input (`steerStep`), what is drawn (`reachRings`, `aimedArc`), the
+    right-click panel (`inspection`), a window shut out of reach (`withinReach`), and the editor changing
+    the ground under a game being played (`takeGround`) - which phase 3 decides where to put, below.
+- **Phase 3** - started 1 October 2026; done 2 October 2026, by the plan's own measure: the e2e suite passes
+  with play on the server (below, "The server's game is the one the page plays"). The TypeScript game layer
+  it says goes next is still there - the page's game is the shadow the views read.
+  - **The page reaches the game through one seam** (slice 1, `src/game/client.ts`): `main.ts` holds a
+    `GameClient & LocalPowers` where it held a `DemoScene` - 142 reads of the game now `game.board`, 120
+    calls that handed it the game now methods, and the places it wrote to the game (the dice queue, the
+    floaters and motions, the party's selection and links, the test driver's wounds and Light and
+    conditions, the editor's re-derive) intents or local powers. `LocalGame` is every method as the
+    function it names, handed the game, so nothing was decided anew; no file in the page or its play
+    views imports `DemoScene` but the client. The e2e suite is the proof: it drives the page through
+    `window.__engine` as before, and passes. `main.ts` is 43 lines shorter, its pin lowered to match.
+  - **A replica stands as the game it was sent** (slice 2a, `src/game/replica.ts`,
+    `server/engine/src/game/replica.rs`). The pointer's questions are to be answered in the page by the
+    engine built to WebAssembly, fed - not played in lockstep, which the page's walking tokens, the test
+    driver's hands and the editor's edits would part - by a snapshot of how the game stands, sent after
+    every intent: `replicaOf` - the room and its state, the scenario, the sheets, the party's control
+    (`Party.snapshot`: selection, groups, the held, the order, the trails), the fight
+    (`EncounterRunner.snapshot`: tokens, events, who acted this GM turn, the circles, the side, the round,
+    the outcome) and the GM turn's spotlights, and whether a question is open (`question_open`: a script
+    paused mid-run has no form to send, and the replica only has to know one waits). The Rust stands one up
+    (`restore_replica`: the scenario and sheets, the room entered as it was left, the party, the fight, the
+    spotlights, the world rebuilt) and says how it stands (`replica_snapshot`). Saves refuse a fight for
+    want of exactly this snapshot; that refusal can now be lifted, which is not done here.
+    `replica.golden.test.ts` writes `server/fixtures/replica.json` (about 15 MB): 14 sessions of 40 steps
+    on the demo, the default project and the bar's workshop (`tests/fixtures/bar-workshop.ts`, which the
+    bar's golden now reads from there too) - walks, swings, the GM's turn with the defender asked or not,
+    cards, fights begun and routed, members linked, unlinked and reordered, a conversation set aside,
+    loadouts changed at a rest, and two sessions in the yard's fight so a question waits with a creature
+    already spotlighted - and after each step the snapshot and what the pointer asks: the reach and where a
+    push asks a roll, three walk previews, every card of the selected member's (whom it may be aimed at,
+    where it may land, whom it catches there), and a jump's offer, tiles and reaches.
+    `server/hooks/tests/golden_replica.rs` stands every step up in a **fresh** session - a restore that
+    leaned on what the session already held would pass a continued one - and holds its snapshot and every
+    answer to the TypeScript's (about a minute at `opt-level = 1`). 19 of 20 deliberate mutations fail it;
+    the one left is the world's rebuild, which ties it to the GM turn's spotlights - which no question the
+    pointer asks reads. A card whose aim waits on a project's hook (a `hook` condition) cannot be answered
+    by a replica with no hooks; the WebAssembly face (2b) has to call back into the page's for it.
+  - **The engine builds to WebAssembly behind a JSON face** (slice 2b, `server/wasm`, `tactical-wasm`).
+    A C face - `alloc`, `free`, `call`, `answer_ptr`, and memory - and nothing imported, so it stands up
+    with a bare `WebAssembly.instantiate` in a browser or in Node and needs no `wasm-bindgen`: the message
+    is JSON, `build` (a game from a project and the shipped content), `restore` (a replica), or `ask` (the
+    reach, where a push asks a roll, a walk's preview, whom a card may be aimed at, where it lands and whom
+    it catches, a jump's offer, tiles and reaches), and the answer `{ ok }` or `{ error }`. Its game runs
+    no project hooks: a card aimed only where a `hook` condition says is answered as if the hook said no.
+    `npm run wasm` (`tools/build-wasm.mjs`) builds it, about 2.4 MB, into `public/wasm/engine.wasm`,
+    git-ignored as the models are. `src/game/wasm-engine.ts` (`WasmEngine`) is the page's side - DOM-free,
+    handed the bytes - and `src/game/wasm-engine.test.ts` loads that very file and asks it every step of
+    `replica.json`, one game a session as the page will (about a minute), and is skipped with a word when
+    the file is not built. The face's own tests run natively (`cargo test -p tactical-wasm`). 7 of 7
+    deliberate mutations of the face and the loader fail the vitest.
+  - **The page runs the Rust engine, in a shadow** (slice 2c, `src/game/shadow.ts`). Where the page is
+    served for development - the dev server, which the e2e suite uses - each game the page plays
+    (`LocalGame`) is given a replica in the engine built to WebAssembly, compiled once from
+    `/wasm/engine.wasm`, built from the project with the shipped content (`src/game/shipped.ts`, the one
+    module the page and the replica's golden take it from), built again when the editor changes the project
+    under the game (`rederive`, `takeGround`, `syncAuthoredEncounters`), and told how the game stands
+    before each question when that has changed since it was last told. The questions the pointer asks -
+    the reach, where a push asks a roll, a walk's preview, whom a card may be aimed at, where it lands and
+    whom it catches, a jump's offer, tiles and reaches - are put to both; the game's answer is the one the
+    page gets, and where the replica's differs it is counted, kept (the first 20) and warned of in the
+    console (`window.__replica.count()`). A build for players, or a page without `npm run wasm`, has no
+    replica and is the page it was. `src/game/shadow.test.ts` holds the shadow itself;
+    `tests/e2e/replica.spec.ts` plays a fight - every member's reach, pushes, previews, every card aimed
+    and its shapes, cards used, the GM's turns - and holds the count to nought (243 questions on the run
+    that first passed). The questions the page asks inside other questions - `hoverLine`'s preview,
+    `abilityList`'s targets - are not shadowed yet; they are the next to move.
+  - **The Rust plays the page's timing** (slice 3a). `Session::animated` - set where somebody draws the
+    walks, as the page does - holds a fight a walk or a leap wakes until the tokens are drawn arriving
+    (`ambush`, `arrive`) and a use or a talk at the end of a walk until it is drawn ending (`approaching`,
+    `arrived`, `cancel_approach`); headless nothing is drawn and both happen at once, as before. While an
+    ambush waits nothing else is done (`busy`: a walk, a swing, a use, a jump, a preview), and nothing is
+    saved (`save_blocked_by`, as the TypeScript's says). `walk.golden.test.ts` gains sessions walked as a page
+    walks them - on the default project, and on the trip yard (the drill yard with the vault's fight woken by
+    the trip-wire's tile beside the door) - drawn arriving, ending or called off at random, and tours that
+    walk into the ambush and try a walk, a use and a save on the way before the tokens arrive; the view
+    records the ambush and the approach. `golden_walk.rs` replays them. 11 of 11 deliberate mutations of the
+    timing fail it.
+  - **A game played in step beside the page's** (slice 3b, its first half). In development the page now
+    runs two games: its own, and the engine built to WebAssembly playing every intent beside it
+    (`Shadow.mirror`, `src/game/shadow.ts`), the two held to each other after each one - the intent's answer,
+    and the board.
+    - **The board, once** (`server/engine/src/game/board.rs`, `src/game/board.ts`): the replica snapshot, the
+      fight's view and log, the question open as the panel draws it (its kind and prompt; for a script, the
+      conversation - which dialogue, the node shown and its replies, a reply's roll, who is having it - and
+      whom or what it is with), the walk's held fight and errand, the log, the dice still to be shown, the
+      container open, the conversations set aside, and the dice's state.
+    - **Every intent by its name** (`server/engine/src/game/dispatch.rs`, `Session::dispatch`): what
+      `GameClient` calls, with its arguments read as the page passes them and its answer written in the
+      TypeScript's shape - walks, swings, the turn, the walk's timing, cards, things, answers, the selection
+      and the party's links and order, a walk cut short (`landWalkers`, each walker at the spot the page
+      drew), what a view drains, the container window (`closeContainer`, `sellTo`), the test driver's hands,
+      and how the game stands (`board`, `restoreRng`, `restoreWalk`). The page's engine and, in 3c, the
+      server's games both take intents through it. The kit's and the walk's replays now give theirs through
+      it too, so its reading and its answers are held to those fixtures as well.
+    - **Project code in the page's engine** (`server/wasm`'s `HostHooks`): the module imports `host.hook`,
+      which the page answers by running the hook in the prelude QuickJS runs it in on the server
+      (`server/hooks/src/prelude.js`, loaded `?raw`); the hook's reads come back in through `hook_read`, which
+      answers from the world the hook was lent - a slot it is held in for the hook's run, since `call` has
+      the game borrowed throughout - and through `answer_read`, now the engine's and shared with QuickJS.
+      The page never throws back into the module: a failing hook says so in its answer.
+    - **What the page's reads leave on the game, told too.** Some of the page's questions mark the game they
+      read: the bar's `abilityList` names the actor, a shop window drawn reads the seller's stock and so
+      makes the seller's state, the right-click card reads a thing's. The engine is asked the same
+      (`abilityList`, `readContainer`, `readThing`), for the mark, its answer not compared. And the
+      container window's take, sell and close - and its shutting out of reach - which reached past the seam
+      into the game, are intents now.
+    - **Brought into step** only between questions, which have no form to send: built with the page's
+      table (`animated`, `askDefender`), told the replica, the dice's state, the walk's fight and errand, the
+      open container and the dice still to be shown (`restoreWalk`'s fourth argument - a shadow that arrived,
+      or a game brought back, while a roll waited on the tray parted on it at every intent until the tray
+      emptied). Where it parts it is out of step - the parting counted and reported to the
+      console as an error, so a spec that watches the console fails on it - until it can be brought in again.
+    - **Held**: `src/game/mirror.test.ts` plays the default project and the bar's workshop through
+      `LocalGame` with the very `.wasm` the page loads beside it - every member's coded cards (Mark the
+      Page, Rally the Line) and ground-aimed cards on purpose, then walks, swings, the GM's turn, things,
+      the party linked and set aside, the test driver's hands - and holds the partings to none and the
+      hooks' own lines to having been written. 9 of 9 deliberate mutations of the dispatcher, the board, the
+      face and the mirror fail it; 10 of 11 of the dispatcher's fail the kit's and walk's replays (the one
+      left, a card aimed at nobody, the mirror's harness catches). The whole e2e suite runs with the mirror
+      on: the dev server echoes the page's console, so a parting anywhere is in the run's log, and none is.
+  - **The page plays the Rust engine** (slice 3b, its second half, `src/game/wasm-game.ts`). `WasmGame` is
+    `LocalGame` with the roles turned round: every intent is played by the engine built to WebAssembly and
+    the engine's answer is the one the page is given; the page's own game is played beside it, intent for
+    intent, and held to it - because it is what the page's views read, the facade the plan called for being
+    the `DemoScene` that was already there, kept in step. Where the two part, the page's game is stood where
+    the engine's board says (`restoreFromBoard`, `src/game/board.ts`, with `Party.restore` and
+    `EncounterRunner.restore` beside the snapshots of 2a) and the parting is counted; a question waiting or a
+    conversation set aside the board cannot give back, and the page's game is out of step until the engine
+    has closed it. The pointer's questions are put to both and held to each other, the page's answer - in
+    its own shapes - given. The editor still changes the page's game, and the engine is built again and told
+    the game after (`edited`). `LocalGame` gives its subclass the three doors (`did`, `asked`, `edited`) and
+    nothing else changed in it.
+    - **The switch**: `?engine=wasm`, or for a whole dev server `VITE_ENGINE=wasm` - which Playwright's
+      server takes from the shell, so `VITE_ENGINE=wasm npx playwright test` runs the suite with the page
+      playing the engine. `gameReady` (at boot) and `gameFor` (a project loaded, which cannot wait) hand out
+      `WasmGame` from an engine instance kept ready - a module this size may not be instantiated at once on
+      the page's thread - and fall back to `LocalGame` anywhere the engine is not built or not chosen.
+      `window.__replica.playing()` says which the page plays, and `replica.spec.ts` holds it to the switch.
+    - **Held**: `src/game/board.test.ts` stands a fresh game where another's board says, step after step of
+      a game played at random - more than 200 steps, a fight in more than 50 - and holds the two boards
+      equal; `src/game/wasm-game.test.ts` plays both projects through `WasmGame` with the built `.wasm`,
+      partings held to none and the hooks' own lines read off the engine's own log; the random play both
+      tests share is `tests/fixtures/random-play.ts`. The whole e2e suite passes with the page playing the
+      engine (`VITE_ENGINE=wasm`), and parts nowhere.
+  - **The server's games** (slice 3c, `server/serve/src/play.rs`). A signed-in player plays one game at a
+    time at `/__play`, a websocket opened only with the session cookie the accounts gave them (401 without
+    one the accounts know) and from the page's own origin (403: the Origin's host must be the Host). Each
+    game is a thread of its own - `Session` and QuickJS are not `Send`, and a game plays one intent after
+    another anyway - owning its `Option<Session>` and a QuickJS hooks factory that compiles once per body of
+    code, asked over a channel and answering on a oneshot the socket waits on (`Tables`, one game per
+    account; `open` stands a new one up in place of the last).
+    - **The same face**: the messages the page's engine answers (`build`, `restore`, `call`, `ask`) moved
+      out of `server/wasm` into the engine (`engine::game::face::respond`), so the module in the page and
+      the server's games answer through one function and one dispatcher (`Session::dispatch`). The wire's
+      ops: `open` (the project, the shipped content and the page's table; the seed the server's own, 16 hex
+      characters, and the board), `call` (an intent: its answer and the board after), `ask` (the pointer's
+      questions) and `resume`; each answer carries the message's `id`, and anything refused is `{ id, error }`.
+    - **Kept for a while**: a game outlives its socket for `KEPT_FOR` (ten minutes), and a page that opens
+      the socket again `resume`s it; games left longer go when any socket next closes (`sweep`), their
+      threads ending with the channel. The content is still the page's (`shipped`, sent at `open`).
+    - **In development** `tools/rust-server.ts` passes `/__play` through to the server as a websocket
+      (`PLAY_URL`, `ws: true`), the Host kept as for every route, so the Origin check sees the page's own.
+      Nothing in the page opens it yet: that is 3d.
+    - **Held**: `server/serve/tests/play_routes.rs` plays a game on the server intent for intent beside a
+      `Session` played in the test's own thread from the server's seed - walks, the selection, a card that
+      runs the project's code in QuickJS, a fight with the defender asked how the GM's swing lands - the
+      answers and the boards equal at every step, the pointer's questions too, then kept and resumed; the
+      route itself over a real socket (no cookie, an unknown session, another origin refused; open, call, a
+      garbled message, close, and back to the same game); and a game kept for no time gone when its socket
+      goes. 10 of 10 deliberate mutations of `play.rs` fail it.
+  - **The wire** (slice 3d, `src/game/wire.ts`, `src/game/play-socket.ts`). In development, on a dev server
+    that keeps accounts, for somebody signed in (`serverWanted`; `?server=off` turns it off), every game the
+    page plays - its own (`LocalGame`) or the engine's (`WasmGame`) - opens a game on the server through
+    `/__play` and is held to it.
+    - **The server's seed from the start**: the page's dice go on from the server's game's as it opens
+      (its board's `rng`), and the page waits for that at boot, three seconds at most (`gameReady`).
+    - **Every intent sent up as it is played**: `LocalGame.did` is a template now - the wire told before
+      (`before`, which brings the server into step if it is out and can be), the intent played (`play`, which
+      `WasmGame` overrides where it overrode `did`), and the intent sent (`after`) with the page's answer
+      and board just after it kept, since the page plays on without waiting and more may have been played
+      by the time the answer is back. The answer and the board (its log since the server was told the
+      page's game) are held to the page's, counted as the mirror's are, and a parting is written to the
+      console with the question `server <intent>: <where>`; `window.__replica.server()` says where the wire
+      stands (`opening`, `fresh`, `in`, `parted`, `out`, `closed`, or `off`).
+    - **Restored from the server where they part**: what is still on its way up is played and held to
+      nothing, and when the last of it is answered the page's game is stood where the server's board says
+      (`restoreFromBoard`) and whatever plays beside it told (`edited`). A question open or a conversation
+      set aside, on either side, the board cannot give back: then the server is told the page's game
+      instead, before the next intent it can be.
+    - **Told the page's game** - a fresh game opened over the project as it is (`open`), then `restore`
+      (a new op on the server, which the face already had), `restoreRng` and `restoreWalk` - before the
+      first intent, after the editor has changed the game (`LocalGame.changed`), and after a parting it
+      could not be restored from. A project loaded closes the last game's socket.
+    - **Held**: `src/game/wire.test.ts` puts the very `.wasm` the page loads behind a stand-in for the
+      socket - the same face and dispatcher as the server's games, answering a tick late and in order,
+      a seed of its own at each open - and plays both `LocalGame` and `WasmGame` through it in bursts of
+      intents sent before the first is answered, partings held to none and the two games equal after; a
+      game wounded behind the page's back is counted as a parting and the page restored to it, and an
+      answer that is not the page's is a parting too; the editor's change opens a fresh game on the server
+      (one opened with lines already in its log, the page's dice rolled first); a closed socket closes the
+      wire. 12 of 12 deliberate mutations of the wire and `LocalGame`'s hooks fail it, and
+      `play_routes.rs`'s `restore` with them (11 of 11 of `play.rs`). `play-socket.test.ts` holds the socket
+      to writing each message as it is given, holding them until it opens, finding answers by id, failing
+      what waits when it closes, and to when the wire is wanted at all. In a real browser - the dev server
+      and the Rust server, signed in as admin, the vault's door picked and a fight to round nine - the wire
+      stood in step from boot and nothing parted, with the page's own game and with `?engine=wasm`, the
+      fight at sixty frames a second either way.
+    - **Not yet**: the e2e suite runs on the tests' server, which has no Rust server and so no wire. (A
+      question the server holds the page does not is shown from the server's board now - below.) The page
+      restored from the server's board after a parting has run only under the test's stand-in; a reload,
+      which restores it the same way, has run in the browser (below). A server that refused `restore` - never seen; the
+      mirror shows the replica goes there and back - would be opened afresh before every intent after.
+  - **Saves on the server** (`server/serve/src/saves.rs`, `src/game/account-saves.ts`). Signed in where the
+    server plays the game beside the page, the player's saves are the account's, in
+    `data/users/<account>/saves/` - `index.json`, the slots as the page lists them, and each save's text
+    beside it as `<id>.json`.
+    - **Written by the server's game**: a save is the socket's `save` - the game saves itself, its own text
+      (`Session::serialise_save`), into the slot the page names or a fresh one, refused for the reason the
+      game gives (`save_blocked_by`: in a fight, a question open). `Wire.save` holds that text to the page's
+      own by value - key order is not the game's - and counts a parting where they are not the same; the page
+      never sends a save's text to be written.
+    - **The page asks as it always did**: `SaveShelf` is what `SaveSlots` (the browser's) and `AccountSaves`
+      (the account's) both are, so `main.ts` changed two lines. The account's slots and their texts are read
+      from `/__saves` as the page boots (`gameReady`), and kept: a save is listed at once, the server's text
+      and slot put in its place when its game has written it, and the slot as it was put back when it would
+      not. When the server is not in step to save, the player is told so (`SaveShelf.refused`). The main
+      menu's Load Game lists the account's saves.
+    - **The browser's move up**: the first time a browser signs in, the slots it kept for that player are
+      sent to `/__saves/import`, which takes those the account has not got and keeps the rest as they are;
+      the browser's copies are left alone, and a mark in the player's own storage says they have moved.
+    - **The routes** (`/__saves`, signed in): the slots, a save's text, `remove` and `import` - the two
+      POSTs from the page only. A slot's id is a file's name, never one that climbs out of the folder or
+      names the index; a file in the folder the index does not list is not a save to read. The dev server
+      passes `/__saves` through (`SAVES_URL`).
+  - **A connection that comes back** (`wire.ts`). A dropped connection loses what was on its way; the page
+    plays on, sending nothing (`lost` - since 16 October 2026 as the socket closes, not only when a message sent
+    on it fails), and connects again after half a second, then a second, two, four
+    and on to thirty (`RETRIES`), closing when they are spent. Back, it asks for the game the server kept
+    (`resume`, which now says the project the game is of): kept, of this project, the server is told the
+    page's game, which went on without it; gone - the server restarted, ten minutes passed - a fresh game
+    is opened and told it. Told the page's game, the server's is now also told its log (`restoreLog`, a new
+    intent, as the mirror and `WasmGame` are told it too) - a load puts its own log in place of both, and two
+    logs cut at different lines part on it - and drained of the walks and numbers it held for a view, which
+    the board does not carry and the page's views will never show.
+    - **A page reloaded comes back to its game**: when the browser says the page was reloaded (its
+      navigation's `type`), the page asks first for the game the server kept; kept, of the same project,
+      with no question open in it, the page is stood where it is - the room, the party, the log, the dice
+      - and a save the address names is not loaded over it (`resumed`). Opened any other way - from the
+      menu's Load Game, say - the page opens a fresh game as before, so a choice made in the menu is never
+      undone by a game left on the server.
+  - **Held**: `saves_routes.rs` - the folder (slots overwritten in place, another player's apart, ids that
+    climb out refused, the index no slot), the routes (signed in, the writes from the page only, an import
+    taking only what the account has not got) and a game on the server saving itself into its player's
+    folder: the text a session played beside it saves, a slot named and a fresh one, refused in a fight. 10
+    of 10 deliberate mutations fail it. `account-saves.test.ts`: the move up (once, only what the server has
+    not got, tried again if refused, the browser's left), the slots and texts read at boot (one whose text
+    will not come not listed), a save listed at once and its server text kept, put back when refused, the
+    refusal said. `wire.test.ts`: a save through the very engine standing in for the server, the engine's
+    text the page's by value, a save not the page's and one refused each a parting; a dropped connection -
+    intents on their way lost, the page playing on, back to the game kept and told the page's, then dropped
+    again with the game gone and the server down for a while, tried again until it is up and a fresh game
+    opened - and a save loaded after, in step; a page reloaded coming back to the game kept (the room, the
+    log and the dice the old page's) with the mirror beside it and a save loaded after, and another
+    project's page, and a page whose game is gone, opening their own. 6 of 6 deliberate mutations of
+    `account-saves.ts` fail its test, and 9 of 9 of the wire's coming back, its log and its save fail
+    `wire.test.ts` - the log told the server among them once the test loaded a save with lines in its log
+    into a game whose own log and the page's were cut at different lines. In a real browser, the dev server and
+    the Rust server, signed in: a slot left in the browser moved up and kept there, a quick save written by
+    the server's game into the account's folder and the same as the page's, a quick load back to it, a reload
+    back to the very spot, the Rust server killed mid-game and started again by hand and the page back in step
+    with it - nothing parted.
+  - **A question the server's game holds, shown from its board** (`wire.ts`, as the plan had it). A
+    question is a script paused part-way - a roll it waits on, a defender asked how a hit lands, a line of a
+    conversation - which no board carries, so the page's game cannot be given one back. Where the page is
+    stood where the server's board says - after a parting, after a reload, after a connection comes back -
+    and that board holds a question, the page shows it (`asked`): `shownFrom` makes what the views read of a
+    question from the board's projection - its kind and prompt, the thing it came from and whom it is with,
+    and for a conversation its node and that node's lines found in the page's own project by the ids the
+    board gives, its options the server's - and no runner. The answer is not played on the page: it is sent
+    up without predicting it (`whileAsked`), the page saying it waits and refusing a second answer meanwhile,
+    and the page is stood where the server's board says after - the next question shown the same way, or
+    none and in step. Anything else is played on the page's game alone, which refuses it as it would with any
+    question open, and is not sent; the conversations are not set aside here (`syncTalks`), which a stand-in must
+    not be - one of the page's player's is set aside there (a conversation its talker's player's, below). A
+    question the page held that the server's game does not is dropped with the rest of the page's game. A
+    conversation set aside is known to the page's engine by name, its runner the server's (`restoreAside`). A
+    dropped connection keeps the question shown and shows it again where the kept game now is; a game gone lets
+    it go.
+    - **Drawn again when the game changed under it**: a board that stands the page somewhere else comes in a
+      socket's message, between frames, not in answer to a click; `GameClient.changedBehind` says so, and the
+      frame loop draws the page again (`refreshPlay`) - one line of `main.ts`, on another.
+    - **Held**: `wire.test.ts` has the server's game open a question behind the page's back - Kara stood at
+      the vault door and the lock picked, Kara stood at the Warden's pillar and spoken to - and holds the
+      page to showing what the server's board says, the views' own reads of it included (the roll's prompt,
+      the conversation panel's lines and options, where the camera holds); to refusing a walk, keeping the
+      conversation where it is and sending nothing; to sending the answer and not playing it, a second answer
+      refused, the roll's lines arriving with the server's board; and to being in step after - with the page's
+      own game and with the page playing the engine. A page reloaded with the question open comes back to it;
+      a dropped connection shows it again, and lets it go when the game is gone. 12 of 12 deliberate
+      mutations of the asking and the page's routing to it fail these. In a real browser, the dev
+      and Rust servers, signed in: the page reloaded with the door's roll open came back to it, the Roll
+      button on screen, and the click played the roll on the server ("Success, with Shadow" - the door
+      opened); reloaded in the middle of the Warden's conversation, it came back to the panel and its three
+      options, and "Who are you?" brought the Warden's answer and the next - nothing parted.
+  - **The server's game is the one the page plays** (phase 3 done). As 3a re-planned it, a synchronous seam
+    cannot wait on a socket: the page plays the engine built to WebAssembly (`WasmGame`) for an answer at once,
+    its own game beside it as the shadow the views read, and the server's game is the one that counts - the
+    seed its own from the start, every intent played there and held to the page's, the page stood where its
+    board says wherever they part, a question it holds shown from its board, the saves its game writes.
+    - **The suite on it** (`npm run test:e2e:server`, `tools/e2e-server.mjs`, `TACTICAL_E2E_SERVER=1`): the
+      tests' server, still opening the demo from code and refusing every save, starts a Rust server of its
+      own on 8431 over a scratch folder (`tests/e2e/server-mode.ts`; never the repository's `data/`) and passes
+      it three routes only - signing in, the games, their saves (`PLAYED_ROUTES`) - never the project or what
+      saves it. The page plays the engine (`VITE_ENGINE=wasm`) with the wire on under the tests' boot
+      (`VITE_E2E_SERVER`). A setup project (`sign-in.setup.ts`) waits for the server to build and answer and
+      clears the last run's accounts; each test's browser is signed in to an account of its own before its
+      page loads (`tests/e2e/fixtures.ts`, which every spec now imports in place of `@playwright/test`, and
+      which is Playwright and nothing else in the other modes) - its own game on the server, its own saves.
+      `replica.spec.ts` holds the run to it: the page playing the engine, and the wire in step with the
+      server's game at the end of a fight.
+    - **The page's dice, for the tests only** (`--dice-from-page`, `Tables::with_dice_from_page`): a server
+      picks a seed of its own for every game, and the suite is written against the page's own seeds - a chest
+      roll that pays out, a strongbox that hands over a level. The tests' server sets a game's dice where the
+      page's are when it opens (`rng` in `open`, which any other server ignores); every intent is still played
+      on the server and held to the page's.
+    - **What the run found**, each fixed: the rooms left behind were not on a board - a page stood where the
+      server's board says, after a reload, lost every room but the one it was in, and travelling back parted
+      on the chest the server remembered emptied - so the replica carries them now (`rooms`, in both engines;
+      the replica fixture's play travels, 308 of its 560 steps with rooms left, and so does the play the
+      board, mirror, `WasmGame` and wire tests share); what the page's views had still to draw was not told
+      an engine brought into step - walks played while the connection was down parted the next drain - so
+      it is now (`restoreViews`), and the page's own is dropped when it is stood where the server's board
+      says; closing a wire mid-telling counted the messages cut off as a parting; and a condition's id was
+      written into the log for its name ("shakes off restrained"), in both engines - its own commit. Tests that
+      assumed nobody was signed in learned there is somebody (the menu offers to sign out and has the Store;
+      a camp is kept under its player's key), one whose premise is no accounts at all is skipped, and the save
+      test's reload comes back to the game kept and walks out of it before loading.
+    - **Held**: the whole suite, three ways - 203 with its games played on the server (one skipped there:
+      the no-accounts test), 203 with the page's own game, 203 with the page playing the engine - and
+      nothing parted in any. 4 of 4 Rust tests hold the tests' server to taking the page's dice and no other
+      server to it, the rooms and the views' queues each have one, and `rust-server.test.ts` holds the tests'
+      routes to the three and the server's arguments to the scratch folder and the flag.
+  - **Next**: phase 4, below.
+- **Phase 4** - started 3 October 2026, as designed above (the TypeScript game quarantined, then deleted).
+  - **The engine always plays** (slice 1). `WasmGame` is the page's game wherever the engine is built - in a
+    build as in development (`engineModule` no longer development's alone; the mirror still is) - and
+    `npm run build` / `npm run build:server` compile it first. The page's own game plays only when development
+    asks for it (`?engine=ts`, `VITE_ENGINE=ts`), while it is the oracle; a build cannot ask (`engineChosen`).
+    `npx playwright test` now runs the suite on the engine, `VITE_ENGINE=ts npx playwright test` on the page's
+    own game. A build for the Rust server (`npm run build:server`, then `npm run server`) opened in a browser
+    played the engine: the vault door picked, nothing parted, no error.
+  - **Filled from the engine's board** (slice 2). `WasmGame` no longer plays an intent in the page's own game: the
+    engine plays it and answers, and the page's game is stood where the engine's board says whenever the board,
+    as the engine writes it (`WasmEngine.boardText`), has changed since the last time - which the drains every
+    frame leave as it was. Only the three reads answered in the page's shapes (`abilityList`, a container read,
+    a thing read) still run there, on the filled game. The pointer's questions are still put to both.
+    - **A board filled, not re-derived** (`restoreFromBoard`): the question open shown from the board
+      (`shownFrom`, moved from the wire), the conversations set aside known by who is having them
+      (`asideFrom` - the engine holds and plays them; the board already said who), the GM's turn as far as the
+      board says (who has been spotlighted); the same room's state put back in place on the ground the page
+      holds - which the editor changes under it (`takeGround`) and no snapshot carries; and the pools the
+      board's, not derived again by the page's rules.
+    - **What the suite found on the engine alone**, each fixed: re-entering the room on every fill threw the
+      editor's ground away (a wall placed, a platform carried - and the walk went through them), and deriving
+      the pools again overwrote what the engine gave (an armour score from a project's own card), which the run
+      on the server caught as a parting.
+    - **Held**: `wasm-game.test.ts` plays both projects at random, 360 steps, the page's board held to the
+      engine's after every one and a spy holding the page's own game to playing nothing but the three reads; a
+      lock's roll held by the engine, shown on the page and answered there; the Warden's conversation read by
+      the page's own views, set aside when somebody else is selected and back when she is. `board.test.ts`
+      holds the same room kept and another entered, and the board's pools taken. 9 of 9 deliberate mutations of
+      the filling fail them. The wire's tests settle only while an answer is out now, not for 400 ticks
+      regardless: 26 seconds for all eleven, where one took 210 and timed out under load.
+    - **Not yet**: the wire still cannot stand the page where a server's board says while a conversation is set
+      aside: the page's engine is then told the page's game, which carries no paused script.
+  - **Quarantined** (slice 3). The page's own game's rules - every intent it plays - are the oracle now, and
+    the page's bundle carries none of them.
+    - **The table and the rules apart** (`src/game/client.ts`): `GameTable` holds the board, every intent by its
+      name, the queries - the views over the page's game, which stay the page's - and the editor's and the test
+      driver's hands; an intent names the rule it would play on a table of rules it is given (`Plays`, a type
+      only, which the bundle erases) and never imports it. `WasmGame` is a table the engine plays and is given
+      no rules - a rule touched there throws, rather than plays - and `LocalGame` (`src/game/oracle/`) is the
+      one given them (`oracle/plays.ts`, the one place that imports the rules), with the development mirror. It
+      is loaded by an import only development makes (`loadOracle`), which a build drops: the page's own game
+      plays only when development asks or where the engine was never built; a build without the engine has no
+      game, and says so.
+    - **A question the server holds, with the engine playing**: anything but its answer is played by the page's
+      engine, told a question is open (`questionOpen`, which it honours), and so refused as the page's own game
+      refused it; a fill from that engine keeps the question the page shows, which its board only knows is open.
+    - **Held twice**: `tests/unit/oracle-quarantine.test.ts` walks the page's imports from `src/main.ts` - those
+      that load with a module, not types and not imports made on request - and no module under
+      `src/game/oracle/` is reached, while the tests do reach it; and every build checks its own bundle
+      (`tools/bundle-guard.mjs`, run by `npm run build` and `npm run build:server`) for words only a rule writes
+      into the log, failing where one is there. The rules live in modules the page still loads for its model and
+      its views (`demo-scene.ts` and the rest): it is the bundler that leaves them out, once nothing the page
+      runs names them. 3 of 3 deliberate mutations fail these - the oracle imported with the page, a question
+      only told of dropped by a fill, the oracle loaded in every build (the build's guard failing) - and a build
+      made under Vitest, where development is on and the oracle's import stays, failed the guard as it should.
+  - **Next**: phase 5, multiplayer - designed above - beginning with the oracle deleted.
+- **Phase 5** - started 3 October 2026, as designed above (multiplayer).
+  - **The oracle out of every path that runs it** (slice 0a). `LocalGame` and its rules table, the mirror
+    (`Shadow`, `shadowFor`), `?engine=ts` and `VITE_ENGINE=ts`, and the seven writers of the game layer's
+    fixtures are gone; the fixtures stay, frozen, and the Rust is still held to them. An intent on the table
+    (`GameTable`) is its name and its arguments, nothing of a rule; the engine is the page's only game, and a page
+    whose engine was never built has none. The tests that played the page's own game beside the wire, the board
+    and `WasmGame` stand on the engine now - the board's proof checks every step, a question open or a
+    conversation set aside included, where it skipped those. Moving them found one more thing a page told the
+    server wrongly: after a reconnect it said its views had nothing to draw, reading the page's game, while the
+    engine playing it held walks still to be drawn - the engine is asked now (`views`, read and left where it is).
+    The suite runs in two modes: on the engine, and on the server.
+  - **The server's game trusted alone** (slice 1). Once opened, the server's game is never told how a page's
+    stands: the `restore` op is gone, and the intents that tell a game another's dice, walk, log and views'
+    queues (`restoreRng`, `restoreWalk`, `restoreLog`, `restoreViews`) and a save's text (`loadGameText`) are
+    refused by every server (`serve::play::NEVER_TOLD`). The wire (`wire.ts`) stands the page where the
+    server's board says and nowhere else: at once when the game opens (what the page played while it opened
+    sent behind the opening, and the page stood where the last of it leaves the server's game); where the
+    game kept is when the connection comes back - what the page played alone in between undone - or where a
+    fresh one is when it was gone; and, an intent refused, where the server says its game is when asked
+    (`resume`). The `fresh` and `out` states and the telling (`bringIntoStep`) are gone, and so is the `views`
+    peek that served it. A save is loaded by its slot (`{ op: "load", slot }`): the server reads its own copy
+    from the account's folder. The editor's changes make a game the server's never was: entering the editor,
+    or a change to the game in play (an undo, a pack imported), closes the wire, and the editor's playtest is
+    the page's alone. A walk cut short is put down only within `SLACK` (three quarters of a tile) of the line
+    the game gave the walker - the motion still to be drawn, or the one a view drained, in the room it was
+    walked in - and once (`engine::game::landing`), the page's engine holding it the same. The test driver's
+    hands (`serve::play::TEST_HANDS`: `placeAt`, `setGood`, `wound`, `markStress`, `setCondition`, `giveItem`,
+    `grantLevel`, `setCards`, `startEncounter`, `travelTo`) are taken only by a server started for the tests,
+    `--for-tests` - which also takes the page's dice, and which replaces `--dice-from-page`
+    (`Tables::for_tests`). Every one of the 11 deliberate mutations - the page not stood at an open, a kept
+    game, a fresh one, or after a refusal; the wire left open after the editor; a save sent as text; what is
+    played while opening not sent; the line not checked, or used twice; the hands or the telling taken by any
+    server - fails a test.
+    - **Still sent by the page**: the project and the content a game is played over, at `open`; and the page's
+      own lines in the log (`note`: a save made, a card with nowhere to aim), which are for slice 4 to make the
+      page's alone.
+    - **The hands on the dev server**: a person signed in on `npm run dev` plays with a server that is not the
+      tests', so the driver's hands (`__engine.setCards`, `standNear`, `startFight`...) are refused there - the
+      page plays them, the server refuses, and the page is stood back where the server is. Signed out, the page
+      plays alone and they work as before.
+    - **The page's engine forgets the walked lines on a retell**: standing the page where the server is builds
+      the page's engine afresh (`toldFromThePage`), so a walk cut short just after a stand is refused there
+      and taken by the server - a parting on `landWalkers`, healed by the next stand. The shared game (slice
+      3), which stands the page at every push, is to carry the lines across.
+  - **The rules themselves deleted** (slice 0b, which closes slice 0). What the page's bundle no longer reaches
+    was listed by the bundler itself - a build whose plugin read each module's kept exports off rolldown - and
+    cut: four modules whole (`interaction.ts`, `arrival.ts`, `cues.ts`, `use-item.ts`), 53 play functions from
+    fifteen more (`demo-scene.ts` from 4,377 lines to 841), and, carried to a fixed point, the 50 declarations that
+    reached only them, and what those alone used. A second build held every export the page kept before to being kept still; the three
+    it lost were a container window's own Take and Sell, closures that played the rules beside the engine's
+    intents (`containerView` takes its acts from the game now). `GameClient` writes its intents' signatures out
+    (`Args`), no longer reading them off the rules. Of the tests, a test was cut where its body reached a cut
+    rule, directly or through a helper of its file's own - 11 files gone, 23 trimmed to what they still test -
+    and the views that lost their only tests with them were tested again: the shop, the chest and the window
+    over them on the engine (`shop.test.ts`, `WasmGame` over the `.wasm`), and the queries the pointer asks
+    (`shapeAt`, `statBlockCards`, `jumpArc`, `underPressureTiles`, `syncPools`). 2,760 unit tests are 2,189.
+    The engine core's golden writers begin their fights with a copy of the old `startEncounter`
+    (`tests/fixtures/fight.ts`), and the fixtures they write are byte for byte what they were. The bundle's
+    guard looks for the engine alone: the rules' words it looked for are nowhere now.
+    - **Lost with them**: some 570 rulings the TypeScript tests wrote down - the defence, the cards, the GM's
+      turn, an authored scenario's play. The Rust is held to the same behaviour by the frozen fixtures it
+      replays and its own tests; the rulings' honest home is Rust unit tests, ported as each is touched.
+    - **The engine core the page no longer reaches**: `engine/scene/interact.ts`, `engine/combat/area.ts`,
+      `engine/combat/adversary-features.ts` and `engine/script/thing-effects.ts` are bundled no more; they stay
+      while the Rust core's golden writers use them.
+  - **In a build, through a tunnel** (slice 2). The page plays with the server wherever there is one
+    (`hasServer`): a dev server, and now the build the Rust server serves (`npm run build:server`); a static
+    build still has none. The server reads a request for where the page was loaded from: the first
+    `X-Forwarded-Host` a proxy set, else `Host` (`accounts::page_host`). That host is beyond this machine when
+    it is not `localhost`, a `127.*` address or `::1` (`beyond_this_machine`). Every check of the page's own
+    origin - a POST's (`from_the_page`), the games' websocket - is held to that host (`same_origin`), so a
+    tunnel that rewrites `Host` to the server's own address still lets the page in, and another site still is
+    not. The session cookie is `Secure` when the page came over HTTPS (`over_https`: its origin, or
+    `X-Forwarded-Proto`). From beyond this machine `admin` does not sign in with the password it was made with,
+    and nobody makes an account unless the server was started with `--sign-up` (`Keeper::with_sign_up`,
+    `Settings::sign_up`, which a served build now takes too). The private card art in `public/cards/` is
+    decided per request: this machine's alone, so a tunnel - which connects from this machine - is handed the
+    build's. Proved end to end by `npm run test:e2e:tunnel` (`playwright.tunnel.config.ts`, `tests/tunnel/`).
+    The build made for the server is served by the Rust server over a scratch folder, behind a proxy that
+    rewrites `Host` as the strictest tunnels do, and a browser asking for `friends.example` follows a friend's
+    path: admin's first password and a new account refused, the art withheld, a locally made account signed
+    in, the game opened over the websocket, an intent played on the server with nothing parted.
+    `docs/HOSTING.md` says how to run it for friends; each plays their own game until slice 3.
+  - **A shared game** (slice 3). A game on the server has an id of its own, a host - who opened it - and an
+    invitation (`play.rs`, `Tables`): a page opened with it (`?join=<invitation>`) reads the game's project from
+    the server before it is built (`GET /__play/join/<invitation>`, `project-store.ts`), then joins
+    (`{ op: "join", invite }`) and is stood where the game is. Each player is at one game at a time; a game is
+    kept until ten minutes after the last socket at it closes. Every intent's answer carries what it gave to
+    draw - the walks, the numbers over heads, the dice - taken off the game's queues as it is played (`views`,
+    through `takeMotions`, which keeps the walked lines, `takeFloaters` and `takeRolls`), and the board and
+    those views are pushed to every other page at the game (`{ push }`), which is stood there with them
+    (`wire.ts`). A page's own walks, numbers and dice are its own engine's: never sent up (`LOCAL`), and the
+    dice not held to the server's board. Answers and pushes leave the game's own thread into each connection's
+    one queue, so a page is told them in the order the game played them; the server numbers the intents it
+    plays (`seq`), and a page holds an answer to what it predicted only when no other page's intent came in
+    between - one that did is no parting, only the page stood where the game is. What a page sends as it draws
+    itself - the bar's read of the cards, a thing or a container looked at, the conversations put where the
+    selection says (`DRAWN`) - is played and numbered but not pushed: each page's drawing pushed to the other,
+    which drew again and pushed back, without end. Who plays whom (`seats`) is the host's to say
+    (`{ op: "seat" }`), of somebody at the game, and every page is told the table (`{ table }`: the host, the
+    members, the seats, the invitation) and who it plays as (`you`); the settings show it (`ui/Players.tsx`,
+    `shared-game.ts`). Loading a save is the host's alone at a game others are at. The page's engine, built
+    again whenever the page is stood, is handed the lines its walkers were given (`walkedLines`,
+    `restoreWalked`, never told to the server's game), so a walk cut short after another page's intent is held
+    to the same line on both - slice 1's gap, closed. Proved by the server's tests (a game opened, joined with
+    its invitation and not with another, each intent pushed to the other connection only, the seats, a guest's
+    resume and load, kept while anybody is at it, the guest's project read), the wire's (joined, pushed, two
+    pages playing at once with no parting, seated, a walk cut short after a push) and the e2e on the server
+    (`shared.spec.ts`: two browsers, two accounts, each one's walk reaching the other, the host seating the
+    guest, the guest refused, the Players section, nothing parted on either).
+    - **Not yet** (then): who may act - slice 4, below. The lobby, and a shared game's saves its host's
+      (slice 5). A page corrected after its own prediction parted keeps its own dice to show, not the server's.
+  - **Who may act** (slice 4). Each player acts with their own characters: the one they are seated in, and the
+    host whoever nobody is (`engine::game::seats`). The rule is the engine's, written once and played on both
+    sides: a game is told whom it plays for (`restoreSeating` - the account, the host, who plays whom, and whom the
+    account last had selected), and an intent for a character that account does not play is refused as the engine
+    refuses anything, in the answer's own shape, nothing changed and nothing written in the log (`not_yours`):
+    another's selected, a card, a jump, the gear, a level, a swap, a place in the party (`link`, `unlink`,
+    `dropCard`), a walker put down (`landWalkers` puts down the account's own and nobody else's), another's errand
+    finished or called off (`arrived`, `cancelApproach`), a rest (the host's word), the turn handed over by somebody
+    who plays nobody. On the server the game's own thread tells it before every message of an account's
+    (`play.rs`, `play_for`) - never a page, which is refused it (`NEVER_TOLD`); in the page the page tells its own
+    engine from the table the server told it (`Wire.seating`, at every stand and every change of seats), so the
+    engine in the page refuses what the server's refuses, the page's prediction and the server's answer agree, and
+    nothing parts. Told nobody - a game nobody shares, the engine's own tests and fixtures - the game plays for
+    everybody, as before.
+    - **The selection each player's own.** The game holds one selection at a time, so the server keeps each
+      account's between its intents (`Shared::selected`) and selects it before the account's next; the engine keeps
+      it among the account's own (`keep_selection_own`: theirs, else the first of theirs standing, else nobody -
+      a guest seated in nobody has nobody selected), and the next is chosen among them (`selectNext`). Every board
+      an account is handed - an answer, a push, the game it joins or comes back to - carries its own selection, a
+      change of selection alone is pushed to nobody (`unselected`), and when the seats change every account's is
+      kept among its own at once. Every intent that acts through the selection - a walk, a swing, a thing used or
+      taken, a sale, an errand begun - is so the account's own. (The first run of the two browsers found the
+      rewriting writing `"push": null` into every table it handed on - serde_json's indexing inserts what it does
+      not find - which the page's wire took for a push; it reads the push now, and a table is asserted to carry
+      nothing else.)
+    - **The turn, as decided.** Out of a fight, anybody acts with their own at any time, the server putting the
+      intents in order. In one, the encounter's turns are the engine's as they were (`can_act`): the party's
+      spotlight shared - each player acts with their own - and the GM's turn after; handing the spotlight to the GM
+      is for anybody who plays somebody.
+    - **A question put to its character's player.** Every question says whom it is put to (`pending_for`, the
+      board's `pending.for`): the defender asked how a hit lands, the one a reaction is offered to, the one making a
+      death move, the one having a conversation, the one a script rolls as. Only that character's player's answer is
+      taken (`answerPending`); a question about nobody in particular is the host's. The page shows it to them alone
+      (`shared-game.ts`: `playsFor`, `answers`), and the others whom it waits on (`waitingOn`: "Waiting for Finn to
+      answer for Kara.", the panel's `waiting-on`); a conversation another is having is heard and held, not
+      answered (`talkingView`).
+    - Proved by the engine's tests (`server/hooks/tests/seats.rs`: everybody played for when told nobody; another's
+      refused in each shape, the game unchanged; the host's unseated and nobody else's; the account's own choice;
+      only the account's walkers put down; the defender's question answered by its player alone; an errand its
+      walker's; the spotlight in a fight handed over only by somebody who plays somebody; a save loaded with
+      another's selected leaving the account's own), the server's (`play_routes.rs`: a guest seated and pushed their
+      own selection at once, a guest selecting another's refused, refusals pushed to nobody, a
+      page refused `restoreSeating`, each account's selection kept through the other's intents and on every board
+      it is handed, the defender's question answered only by its player), the wire's (another's refused on the
+      page as on the server with nothing parted, each page's selection kept through the other's intents, kept
+      among its own as the seats change, another's errand not even sent, a question shown to both and answered by
+      its player alone), the board's (`for` carried for every kind of question) and the e2e on the server
+      (`shared.spec.ts`: the guest selecting nobody until seated and refused the host's, seated and walking their
+      own with the host's selection kept, the host refused the guest's, the host's roll at a door shown to the host
+      and waited on by the guest). Every one of the 24 deliberate mutations - the seats ignored seated or unseated,
+      the named intents or the answer unchecked, the selection not kept own or not chosen among the account's, a
+      walker or an errand anybody's, the defender put to nobody, the turn anybody's, the game never told whom it
+      plays for, a pusher's selection pushed, a selection alone pushed, a page telling the server's game, the
+      selections not kept as the seats change, the page's engine not told at a stand or a change of seats, a
+      question shown for nobody, another's errand sent, the wait said by an account's id - fails a test.
+    - **Not yet**: one errand at a time in the game - a guest's walk up to something replaces the host's that is
+      still walking (since done: an errand for each player, below); each player choosing their own downtime moves at a rest (the host rests the party, choosing for
+      everybody - since done: a rest the party agrees to, below); the lobby, and a shared game's saves its host's (slice 5).
+  - **The lobby** (slice 5). A game is hosted as a lobby: the menu's Play Together opens any game Load Game lists, or
+    a save of it, with `?host`, and the page opens its game on the server as one (`{ op: "open", lobby: true }`,
+    `WireOptions.lobby`). A game so opened has not started (`Shared::started`, the table's `started`): friends join
+    it with its invitation - opened, or pasted into Play Together's Join (`inviteFrom`) - and take their seats
+    themselves, a seat nobody has taken or their own left again (`seat`, which before the start is anybody's for
+    themselves and after it the host's alone, as it was), and the host starts it (`{ op: "start" }`, the host's
+    alone, once; every page told). Until then nobody plays anybody, the host no more than the rest: the seating the
+    game is told carries whether it has started (`Seating::started`), and before then `may_play` is nobody's, so
+    every intent for a character is refused in its own shape and nobody is selected - on the server, whose game is
+    told so at the open (`play_for` after `open`) and before every message, and in each page, whose engine is told
+    from the table - so nothing parts. Started, each account's selection is chosen among its own at once, as when
+    the seats change. The host may load a save into the lobby (`?load=` with `?host`). The page draws the lobby over
+    the board until the start (`ui/Lobby.tsx`: the invitation, who is at the table, each seat with Take or Leave -
+    the host's a choice of anybody - and Start, or whom the others wait on). A game opened the ordinary way starts at
+    once, as before: solo play, the fixtures and every single-page test are unchanged.
+    - **A shared game's saves are its host's.** The server refuses a save from anybody but the game's host ("the
+      host keeps this game's saves"), as it already refused a load; the host's goes into the host's own folder, as it
+      did. A guest's page sends none: its game says why it may not save (`GameTable.saveBlockedBy`: `KEPT_BY_HOST`,
+      from `Wire.keepsSaves`), so the settings' Save buttons are shut with that reason and the autosave at a doorway
+      is skipped, and the shelf refuses a quick save without sending it (`AccountSaves.write`) - a refused save would
+      be a parting.
+    - Proved by the engine's tests (`seats.rs`: a game not started plays nobody, the host no more than a guest - every
+      refusal in its shape, the game unchanged, nobody selected - and each their own once started), the server's
+      (`play_routes.rs`: a game opened plainly started, a lobby not; nobody plays before the start, nothing pushed for
+      it; a guest takes a seat nobody has, is refused one somebody has and another's, leaves their own and takes it
+      again; only the host starts it, once, everybody told and the guest's own selected; the seats the host's again
+      after; the guest's save refused and nothing written, the host's written; a lobby opened with the host's save
+      loaded into it), the wire's (a lobby: nobody playing on either page with nothing parted, a seat taken, the start
+      refused the guest and taken from the host, each page's own selected at once; a guest's page saving nothing and
+      sending nothing), the page's (`shared-game.test.ts`: the seat rule with a game not started, `seatFor`, `start`,
+      `lobbyAsked`, `inviteFrom`; `start.test.ts`: `?host`) and the e2e on the server (`shared.spec.ts`: the host's
+      demo hosted from Play Together, a lobby, the host refused a selection; the guest's wrong link refused and the
+      right one joined from the menu, waiting on the host; a seat taken with the Take button and shown to the host;
+      Start, the lobby gone from both, each with their own selected; the guest's walk reaching the host; the guest's
+      Save shut with the reason; nothing parted).
+    - **Not yet**: a save keeps nobody's seats - hosting it again, the players take theirs again (since done, below);
+      a lobby hosted
+      from Play Together offers only the games and saves this browser and account have; a guest cannot see the
+      host's saves, nor ask for one to be loaded.
+  - **An errand for each player** (after slice 5, 13 October 2026). A walk up to something to use it, or to somebody
+    to talk to them, is an errand (`Session::approaching`, now a list): a new one replaces the errands of the walkers
+    the account plays and leaves the others' (`movement.rs`, `errand`), so a friend's walk up to a chest no longer
+    calls off the host's to a door - and a player alone, who plays everybody, still has one at a time, which keeps
+    the frozen walk fixtures true (`golden_walk.rs` reads the first). `arrived` and `cancelApproach` act on the
+    account's own errands alone (the seats' refusal of another's is no longer needed: there is nothing of another's
+    for them to touch). A walk that wakes a fight calls every errand off as the fight begins (`arrive`). The board's
+    `approaching` is the list, and `restoreWalk` takes it. In the page, an errand finishes when every walker its player plays is
+    drawn stopping - the party that followed too, as a player alone always waited for - whoever else's still walk,
+    and not while a walk has woken a fight (`GameTable.arrivedWhereDrawn`,
+    in place of waiting for every token to stop); a page with no errand of its own sends nothing. Proved by the
+    engine's tests (`seats.rs`: the host's and the guest's errands side by side, each called off and finished by its
+    own player alone; one at a time for a player alone; a fight a walk wakes calling off everybody's) and the wire's
+    (both errands on both pages and the server, the guest's finished when the guest's walker stops while the host's
+    still walks, the host's left standing, nothing parted). The e2e drives errands through the driver's `approach`,
+    which finishes them at once, so the two at once are proved in the engine and the wire alone.
+  - **A shared game's saves keep who plays whom** (13 October 2026). The host's save writes the table's seats into its
+    slot (`saves.rs`, `Slot::seats`; left out of a game nobody shared, so every slot written before reads the same),
+    the seats kept for players not back yet among them - not into the game's own save text, whose format is the
+    engine's and frozen. Loading a slot with seats (`load`, the `keep` the server reads off the slot) seats each
+    player at the game in their own at once and keeps the others' (`Shared::kept`, the table's `kept`: character to
+    `{ id, name }`): a kept seat is its player's the moment they join (`seat_the_kept`), and nobody else's to take
+    in the lobby; the host's word over one ends the keeping. Every page is told the table after such a load, the
+    loader's too. So the host hosts last week's save from Play Together, the lobby says whose each seat is ("Kept for
+    Finn"), and Finn, opening the new link, is seated in his own and has it selected when the host starts. A seat
+    change, the start, and the seats a load gives are numbered as an intent is (`seq`): what an account's game
+    answers changes with them, so an answer to an intent a page sent before it heard is no parting (the e2e found
+    this - a guest's drawing answered just after the start, with their own selected). Proved by the server's tests
+    (`play_routes.rs`: the seats saved, the kept ones too; a lobby loading the save keeping both players' seats;
+    the host giving one away; the other refused a kept seat and not seated in the one given away; the first seated
+    on joining and selected once started; a load with everybody at the game seating them at once; the seat change
+    numbered), the page's (`seatFor`: a kept seat nobody else's to take) and the e2e on the server (`shared.spec.ts`:
+    the host's save carrying the guest's seat, hosted again, the lobby saying it is kept, the guest back with the new
+    link seated in their own and selected at the start, nothing parted).
+  - **A rest the party agrees to** (13 October 2026). A rest is called, voted on, and each player's own (`engine::game::
+    rest_call`, `Session::rest_call`, the board's `rest`). Anybody who plays a character calls one, short or long, with
+    their own characters' two downtime moves (`callRest`); everybody who plays a character - fixed when it is called:
+    each member's player, the account seated in them or the host - agrees or not (`voteRest`), all of them, one who
+    would rather not calling it off ("The party does not rest: not everybody is ready."); each chooses their own
+    characters' moves (`chooseRest`, refused for anybody else's), before or after agreeing; and once everybody has
+    agreed and every one of the party standing has their moves, the rest is taken as it always was (`kit.rs`,
+    `rest`) - the moves gathered in the party's order, whoever chose first, so the dice fall alike on the server and
+    every page - Prepare together counting across players. Its caller or the host calls it off (`cancelRest`); a
+    fight beginning or a save loaded drops it; it is refused in a fight, in a conversation, to a watcher, and before a
+    lobby's game starts; if the party can no longer rest when the last choice lands, it is dropped with a word in the
+    log. The page's engine is told it with the walk (`restoreWalk`'s fifth argument) as it is stood. A player alone,
+    or one who plays everybody, has one voter - themselves - so calling a rest with everybody's moves takes it at
+    once, exactly as `rest` did (the engine's test holds the two to the same board); `rest` itself stays, the host's
+    word, for the test driver. The rest panel (`ui/RestPanel.tsx`, read through `rest-call.ts`) is on every page while
+    a rest is called, and only its buttons put it away: with none, the kind and the page's own characters' moves and
+    Rest - or Call a rest, when others play; called, Agree and Not now for whoever has not agreed, then Ready over
+    their own characters' moves, with what the others chose ("Violet: Prepare, Prepare" - so two can prepare
+    together), whom it waits on, and Call it off for its caller or the host. Proved by the engine's tests
+    (`rest_call.rs`: a player alone's call the same board as `rest`; the vote, the refusal of another's character, a
+    no calling it off, agreeing then choosing taking it and the GM's Shadow; moves chosen before agreeing; preparing
+    together across players; a watcher and a lobby refused, the caller and the host calling it off and nobody else; a
+    fight dropping it and refusing it; the call told to another engine and dropped by a load), the page's
+    (`rest-call.test.ts`: alone or not, asked to agree or not, may call it off or not, whose each character is), the
+    wire's (a call on two pages, the guest refused the host's characters, agreeing and choosing, taken on both with
+    Prepare together, declined; nothing parted) and the e2e (the solo rests through the panel unchanged; on the
+    server, the guest calling a rest with their character's moves, the host's panel up by itself asking them to
+    agree, then their own characters' moves, Ready, the rest taken and the panels gone from both).
+    - **Not yet**: the SRD's limit of three short rests before a long one, and a long rest's Work on a Project (both
+      since done: below, and `docs/CRPG-GAPS.md`'s project plans, `game/projects.rs`).
+  - **Three short rests, then a long one** (13 October 2026). The SRD's limit: after three short rests the party's next
+    must be long. The engine counts the short rests since the last long one (`Session::short_rests`), taken through a
+    rest called (`rest_call.rs`, `SHORT_RESTS`): a fourth short one is refused when it is called, and a long one begins
+    the count again. The count is the save's (`shortRests`, written only once it is more than none, so every save
+    written before - and every one the recorded games make - reads the same; both save schemas take it, the engine's
+    and the page's, which writes the same text as the server's game), the board's (`shortRests`), and told to an engine
+    brought into step with the walk (`restoreWalk`'s sixth argument). The bare `rest` - the host's word, the test
+    driver's, and the recorded games the engine is held to, which took up to 41 short rests in a row - neither counts
+    nor is held to it. The panel says how many have been taken ("Short rests since the last long one: 2 of 3."), and
+    after three offers only a long one. Proved by the engine's tests (three taken and the fourth refused; the count in
+    a save and loaded elsewhere; a long rest beginning it again; a save from before reading as none; the bare rest
+    neither counting nor held; the count told to an engine in step), the page's (`save.test.ts`: the count saved and
+    parsed, and absent before there is one), the wire's (counted on both pages; the page's save the server's) and the
+    e2e (three short rests through the panel, the fourth offered only long, a long one beginning the count again).
+  - **A friend's own account, and a password changed** (14 October 2026). Through a tunnel, an account is made by
+    somebody holding the invitation to a game being played now (`accounts.rs`: `register` with `invite`, the
+    `Keeper` asking the games, `play::Tables::project_of`, through `Invited`; `app_over` builds the server over
+    games already made) - or by anybody, with `--sign-up`, as before; without either it is refused. A page opened
+    with an invitation while nobody is signed in shows the sign-in card first, starting on making an account, the
+    invitation going with it (`start.ts`, `signInToJoin`; `SignIn`'s `invite`), and opens again signed in, to join -
+    it used to play alone, silently. Anybody signed in changes their password (`POST /__accounts/password`,
+    `{ current, next }`: the one it has, checked, and a new one held to the first's rules), from this machine or
+    beyond it, from the menu (`ui/ChangePassword.tsx`, beside Sign out); admin's first password, changed, lets
+    admin sign in from beyond too. Proved by the server's tests (`accounts_routes.rs`: no invitation and a dead one
+    refused, a live one making an account and no way into a taken name; a password changed only by its account
+    saying the one it has, a short one refused, the old one signing in no more and the new one from here and
+    beyond; admin's changed and then signing in from beyond), the page's (`accounts.test.ts`: the invitation sent
+    with a new account and not with a sign-in; a password changed or why not) and the tunnel's e2e
+    (`tests/tunnel/tunnel.spec.ts`: a friend through the tunnel opening the host's invitation signed out, shown the
+    card ready to make an account, made, in the host's game with the host, changing their password from the menu,
+    the old one refused and the new one taken).
+  - **A friend coming back finds the game waiting** (14 October 2026). The games whose host loaded a save that
+    kept a seat for an account are listed for that account alone (`GET /__play/waiting`, `play.rs`,
+    `Tables::waiting_for`): each one's invitation, the host's name, the project's, and the kept characters' names
+    off the game's last board; signed in, the page's Play Together lists them, joined with one click
+    (`waiting-games.ts`, `MainMenu.tsx`), and the menu's Play Together says a game is waiting. A seat given away or
+    taken, nothing waits. Proved by the server's tests (`play_routes.rs`: each player's own listed, the host
+    kept nothing, a seat given away or taken listed no more, the route a signed-in account's alone), the page's
+    (`waiting-games.test.ts`) and the server-mode e2e (`shared.spec.ts`: the guest back with no link, joining
+    from Play Together and seated in their own).
+  - **Phase 6, slice 1: invitations** (14 October 2026). An account is made with a player's invitation
+    (`accounts.rs`): each player holds one (`Account::invitation`, a code given the first time it is asked for,
+    `GET /__accounts/invitation`), which the account it makes spends (`usedBy`) and is kept as made by
+    (`invitedBy`); spent, it makes no other until admin renews it - one player's or everybody's (`POST
+    /__accounts/refresh`, `{ account? }`), admin seeing every player, who invited them and whether theirs is spent
+    (`GET /__accounts/players`). From beyond this machine an account needs one, unless `--sign-up`; on this machine,
+    not. A game's invitation makes no account any more (`Keeper::invited` gone, with `app_over`'s wiring of it). The
+    page: the sign-in card starts on making an account when the address carries one (`?invite=`, `accounts.ts`
+    `invitationCodeOf`; with `?join=` too it lands in the game), says so, and the address forgets it once somebody is
+    signed in; the menu's Invite shows the player's own link, or whose account it made, and admin's players with
+    a new invitation for one or for all (`ui/Invitations.tsx`); the lobby offers the player's own with the game's,
+    for somebody with no account yet. Proved by the server's tests (`accounts_routes.rs`: given once and the same
+    after; none, or nobody's, refused from beyond; a name taken spends nothing; made, invited by its holder, spent,
+    and refused again from beyond and here; players admin's alone; renewed for one and for all, nobody else
+    renewing), the page's (`accounts.test.ts`) and the e2e (`tunnel.spec.ts`: a game's invitation alone refused an
+    account; with the host's, made through the tunnel, in the host's game, the host's spent; the friend's own in
+    their menu; admin at home seeing who invited whom and renewing the host's; `shared.spec.ts`: the lobby's link for
+    somebody new).
+  - **Phase 6, slice 2: friends** (15 October 2026). Each player's friends are kept by the server (`friends.rs`,
+    `data/friends.json`: the pairs that are friends, and the requests not answered yet). A player asks another by
+    name (`POST /__friends/ask`), who accepts or declines (`answer`); either removes the other, or takes a request of
+    their own back (`remove`); two who ask each other are friends at once; and an account an invitation made is its
+    holder's friend from the start (`accounts.rs`, `friends::befriend`). `GET /__friends` is the player's own:
+    `{ friends, asking, asked }`, by name; each write answers with the same, as it stands after. The page: the
+    menu's Friends, beside Invite, saying how many are asking (`ui/Friends.tsx`, `friends.ts`); the tests' server
+    passes `/__friends` to the Rust server with the games (`tools/rust-server.ts`). `Friends::of` is what slice 3's
+    friends-only lobbies will ask. Proved by the server's tests (`friends_routes.rs`: asked by name in any case,
+    asked again nothing more, nobody and oneself refused, accepted both ways, an answer to nobody refused,
+    declined, asked both ways, taken back, removed by either and nothing left to remove, only the page writing; the
+    invited and their inviter friends, an account made without one nobody's), the page's (`friends.test.ts`) and
+    the e2e (`friends.spec.ts`, on the server: asked through the menu, the other's menu counting it, accepted,
+    each listing the other, removed by one and gone for both; `tunnel.spec.ts`: the friend made with the host's
+    invitation finds the host among their friends).
+  - **Phase 6, slice 3: lobbies anybody opens** (15 October 2026). A game says who may find it (`play.rs`,
+    `Shared::visibility`): everybody (`public`), the host's friends (`friends`, `Friends::are_friends`), or nobody but
+    those sent its invitation (`invite`, a game opened the ordinary way). Play Together hosts a lobby for whoever
+    the player chooses (`?host=friends|public|invite`, `visibilityAsked`; friends first), and the host changes it
+    in the lobby (`{ op: "visibility" }`, the table saying it to everybody). The games a player may join are listed
+    for them (`GET /__play/games`, `Tables::joinable_for`, replacing slice 5's list of games waiting): every public
+    one, their friends' friends-only ones, and any keeping a seat for them whoever may find it - never their own -
+    each joined from Play Together with no link (`joinable-games.ts`). Whose friends is the host's now, so a
+    hand-on changes who finds a friends-only game. The running of a game is handed on when its host's page has
+    been gone `HAND_ON_AFTER` (30 seconds; 3 on the tests' server) - looked at by the game's thread as it waits for a
+    message (`TICK`): to the first member, in the order they came, whose page is at it; numbered as a change of
+    seats is, everybody's selection kept among their own, every page told. The host it was is a member when they
+    come back; it does not go back. Known gap, slice 4's: a new host saves into their own saves, and the game's
+    earlier saves stay the first host's. Proved by the server's tests (`play_routes.rs`: found by friends and not a
+    stranger, by everybody, by nobody, never by its host, only the host saying who and only as one of the three, an
+    ordinary game invite-only; handed on to the first still at it past one whose page went, the host it was a member
+    on return and refused the host's word, the seq counting it; not handed on within the while, nor once the host is
+    back), the page's (`joinable-games.test.ts`, `shared-game.test.ts`, `wire.test.ts`: the lobby opened for friends,
+    opened to everybody by the host and not the guest, both told) and the server-mode e2e (`lobbies.spec.ts`: a
+    friend finds a friends-only lobby in Play Together and joins it, a stranger does not until the host opens it to
+    everybody; the host's page closed, the friend runs it and starts it, nothing parted; `shared.spec.ts`: the game
+    keeping a seat found among whatever else may be joined).
+  - **Phase 6, slice 4: a game's saves the game's** (15 October 2026). Saved, a game more than one played goes into
+    the saves of everybody who played it - whoever came to it, and whoever a seat is kept for - as the same slot
+    (`play.rs`, `saved`; `Slot::players`), with the project it was played over beside it (`saves.rs`,
+    `<id>.project.json`, `GET /__saves/<id>/project`), so any of them hosts it again: their copy loads into a game
+    they host, seating them in their own and keeping the others' for them, and saving it again writes everybody's
+    copy. A game nobody shared saves as before, into its player's folder alone. The page lists a shared save of a
+    game its browser has not got - another's camp - under Played together, and opens it over the project kept with
+    it (`?saved=<slot>&load=<slot>`, `project-store.ts`, `start.ts`, `MainMenu.tsx`). The test driver's `saveAs`
+    now names the project as the Save button does. And the list of games to join leaves out a game nobody's page is
+    at, and counts who is at it now. Proved by the server's tests (`play_routes.rs`: everybody's copy the same, the
+    project beside each; another player hosts it from theirs, seated, the first host's kept, saved again into
+    everybody's; a game nobody shared alone, with no project; a game nobody is at listed to nobody;
+    `saves_routes.rs`: the project read by its player only, not by a path out of their folder, gone with its
+    save), the page's (`project-store.test.ts`, `start.test.ts`) and the server-mode e2e (`lobbies.spec.ts`: the
+    host's own camp, played with a friend and saved, in the friend's saves; the friend hosts it from Played
+    together over the project the server kept, in their own seat, the host's kept, and the host finds it waiting).
+  - **Phase 6, slice 5: chat at the table** (15 October 2026). Anybody at a game says something (`play.rs`,
+    `{ op: "say", text }`, trimmed, 1 to 500 characters - counted as characters, not bytes): the line
+    (`{ from, name, text, at }`) given back, and every other page told it (`{ chat: line }`). The game keeps the last
+    100 lines, handed to a page as it opens the game, joins it or comes back to it (`chat`). Nothing said is the
+    game's: it is not saved, numbers no intent, and is not asked of the engine (so saying asks the game nothing about
+    whom it plays for). The page: the wire keeps what was said (`Wire.chat`, `onChat`, `say`), `shared-game.ts`
+    hands it on (`chat`, `onChat`, `say`), and `ui/Chat.tsx` shows it - a section of the lobby while the players
+    gather, a box above the log once the game has started; typing in it walks nobody (`typing`, `main.ts`), and
+    Escape there lets go of the box, opening no settings (`typingIn`, `SettingsModal.tsx`). Proved by
+    the server's tests (`play_routes.rs`: said before anybody came and told to who comes, each told the other's and
+    not their own twice, nothing and too much refused, 500 accented characters taken, the last hundred kept in order
+    for a page that comes back, the seq untouched), the page's (`wire.test.ts`: each wire told the other's, a page
+    joining later told what was said; `shared-game.test.ts`: heard, said, and nothing without a server) and the
+    server-mode e2e (`lobbies.spec.ts`: host and friend talk in the lobby; started, what was said is in the panel and
+    more is said there, the party not moved by the typing).
+  - **Phase 6, slice 6: messages between friends** (15 October 2026). A friend writes a friend, outside any game
+    (`messages.rs`, through the friends' routes): `POST /__friends/say` `{ to, text }` (trimmed, 1 to 500 characters,
+    the text kept as written - the ids beside it lowercased, it not), `GET /__friends/messages/<id>` the conversation
+    (`{ with, messages: [{ n, from, text, at }] }`), `POST /__friends/read` `{ id, upTo }` read up to a message - and
+    the friends' view says how much each friend has written unread (`unread`, `{ <id>: count }`). Only a friend's: a
+    stranger's write and read refused. Kept in `data/messages.json`, under the friends' lock, numbered as they come; a
+    pair keeps its newest 200, and when two stop being friends what they wrote each other goes. Nothing pushes it -
+    there is no wire outside a game - so the page asks: an open conversation every 3 seconds, the friends every 10
+    (`CONVERSATION_EVERY`, `FRIENDS_EVERY`). The page: `friends.ts` (`readConversation`, `writeTo`, `readUpTo`,
+    `unreadOf`); `ui/FriendMessages.tsx`, a conversation opened from a friend's line in Friends (**Messages (N)**),
+    read up to its newest as it is shown; the menu's **Friends (N)** counts what is unread with who is asking. The
+    box is the table's (`ui/ChatBox.tsx`, out of `Chat.tsx`; its look in `ui/chat.css`, out of `hud.css`). Proved by
+    the server's tests (`friends_routes.rs`: written, trimmed, its case and accents kept, the other's unread and read
+    - never back - answered in order, nothing, too much and a stranger refused, 500 accented characters taken, the
+    newest 200 kept and another pair's not counted, removed friends' messages gone though they become friends again,
+    only the page writes), the page's (`friends.test.ts`) and the server-mode e2e (`friends.spec.ts`: one writes, the
+    other's menu and friend's line say so; shown, read; answered, the first's open conversation has it with no
+    reload).
+  - **Who is around** (15 October 2026, after the phase's slices). The server knows who is at a game - a page
+    watching one, a game of their own alone too - and whose page asked the friends' routes within the while
+    (`play.rs`: `Tables::saw`, every signed-in request to `/__friends`; `ONLINE_FOR` 25 s, the menu asking every
+    10; `Tables::presence`, playing before online). The friends' view says which friends are around (`online`,
+    `{ <id>: "playing" | "online" }`) - friends' alone, nobody who has only asked. A game's table says who is at it
+    now (`here`, each account once however many pages), and the others are told the table when somebody's last page
+    there goes or somebody's page comes back (a page that joins is told it as it joins). The page: a friend's line in
+    Friends, and the conversation's header, say **online** or **in a game** (`friends.ts` `presenceWord`); the lobby
+    and the players panel mark a member whose page has gone **(away)** (`shared-game.ts` `membersLine`). And a race
+    the save had, found on the way: a save is held to the page's only when no other page's intent was played between
+    the two (`Wire.save`, as an intent is by `seq`) - a friend's selection played just before the host's save had the
+    server's save of a game the host's page had not seen yet, a parting that was none. Proved by the server's tests
+    (`play_routes.rs`: Finn told at once that the host is away, then handed the game; the host back, Finn told; a
+    second page of the same account coming and going tells nobody; playing, online, neither, playing winning;
+    `friends_routes.rs`: friends told each other around, the one who only asked told nobody, gone after the while,
+    playing at a game of their own), the page's (`friends.test.ts`, `shared-game.test.ts`: the members' line;
+    `wire.test.ts`: another page's intent played before a save, no parting) and the server-mode e2e
+    (`friends.spec.ts`: the other online, then in a game; `lobbies.spec.ts`: the host's page closed, away).
+  - **A save numbered as the game stood** (15 October 2026). The save's other race, found with both pages' frames
+    logged: a page draws its selected character's abilities (`abilityList`, `DRAWN`) - played and numbered on the
+    server, pushed to nobody - and the drawing leaves the game's actor (`scenario.actorId`) the one it drew for. The
+    friend's drawing, played between the host's last answer and the host's save, had the server save the friend's
+    character as the actor, and the host's page could not know. The save's answer now carries the game's `seq` as it
+    saved (`play.rs`), and the page holds the save to its own only when nothing was numbered between (`Wire.save`, its
+    own count from a server that does not say). Repeated nine times the test parted four; after, none. Proved by the
+    server's test (`play_routes.rs`: Finn's drawing pushed to nobody, Kara's save numbered after it) and the page's
+    (`wire.test.ts`: another page's intent, pushed and not, before a save - no parting). On the way, measured: each
+    page draws its abilities about every 50 ms once a game has started, and asks `syncTalks` as often - some twenty
+    round trips a second, each answered with the whole board.
+  - **A page draws itself without telling the server** (15 October 2026). The twenty round trips a second (above)
+    were a loop between two pages: each page's drawing intents (`DRAWN`), numbered by the server between the other
+    page's, stood the other page where the game was (a gap in `seq`), which refreshed it, which drew - and sent -
+    again; and the bar's read of the cards (`abilityList`) named its character the game's actor, so the two pages'
+    reads fought over one mark. Two cuts. The bar's read leaves no mark - the engine's (`bar.rs`, `ability_list`)
+    and the page's (`demo-abilities.ts`) put the actor back after - and is the page's own, never sent (`client.ts`).
+    And a drawing intent is sent only when it marked the page's game (`did`, `client.ts`: the engine's board as the
+    page was last filled from it, `WasmGame.revision`, before and after) - a conversation moved, a container's or a
+    thing's state made; drawn again with nothing new, it is not. The frozen fixtures recorded the browser's mark, and
+    the bar's golden test makes it as the browser did (`golden_bar.rs`, `marked_as_the_browser_read`). Measured: two
+    idle seconds after a shared game starts, some forty intents from each page before; none after (`lobbies.spec.ts`,
+    counted off the sockets' frames - with the check taken out, the loop comes back). Proved by the page's test too
+    (`wire.test.ts`: two pages drawing their bars and talks five times over send nothing, the actor nobody's, and
+    the next real intent in step on both). Still open, written down: `syncTalks` puts a conversation where *the page's*
+    selection says, and two players' selections differ - with a conversation open, it may pass between their pages.
+  - **A conversation its talker's player's** (15 October 2026). Played out between two pages, the risk written above
+    was not what happened: a page shown a conversation from the server's board (`asked`) sends no `syncTalks`, so
+    nobody else's selection moved it - and neither did its own player's, who could not step away from it once their
+    page had been stood anywhere. What did happen: a conversation set aside or brought back was a drawing intent,
+    pushed to nobody, so the other pages went on waiting on one set aside, and walked into one brought back. Four
+    cuts. The engine sets the conversation on screen aside by its talker's player's selection alone (`sync_talks`,
+    `may_play`): told nobody, as before. The server pushes a conversation moved (`UNTOLD`, `play.rs`: only a
+    container's or a thing's state made goes to nobody now) - safe, since only one player's drawing can move it. A
+    page's engine stood where the server's game is knows each conversation set aside by name (`restoreAside`, never
+    told the server; `SetAside` with no prompt), so its board and the server's agree, and it is over as the server's
+    is - a fight, the talker fallen, another room. And the conversation the page knows by name alone - set aside
+    there, or shown from the board - is moved where the page's selection says *there*: `client.ts` (`talkThere`)
+    sends `syncTalks` (and the selection, which a page shown a question keeps to itself) with nothing predicted, and
+    the page is stood where the answer leaves the game (`Wire.unpredicted`) - once for each selection, so a game that
+    will not move it (a fight held by a talk) is not asked with every frame. Proved by `seats.rs` (the guest's
+    selection moves nothing, the host's sets aside and brings back), `play_routes.rs` (a conversation moved is
+    pushed to the guest, a page drawing with nothing moved to nobody - the only test of `UNTOLD` itself, the page's
+    tests' server keeping a list of its own) and `wire.test.ts` (two pages: drawing sends
+    nothing; set aside, the guest told and walking; brought back to a page that knew it by name, the guest's walk
+    then refused at home and not sent; set aside and back again from the board; had to its end; nothing parted). A
+    single page shown its conversation from the board (a reload) now sets it aside as single play does. Played in
+    two browsers since 16 October 2026 (`shared-talk.spec.ts`): the host's character opens the Warden's pillar; the
+    guest's page shows the conversation held - "Waiting for <host> to answer for <character>.", the replies shut -
+    and the guest's walk waits on it; Tab on the host's page sets it aside, gone from both pages, the one talking
+    marked "In conversation" on both, and the guest walks, the host's page told; the host selecting the talker brings
+    it back on both; a click on the host's page ends it, gone from both. Nothing parts. With the hold, the shut
+    replies or the mark taken out, it fails.
+  - **A friend's messages during a game** (15 October 2026). The menu's friends - asking, answering, writing - were
+    the menu's alone. Now a game's page played as an account on the server (`friends.ts`, `playAs`, told by
+    `gameReady`) has a Friends button above the table's chat (`ui/FriendsInPlay.tsx`), saying how many are asking
+    and how much is unread, asked again every ten seconds while shut; it opens the menu's own `Friends` on a sheet
+    over the table, shut by Back, a click beside it or Escape - which, the sheet up, opens no settings behind it
+    (`ESCAPE_IS_TAKEN`). Nothing at a page with no server. The friends' e2e test writes to a player at a game: the
+    button says so, the sheet reads and answers it, Escape shuts it (`friends.spec.ts`).
+  - **Escape typed at the table's chat** (15 October 2026) let go of nothing and opened the settings over the
+    game. Now a key typed in a field is the field's (`typingIn`, `SettingsModal.tsx`): the chat's box lets go of
+    the keyboard (`ChatBox.tsx`), what is typed kept, and a second Escape opens the settings
+    (`settings-modal.test.ts`, `lobbies.spec.ts`).
+  - **A friend's doing told at once at a game** (15 October 2026). The friends were asked for again every ten seconds,
+    an open conversation every three. Now a request, an answer, a friend removed or a message written is told at once
+    to the other's pages at a game, on the game's connection (`{ friends: { from } }`, `Tables::tell`, called by
+    `friends.rs` once the change is kept) - never to whoever made it, nor to anybody else at that game; a message read
+    is told to nobody, or two pages shown one conversation would read it to each other for ever. The page hears it
+    (`Wire.onFriends`, `friends.ts`'s `friendDid`, wired in `wireUp`), and the Friends button, the list and the
+    conversation with that friend ask again at once; the asking every few seconds stays, the menu's only way - a
+    page there is at no game. Proved by `friends_routes.rs` (each doing told to the other alone, a third at the
+    game told nothing, a read told nobody), `wire.test.ts` and `friends.test.ts` (heard, and only as it is said), and
+    `friends.spec.ts` (each of the three told well inside the while it would otherwise wait).
+  - **A friend's coming and going told at once at a game** (16 October 2026). Whether a friend was in a game or
+    online waited for the friends to be asked again. Now an account's friends at a game are told the same nudge
+    (`{ friends: { from } }`) whenever it is around otherwise than it was: its page come to a game (`route`), its
+    last page gone from one (`left`), come online (`saw`) - each compared with what it was just before
+    (`presence_in`, which `presence` now answers from too; `told_around`), so asking again while online tells
+    nobody. Gone quiet a while (`ONLINE_FOR`) is nothing happening, and still waits for the asking every few
+    seconds. Proved by `friends_routes.rs` (come to a game, gone, come online each told once, nothing for asking
+    again, nobody's friend telling nobody; `play_routes.rs`, a host told her friend came as he joins) and
+    `friends.spec.ts` (a friend's going from their game said on the sheet well inside the while).
+  - **The menu told at once too** (16 October 2026). The menu, at no game, had only the asking every ten seconds.
+    Now it opens the games' socket (`/__play`) and sends nothing on it, to listen (`listenForFriends`, `friends.ts`;
+    `MainMenu.tsx`, where the server plays): the server knows each connection's account (`Connection`,
+    `Tables::connect` takes it), and `Tables::tell` goes to every connection of the account - a page at a game, a menu
+    listening - instead of the game's watchers. The asking every ten seconds stays: what is done while the socket
+    is shut is not told, and the asking is what keeps a menu's player seen. Proved by `friends_routes.rs` (a connection at no game
+    told a friend's message and comings as the game's is, nothing once gone), `friends.test.ts` (listened to, only a
+    friend's doing told, stopping closes it) and `friends.spec.ts`, whose menu pages reload nothing any more: asked,
+    accepted, written to and removed, each menu says so inside three seconds.
+  - **A dropped connection noticed, and opened again** (16 October 2026). A game's page connected again when its
+    connection dropped (`RETRIES`, above) - but knew it had dropped only when an intent sent on it failed, so a page
+    sending nothing, waiting on another's turn, heard nothing more until its player did something. And the menu's
+    listening was never opened again. Now the socket says it has closed (`PlaySocket::onClose`, whether it had
+    opened, at once to whoever asks after; `Transport.onClose`): the wire is lost on it as on a failed message, its
+    connection's number keeping a late word from an old one for nothing (`hear`), and the menu opens its socket
+    again after the wire's waits, longer each time one fails to open, from the shortest once one had, and listens no
+    more once they are spent - the asking every ten seconds still there. Proved by `play-socket.test.ts`,
+    `wire.test.ts` (an idle host's page dropped: lost at once, back at the game kept, the guest's walk standing it
+    where it leaves the game, the old connection's late word nothing), `friends.test.ts` (opened again, longer each
+    failure, the shortest again, spent, and nothing once stopped) and `reconnect.spec.ts`, which holds each socket
+    (`routeWebSocket`) and closes it from the page's side: the menu opens another and is told a friend's request at
+    once; a game's page opens another of itself and plays on, nothing parted. A connection a network leaves half
+    open, which nobody's side sees close, is not this: the next slice is.
+  - **Every socket beaten** (16 October 2026). A tunnel or a proxy shuts a connection it finds idle - a menu
+    listening sends nothing, nor does a page waiting on another's turn - and a network can leave one half open,
+    neither side ever told it closed: the server went on counting the player there, and the page heard nothing,
+    not knowing. Now the server beats every socket (`play.rs`, `BEAT_EVERY`, twenty seconds; five on the tests'
+    server): a ping, which the browser answers of itself, and `{ beat: <ms> }`, which the page hears. The server
+    closes a socket it has heard nothing on - not even a ping's answer - for three beats (`SILENT_BEATS`), and the
+    player is gone from it as when a page closes. The page (`PlaySocket`) keeps the beats from whoever listens, and
+    once beaten, closes a socket it has heard nothing on for three, saying it closed at once rather than when the
+    browser's own closing gives up - so the wire, or the menu, connects again (the slice before). A server that never
+    beats has nothing waited out. Proved by `play_routes.rs` (a socket that answers beaten and kept open, one that
+    answers nothing closed after three beats), `play-socket.test.ts` (the beat kept from the listener, anything heard
+    putting the silence off, closed and said at once with the browser's close lingering, nothing said twice) and
+    `reconnect.spec.ts`, whose socket lets everything through to the first beat and nothing after either way - the
+    browser still answering the server's pings, so only the page can tell: it connects again inside the silence and
+    plays on, nothing parted.
+  - **A conversation at a shared game, in two browsers** (16 October 2026). The conversation's rules at a shared
+    game had only the page's and the server's tests behind them (`wire.test.ts`, `play_routes.rs`, above); now
+    `shared-talk.spec.ts` plays them in two browsers, each signed in to an account of its own - held for the one it
+    is not put to, set aside and brought back by its talker's player alone, ended by a click. It found nothing to
+    mend.
+  - **Gone, told at once** (16 October 2026). A player whose page closed - or whose network went - stayed online to
+    their friends until they went quiet (`ONLINE_FOR`, 25 seconds), and nobody was told: a friend's list found it at
+    its next asking, half a minute and more later. Every page where the server plays now holds a connection - a game's
+    wire, the menu's listening - so the server knows when an account's last one closes (`left`). Then, unless another
+    opens in a while (`GONE_AFTER`, ten seconds - a page going from the menu to a game, or connecting again, opens
+    its own well inside it; three on the tests' server), the account is gone: its being seen forgotten, so it is
+    online no more, and its friends told (`gone`, `told_around`). A page asking again is online again, its friends told.
+    Proved by `friends_routes.rs` (a connection closed and another opened inside the while: nothing; closed and none
+    opened: online through the while, then gone and told, though seen moments before; asking again: online, told) and
+    `friends.spec.ts` (a friend's page closed: away on the other's open list inside eight seconds).
+  - **A fight at a shared game, in two browsers** (17 October 2026). The turn at a shared game - the party's
+    spotlight shared, the GM's turn after, handed over by anybody who plays somebody - had only the engine's, the
+    server's and the wire's tests behind it; now `shared-fight.spec.ts` plays it in two browsers. The host's character
+    opens the vault and wakes the fight, on both pages; each round the guest walks their own and the host goes at the
+    foe with theirs, each seen on the other's page, and the GM's turn is handed over by each in turn - the guest with
+    the key, the host with Space - the round going on and the spotlight back with the party on both, both logs the
+    same. Whatever the fight asks is answered on the page that plays its character, the other saying whom it waits
+    on; while the GM's turn is held on it, the key is shut on both. It found one thing to mend, not the sharing's: a
+    roll that went the GM's way hands the spotlight over by itself, and then nothing plays the GM's turn until it is
+    asked for - but the key that asks was shut whenever the spotlight was not the party's, so a player without Space
+    had nothing to press, alone or together. The key now says "GM's Turn" then and plays it, shut only while a
+    question waits (`ui/turn-key.ts`, its test; `playpass.spec.ts` swings until a roll hands the spotlight over,
+    and clicks it).
+  - **A blow on the guest's character, in two browsers** (17 October 2026). The fight in two browsers had the GM's
+    blows land where the dice and the room put them, which was on the host's characters; the guest was never asked.
+    A second test in `shared-fight.spec.ts` has the guest's character lead the way in - the door's roll the guest's,
+    the host's characters left outside - so the room's blows are theirs: how one lands ("Take it", "Mark an Armor
+    Slot") is answered on the panel on the guest's page, by a click, while the host's page says "Waiting for <the
+    guest> to answer for <their character>", its GM's Turn key shut; answered, the GM's turn plays on to its end on
+    both pages. Every wait said in either test now names the player it waits on. It found nothing to mend; a page
+    that answered every question, or said every wait was the host's, fails it.
+  - **Next**: an evening through the tunnel.

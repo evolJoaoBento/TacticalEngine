@@ -1,0 +1,42 @@
+[package]
+name = "tactical-serve"
+version = "0.1.0"
+description = "Tactical Engine's server: accounts first, the rest of the dev plugins' routes after (docs/SERVER.md, phase 1)"
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "serve"
+
+[[bin]]
+name = "tactical-serve"
+path = "src/main.rs"
+
+[dependencies]
+# ws: the games are played over a websocket (`/__play`, src/play.rs).
+axum = { version = "0.8", features = ["ws"] }
+# The games themselves: the rules, and a project's code run in QuickJS.
+engine = { package = "tactical-engine", path = "../engine" }
+hooks = { package = "tactical-hooks", path = "../hooks" }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "signal", "sync", "time"] }
+serde = { version = "1", features = ["derive"] }
+# float_roundtrip: parse a float exactly, as JavaScript does, so a timestamp the TypeScript wrote is written back
+# to the digit; without it one in several comes back a digit off.
+serde_json = { version = "1", features = ["preserve_order", "float_roundtrip"] }
+indexmap = { version = "2", features = ["serde"] }
+scrypt = { version = "0.11", default-features = false }
+getrandom = "0.3"
+hex = "0.4"
+sha2 = "0.10"
+subtle = "2"
+url = "2"
+tower-http = { version = "0.6", features = ["fs"] }
+# The card art decided per request (`site`): a service that hands each request to one folder or the other.
+tower = { version = "0.5", features = ["util"] }
+
+[dev-dependencies]
+# A websocket client, for the play route's round trip.
+tokio-tungstenite = "0.26"
+futures-util = "0.3"
+http-body-util = "0.1"

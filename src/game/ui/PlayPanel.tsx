@@ -19,6 +19,12 @@ import { SettingsModal } from './SettingsModal';
 import { GearFace } from './GearBinder';
 import type { GearCard } from '../gear';
 import './hud.css';
+import { ArtNote } from './AiNote';
+import { Players } from './Players';
+import { Lobby } from './Lobby';
+import { Chat } from './Chat';
+import { FriendsInPlay } from './FriendsInPlay';
+import { waitingOn } from '../shared-game';
 
 
 /**
@@ -57,6 +63,8 @@ export interface JournalQuest {
   summary: string;
   status: 'active' | 'completed' | 'failed';
   objectives: readonly { id: string; text: string; done: boolean }[];
+  /** A project plan learned rather than a quest: the work done on it, of all it takes (`content/projects.ts`). */
+  project?: { done: number; work: number };
 }
 
 /** What a right-click found: a card's worth of facts, no verbs. */
@@ -154,9 +162,12 @@ export function PlayPanel(props: PlayPanelProps): preact.JSX.Element | null {
   const talking = pending !== null && pending.kind === 'script' ? pending.dialogue : null;
   const asking = asked(pending);
   const choice = asking !== null && asking.kind === 'choice' ? asking : null;
+  const waiting = waitingOn(pending, props.nameOf);
 
   return (
     <div className="play panel">
+      {/* How the art under the pointer was made, in the corner: the board's, the cards', the portraits'. */}
+      <ArtNote />
       <RollStage
         rolls={props.rolls}
         millis={props.millis}
@@ -166,8 +177,11 @@ export function PlayPanel(props: PlayPanelProps): preact.JSX.Element | null {
         onAnswer={props.onAnswer}
         onDone={props.onRollDone}
       />
+      {/* A game opened for others to join, over the board until its host starts it. */}
+      <Lobby />
       <SettingsModal games={(close) => (
         <>
+          <Players />
           <div data-testid="save-row" className="panel-saves">
             <button
               type="button"
@@ -261,10 +275,11 @@ export function PlayPanel(props: PlayPanelProps): preact.JSX.Element | null {
         <div className="play-box panel-box is-fixed" data-testid="journal">
           <div className="play-eyebrow panel-heading">Journal</div>
           {props.journal.map((quest) => (
-            <div key={quest.id} className="panel-quest" data-quest={quest.id}>
+            <div key={quest.id} className="panel-quest" data-quest={quest.project === undefined ? quest.id : undefined} data-project={quest.project === undefined ? undefined : quest.id}>
               <div className={quest.status === 'completed' ? 'is-done' : quest.status === 'failed' ? 'panel-detail' : ''} style={quest.status === 'completed' ? { color: 'var(--play-muted)', textDecoration: 'line-through' } : undefined}>
                 {quest.name}
                 {quest.status === 'failed' ? ' — failed' : ''}
+                {quest.project === undefined ? '' : ` — project, ${quest.project.done} of ${quest.project.work}`}
               </div>
               {quest.status === 'active' ? (
                 <div className="panel-detail" style={{ fontSize: '12px' }}>
@@ -282,6 +297,12 @@ export function PlayPanel(props: PlayPanelProps): preact.JSX.Element | null {
       ) : null}
 
       {/* What the party carries is in the loadout now, as cards (`GearBinder.tsx`). */}
+
+      {/* The player's friends, and what they have written unread - the menu's, during a game (`FriendsInPlay.tsx`). */}
+      <FriendsInPlay />
+
+      {/* What is said at a shared game's table, once it has started; in its lobby before (`Chat.tsx`). */}
+      <Chat />
 
       {log.length > 0 ? (
         <div
@@ -331,6 +352,13 @@ export function PlayPanel(props: PlayPanelProps): preact.JSX.Element | null {
               {option.detail === undefined ? null : <span className="panel-detail"> — {option.detail}</span>}
             </button>
           ))}
+        </div>
+      ) : null}
+
+      {/* A question put to a character another plays, at a shared game: whom it waits on, not its choices. */}
+      {waiting !== null && talking === null ? (
+        <div data-testid="waiting-on" className="play-box panel-box panel-detail">
+          {waiting}
         </div>
       ) : null}
 

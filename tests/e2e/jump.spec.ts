@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page } from './fixtures';
 
 /**
  * Jumping, in the real page. A click on the ground is a walk and never a jump; the key beside

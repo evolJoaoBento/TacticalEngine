@@ -1,0 +1,2092 @@
+{
+ "about": "tools/store.ts and the import tools/your-models.ts does for Get, run for the Rust port; written by tests/unit/store.golden.test.ts",
+ "mostProofs": 6,
+ "sniff": [
+  {
+   "bytes": [
+    103,
+    108,
+    84,
+    70,
+    2,
+    0,
+    0,
+    0,
+    9
+   ],
+   "sniffed": {
+    "kind": "model",
+    "ext": "glb",
+    "type": "model/gltf-binary"
+   }
+  },
+  {
+   "bytes": [
+    137,
+    80,
+    78,
+    71,
+    13,
+    10,
+    26,
+    10
+   ],
+   "sniffed": {
+    "kind": "image",
+    "ext": "png",
+    "type": "image/png"
+   }
+  },
+  {
+   "bytes": [
+    255,
+    216,
+    255,
+    224,
+    1
+   ],
+   "sniffed": {
+    "kind": "image",
+    "ext": "jpg",
+    "type": "image/jpeg"
+   }
+  },
+  {
+   "bytes": [
+    82,
+    73,
+    70,
+    70,
+    0,
+    0,
+    0,
+    0,
+    87,
+    69,
+    66,
+    80,
+    1
+   ],
+   "sniffed": {
+    "kind": "image",
+    "ext": "webp",
+    "type": "image/webp"
+   }
+  },
+  {
+   "bytes": [
+    82,
+    73,
+    70,
+    70,
+    0,
+    0,
+    0,
+    0,
+    87,
+    65,
+    86,
+    69
+   ],
+   "sniffed": null
+  },
+  {
+   "bytes": [
+    103,
+    108,
+    84
+   ],
+   "sniffed": null
+  },
+  {
+   "bytes": [],
+   "sniffed": null
+  },
+  {
+   "bytes": [
+    77,
+    90
+   ],
+   "sniffed": null
+  }
+ ],
+ "decode": [
+  {
+   "value": "Z2xURgIAAAAJ",
+   "bytes": "676c54460200000009"
+  },
+  {
+   "value": "data:model/gltf-binary;base64,Z2xURgIAAAAJ",
+   "bytes": "676c54460200000009"
+  },
+  {
+   "value": "Z2xURg",
+   "bytes": "676c5446"
+  },
+  {
+   "value": "Z2xURg=",
+   "bytes": "676c5446"
+  },
+  {
+   "value": "Z2x URg==",
+   "bytes": "676c5446"
+  },
+  {
+   "value": "Z2x\nURg==",
+   "bytes": "676c5446"
+  },
+  {
+   "value": "Z2x$URg==",
+   "bytes": "676c5446"
+  },
+  {
+   "value": "-_-_",
+   "bytes": "fbffbf"
+  },
+  {
+   "value": "+/+/",
+   "bytes": "fbffbf"
+  },
+  {
+   "value": "Z2xURg==Z2xURg==",
+   "bytes": "676c5446"
+  },
+  {
+   "value": "a",
+   "bytes": ""
+  },
+  {
+   "value": "ab",
+   "bytes": "69"
+  },
+  {
+   "value": "abc",
+   "bytes": "69b7"
+  },
+  {
+   "value": "",
+   "bytes": ""
+  },
+  {
+   "value": "====",
+   "bytes": ""
+  },
+  {
+   "value": "data:,",
+   "bytes": ""
+  },
+  {
+   "value": "no,comma,twice",
+   "bytes": "7289a66adc2271"
+  },
+  {
+   "value": "éééé",
+   "bytes": ""
+  },
+  {
+   "value": 12,
+   "bytes": null
+  },
+  {
+   "value": null,
+   "bytes": null
+  }
+ ],
+ "publish": [
+  {
+   "body": "{\"title\":\" Stone Golem \",\"description\":\"A golem.\",\"claim\":\"ai-assisted\",\"forSale\":true,\"how\":\"Blender; AI drafted the texture.\",\"asset\":{\"name\":\"golem.glb\",\"data\":\"data:model/gltf-binary;base64,Z2xURgIAAAAJ\"},\"proofs\":[{\"name\":\"a.png\",\"data\":\"iVBORw0KGgo=\"},{\"data\":\"/9j/4AE=\"},{\"data\":\"UklGRgAAAABXRUJQAQ==\"}]}",
+   "verdict": {
+    "ok": true,
+    "draft": {
+     "title": "Stone Golem",
+     "description": "A golem.",
+     "claim": "ai-assisted",
+     "forSale": true,
+     "how": "Blender; AI drafted the texture.",
+     "asset": {
+      "bytes": {
+       "hex": "676c54460200000009"
+      },
+      "kind": "model",
+      "ext": "glb",
+      "name": "golem.glb"
+     },
+     "proofs": [
+      {
+       "bytes": {
+        "hex": "89504e470d0a1a0a"
+       },
+       "ext": "png"
+      },
+      {
+       "bytes": {
+        "hex": "ffd8ffe001"
+       },
+       "ext": "jpg"
+      },
+      {
+       "bytes": {
+        "hex": "52494646000000005745425001"
+       },
+       "ext": "webp"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "body": "{\"title\":\"Golem\",\"asset\":{\"name\":\"golem.glb\",\"data\":\"Z2xURgIAAAAJ\"}}",
+   "verdict": {
+    "ok": true,
+    "draft": {
+     "title": "Golem",
+     "description": "",
+     "claim": "ai-generated",
+     "forSale": false,
+     "how": "",
+     "asset": {
+      "bytes": {
+       "hex": "676c54460200000009"
+      },
+      "kind": "model",
+      "ext": "glb",
+      "name": "golem.glb"
+     },
+     "proofs": []
+    }
+   }
+  },
+  {
+   "body": "{\"title\":\"Golem\",\"claim\":\"human-made\",\"asset\":{\"name\":\"Gö lem!!(1).GLB\",\"data\":\"Z2xURgIAAAAJ\"}}",
+   "verdict": {
+    "ok": true,
+    "draft": {
+     "title": "Golem",
+     "description": "",
+     "claim": "human-made",
+     "forSale": false,
+     "how": "",
+     "asset": {
+      "bytes": {
+       "hex": "676c54460200000009"
+      },
+      "kind": "model",
+      "ext": "glb",
+      "name": "G lem1.GLB"
+     },
+     "proofs": []
+    }
+   }
+  },
+  {
+   "body": "{\"title\":\"Golem\",\"asset\":{\"name\":\"!!!\",\"data\":\"iVBORw0KGgo=\"}}",
+   "verdict": {
+    "ok": true,
+    "draft": {
+     "title": "Golem",
+     "description": "",
+     "claim": "ai-generated",
+     "forSale": false,
+     "how": "",
+     "asset": {
+      "bytes": {
+       "hex": "89504e470d0a1a0a"
+      },
+      "kind": "image",
+      "ext": "png",
+      "name": "asset.png"
+     },
+     "proofs": []
+    }
+   }
+  },
+  {
+   "body": "{\"title\":\"Golem\",\"asset\":{\"name\":42,\"data\":\"iVBORw0KGgo=\"}}",
+   "verdict": {
+    "ok": true,
+    "draft": {
+     "title": "Golem",
+     "description": "",
+     "claim": "ai-generated",
+     "forSale": false,
+     "how": "",
+     "asset": {
+      "bytes": {
+       "hex": "89504e470d0a1a0a"
+      },
+      "kind": "image",
+      "ext": "png",
+      "name": "asset.png"
+     },
+     "proofs": []
+    }
+   }
+  },
+  {
+   "body": "{\"title\":\"Golem\",\"asset\":{\"name\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.png\",\"data\":\"iVBORw0KGgo=\"}}",
+   "verdict": {
+    "ok": true,
+    "draft": {
+     "title": "Golem",
+     "description": "",
+     "claim": "ai-generated",
+     "forSale": false,
+     "how": "",
+     "asset": {
+      "bytes": {
+       "hex": "89504e470d0a1a0a"
+      },
+      "kind": "image",
+      "ext": "png",
+      "name": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+     },
+     "proofs": []
+    }
+   }
+  },
+  {
+   "body": "{\"title\":\"\",\"asset\":{\"name\":\"a.png\",\"data\":\"iVBORw0KGgo=\"}}",
+   "verdict": {
+    "ok": false,
+    "reason": "a listing needs a title, of 80 characters at most"
+   }
+  },
+  {
+   "body": "{\"title\":\"   \",\"asset\":{\"name\":\"a.png\",\"data\":\"iVBORw0KGgo=\"}}",
+   "verdict": {
+    "ok": false,
+    "reason": "a listing needs a title, of 80 characters at most"
+   }
+  },
+  {
+   "body": "{\"title\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"asset\":{\"name\":\"a.png\",\"data\":\"iVBORw0KGgo=\"}}",
+   "verdict": {
+    "ok": true,
+    "draft": {
+     "title": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+     "description": "",
+     "claim": "ai-generated",
+     "forSale": false,
+     "how": "",
+     "asset": {
+      "bytes": {
+       "hex": "89504e470d0a1a0a"
+      },
+      "kind": "image",
+      "ext": "png",
+      "name": "a.png"
+     },
+     "proofs": []
+    }
+   }
+  },
+  {
+   "body": "{\"title\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"asset\":{\"name\":\"a.png\",\"data\":\"iVBORw0KGgo=\"}}",
+   "verdict": {
+    "ok": false,
+    "reason": "a listing needs a title, of 80 characters at most"
+   }
+  },
+  {
+   "body": "{\"title\":\"  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx ﻿\",\"asset\":{\"name\":\"a.png\",\"data\":\"iVBORw0KGgo=\"}}",
+   "verdict": {
+    "ok": true,
+    "draft": {
+     "title": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+     "description": "",
+     "claim": "ai-generated",
+     "forSale": false,
+     "how": "",
+     "asset": {
+      "bytes": {
+       "hex": "89504e470d0a1a0a"
+      },
+      "kind": "image",
+      "ext": "png",
+      "name": "a.png"
+     },
+     "proofs": []
+    }
+   }
+  },
+  {
+   "body": "{\"title\":\"Golem\",\"asset\":{\"name\":\"a.png\",\"data\":\"iVBORw0KGgo=\"}}",
+   "verdict": {
+    "ok": true,
+    "draft": {
+     "title": "Golem",
+     "description": "",
+     "claim": "ai-generated",
+     "forSale": false,
+     "how": "",
+     "asset": {
+      "bytes": {
+       "hex": "89504e470d0a1a0a"
+      },
+      "kind": "image",
+      "ext": "png",
+      "name": "a.png"
+     },
+     "proofs": []
+    }
+   }
+  },
+  {
+   "body": "{\"title\":\"🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲\",\"asset\":{\"name\":\"a.png\",\"data\":\"iVBORw0KGgo=\"}}",
+   "verdict": {
+    "ok": true,
+    "draft": {
+     "title": "🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲",
+     "description": "",
+     "claim": "ai-generated",
+     "forSale": false,
+     "how": "",
+     "asset": {
+      "bytes": {
+       "hex": "89504e470d0a1a0a"
+      },
+      "kind": "image",
+      "ext": "png",
+      "name": "a.png"
+     },
+     "proofs": []
+    }
+   }
+  },
+  {
+   "body": "{\"title\":\"🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲\",\"asset\":{\"name\":\"a.png\",\"data\":\"iVBORw0KGgo=\"}}",
+   "verdict": {
+    "ok": false,
+    "reason": "a listing needs a title, of 80 characters at most"
+   }
+  },
+  {
+   "body": "{\"title\":5,\"asset\":{\"name\":\"a.png\",\"data\":\"iVBORw0KGgo=\"}}",
+   "verdict": {
+    "ok": false,
+    "reason": "a listing needs a title, of 80 characters at most"
+   }
+  },
+  {
+   "body": "{\"title\":\"Long\",\"how\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"asset\":{\"name\":\"a.png\",\"data\":\"iVBORw0KGgo=\"}}",
+   "verdict": {
+    "ok": false,
+    "reason": "the description and How I Made It are 2000 characters at most"
+   }
+  },
+  {
+   "body": "{\"title\":\"Long\",\"description\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"how\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"asset\":{\"name\":\"a.png\",\"data\":\"iVBORw0KGgo=\"}}",
+   "verdict": {
+    "ok": true,
+    "draft": {
+     "title": "Long",
+     "description": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+     "claim": "ai-generated",
+     "forSale": false,
+     "how": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+     "asset": {
+      "bytes": {
+       "hex": "89504e470d0a1a0a"
+      },
+      "kind": "image",
+      "ext": "png",
+      "name": "a.png"
+     },
+     "proofs": []
+    }
+   }
+  },
+  {
+   "body": "{\"title\":\"Nulls\",\"description\":null,\"how\":null,\"claim\":null,\"asset\":{\"name\":\"a.png\",\"data\":\"iVBORw0KGgo=\"}}",
+   "verdict": {
+    "ok": true,
+    "draft": {
+     "title": "Nulls",
+     "description": "",
+     "claim": "ai-generated",
+     "forSale": false,
+     "how": "",
+     "asset": {
+      "bytes": {
+       "hex": "89504e470d0a1a0a"
+      },
+      "kind": "image",
+      "ext": "png",
+      "name": "a.png"
+     },
+     "proofs": []
+    }
+   }
+  },
+  {
+   "body": "{\"title\":\"Numbers\",\"description\":3,\"asset\":{\"name\":\"a.png\",\"data\":\"iVBORw0KGgo=\"}}",
+   "verdict": {
+    "ok": false,
+    "reason": "the description and How I Made It are 2000 characters at most"
+   }
+  },
+  {
+   "body": "{\"title\":\"Robot\",\"claim\":\"robot\",\"asset\":{\"name\":\"a.png\",\"data\":\"iVBORw0KGgo=\"}}",
+   "verdict": {
+    "ok": false,
+    "reason": "a listing is human made, AI assisted or AI generated"
+   }
+  },
+  {
+   "body": "{\"title\":\"Virus\",\"asset\":{\"name\":\"a.exe\",\"data\":\"TVqQAA==\"}}",
+   "verdict": {
+    "ok": false,
+    "reason": "the asset is a .glb model or a PNG, JPEG or WebP picture"
+   }
+  },
+  {
+   "body": "{\"title\":\"No asset\"}",
+   "verdict": {
+    "ok": false,
+    "reason": "the asset is a .glb model or a PNG, JPEG or WebP picture"
+   }
+  },
+  {
+   "body": "{\"title\":\"String asset\",\"asset\":\"Z2xURg==\"}",
+   "verdict": {
+    "ok": false,
+    "reason": "the asset is a .glb model or a PNG, JPEG or WebP picture"
+   }
+  },
+  {
+   "body": "{\"title\":\"Proof not a picture\",\"asset\":{\"name\":\"a.png\",\"data\":\"iVBORw0KGgo=\"},\"proofs\":[{\"data\":\"Z2xURgIAAAAJ\"}]}",
+   "verdict": {
+    "ok": false,
+    "reason": "the Process Proof is PNG, JPEG or WebP pictures"
+   }
+  },
+  {
+   "body": "{\"title\":\"Proof not a list\",\"asset\":{\"name\":\"a.png\",\"data\":\"iVBORw0KGgo=\"},\"proofs\":{\"data\":\"iVBORw0KGgo=\"}}",
+   "verdict": {
+    "ok": false,
+    "reason": "the Process Proof is a list of pictures"
+   }
+  },
+  {
+   "body": "{\"title\":\"Proof null\",\"asset\":{\"name\":\"a.png\",\"data\":\"iVBORw0KGgo=\"},\"proofs\":null}",
+   "verdict": {
+    "ok": true,
+    "draft": {
+     "title": "Proof null",
+     "description": "",
+     "claim": "ai-generated",
+     "forSale": false,
+     "how": "",
+     "asset": {
+      "bytes": {
+       "hex": "89504e470d0a1a0a"
+      },
+      "kind": "image",
+      "ext": "png",
+      "name": "a.png"
+     },
+     "proofs": []
+    }
+   }
+  },
+  {
+   "body": "{\"title\":\"Proof of null\",\"asset\":{\"name\":\"a.png\",\"data\":\"iVBORw0KGgo=\"},\"proofs\":[null]}",
+   "verdict": {
+    "ok": false,
+    "reason": "the Process Proof is PNG, JPEG or WebP pictures"
+   }
+  },
+  {
+   "body": "{\"title\":\"Too many\",\"asset\":{\"name\":\"a.png\",\"data\":\"iVBORw0KGgo=\"},\"proofs\":[{\"data\":\"iVBORw0KGgo=\"},{\"data\":\"iVBORw0KGgo=\"},{\"data\":\"iVBORw0KGgo=\"},{\"data\":\"iVBORw0KGgo=\"},{\"data\":\"iVBORw0KGgo=\"},{\"data\":\"iVBORw0KGgo=\"},{\"data\":\"iVBORw0KGgo=\"}]}",
+   "verdict": {
+    "ok": false,
+    "reason": "a listing shows 6 pictures of the work at most"
+   }
+  },
+  {
+   "body": "{\"title\":\"Sale unshown\",\"claim\":\"human-made\",\"forSale\":true,\"asset\":{\"name\":\"a.png\",\"data\":\"iVBORw0KGgo=\"}}",
+   "verdict": {
+    "ok": false,
+    "reason": "to be for sale, show your work: How I Made It and at least one Process Proof"
+   }
+  },
+  {
+   "body": "{\"title\":\"Sale no how\",\"claim\":\"human-made\",\"forSale\":true,\"how\":\"  \",\"asset\":{\"name\":\"a.png\",\"data\":\"iVBORw0KGgo=\"},\"proofs\":[{\"data\":\"iVBORw0KGgo=\"}]}",
+   "verdict": {
+    "ok": false,
+    "reason": "to be for sale, show your work: How I Made It and at least one Process Proof"
+   }
+  },
+  {
+   "body": "{\"title\":\"Sale AI\",\"claim\":\"ai-generated\",\"forSale\":true,\"how\":\"prompt\",\"asset\":{\"name\":\"a.png\",\"data\":\"iVBORw0KGgo=\"},\"proofs\":[{\"data\":\"iVBORw0KGgo=\"}]}",
+   "verdict": {
+    "ok": false,
+    "reason": "AI generated work is not for sale"
+   }
+  },
+  {
+   "body": "{\"title\":\"Sale default claim\",\"forSale\":true,\"how\":\"x\",\"asset\":{\"name\":\"a.png\",\"data\":\"iVBORw0KGgo=\"},\"proofs\":[{\"data\":\"iVBORw0KGgo=\"}]}",
+   "verdict": {
+    "ok": false,
+    "reason": "AI generated work is not for sale"
+   }
+  },
+  {
+   "body": "{\"title\":\"Sale truthy\",\"forSale\":\"yes\",\"asset\":{\"name\":\"a.png\",\"data\":\"iVBORw0KGgo=\"}}",
+   "verdict": {
+    "ok": true,
+    "draft": {
+     "title": "Sale truthy",
+     "description": "",
+     "claim": "ai-generated",
+     "forSale": false,
+     "how": "",
+     "asset": {
+      "bytes": {
+       "hex": "89504e470d0a1a0a"
+      },
+      "kind": "image",
+      "ext": "png",
+      "name": "a.png"
+     },
+     "proofs": []
+    }
+   }
+  },
+  {
+   "body": "[\"Golem\"]",
+   "verdict": {
+    "ok": false,
+    "reason": "a listing needs a title, of 80 characters at most"
+   }
+  },
+  {
+   "body": "7",
+   "verdict": {
+    "ok": false,
+    "reason": "a listing needs a title, of 80 characters at most"
+   }
+  },
+  {
+   "body": "not json",
+   "verdict": {
+    "ok": false,
+    "reason": "not JSON"
+   }
+  },
+  {
+   "body": "",
+   "verdict": {
+    "ok": false,
+    "reason": "not JSON"
+   }
+  }
+ ],
+ "has": {
+  "0123456789abcdef": 2,
+  "fedcba9876543210": 6
+ },
+ "update": [
+  {
+   "body": "{\"id\":\"0123456789abcdef\",\"how\":\" Blender. \",\"claim\":\"ai-assisted\",\"forSale\":true,\"addProofs\":[{\"name\":\"s.png\",\"data\":\"iVBORw0KGgo=\"}]}",
+   "verdict": {
+    "ok": true,
+    "draft": {
+     "id": "0123456789abcdef",
+     "addProofs": [
+      {
+       "bytes": {
+        "hex": "89504e470d0a1a0a"
+       },
+       "ext": "png"
+      }
+     ],
+     "how": "Blender.",
+     "claim": "ai-assisted",
+     "forSale": true
+    }
+   }
+  },
+  {
+   "body": "{\"id\":\"0123456789abcdef\",\"how\":\"x\"}",
+   "verdict": {
+    "ok": true,
+    "draft": {
+     "id": "0123456789abcdef",
+     "addProofs": [],
+     "how": "x"
+    }
+   }
+  },
+  {
+   "body": "{\"id\":\"0123456789abcdef\"}",
+   "verdict": {
+    "ok": true,
+    "draft": {
+     "id": "0123456789abcdef",
+     "addProofs": []
+    }
+   }
+  },
+  {
+   "body": "{\"id\":\"0123456789abcdef\",\"how\":null}",
+   "verdict": {
+    "ok": false,
+    "reason": "How I Made It is 2000 characters at most"
+   }
+  },
+  {
+   "body": "{\"id\":\"0123456789abcdef\",\"how\":3}",
+   "verdict": {
+    "ok": false,
+    "reason": "How I Made It is 2000 characters at most"
+   }
+  },
+  {
+   "body": "{\"id\":\"0123456789abcdef\",\"how\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}",
+   "verdict": {
+    "ok": false,
+    "reason": "How I Made It is 2000 characters at most"
+   }
+  },
+  {
+   "body": "{\"id\":\"0123456789abcdef\",\"claim\":\"robot\"}",
+   "verdict": {
+    "ok": false,
+    "reason": "a listing is human made, AI assisted or AI generated"
+   }
+  },
+  {
+   "body": "{\"id\":\"0123456789abcdef\",\"claim\":null}",
+   "verdict": {
+    "ok": false,
+    "reason": "a listing is human made, AI assisted or AI generated"
+   }
+  },
+  {
+   "body": "{\"id\":\"0123456789abcdef\",\"forSale\":null}",
+   "verdict": {
+    "ok": true,
+    "draft": {
+     "id": "0123456789abcdef",
+     "addProofs": [],
+     "forSale": false
+    }
+   }
+  },
+  {
+   "body": "{\"id\":\"0123456789abcdef\",\"forSale\":\"true\"}",
+   "verdict": {
+    "ok": true,
+    "draft": {
+     "id": "0123456789abcdef",
+     "addProofs": [],
+     "forSale": false
+    }
+   }
+  },
+  {
+   "body": "{\"id\":\"0123456789abcdef\",\"addProofs\":[{\"data\":\"iVBORw0KGgo=\"},{\"data\":\"iVBORw0KGgo=\"},{\"data\":\"iVBORw0KGgo=\"},{\"data\":\"iVBORw0KGgo=\"}]}",
+   "verdict": {
+    "ok": true,
+    "draft": {
+     "id": "0123456789abcdef",
+     "addProofs": [
+      {
+       "bytes": {
+        "hex": "89504e470d0a1a0a"
+       },
+       "ext": "png"
+      },
+      {
+       "bytes": {
+        "hex": "89504e470d0a1a0a"
+       },
+       "ext": "png"
+      },
+      {
+       "bytes": {
+        "hex": "89504e470d0a1a0a"
+       },
+       "ext": "png"
+      },
+      {
+       "bytes": {
+        "hex": "89504e470d0a1a0a"
+       },
+       "ext": "png"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "body": "{\"id\":\"0123456789abcdef\",\"addProofs\":[{\"data\":\"iVBORw0KGgo=\"},{\"data\":\"iVBORw0KGgo=\"},{\"data\":\"iVBORw0KGgo=\"},{\"data\":\"iVBORw0KGgo=\"},{\"data\":\"iVBORw0KGgo=\"}]}",
+   "verdict": {
+    "ok": false,
+    "reason": "a listing shows 6 pictures of the work at most"
+   }
+  },
+  {
+   "body": "{\"id\":\"fedcba9876543210\",\"addProofs\":[{\"data\":\"iVBORw0KGgo=\"}]}",
+   "verdict": {
+    "ok": false,
+    "reason": "a listing shows 6 pictures of the work at most"
+   }
+  },
+  {
+   "body": "{\"id\":\"fedcba9876543210\",\"addProofs\":[]}",
+   "verdict": {
+    "ok": true,
+    "draft": {
+     "id": "fedcba9876543210",
+     "addProofs": []
+    }
+   }
+  },
+  {
+   "body": "{\"id\":\"0123456789abcdef\",\"addProofs\":[{\"data\":\"Z2xURgIAAAAJ\"}]}",
+   "verdict": {
+    "ok": false,
+    "reason": "the Process Proof is PNG, JPEG or WebP pictures"
+   }
+  },
+  {
+   "body": "{\"id\":\"0123456789abcdef\",\"addProofs\":\"nope\"}",
+   "verdict": {
+    "ok": false,
+    "reason": "the Process Proof is a list of pictures"
+   }
+  },
+  {
+   "body": "{\"id\":\"1111111111111111\",\"how\":\"x\"}",
+   "verdict": {
+    "ok": false,
+    "reason": "no such listing"
+   }
+  },
+  {
+   "body": "{\"id\":\"0123456789ABCDEF\",\"how\":\"x\"}",
+   "verdict": {
+    "ok": false,
+    "reason": "no such listing"
+   }
+  },
+  {
+   "body": "{\"id\":\"../../etc\",\"how\":\"x\"}",
+   "verdict": {
+    "ok": false,
+    "reason": "no such listing"
+   }
+  },
+  {
+   "body": "{\"id\":5}",
+   "verdict": {
+    "ok": false,
+    "reason": "no such listing"
+   }
+  },
+  {
+   "body": "{}",
+   "verdict": {
+    "ok": false,
+    "reason": "no such listing"
+   }
+  },
+  {
+   "body": "[]",
+   "verdict": {
+    "ok": false,
+    "reason": "no such listing"
+   }
+  },
+  {
+   "body": "not json",
+   "verdict": {
+    "ok": false,
+    "reason": "not JSON"
+   }
+  }
+ ],
+ "vote": [
+  {
+   "body": "{\"id\":\"0123456789abcdef\",\"vote\":\"like\"}",
+   "verdict": {
+    "ok": true,
+    "id": "0123456789abcdef",
+    "vote": "like"
+   }
+  },
+  {
+   "body": "{\"id\":\"0123456789abcdef\",\"vote\":\"dislike\"}",
+   "verdict": {
+    "ok": true,
+    "id": "0123456789abcdef",
+    "vote": "dislike"
+   }
+  },
+  {
+   "body": "{\"id\":\"0123456789abcdef\",\"vote\":null}",
+   "verdict": {
+    "ok": true,
+    "id": "0123456789abcdef",
+    "vote": null
+   }
+  },
+  {
+   "body": "{\"id\":\"0123456789abcdef\"}",
+   "verdict": {
+    "ok": false,
+    "reason": "a vote is like, dislike, or nothing"
+   }
+  },
+  {
+   "body": "{\"id\":\"0123456789abcdef\",\"vote\":\"love\"}",
+   "verdict": {
+    "ok": false,
+    "reason": "a vote is like, dislike, or nothing"
+   }
+  },
+  {
+   "body": "{\"id\":\"0123456789ABCDEF\",\"vote\":\"like\"}",
+   "verdict": {
+    "ok": false,
+    "reason": "no such listing"
+   }
+  },
+  {
+   "body": "{\"id\":\"x\",\"vote\":\"like\"}",
+   "verdict": {
+    "ok": false,
+    "reason": "no such listing"
+   }
+  },
+  {
+   "body": "{\"vote\":\"like\"}",
+   "verdict": {
+    "ok": false,
+    "reason": "no such listing"
+   }
+  },
+  {
+   "body": "[]",
+   "verdict": {
+    "ok": false,
+    "reason": "no such listing"
+   }
+  },
+  {
+   "body": "\"string\"",
+   "verdict": {
+    "ok": false,
+    "reason": "no such listing"
+   }
+  },
+  {
+   "body": "null",
+   "verdict": {
+    "ok": false,
+    "reason": "not JSON"
+   }
+  },
+  {
+   "body": "not json",
+   "verdict": {
+    "ok": false,
+    "reason": "not JSON"
+   }
+  }
+ ],
+ "listingId": [
+  {
+   "body": "{\"id\":\"0123456789abcdef\"}",
+   "verdict": {
+    "ok": true,
+    "id": "0123456789abcdef"
+   }
+  },
+  {
+   "body": "{\"id\":\"nope\"}",
+   "verdict": {
+    "ok": false,
+    "reason": "no such listing"
+   }
+  },
+  {
+   "body": "{\"id\":7}",
+   "verdict": {
+    "ok": false,
+    "reason": "no such listing"
+   }
+  },
+  {
+   "body": "{}",
+   "verdict": {
+    "ok": false,
+    "reason": "no such listing"
+   }
+  },
+  {
+   "body": "[]",
+   "verdict": {
+    "ok": false,
+    "reason": "no such listing"
+   }
+  },
+  {
+   "body": "3",
+   "verdict": {
+    "ok": false,
+    "reason": "no such listing"
+   }
+  },
+  {
+   "body": "null",
+   "verdict": {
+    "ok": false,
+    "reason": "not JSON"
+   }
+  },
+  {
+   "body": "not json",
+   "verdict": {
+    "ok": false,
+    "reason": "not JSON"
+   }
+  }
+ ],
+ "authenticity": [
+  {
+   "likes": 45,
+   "dislikes": 3,
+   "authenticity": 94
+  },
+  {
+   "likes": 1,
+   "dislikes": 0,
+   "authenticity": 100
+  },
+  {
+   "likes": 0,
+   "dislikes": 2,
+   "authenticity": 0
+  },
+  {
+   "likes": 0,
+   "dislikes": 0,
+   "authenticity": null
+  },
+  {
+   "likes": 2,
+   "dislikes": 1,
+   "authenticity": 67
+  },
+  {
+   "likes": 1,
+   "dislikes": 2,
+   "authenticity": 33
+  },
+  {
+   "likes": 1,
+   "dislikes": 7,
+   "authenticity": 13
+  },
+  {
+   "likes": 5,
+   "dislikes": 3,
+   "authenticity": 63
+  },
+  {
+   "likes": 1,
+   "dislikes": 199,
+   "authenticity": 1
+  },
+  {
+   "likes": 199,
+   "dislikes": 1,
+   "authenticity": 100
+  }
+ ],
+ "marks": [
+  {
+   "listing": {
+    "id": "0123456789abcdef",
+    "title": "Stone Golem",
+    "description": "",
+    "claim": "human-made",
+    "forSale": false,
+    "how": "Sculpted in Blender.",
+    "kind": "model",
+    "file": "0123456789abcdef-asset.glb",
+    "fileName": "golem.glb",
+    "proofs": [
+     "0123456789abcdef-proof-0.png"
+    ],
+    "creator": "ash",
+    "creatorName": "Ash",
+    "created": 1,
+    "votes": {
+     "bramble": "like",
+     "quim": "like",
+     "violet": "dislike"
+    }
+   },
+   "supported": true,
+   "mark": "human-made",
+   "sale": null
+  },
+  {
+   "listing": {
+    "id": "0123456789abcdef",
+    "title": "Stone Golem",
+    "description": "",
+    "claim": "human-made",
+    "forSale": false,
+    "how": "Sculpted in Blender.",
+    "kind": "model",
+    "file": "0123456789abcdef-asset.glb",
+    "fileName": "golem.glb",
+    "proofs": [
+     "0123456789abcdef-proof-0.png"
+    ],
+    "creator": "ash",
+    "creatorName": "Ash",
+    "created": 1,
+    "votes": {
+     "a": "like",
+     "b": "like"
+    }
+   },
+   "supported": true,
+   "mark": "human-made",
+   "sale": null
+  },
+  {
+   "listing": {
+    "id": "0123456789abcdef",
+    "title": "Stone Golem",
+    "description": "",
+    "claim": "human-made",
+    "forSale": false,
+    "how": "Sculpted in Blender.",
+    "kind": "model",
+    "file": "0123456789abcdef-asset.glb",
+    "fileName": "golem.glb",
+    "proofs": [],
+    "creator": "ash",
+    "creatorName": "Ash",
+    "created": 1,
+    "votes": {}
+   },
+   "supported": false,
+   "mark": "ai-generated",
+   "sale": "to be for sale, show your work: How I Made It and at least one Process Proof"
+  },
+  {
+   "listing": {
+    "id": "0123456789abcdef",
+    "title": "Stone Golem",
+    "description": "",
+    "claim": "ai-assisted",
+    "forSale": false,
+    "how": "  ",
+    "kind": "model",
+    "file": "0123456789abcdef-asset.glb",
+    "fileName": "golem.glb",
+    "proofs": [
+     "0123456789abcdef-proof-0.png"
+    ],
+    "creator": "ash",
+    "creatorName": "Ash",
+    "created": 1,
+    "votes": {}
+   },
+   "supported": false,
+   "mark": "ai-generated",
+   "sale": "to be for sale, show your work: How I Made It and at least one Process Proof"
+  },
+  {
+   "listing": {
+    "id": "0123456789abcdef",
+    "title": "Stone Golem",
+    "description": "",
+    "claim": "human-made",
+    "forSale": false,
+    "how": "Sculpted in Blender.",
+    "kind": "model",
+    "file": "0123456789abcdef-asset.glb",
+    "fileName": "golem.glb",
+    "proofs": [
+     "0123456789abcdef-proof-0.png"
+    ],
+    "creator": "ash",
+    "creatorName": "Ash",
+    "created": 1,
+    "votes": {
+     "a": "like",
+     "b": "dislike",
+     "c": "dislike"
+    }
+   },
+   "supported": true,
+   "mark": "human-made",
+   "sale": null
+  },
+  {
+   "listing": {
+    "id": "0123456789abcdef",
+    "title": "Stone Golem",
+    "description": "",
+    "claim": "human-made",
+    "forSale": false,
+    "how": "Sculpted in Blender.",
+    "kind": "model",
+    "file": "0123456789abcdef-asset.glb",
+    "fileName": "golem.glb",
+    "proofs": [
+     "0123456789abcdef-proof-0.png"
+    ],
+    "creator": "ash",
+    "creatorName": "Ash",
+    "created": 1,
+    "votes": {
+     "a": "like",
+     "b": "like",
+     "c": "dislike",
+     "d": "dislike",
+     "e": "dislike",
+     "f": "dislike",
+     "g": "dislike",
+     "h": "dislike"
+    }
+   },
+   "supported": true,
+   "mark": "human-made",
+   "sale": null
+  },
+  {
+   "listing": {
+    "id": "0123456789abcdef",
+    "title": "Stone Golem",
+    "description": "",
+    "claim": "human-made",
+    "forSale": false,
+    "how": "Sculpted in Blender.",
+    "kind": "model",
+    "file": "0123456789abcdef-asset.glb",
+    "fileName": "golem.glb",
+    "proofs": [
+     "0123456789abcdef-proof-0.png"
+    ],
+    "creator": "ash",
+    "creatorName": "Ash",
+    "created": 1790000000123.4568,
+    "votes": {},
+    "engine": true
+   },
+   "supported": true,
+   "mark": "human-made",
+   "sale": null
+  }
+ ],
+ "views": [
+  {
+   "listing": {
+    "id": "0123456789abcdef",
+    "title": "Stone Golem",
+    "description": "",
+    "claim": "human-made",
+    "forSale": false,
+    "how": "Sculpted in Blender.",
+    "kind": "model",
+    "file": "0123456789abcdef-asset.glb",
+    "fileName": "golem.glb",
+    "proofs": [
+     "0123456789abcdef-proof-0.png"
+    ],
+    "creator": "ash",
+    "creatorName": "Ash",
+    "created": 1,
+    "votes": {
+     "bramble": "like",
+     "quim": "like",
+     "violet": "dislike"
+    }
+   },
+   "asker": "violet",
+   "yours": [],
+   "view": {
+    "id": "0123456789abcdef",
+    "title": "Stone Golem",
+    "description": "",
+    "claim": "human-made",
+    "forSale": false,
+    "how": "Sculpted in Blender.",
+    "kind": "model",
+    "fileName": "golem.glb",
+    "creator": "ash",
+    "creatorName": "Ash",
+    "created": 1,
+    "mark": "human-made",
+    "supported": true,
+    "proofCount": 1,
+    "likes": 2,
+    "dislikes": 1,
+    "authenticity": 67,
+    "mine": "dislike",
+    "own": false,
+    "inYours": false
+   }
+  },
+  {
+   "listing": {
+    "id": "0123456789abcdef",
+    "title": "Stone Golem",
+    "description": "",
+    "claim": "human-made",
+    "forSale": false,
+    "how": "Sculpted in Blender.",
+    "kind": "model",
+    "file": "0123456789abcdef-asset.glb",
+    "fileName": "golem.glb",
+    "proofs": [
+     "0123456789abcdef-proof-0.png"
+    ],
+    "creator": "ash",
+    "creatorName": "Ash",
+    "created": 1,
+    "votes": {
+     "a": "like",
+     "b": "like"
+    }
+   },
+   "asker": "ash",
+   "yours": [
+    "0123456789abcdef"
+   ],
+   "view": {
+    "id": "0123456789abcdef",
+    "title": "Stone Golem",
+    "description": "",
+    "claim": "human-made",
+    "forSale": false,
+    "how": "Sculpted in Blender.",
+    "kind": "model",
+    "fileName": "golem.glb",
+    "creator": "ash",
+    "creatorName": "Ash",
+    "created": 1,
+    "mark": "human-made",
+    "supported": true,
+    "proofCount": 1,
+    "likes": 2,
+    "dislikes": 0,
+    "authenticity": 100,
+    "mine": null,
+    "own": true,
+    "inYours": true
+   }
+  },
+  {
+   "listing": {
+    "id": "0123456789abcdef",
+    "title": "Stone Golem",
+    "description": "",
+    "claim": "human-made",
+    "forSale": false,
+    "how": "Sculpted in Blender.",
+    "kind": "model",
+    "file": "0123456789abcdef-asset.glb",
+    "fileName": "golem.glb",
+    "proofs": [],
+    "creator": "ash",
+    "creatorName": "Ash",
+    "created": 1,
+    "votes": {}
+   },
+   "asker": null,
+   "yours": [],
+   "view": {
+    "id": "0123456789abcdef",
+    "title": "Stone Golem",
+    "description": "",
+    "claim": "human-made",
+    "forSale": false,
+    "how": "Sculpted in Blender.",
+    "kind": "model",
+    "fileName": "golem.glb",
+    "creator": "ash",
+    "creatorName": "Ash",
+    "created": 1,
+    "mark": "ai-generated",
+    "supported": false,
+    "proofCount": 0,
+    "likes": 0,
+    "dislikes": 0,
+    "authenticity": null,
+    "mine": null,
+    "own": false,
+    "inYours": false
+   }
+  },
+  {
+   "listing": {
+    "id": "0123456789abcdef",
+    "title": "Stone Golem",
+    "description": "",
+    "claim": "ai-assisted",
+    "forSale": false,
+    "how": "  ",
+    "kind": "model",
+    "file": "0123456789abcdef-asset.glb",
+    "fileName": "golem.glb",
+    "proofs": [
+     "0123456789abcdef-proof-0.png"
+    ],
+    "creator": "ash",
+    "creatorName": "Ash",
+    "created": 1,
+    "votes": {}
+   },
+   "asker": "bramble",
+   "yours": [],
+   "view": {
+    "id": "0123456789abcdef",
+    "title": "Stone Golem",
+    "description": "",
+    "claim": "ai-assisted",
+    "forSale": false,
+    "how": "  ",
+    "kind": "model",
+    "fileName": "golem.glb",
+    "creator": "ash",
+    "creatorName": "Ash",
+    "created": 1,
+    "mark": "ai-generated",
+    "supported": false,
+    "proofCount": 1,
+    "likes": 0,
+    "dislikes": 0,
+    "authenticity": null,
+    "mine": null,
+    "own": false,
+    "inYours": false
+   }
+  },
+  {
+   "listing": {
+    "id": "0123456789abcdef",
+    "title": "Stone Golem",
+    "description": "",
+    "claim": "human-made",
+    "forSale": false,
+    "how": "Sculpted in Blender.",
+    "kind": "model",
+    "file": "0123456789abcdef-asset.glb",
+    "fileName": "golem.glb",
+    "proofs": [
+     "0123456789abcdef-proof-0.png"
+    ],
+    "creator": "ash",
+    "creatorName": "Ash",
+    "created": 1,
+    "votes": {
+     "a": "like",
+     "b": "dislike",
+     "c": "dislike"
+    }
+   },
+   "asker": "a",
+   "yours": [],
+   "view": {
+    "id": "0123456789abcdef",
+    "title": "Stone Golem",
+    "description": "",
+    "claim": "human-made",
+    "forSale": false,
+    "how": "Sculpted in Blender.",
+    "kind": "model",
+    "fileName": "golem.glb",
+    "creator": "ash",
+    "creatorName": "Ash",
+    "created": 1,
+    "mark": "human-made",
+    "supported": true,
+    "proofCount": 1,
+    "likes": 1,
+    "dislikes": 2,
+    "authenticity": 33,
+    "mine": "like",
+    "own": false,
+    "inYours": false
+   }
+  },
+  {
+   "listing": {
+    "id": "0123456789abcdef",
+    "title": "Stone Golem",
+    "description": "",
+    "claim": "human-made",
+    "forSale": false,
+    "how": "Sculpted in Blender.",
+    "kind": "model",
+    "file": "0123456789abcdef-asset.glb",
+    "fileName": "golem.glb",
+    "proofs": [
+     "0123456789abcdef-proof-0.png"
+    ],
+    "creator": "ash",
+    "creatorName": "Ash",
+    "created": 1,
+    "votes": {
+     "a": "like",
+     "b": "like",
+     "c": "dislike",
+     "d": "dislike",
+     "e": "dislike",
+     "f": "dislike",
+     "g": "dislike",
+     "h": "dislike"
+    }
+   },
+   "asker": null,
+   "yours": [],
+   "view": {
+    "id": "0123456789abcdef",
+    "title": "Stone Golem",
+    "description": "",
+    "claim": "human-made",
+    "forSale": false,
+    "how": "Sculpted in Blender.",
+    "kind": "model",
+    "fileName": "golem.glb",
+    "creator": "ash",
+    "creatorName": "Ash",
+    "created": 1,
+    "mark": "human-made",
+    "supported": true,
+    "proofCount": 1,
+    "likes": 2,
+    "dislikes": 6,
+    "authenticity": 25,
+    "mine": null,
+    "own": false,
+    "inYours": false
+   }
+  },
+  {
+   "listing": {
+    "id": "0123456789abcdef",
+    "title": "Stone Golem",
+    "description": "",
+    "claim": "human-made",
+    "forSale": false,
+    "how": "Sculpted in Blender.",
+    "kind": "model",
+    "file": "0123456789abcdef-asset.glb",
+    "fileName": "golem.glb",
+    "proofs": [
+     "0123456789abcdef-proof-0.png"
+    ],
+    "creator": "ash",
+    "creatorName": "Ash",
+    "created": 1790000000123.4568,
+    "votes": {},
+    "engine": true
+   },
+   "asker": "bramble",
+   "yours": [
+    "0123456789abcdef"
+   ],
+   "view": {
+    "id": "0123456789abcdef",
+    "title": "Stone Golem",
+    "description": "",
+    "claim": "human-made",
+    "forSale": false,
+    "how": "Sculpted in Blender.",
+    "kind": "model",
+    "fileName": "golem.glb",
+    "creator": "ash",
+    "creatorName": "Ash",
+    "created": 1790000000123.4568,
+    "engine": true,
+    "mark": "human-made",
+    "supported": true,
+    "proofCount": 1,
+    "likes": 0,
+    "dislikes": 0,
+    "authenticity": null,
+    "mine": null,
+    "own": false,
+    "inYours": true
+   }
+  }
+ ],
+ "castVotes": [
+  {
+   "on": "target",
+   "voter": "bramble",
+   "vote": "like",
+   "refused": null,
+   "votes": {
+    "bramble": "like"
+   }
+  },
+  {
+   "on": "target",
+   "voter": "bramble",
+   "vote": "dislike",
+   "refused": null,
+   "votes": {
+    "bramble": "dislike"
+   }
+  },
+  {
+   "on": "target",
+   "voter": "quim",
+   "vote": "like",
+   "refused": null,
+   "votes": {
+    "bramble": "dislike",
+    "quim": "like"
+   }
+  },
+  {
+   "on": "target",
+   "voter": "bramble",
+   "vote": null,
+   "refused": null,
+   "votes": {
+    "quim": "like"
+   }
+  },
+  {
+   "on": "target",
+   "voter": "ash",
+   "vote": "like",
+   "refused": "your own listing is not yours to vote on",
+   "votes": {
+    "quim": "like"
+   }
+  },
+  {
+   "on": "target",
+   "voter": "nobody",
+   "vote": null,
+   "refused": null,
+   "votes": {
+    "quim": "like"
+   }
+  },
+  {
+   "on": "unshown",
+   "voter": "bramble",
+   "vote": "like",
+   "refused": "there is nothing to judge until its creator shows their work",
+   "votes": {}
+  },
+  {
+   "on": "unshown",
+   "voter": "bramble",
+   "vote": null,
+   "refused": null,
+   "votes": {}
+  }
+ ],
+ "engine": {
+  "files": [
+   {
+    "file": "bandit-cutter.glb",
+    "created": 5
+   },
+   {
+    "file": "Arty.glb",
+    "created": 6.25
+   },
+   {
+    "file": "Female Tortle.glb",
+    "created": 1790000000123.4568
+   }
+  ],
+  "provenance": {
+   "model:arty": "ai-assisted",
+   "model:female-tortle": "human-made",
+   "model:bandit-cutter": "nonsense"
+  },
+  "fromNothing": {
+   "listings": [
+    {
+     "id": "d76e431d1fd1e7bf",
+     "title": "Bandit Cutter",
+     "description": "One of the engine’s own models: every project has it.",
+     "claim": "ai-generated",
+     "forSale": false,
+     "how": "",
+     "kind": "model",
+     "file": "bandit-cutter.glb",
+     "fileName": "bandit-cutter.glb",
+     "proofs": [],
+     "creator": "admin",
+     "creatorName": "The engine",
+     "created": 5,
+     "votes": {},
+     "engine": true
+    },
+    {
+     "id": "f44a48857176a705",
+     "title": "Arty",
+     "description": "One of the engine’s own models: every project has it.",
+     "claim": "ai-assisted",
+     "forSale": false,
+     "how": "",
+     "kind": "model",
+     "file": "Arty.glb",
+     "fileName": "Arty.glb",
+     "proofs": [],
+     "creator": "admin",
+     "creatorName": "The engine",
+     "created": 6.25,
+     "votes": {},
+     "engine": true
+    },
+    {
+     "id": "9add545af2df6c57",
+     "title": "Female Tortle",
+     "description": "One of the engine’s own models: every project has it.",
+     "claim": "human-made",
+     "forSale": false,
+     "how": "",
+     "kind": "model",
+     "file": "Female Tortle.glb",
+     "fileName": "Female Tortle.glb",
+     "proofs": [],
+     "creator": "admin",
+     "creatorName": "The engine",
+     "created": 1790000000123.4568,
+     "votes": {},
+     "engine": true
+    }
+   ],
+   "changed": true
+  },
+  "keptAndGone": {
+   "before": [
+    {
+     "id": "0123456789abcdef",
+     "title": "Stone Golem",
+     "description": "",
+     "claim": "human-made",
+     "forSale": false,
+     "how": "Sculpted in Blender.",
+     "kind": "model",
+     "file": "0123456789abcdef-asset.glb",
+     "fileName": "golem.glb",
+     "proofs": [
+      "0123456789abcdef-proof-0.png"
+     ],
+     "creator": "ash",
+     "creatorName": "Ash",
+     "created": 1,
+     "votes": {}
+    },
+    {
+     "id": "d76e431d1fd1e7bf",
+     "title": "Bandit Cutter",
+     "description": "One of the engine’s own models: every project has it.",
+     "claim": "ai-generated",
+     "forSale": false,
+     "how": "",
+     "kind": "model",
+     "file": "bandit-cutter.glb",
+     "fileName": "bandit-cutter.glb",
+     "proofs": [],
+     "creator": "admin",
+     "creatorName": "The engine",
+     "created": 5,
+     "votes": {
+      "bramble": "like"
+     },
+     "engine": true
+    },
+    {
+     "id": "f44a48857176a705",
+     "title": "Arty",
+     "description": "One of the engine’s own models: every project has it.",
+     "claim": "ai-assisted",
+     "forSale": false,
+     "how": "",
+     "kind": "model",
+     "file": "Arty.glb",
+     "fileName": "Arty.glb",
+     "proofs": [],
+     "creator": "admin",
+     "creatorName": "The engine",
+     "created": 6.25,
+     "votes": {},
+     "engine": true
+    },
+    {
+     "id": "9add545af2df6c57",
+     "title": "Female Tortle",
+     "description": "One of the engine’s own models: every project has it.",
+     "claim": "human-made",
+     "forSale": false,
+     "how": "",
+     "kind": "model",
+     "file": "Female Tortle.glb",
+     "fileName": "Female Tortle.glb",
+     "proofs": [],
+     "creator": "admin",
+     "creatorName": "The engine",
+     "created": 1790000000123.4568,
+     "votes": {},
+     "engine": true
+    }
+   ],
+   "after": {
+    "listings": [
+     {
+      "id": "0123456789abcdef",
+      "title": "Stone Golem",
+      "description": "",
+      "claim": "human-made",
+      "forSale": false,
+      "how": "Sculpted in Blender.",
+      "kind": "model",
+      "file": "0123456789abcdef-asset.glb",
+      "fileName": "golem.glb",
+      "proofs": [
+       "0123456789abcdef-proof-0.png"
+      ],
+      "creator": "ash",
+      "creatorName": "Ash",
+      "created": 1,
+      "votes": {}
+     },
+     {
+      "id": "f44a48857176a705",
+      "title": "Arty",
+      "description": "One of the engine’s own models: every project has it.",
+      "claim": "ai-assisted",
+      "forSale": false,
+      "how": "",
+      "kind": "model",
+      "file": "Arty.glb",
+      "fileName": "Arty.glb",
+      "proofs": [],
+      "creator": "admin",
+      "creatorName": "The engine",
+      "created": 6.25,
+      "votes": {},
+      "engine": true
+     },
+     {
+      "id": "9add545af2df6c57",
+      "title": "Female Tortle",
+      "description": "One of the engine’s own models: every project has it.",
+      "claim": "human-made",
+      "forSale": false,
+      "how": "",
+      "kind": "model",
+      "file": "Female Tortle.glb",
+      "fileName": "Female Tortle.glb",
+      "proofs": [],
+      "creator": "admin",
+      "creatorName": "The engine",
+      "created": 1790000000123.4568,
+      "votes": {},
+      "engine": true
+     }
+    ],
+    "changed": true
+   },
+   "same": false
+  },
+  "ids": [
+   [
+    "bandit-cutter.glb",
+    "d76e431d1fd1e7bf",
+    "Bandit Cutter"
+   ],
+   [
+    "Arty.glb",
+    "f44a48857176a705",
+    "Arty"
+   ],
+   [
+    "Female Tortle.glb",
+    "9add545af2df6c57",
+    "Female Tortle"
+   ]
+  ]
+ },
+ "migrations": [
+  {
+   "file": "[{\"id\":\"0123456789abcdef\",\"title\":\"Stone Golem\",\"description\":\"\",\"how\":\"Sculpted in Blender.\",\"kind\":\"model\",\"file\":\"0123456789abcdef-asset.glb\",\"fileName\":\"golem.glb\",\"creator\":\"ash\",\"creatorName\":\"Ash\",\"created\":1,\"votes\":{},\"proof\":\"x-proof.png\"},{\"id\":\"fedcba9876543210\",\"title\":\"Stone Golem\",\"description\":\"\",\"how\":\"Sculpted in Blender.\",\"kind\":\"model\",\"file\":\"0123456789abcdef-asset.glb\",\"fileName\":\"golem.glb\",\"creator\":\"ash\",\"creatorName\":\"Ash\",\"created\":1,\"votes\":{},\"proof\":null},{\"id\":\"1111111111111111\",\"title\":\"Stone Golem\",\"description\":\"\",\"how\":\"Sculpted in Blender.\",\"kind\":\"model\",\"file\":\"0123456789abcdef-asset.glb\",\"fileName\":\"golem.glb\",\"creator\":\"ash\",\"creatorName\":\"Ash\",\"created\":1,\"votes\":{}},{\"id\":\"2222222222222222\",\"title\":\"Stone Golem\",\"description\":\"\",\"claim\":\"ai-assisted\",\"forSale\":true,\"how\":\"Sculpted in Blender.\",\"kind\":\"model\",\"file\":\"0123456789abcdef-asset.glb\",\"fileName\":\"golem.glb\",\"proofs\":[\"0123456789abcdef-proof-0.png\"],\"creator\":\"ash\",\"creatorName\":\"Ash\",\"created\":1,\"votes\":{}},{\"id\":\"3333333333333333\",\"title\":\"Stone Golem\",\"description\":\"\",\"claim\":\"human-made\",\"forSale\":false,\"how\":\"Sculpted in Blender.\",\"kind\":\"model\",\"file\":\"0123456789abcdef-asset.glb\",\"fileName\":\"golem.glb\",\"proofs\":[\"0123456789abcdef-proof-0.png\"],\"creator\":\"ash\",\"creatorName\":\"Ash\",\"created\":1,\"votes\":{},\"extra\":{\"kept\":1}}]",
+   "listings": [
+    {
+     "id": "0123456789abcdef",
+     "title": "Stone Golem",
+     "description": "",
+     "how": "Sculpted in Blender.",
+     "kind": "model",
+     "file": "0123456789abcdef-asset.glb",
+     "fileName": "golem.glb",
+     "creator": "ash",
+     "creatorName": "Ash",
+     "created": 1,
+     "votes": {},
+     "claim": "ai-generated",
+     "forSale": false,
+     "proofs": [
+      "x-proof.png"
+     ]
+    },
+    {
+     "id": "fedcba9876543210",
+     "title": "Stone Golem",
+     "description": "",
+     "how": "Sculpted in Blender.",
+     "kind": "model",
+     "file": "0123456789abcdef-asset.glb",
+     "fileName": "golem.glb",
+     "creator": "ash",
+     "creatorName": "Ash",
+     "created": 1,
+     "votes": {},
+     "claim": "ai-generated",
+     "forSale": false,
+     "proofs": []
+    },
+    {
+     "id": "1111111111111111",
+     "title": "Stone Golem",
+     "description": "",
+     "how": "Sculpted in Blender.",
+     "kind": "model",
+     "file": "0123456789abcdef-asset.glb",
+     "fileName": "golem.glb",
+     "creator": "ash",
+     "creatorName": "Ash",
+     "created": 1,
+     "votes": {},
+     "claim": "ai-generated",
+     "forSale": false,
+     "proofs": []
+    },
+    {
+     "id": "2222222222222222",
+     "title": "Stone Golem",
+     "description": "",
+     "claim": "ai-assisted",
+     "forSale": true,
+     "how": "Sculpted in Blender.",
+     "kind": "model",
+     "file": "0123456789abcdef-asset.glb",
+     "fileName": "golem.glb",
+     "proofs": [
+      "0123456789abcdef-proof-0.png"
+     ],
+     "creator": "ash",
+     "creatorName": "Ash",
+     "created": 1,
+     "votes": {}
+    },
+    {
+     "id": "3333333333333333",
+     "title": "Stone Golem",
+     "description": "",
+     "claim": "human-made",
+     "forSale": false,
+     "how": "Sculpted in Blender.",
+     "kind": "model",
+     "file": "0123456789abcdef-asset.glb",
+     "fileName": "golem.glb",
+     "proofs": [
+      "0123456789abcdef-proof-0.png"
+     ],
+     "creator": "ash",
+     "creatorName": "Ash",
+     "created": 1,
+     "votes": {},
+     "extra": {
+      "kept": 1
+     }
+    }
+   ]
+  },
+  {
+   "file": "{\"not\":\"a list\"}",
+   "listings": []
+  },
+  {
+   "file": "not json",
+   "listings": []
+  }
+ ],
+ "listingsFile": "[\n  {\n    \"id\": \"0000000000000000\",\n    \"title\": \"Stone Golem\",\n    \"description\": \"\",\n    \"claim\": \"human-made\",\n    \"forSale\": false,\n    \"how\": \"Sculpted in Blender.\",\n    \"kind\": \"model\",\n    \"file\": \"0123456789abcdef-asset.glb\",\n    \"fileName\": \"golem.glb\",\n    \"proofs\": [\n      \"0123456789abcdef-proof-0.png\"\n    ],\n    \"creator\": \"ash\",\n    \"creatorName\": \"Ash\",\n    \"created\": 1790247235275.4915,\n    \"votes\": {\n      \"a\": \"like\"\n    }\n  },\n  {\n    \"id\": \"1111111111111111\",\n    \"title\": \"Stone Golem\",\n    \"description\": \"\",\n    \"claim\": \"human-made\",\n    \"forSale\": false,\n    \"how\": \"Sculpted in Blender.\",\n    \"kind\": \"model\",\n    \"file\": \"0123456789abcdef-asset.glb\",\n    \"fileName\": \"golem.glb\",\n    \"proofs\": [\n      \"0123456789abcdef-proof-0.png\"\n    ],\n    \"creator\": \"ash\",\n    \"creatorName\": \"Ash\",\n    \"created\": 1790247235936.3381,\n    \"votes\": {}\n  },\n  {\n    \"id\": \"2222222222222222\",\n    \"title\": \"Stone Golem\",\n    \"description\": \"\",\n    \"claim\": \"human-made\",\n    \"forSale\": false,\n    \"how\": \"Sculpted in Blender.\",\n    \"kind\": \"model\",\n    \"file\": \"0123456789abcdef-asset.glb\",\n    \"fileName\": \"golem.glb\",\n    \"proofs\": [\n      \"0123456789abcdef-proof-0.png\"\n    ],\n    \"creator\": \"ash\",\n    \"creatorName\": \"Ash\",\n    \"created\": 1790462790485.5073,\n    \"votes\": {\n      \"a\": \"like\"\n    }\n  },\n  {\n    \"id\": \"3333333333333333\",\n    \"title\": \"Stone Golem\",\n    \"description\": \"\",\n    \"claim\": \"human-made\",\n    \"forSale\": false,\n    \"how\": \"Sculpted in Blender.\",\n    \"kind\": \"model\",\n    \"file\": \"0123456789abcdef-asset.glb\",\n    \"fileName\": \"golem.glb\",\n    \"proofs\": [\n      \"0123456789abcdef-proof-0.png\"\n    ],\n    \"creator\": \"ash\",\n    \"creatorName\": \"Ash\",\n    \"created\": 1790247243894.6243,\n    \"votes\": {},\n    \"engine\": true\n  },\n  {\n    \"id\": \"4444444444444444\",\n    \"title\": \"Stone Golem\",\n    \"description\": \"\",\n    \"claim\": \"human-made\",\n    \"forSale\": false,\n    \"how\": \"Sculpted in Blender.\",\n    \"kind\": \"model\",\n    \"file\": \"0123456789abcdef-asset.glb\",\n    \"fileName\": \"golem.glb\",\n    \"proofs\": [\n      \"0123456789abcdef-proof-0.png\"\n    ],\n    \"creator\": \"ash\",\n    \"creatorName\": \"Ash\",\n    \"created\": 1790247252933.0405,\n    \"votes\": {\n      \"a\": \"like\"\n    }\n  },\n  {\n    \"id\": \"5555555555555555\",\n    \"title\": \"Stone Golem\",\n    \"description\": \"\",\n    \"claim\": \"human-made\",\n    \"forSale\": false,\n    \"how\": \"Sculpted in Blender.\",\n    \"kind\": \"model\",\n    \"file\": \"0123456789abcdef-asset.glb\",\n    \"fileName\": \"golem.glb\",\n    \"proofs\": [\n      \"0123456789abcdef-proof-0.png\"\n    ],\n    \"creator\": \"ash\",\n    \"creatorName\": \"Ash\",\n    \"created\": 1790634656101,\n    \"votes\": {}\n  },\n  {\n    \"id\": \"6666666666666666\",\n    \"title\": \"Stone Golem\",\n    \"description\": \"\",\n    \"claim\": \"human-made\",\n    \"forSale\": false,\n    \"how\": \"Sculpted in Blender.\",\n    \"kind\": \"model\",\n    \"file\": \"0123456789abcdef-asset.glb\",\n    \"fileName\": \"golem.glb\",\n    \"proofs\": [\n      \"0123456789abcdef-proof-0.png\"\n    ],\n    \"creator\": \"ash\",\n    \"creatorName\": \"Ash\",\n    \"created\": 0.1,\n    \"votes\": {\n      \"a\": \"like\"\n    }\n  },\n  {\n    \"id\": \"7777777777777777\",\n    \"title\": \"Stone Golem\",\n    \"description\": \"\",\n    \"claim\": \"human-made\",\n    \"forSale\": false,\n    \"how\": \"Sculpted in Blender.\",\n    \"kind\": \"model\",\n    \"file\": \"0123456789abcdef-asset.glb\",\n    \"fileName\": \"golem.glb\",\n    \"proofs\": [\n      \"0123456789abcdef-proof-0.png\"\n    ],\n    \"creator\": \"ash\",\n    \"creatorName\": \"Ash\",\n    \"created\": 1790000000000.5,\n    \"votes\": {}\n  }\n]\n",
+ "tidyId": [
+  [
+   "Stone_Golem.glb",
+   "stone-golem"
+  ],
+  [
+   "golem.GLTF",
+   "golem"
+  ],
+  [
+   "--.glb",
+   "model"
+  ],
+  [
+   "Female Tortle.glb",
+   "female-tortle"
+  ],
+  [
+   "İstanbul.glb",
+   "i-stanbul"
+  ],
+  [
+   "Æther Wing.glb",
+   "ther-wing"
+  ],
+  [
+   "a..b",
+   "a-b"
+  ],
+  [
+   "",
+   "model"
+  ],
+  [
+   "model.glb.glb",
+   "model-glb"
+  ]
+ ],
+ "freeModelId": [
+  {
+   "wanted": "golem",
+   "taken": [
+    "golem",
+    "golem-2"
+   ],
+   "free": "golem-3"
+  },
+  {
+   "wanted": "wolf",
+   "taken": [
+    "golem"
+   ],
+   "free": "wolf"
+  },
+  {
+   "wanted": "golem",
+   "taken": [
+    "golem",
+    "golem-3"
+   ],
+   "free": "golem-2"
+  }
+ ]
+}

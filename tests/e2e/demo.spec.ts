@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from './fixtures';
 import { closeLoadout, openPack } from './pack';
+import { reloadedFrom } from './server-mode';
 import { CURRENT_FORMAT_VERSION } from '../../src/engine/scene/schema';
 
 /**
@@ -1167,12 +1168,7 @@ test('saves the campaign and finds it again after a reload', async ({ page }) =>
   // A real reload: a new page, a new engine, and nothing but storage between.
   await page.reload();
   await page.waitForFunction(() => (window.__engine?.frames ?? 0) > 5);
-  const fresh = await page.evaluate(() => ({
-    scene: window.__engine!.sceneId(),
-    carried: window.__engine!.carried(),
-  }));
-  expect(fresh.scene).not.toBe('the-pit');
-  expect(fresh.carried).toEqual([]);
+  await reloadedFrom(page, 'the-pit', before); // a fresh game - or, played on the server, the one it kept
 
   await (await saveMenu(page)).locator('[data-testid="load"]').click();
   await page.locator('[data-testid="saves"] [data-save="quick"] [data-testid="load-slot"]').click();

@@ -1,0 +1,185 @@
+/* New Game's table (NewGame.tsx): a wooden table under a lamp, a deck dealt face up on it, cards
+   dragged about and put down anywhere, a sleeve slid over the one chosen, and the chosen set in a row
+   along the top. Timings here and in NewGame.tsx agree: deal .52s, sweep .43s, sleeve .46s, gather .46s. */
+
+.deal-table{--card-w:188px;--card-h:263px;position:fixed;inset:0;overflow:hidden;pointer-events:auto;user-select:none;touch-action:none;cursor:default;
+  font:12px/1.4 'Libre Baskerville',Georgia,serif;color:#231a12;
+  background:
+    radial-gradient(ellipse at 50% 42%,#0000 30%,#00000052 62%,#000000c7 100%),
+    repeating-linear-gradient(0deg,#0000 0 118px,#1d0f0799 118px 120px,#0000 120px 121px),
+    url('./wood-grain.svg') 0 0/100% 100% no-repeat,
+    linear-gradient(180deg,#6d4527,#5a3920 45%,#4b2f1a);
+  /* The grain (wood-grain.svg) is light and shade about a middle grey, laid over the browns without changing them. */
+  background-blend-mode:normal,normal,soft-light,normal}
+
+.deal-leave{position:absolute;top:16px;left:18px;z-index:40;padding:6px 12px;cursor:pointer;border-radius:5px;font:700 12px/1.2 'Libre Baskerville',Georgia,serif;color:#f3e7cf;background:#00000059;border:1px solid #f3e7cf40}
+.deal-leave:hover{background:#00000080}
+.deal-title{position:absolute;top:196px;left:50%;transform:translateX(-50%);z-index:5;margin:0;white-space:nowrap;font:700 26px/1.1 Cinzel,Georgia,serif;letter-spacing:.06em;color:#f6ecd5;text-shadow:0 2px 6px #000c}
+.deal-tip{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);z-index:40;margin:0;padding:6px 14px;border-radius:14px;white-space:nowrap;font:italic 12px/1.3 'Libre Baskerville',Georgia,serif;color:#f3e7cf;background:#00000066}
+
+/* A card, at the one size every card on the table is. */
+.deal-card{position:absolute;width:var(--card-w);height:var(--card-h);box-sizing:border-box;padding:0;border:0;border-radius:9px;cursor:grab;touch-action:none;
+  background:linear-gradient(#fbf8f0,#f1e9d6);box-shadow:0 1px 2px #0006,0 6px 14px #00000059;transition:box-shadow .15s}
+.deal-card:active{cursor:grabbing}
+.deal-card.is-loose{transform:translate(-50%,-50%) rotate(var(--turn,0deg))}
+.deal-card.is-top{inset:0;transition:transform .15s,box-shadow .15s}
+
+.deal-face{position:absolute;inset:0;overflow:hidden;box-sizing:border-box;padding:12px 13px;border-radius:9px;border:2px solid #d8bf86;display:flex;flex-direction:column;gap:5px;text-align:left}
+.deal-kind{align-self:flex-start;padding:1px 8px;border-radius:3px;background:#4c5d82;color:#fff;font:700 9px/1.5 Cinzel,Georgia,serif;letter-spacing:.14em;text-transform:uppercase}
+.deal-name{margin:2px 0 0;font:700 17px/1.1 Cinzel,Georgia,serif;text-transform:uppercase;color:#1d1611}
+.deal-line{font-size:10.5px;color:#6d5a3e}
+.deal-features{flex:1 1 0;min-height:0;display:flex;flex-direction:column;gap:5px;font-size:10.5px;line-height:1.35;overflow:hidden}
+.deal-features p{margin:0}
+/* A choice's picture (card-art.ts, `choiceArtFor`): an illustration across the top, or a class's banner hung from the top edge. */
+.deal-art{flex:none;display:block;width:calc(100% + 26px);height:42%;margin:-12px -13px 3px;object-fit:cover;object-position:50% 28%;border-bottom:2px solid #d8bf86;pointer-events:none}
+.deal-face.has-art .deal-kind{margin-top:-17px;position:relative;box-shadow:0 1px 3px #0006}
+.deal-face.has-art .deal-features{line-height:1.3;gap:4px}
+.deal-face.has-art .deal-name{font-size:15px}
+.deal-banner{position:absolute;top:-2px;right:12px;width:46px;height:auto;pointer-events:none;filter:drop-shadow(0 2px 3px #0006)}
+.deal-face.has-banner>.deal-kind,.deal-face.has-banner>.deal-name,.deal-face.has-banner>.deal-line{margin-right:52px}
+/* The chosen model's place in the row: nothing round it - the mini stands on the table, seen from
+   above, its name under it. Not sleeved. */
+.deal-card:has(>.deal-face.is-box){border-radius:0;background:none;box-shadow:none}
+.deal-face.is-box{padding:0;border:0;border-radius:0;background:none}
+.deal-box-view{position:absolute;inset:0;display:block;overflow:hidden}
+.deal-box-view::before{content:attr(data-letter);position:absolute;inset:0;display:grid;place-items:center;font:700 54px Cinzel,Georgia,serif;color:#f3e7cf;transition:opacity .3s}
+.deal-box-view:has(.deal-figure[data-drawn])::before{opacity:0}
+.deal-figure{position:absolute;inset:0;width:100%;height:100%;display:block}
+.deal-box-name{position:absolute;left:0;right:0;bottom:10px;text-align:center;font:700 15px/1.1 Cinzel,Georgia,serif;letter-spacing:.06em;text-transform:uppercase;color:#f3e7cf;text-shadow:0 1px 3px #000}
+.deal-face.is-domain{padding:0;border:0}
+/* An equipment card: the catalogue's own picture, or its numbers drawn (GearBinder.tsx), filling the card. */
+.deal-face.is-gear{padding:0;border:0;background:#1d1611}
+.deal-face.is-gear .gear-face{width:100%;height:100%;object-fit:cover}
+.deal-face.is-domain .face{width:100%;height:100%}
+/* The rules are set to fit (fit-text.ts), so nothing is cut off to fade out. */
+.deal-face.is-domain .face-rules:after{display:none}
+.deal-words{position:absolute;bottom:34px;left:50%;transform:translateX(-50%) rotate(-4deg);padding:2px 9px;border-radius:3px;white-space:nowrap;font:700 9px/1.5 Cinzel,Georgia,serif;letter-spacing:.12em;text-transform:uppercase;color:#fff;background:#8f2d1ee6;box-shadow:0 1px 3px #0008}
+
+/* The deck: the top card, and the rest showing as the edges of a stack beneath it. */
+.deal-deck{position:absolute;left:24%;top:58%;width:var(--card-w);height:var(--card-h);transform:translate(-50%,-50%);z-index:4}
+.deal-under{position:absolute;inset:0;border-radius:9px;background:#efe6d0;
+  box-shadow:1px 2px 0 #d9ccb0,2px 4px 0 #e9dfc6,3px 6px 0 #d9ccb0,4px 8px 0 #e9dfc6,5px 10px 0 #d6c8ab,6px 12px 0 #e5dac0,0 12px 22px #000a}
+.deal-card.is-next{pointer-events:none;box-shadow:none}
+.deal-empty{position:absolute;inset:0;display:grid;place-items:center;padding:16px;text-align:center;border:2px dashed #f3e7cf66;border-radius:9px;font-style:italic;color:#f3e7cfb3}
+
+/* The table's buttons: Choose, Put back, Choose again, Begin. */
+.deal-button{padding:7px 18px;cursor:pointer;border-radius:6px;font:700 13px/1.1 Cinzel,Georgia,serif;letter-spacing:.08em;text-transform:uppercase;color:#1d1611;
+  background:linear-gradient(#efe3c4,#cfbe93);border:1px solid #9c8d67;box-shadow:inset 0 1px 0 #fffdf4,0 3px 0 #9c8d67,0 6px 12px #0008}
+.deal-button:disabled{opacity:.45;cursor:default}
+.deal-button.is-big{padding:11px 34px;font-size:17px}
+@keyframes deal-pop{from{opacity:0;margin-top:-6px}}
+
+/* The sleeve: a hard-edged rectangle of clear plastic, a shade brighter along its open top. Slid on
+   over the one chosen from the bottom of the screen. */
+.deal-sleeve{position:absolute;inset:-5px;border-radius:0;pointer-events:none;opacity:0;
+  background:linear-gradient(118deg,#ffffff3d,#ffffff0f 30%,#ffffff05 55%,#ffffff2e 70%,#ffffff0a);
+  box-shadow:inset 0 0 0 1px #ffffffc4,inset 0 2px 0 1px #ffffff66,0 2px 6px #0006}
+.deal-card.is-sleeved .deal-sleeve{opacity:1}
+@keyframes deal-sleeve-on{from{transform:translateY(100vh)}}
+
+/* Dealt in from off the left of the table - everything comes on from there; swept off it; gathered back to the deck. */
+.deal-table.is-dealing .deal-deck{animation:deal-in .52s cubic-bezier(.2,.8,.3,1) both}
+@keyframes deal-in{from{transform:translate(-50%,-50%) translateX(-110vw) rotate(-18deg)}}
+.deal-table.is-dealing .deal-title{animation:deal-title-in .52s cubic-bezier(.2,.8,.3,1) both}
+@keyframes deal-title-in{from{transform:translateX(-50%) translateX(-110vw)}}
+.deal-table.is-sweeping .deal-deck,.deal-table.is-sweeping .deal-card.is-loose,.deal-table.is-sweeping .deal-title{animation:deal-sweep .43s cubic-bezier(.5,0,.8,.4) both}
+@keyframes deal-sweep{to{translate:62vw -8vh;rotate:16deg;opacity:0}}
+.deal-table.is-gathering .deal-card.is-loose{transition:left .46s cubic-bezier(.3,.7,.3,1),top .46s cubic-bezier(.3,.7,.3,1),transform .46s}
+
+/* The row of what has been chosen, sleeved, along the top of the table - small, and each named. */
+.deal-row{position:absolute;top:14px;left:50%;transform:translateX(-50%);z-index:20;display:flex;gap:14px;align-items:flex-start}
+.deal-slot{position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;animation:deal-land .5s cubic-bezier(.2,.8,.3,1) both}
+@keyframes deal-land{from{transform:translateX(-110vw) rotate(-10deg)}}
+.deal-card.is-small{position:relative;width:calc(var(--card-w) * .46);height:calc(var(--card-h) * .46);cursor:pointer}
+.deal-card.is-small>.deal-face{inset:auto;top:0;left:0;width:var(--card-w);height:var(--card-h);transform:scale(.46);transform-origin:0 0}
+/* Each one's name on a torn slip of paper under it: the slip is the label's ::before, torn by clip-path, and
+   the shadow the label's own, so the tearing does not clip it away. */
+.deal-label{position:relative;margin-top:10px;padding:4px 10px 3px;white-space:nowrap;font:700 8.5px/1.2 Cinzel,Georgia,serif;letter-spacing:.1em;text-transform:uppercase;color:#3b2a18;rotate:-2deg;filter:drop-shadow(0 1px 1.5px #0009)}
+.deal-label::before{content:'';position:absolute;inset:0;z-index:-1;background:linear-gradient(176deg,#fbf5e4,#efe3c6 60%,#e6d7b3);
+  clip-path:polygon(0 12%,7% 0,19% 8%,33% 1%,47% 7%,62% 0,76% 6%,90% 0,100% 9%,98% 88%,89% 100%,74% 93%,58% 100%,43% 94%,28% 100%,14% 93%,2% 100%)}
+.deal-slot:nth-child(even) .deal-label{rotate:1.5deg}
+.deal-slot:nth-child(3n) .deal-label{rotate:-.5deg}
+
+/* The last step: the character's sheet - the loadout's left leaf (SheetPaper.tsx, cards.css) without the
+   binder's board round it - with the name to write on it, and Begin at its foot. */
+.deal-table .deal-sheet.deck-sheet{position:absolute;z-index:10;left:50%;top:196px;bottom:52px;width:min(600px,92vw);transform:translateX(-50%);padding:0;background:none;border-radius:2px;
+  box-shadow:0 16px 40px #000b;animation:deal-in-sheet-leaf .52s cubic-bezier(.2,.8,.3,1) both}
+@keyframes deal-in-sheet-leaf{from{transform:translateX(-50%) translateX(-110vw) rotate(-6deg)}}
+.sheet-name-input{display:block;width:100%;box-sizing:border-box;margin:0;padding:0 0 2px;border:0;border-bottom:1.5px dashed #b2a68d;background:transparent;font:inherit;color:inherit;outline:none}
+.sheet-name-input::placeholder{color:#b9a98a;font-style:italic}
+.sheet-name-input:focus{border-bottom-color:#7a5a14}
+.sheet-foot{display:flex;align-items:center;gap:14px;margin-top:auto;padding-top:10px;border-top:1px solid #d5c5a4}
+.sheet-foot p{flex:1;margin:0;font-size:11px;font-style:italic;color:#57493a}
+.deal-failed{color:#8f2d1e;font-weight:700;font-style:normal}
+
+/* The Model step: the figures stand on the table as miniatures (mini-table.ts), a name plate under each. */
+.mini-stage{position:absolute;inset:0;width:100%;height:100%;display:block;z-index:3;touch-action:none}
+.mini-plates{position:absolute;inset:0;z-index:6;pointer-events:none;overflow:hidden}
+.mini-plate{position:absolute;left:0;top:0;display:flex;flex-direction:column;align-items:center;gap:8px;opacity:0;transition:opacity .25s;will-change:transform}
+.mini-plate[data-ready]{opacity:1}
+.mini-plate.is-held,.mini-plate.is-leaving{opacity:0}
+.mini-name{pointer-events:auto;padding:3px 10px;cursor:pointer;white-space:nowrap;border-radius:4px;border:1px solid #b89a5e;font:700 10px/1.4 Cinzel,Georgia,serif;letter-spacing:.1em;text-transform:uppercase;color:#1d1611;
+  background:linear-gradient(#fbf8f0,#e9dcbc);box-shadow:inset 0 1px 0 #fffdf4,0 2px 5px #0009}
+.mini-plates.is-inspecting .mini-plate{opacity:0;pointer-events:none}
+/* A mini up close: its name, Put back and Choose below it. */
+.mini-inspect{position:absolute;inset:0;z-index:7;pointer-events:none}
+.mini-panel{position:absolute;left:50%;bottom:46px;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:auto;animation:deal-pop .2s ease-out both}
+.mini-title{margin:0;font:700 22px/1.1 Cinzel,Georgia,serif;letter-spacing:.06em;color:#f6ecd5;text-shadow:0 2px 6px #000c}
+.mini-actions{display:flex;gap:12px}
+.deal-table.is-sweeping .mini-stage,.deal-table.is-sweeping .mini-plates,.deal-table.is-sweeping .mini-inspect{animation:deal-sweep .43s cubic-bezier(.5,0,.8,.4) both}
+
+/* A card inspected: zoomed from where it lay to the middle of the table, the rest dimmed; put back the way it came. */
+.deal-card.is-looked{visibility:hidden}
+.deal-look{position:absolute;inset:0;z-index:50;background:#000000a6;animation:deal-look-in .24s ease-out both}
+@keyframes deal-look-in{from{background:#0000}}
+.deal-look-card{position:absolute;left:50%;top:47%;cursor:default;transform:translate(-50%,-50%) scale(var(--zoom));box-shadow:0 1px 2px #0006,0 20px 50px #000c;animation:deal-zoom-in .3s cubic-bezier(.2,.8,.3,1) both}
+@keyframes deal-zoom-in{from{transform:translate(-50%,-50%) translate(var(--from-x),var(--from-y)) scale(var(--from-scale))}}
+.deal-look.is-putting-back{animation:deal-look-out .22s ease-in both}
+.deal-look.is-putting-back .deal-look-card{animation:deal-zoom-out .22s cubic-bezier(.5,0,.8,.4) both}
+.deal-look.is-putting-back .deal-look-actions{opacity:0}
+@keyframes deal-look-out{to{background:#0000}}
+@keyframes deal-zoom-out{to{transform:translate(-50%,-50%) translate(var(--from-x),var(--from-y)) scale(var(--from-scale))}}
+.deal-look.is-sleeving .deal-sleeve{opacity:1;animation:deal-sleeve-on .46s cubic-bezier(.3,.8,.35,1) both}
+.deal-look-actions{position:absolute;left:50%;bottom:48px;transform:translateX(-50%);display:flex;gap:12px;animation:deal-pop .2s ease-out both}
+.deal-table.is-sweeping .deal-look{animation:deal-look-out .3s ease-in both}
+.deal-table.is-sweeping .deal-look-card{animation:deal-sweep .43s cubic-bezier(.5,0,.8,.4) both}
+.deal-table.is-sweeping .deal-look-actions{opacity:0}
+
+/* The Traits step (TraitBoard.tsx): the Traits card itself, zoomed up on the table, its modifiers stickers to
+   trade about; the same card, stickers and all, is what the row keeps. */
+.trait-board{position:absolute;inset:0;z-index:8;pointer-events:none}
+.trait-holder{position:absolute;left:50%;top:57%;transform:translate(-50%,-50%) scale(var(--zoom));pointer-events:auto}
+.deal-table.is-dealing .trait-holder{animation:deal-in-holder .52s cubic-bezier(.2,.8,.3,1) both}
+@keyframes deal-in-holder{from{transform:translate(-50%,-50%) translateX(-110vw) rotate(-8deg) scale(var(--zoom))}}
+.deal-table.is-sweeping .trait-board{animation:deal-sweep .43s cubic-bezier(.5,0,.8,.4) both}
+/* In flow, not placed like a card lying on the table, so the holder is its size and centres it. */
+.trait-card{position:relative;cursor:default}
+.trait-card:active{cursor:default}
+.trait-board.is-sleeving .deal-sleeve{opacity:1;animation:deal-sleeve-on .46s cubic-bezier(.3,.8,.35,1) both}
+.trait-actions{position:absolute;left:50%;bottom:52px;transform:translateX(-50%);display:flex;gap:12px;pointer-events:auto}
+.trait-flying{position:absolute;z-index:60;pointer-events:none;transform:translate(-50%,-50%) scale(calc(var(--zoom) * 1.15))}
+.trait-flying .trait-sticker{box-shadow:0 5px 9px #0008}
+/* The Traits card: each trait, what it is rolled for, and its sticker; the one that matters most underlined. */
+.deal-face.is-traits .traits-list{flex:1;display:flex;flex-direction:column;justify-content:space-between;margin-top:3px}
+.traits-row{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:2px 0 3px;border-bottom:1px dotted #cdbc9c}
+.traits-row:last-child{border-bottom:0}
+.traits-words{display:flex;flex-direction:column;gap:1px;min-width:0;text-align:left}
+.trait-name{font:700 11px/1.15 Cinzel,Georgia,serif;text-transform:uppercase;letter-spacing:.05em;color:#1d1611}
+.trait-name.is-key{text-decoration:underline;text-decoration-thickness:1.5px;text-underline-offset:2px;text-decoration-color:#a8781a}
+.traits-words small{font-size:6.5px;font-style:italic;color:#6d5a3e;white-space:nowrap}
+/* A sticker: die-cut, a white border round a glossy colour, stuck on a little crooked. */
+.trait-sticker{flex:none;display:grid;place-items:center;width:27px;height:27px;padding:0;box-sizing:border-box;border-radius:50%;border:2.5px solid #fff;
+  font:700 11px/1 Cinzel,Georgia,serif;color:#fff;text-shadow:0 1px 1px #0006;rotate:var(--tilt,0deg);
+  background:radial-gradient(circle at 30% 24%,#ffffff94,#fff0 36%),var(--sticker);box-shadow:0 1px 1.5px #0007,0 0 0 .5px #00000026}
+.trait-sticker.is-gold{--sticker:linear-gradient(145deg,#e9bd42,#b07b10)}
+.trait-sticker.is-green{--sticker:linear-gradient(145deg,#62a266,#2e6835)}
+.trait-sticker.is-stone{--sticker:linear-gradient(145deg,#ada292,#766b5c)}
+.trait-sticker.is-red{--sticker:linear-gradient(145deg,#cf5c45,#8c2c1d)}
+button.trait-sticker{cursor:grab;touch-action:none;transition:scale .12s,box-shadow .12s}
+button.trait-sticker:hover{scale:1.07}
+button.trait-sticker:disabled{cursor:default}
+.traits-row.is-held .trait-sticker{scale:1.18;box-shadow:0 0 0 2px #e6c23a,0 4px 7px #0008}
+.trait-sticker.is-dragged{opacity:.25}
+
+@media(prefers-reduced-motion:reduce){.deal-table *{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+@media(max-width:760px){.deal-table{--card-w:150px;--card-h:210px}.deal-deck{left:50%;top:62%}.deal-title{font-size:19px;top:176px}.deal-tip{white-space:normal;width:90%;text-align:center}}

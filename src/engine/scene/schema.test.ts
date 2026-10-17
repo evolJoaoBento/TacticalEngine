@@ -203,6 +203,16 @@ describe('projectSchema', () => {
     expect(projectSchema.safeParse(project({ formatVersion: 1 })).success).toBe(true);
   });
 
+  it('builds with the structures the project declares, whatever the page laid last', () => {
+    const tiles = { '1,1,0': { x: 1, y: 1, level: 0, shape: 'doorway', material: 'stone', rotation: 0 } };
+    const declared = [{ id: 'doorway', name: 'Doorway', atoms: [{ shape: 'wall' }] }];
+    expect(projectSchema.safeParse(project({ structureTypes: declared, scenes: [scene({ id: 'room', buildingTiles: tiles })] })).success).toBe(true);
+    const undeclared = projectSchema.safeParse(project({ scenes: [scene({ id: 'room', buildingTiles: tiles })] }));
+    expect(undeclared.success ? [] : undeclared.error.issues.map((i) => [i.path.join('.'), i.message])).toEqual([['scenes.0.buildingTiles.1,1,0', 'No structure called "doorway"']]);
+    // The engine's own four need no declaring.
+    expect(projectSchema.safeParse(project({ scenes: [scene({ id: 'room', buildingTiles: { '1,1,0': { ...tiles['1,1,0'], shape: 'stairs' } } })] })).success).toBe(true);
+  });
+
   it('defaults the per-type model map, so a project written before it is still a project', () => {
     expect(projectSchema.parse(project()).adversaryModels).toEqual({});
   });

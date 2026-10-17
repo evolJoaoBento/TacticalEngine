@@ -1,0 +1,151 @@
+/**
+ * Who is signed in, as the page knows it (`accounts.ts`), and each player's games and saves kept apart
+ * (`browserStore` in `save-slots.ts`): admin and nobody keep the keys as they always were, so what was
+ * saved before there were accounts is admin's.
+ */
+
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { changePassword, currentUser, invitationAddress, invitationCodeOf, listPlayers, myInvitation, rememberUser, renewInvitations, signIn, signOut, userKey, whoAmI } from './accounts';
+import { SaveSlots, browserStore } from './save-slots';
+
+/** A `localStorage` over a map, as the browser's would be. */
+function storage(): Storage {
+  const map = new Map<string, string>();
+  return {
+    get length() {
+      return map.size;
+    },
+    clear: () => map.clear(),
+    getItem: (key) => map.get(key) ?? null,
+    key: (i) => [...map.keys()][i] ?? null,
+    removeItem: (key) => void map.delete(key),
+    setItem: (key, value) => void map.set(key, value),
+  };
+}
+
+beforeEach(() => {
+  const local = storage();
+  Object.assign(globalThis, { localStorage: local, window: { localStorage: local } });
+});
+afterEach(() => {
+  delete (globalThis as { localStorage?: Storage }).localStorage;
+  delete (globalThis as { window?: unknown }).window;
+});
+
+const answer = (status: number, body: unknown) => async () => ({ ok: status >= 200 && status < 300, status, json: async () => body });
+
+describe('who is signed in', () => {
+  it('is an account, nobody, or - a server that keeps none - anybody', async () => {
+    expect(await whoAmI(answer(200, { id: 'ash', name: 'Ash', admin: false }))).toEqual({ id: 'ash', name: 'Ash', admin: false });
+    expect(await whoAmI(answer(401, { reason: 'nobody' }))).toBeNull();
+    expect(await whoAmI(answer(404, {}))).toBe('none');
+    expect(await whoAmI(async () => { throw new Error('offline'); })).toBe('none');
+  });
+
+  it('is remembered in this browser on signing in, and forgotten on signing out', async () => {
+    expect(currentUser()).toBeNull();
+    const signed = await signIn('Ash', 'hunter2', false, answer(200, { id: 'ash', name: 'Ash', admin: false }));
+    expect(signed).toEqual({ id: 'ash', name: 'Ash', admin: false });
+    expect(currentUser()).toBe('ash');
+    await signOut(answer(200, {}));
+    expect(currentUser()).toBeNull();
+  });
+
+  it('is not changed by a refusal, which says why', async () => {
+    expect(await signIn('Ash', 'wrong', false, answer(401, { reason: 'that name and password do not match' }))).toEqual({ refused: 'that name and password do not match' });
+    expect(currentUser()).toBeNull();
+  });
+
+  it("makes an account holding a player's invitation, which goes with it; signing in, it does not", async () => {
+    const sent: { url: string; body: unknown }[] = [];
+    const recording = async (url: string, init?: RequestInit) => {
+      sent.push({ url, body: JSON.parse(String(init?.body)) });
+      return { ok: true, status: 200, json: async () => ({ id: 'pip', name: 'Pip', admin: false }) };
+    };
+    await signIn('Pip', 'hunter22', true, recording, 'a1b2');
+    await signIn('Pip', 'hunter22', false, recording, 'a1b2');
+    await signIn('Pip', 'hunter22', true, recording);
+    expect(sent).toEqual([
+      { url: '/__accounts/register', body: { name: 'Pip', password: 'hunter22', invite: 'a1b2' } },
+      { url: '/__accounts/login', body: { name: 'Pip', password: 'hunter22' } },
+      { url: '/__accounts/register', body: { name: 'Pip', password: 'hunter22' } },
+    ]);
+  });
+
+  it('changes its password saying the one it has, or says why not', async () => {
+    let sent: unknown = null;
+    const done = await changePassword('hunter22', 'falcon99', async (url, init) => {
+      sent = { url, body: JSON.parse(String(init?.body)) };
+      return { ok: true, status: 200, json: async () => ({ id: 'pip' }) };
+    });
+    expect(done).toEqual({ done: true });
+    expect(sent).toEqual({ url: '/__accounts/password', body: { current: 'hunter22', next: 'falcon99' } });
+    expect(await changePassword('nope', 'falcon99', answer(403, { reason: 'that is not your password' }))).toEqual({ refused: 'that is not your password' });
+    expect(await changePassword('x', 'y', async () => { throw new Error('offline'); })).toEqual({ refused: 'the server could not be reached' });
+  });
+});
+
+describe('invitations', () => {
+  it('are the player’s own: a code, and whom it made once spent; none when the server gives none', async () => {
+    const asked: string[] = [];
+    const mine = await myInvitation(async (url) => {
+      asked.push(url);
+      return { ok: true, status: 200, json: async () => ({ code: 'c0de', usedBy: null }) };
+    });
+    expect(asked).toEqual(['/__accounts/invitation']);
+    expect(mine).toEqual({ code: 'c0de', usedBy: null });
+    expect(await myInvitation(answer(200, { code: 'c0de', usedBy: { id: 'pip', name: 'Pip' } }))).toEqual({ code: 'c0de', usedBy: { id: 'pip', name: 'Pip' } });
+    expect(await myInvitation(answer(401, { reason: 'nobody is signed in' }))).toBeNull();
+    expect(await myInvitation(answer(200, { code: '' }))).toBeNull();
+    expect(await myInvitation(async () => { throw new Error('offline'); })).toBeNull();
+  });
+
+  it('are an address that makes an account - and joins a game, with its invitation - and are read back from one', () => {
+    expect(invitationAddress('c0de', null, 'https://friends.example')).toBe('https://friends.example/?invite=c0de');
+    expect(invitationAddress('c0de', 'g4me', 'https://friends.example')).toBe('https://friends.example/?invite=c0de&join=g4me');
+    expect(invitationCodeOf('?invite=c0de&join=g4me')).toBe('c0de');
+    expect(invitationCodeOf('?join=g4me')).toBeNull();
+    expect(invitationCodeOf('?invite=')).toBeNull();
+  });
+
+  it('are listed for admin, and renewed for one player or for everybody', async () => {
+    expect(await listPlayers(answer(200, { players: [{ id: 'pip', name: 'Pip', admin: false, invitedBy: 'wren', spent: true }] }))).toEqual([{ id: 'pip', name: 'Pip', admin: false, invitedBy: 'wren', spent: true }]);
+    expect(await listPlayers(answer(403, { reason: 'only admin sees every player' }))).toBeNull();
+    const sent: unknown[] = [];
+    const recording = async (url: string, init?: RequestInit) => {
+      sent.push({ url, method: init?.method, body: JSON.parse(String(init?.body)) });
+      return { ok: true, status: 200, json: async () => ({ refreshed: ['pip'] }) };
+    };
+    expect(await renewInvitations('pip', recording)).toEqual({ refreshed: ['pip'] });
+    await renewInvitations(null, recording);
+    expect(sent).toEqual([
+      { url: '/__accounts/refresh', method: 'POST', body: { account: 'pip' } },
+      { url: '/__accounts/refresh', method: 'POST', body: {} },
+    ]);
+    expect(await renewInvitations(null, answer(403, { reason: 'only admin renews invitations' }))).toEqual({ refused: 'only admin renews invitations' });
+  });
+});
+
+describe('each player’s games and saves', () => {
+  it('are kept under their own keys; admin and nobody keep the keys as they always were', () => {
+    expect(userKey('tactical:games', 'ash')).toBe('tactical:u:ash:games');
+    expect(userKey('tactical:games', 'admin')).toBe('tactical:games');
+    expect(userKey('tactical:games', null)).toBe('tactical:games');
+  });
+
+  it('are not another player’s', () => {
+    rememberUser('ash');
+    new SaveSlots(browserStore()).write('{}', 'Ash’s', 'the camp');
+    rememberUser('bramble');
+    expect(new SaveSlots(browserStore()).list()).toEqual([]);
+    new SaveSlots(browserStore()).write('{}', 'Bramble’s', 'the vault');
+    expect(new SaveSlots(browserStore()).list().map((slot) => slot.name)).toEqual(['Bramble’s']);
+    rememberUser('ash');
+    expect(new SaveSlots(browserStore()).list().map((slot) => slot.name)).toEqual(['Ash’s']);
+    // What was saved before there were accounts is admin's.
+    rememberUser(null);
+    new SaveSlots(browserStore()).write('{}', 'Before', 'the vault');
+    rememberUser('admin');
+    expect(new SaveSlots(browserStore()).list().map((slot) => slot.name)).toEqual(['Before']);
+  });
+});

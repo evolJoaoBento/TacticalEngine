@@ -1,0 +1,393 @@
+{
+ "about": "tools/accounts.ts run for the Rust port; written by tests/unit/accounts.golden.test.ts",
+ "hashes": [
+  {
+   "password": "admin",
+   "salt": "00000000000000000000000000000000",
+   "hash": "88c6977c8f393d7c2ff835221ba3d0b6356657dd8158e0639427c458d45295f2"
+  },
+  {
+   "password": "admin",
+   "salt": "52d1805f896c9102b507cf91cfbb3ef0",
+   "hash": "2bab594a0244ff38dbd4b2641b88882f6587e3d753b51cc8ee692d0f02ecd9a3"
+  },
+  {
+   "password": "admin",
+   "salt": "not-hex-at-all",
+   "hash": "9c9f8c4da73c428d5ec4d2b215016f6000ba47d8774abccf4a965bef6d2e276d"
+  },
+  {
+   "password": "hunter22",
+   "salt": "00000000000000000000000000000000",
+   "hash": "3c1259158bd4c2cfa475c271844cc9b4b2b45baffe2ba3bf13dafe29733695ef"
+  },
+  {
+   "password": "hunter22",
+   "salt": "52d1805f896c9102b507cf91cfbb3ef0",
+   "hash": "b03294eeae0673f2543bc819b103b67843a92296da36c99247e21ed8984c249c"
+  },
+  {
+   "password": "hunter22",
+   "salt": "not-hex-at-all",
+   "hash": "4c674b679159037dc696b44e88a1f3e5f68316fbba6d487dccf8c0e95be5efc7"
+  },
+  {
+   "password": "open sesame",
+   "salt": "00000000000000000000000000000000",
+   "hash": "eab254c4d069704e225d6d045b9618fb1d7521412ae5f665e5139f081a397357"
+  },
+  {
+   "password": "open sesame",
+   "salt": "52d1805f896c9102b507cf91cfbb3ef0",
+   "hash": "512c64bd954061ea9e634ffd94f72aa7cc1a1b6d89202d7b65601fb5a6cf5b62"
+  },
+  {
+   "password": "open sesame",
+   "salt": "not-hex-at-all",
+   "hash": "781c6af61d62ecd6d0f8f2164ab07f5810eb4cc1b740efa5e2d748f2313b55fd"
+  },
+  {
+   "password": "pässwörd 🎲",
+   "salt": "00000000000000000000000000000000",
+   "hash": "c347456f0d81d6671dc7c35a2ddf3bce6c1a8251173790776e5fcae49c8db528"
+  },
+  {
+   "password": "pässwörd 🎲",
+   "salt": "52d1805f896c9102b507cf91cfbb3ef0",
+   "hash": "cdab8e19960f39c86970f844f9a2b8144522c89dc805695f7e29c03a3e56ba4e"
+  },
+  {
+   "password": "pässwörd 🎲",
+   "salt": "not-hex-at-all",
+   "hash": "d4ab4d149664b8f1815b833cf308bda46bdf422765622bf533b3a5734e295189"
+  },
+  {
+   "password": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "salt": "00000000000000000000000000000000",
+   "hash": "bce56ede0b1da200815b011b08a6413d93e23beba6e74394d0bd7d525fa41bd9"
+  },
+  {
+   "password": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "salt": "52d1805f896c9102b507cf91cfbb3ef0",
+   "hash": "23022c97515c7976e311acfb63468777a5eef1febe081fba7c575ba417c3ce76"
+  },
+  {
+   "password": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "salt": "not-hex-at-all",
+   "hash": "19234a59b5c6095934f5c9c7dcc01d504dbbbd7bfc2be6ba97de1e4a7f54dfff"
+  }
+ ],
+ "credentials": [
+  {
+   "body": "{\"name\":\"Ash_Iron-vein\",\"password\":\"hunter2\"}",
+   "verdict": {
+    "ok": true,
+    "name": "Ash_Iron-vein",
+    "password": "hunter2"
+   }
+  },
+  {
+   "body": "{\"name\":\"ab\",\"password\":\"hunter2\"}",
+   "verdict": {
+    "ok": false,
+    "reason": "a name is 3 to 24 letters, digits, _ or -"
+   }
+  },
+  {
+   "body": "{\"name\":\"xxxxxxxxxxxxxxxxxxxxxxxxx\",\"password\":\"hunter2\"}",
+   "verdict": {
+    "ok": false,
+    "reason": "a name is 3 to 24 letters, digits, _ or -"
+   }
+  },
+  {
+   "body": "{\"name\":\"../admin\",\"password\":\"hunter2\"}",
+   "verdict": {
+    "ok": false,
+    "reason": "a name is 3 to 24 letters, digits, _ or -"
+   }
+  },
+  {
+   "body": "{\"name\":\"Bramble\",\"password\":\"abc\"}",
+   "verdict": {
+    "ok": false,
+    "reason": "a password is 4 to 200 characters"
+   }
+  },
+  {
+   "body": "{\"name\":\"Bramble\",\"password\":\"abcd\"}",
+   "verdict": {
+    "ok": true,
+    "name": "Bramble",
+    "password": "abcd"
+   }
+  },
+  {
+   "body": "{\"name\":\"Bramble\",\"password\":\"ppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppp\"}",
+   "verdict": {
+    "ok": false,
+    "reason": "a password is 4 to 200 characters"
+   }
+  },
+  {
+   "body": "{\"name\":\"Bramble\",\"password\":\"🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲\"}",
+   "verdict": {
+    "ok": true,
+    "name": "Bramble",
+    "password": "🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲"
+   }
+  },
+  {
+   "body": "{\"name\":\"Bramble\",\"password\":\"🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲🎲\"}",
+   "verdict": {
+    "ok": false,
+    "reason": "a password is 4 to 200 characters"
+   }
+  },
+  {
+   "body": "{\"name\":\"Bramble\",\"password\":1234}",
+   "verdict": {
+    "ok": false,
+    "reason": "a password is 4 to 200 characters"
+   }
+  },
+  {
+   "body": "{\"name\":12,\"password\":\"hunter22\"}",
+   "verdict": {
+    "ok": false,
+    "reason": "a name is 3 to 24 letters, digits, _ or -"
+   }
+  },
+  {
+   "body": "{\"password\":\"hunter22\"}",
+   "verdict": {
+    "ok": false,
+    "reason": "a name is 3 to 24 letters, digits, _ or -"
+   }
+  },
+  {
+   "body": "null",
+   "verdict": {
+    "ok": false,
+    "reason": "a name is 3 to 24 letters, digits, _ or -"
+   }
+  },
+  {
+   "body": "[\"Bramble\",\"hunter22\"]",
+   "verdict": {
+    "ok": false,
+    "reason": "a name is 3 to 24 letters, digits, _ or -"
+   }
+  },
+  {
+   "body": "\"Bramble\"",
+   "verdict": {
+    "ok": false,
+    "reason": "a name is 3 to 24 letters, digits, _ or -"
+   }
+  },
+  {
+   "body": "not json",
+   "verdict": {
+    "ok": false,
+    "reason": "not JSON"
+   }
+  },
+  {
+   "body": "",
+   "verdict": {
+    "ok": false,
+    "reason": "not JSON"
+   }
+  }
+ ],
+ "accounts": [
+  {
+   "id": "admin",
+   "name": "admin",
+   "salt": "s",
+   "hash": "h",
+   "admin": true,
+   "created": 1
+  },
+  {
+   "id": "bramble",
+   "name": "Bramble",
+   "salt": "s",
+   "hash": "h",
+   "admin": false,
+   "created": 2
+  }
+ ],
+ "sessions": {
+  "live": {
+   "account": "bramble",
+   "expires": 1060000
+  },
+  "admins": {
+   "account": "admin",
+   "expires": 1000001
+  },
+  "old": {
+   "account": "admin",
+   "expires": 999999
+  },
+  "edge": {
+   "account": "admin",
+   "expires": 1000000
+  },
+  "orphan": {
+   "account": "gone",
+   "expires": 1060000
+  }
+ },
+ "now": 1000000,
+ "cookies": [
+  {
+   "cookie": "tactical-session=live",
+   "account": "bramble"
+  },
+  {
+   "cookie": "theme=dark; tactical-session=live",
+   "account": "bramble"
+  },
+  {
+   "cookie": "theme=dark;tactical-session=admins ;other=1",
+   "account": "admin"
+  },
+  {
+   "cookie": "tactical-session=old",
+   "account": null
+  },
+  {
+   "cookie": "tactical-session=edge",
+   "account": null
+  },
+  {
+   "cookie": "tactical-session=orphan",
+   "account": null
+  },
+  {
+   "cookie": "tactical-session=forged",
+   "account": null
+  },
+  {
+   "cookie": "tactical-session=",
+   "account": null
+  },
+  {
+   "cookie": "xtactical-session=live",
+   "account": null
+  },
+  {
+   "cookie": "tactical-session=admins; tactical-session=live",
+   "account": "admin"
+  },
+  {
+   "cookie": "",
+   "account": null
+  },
+  {
+   "cookie": null,
+   "account": null
+  }
+ ],
+ "requests": [
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "refused": null
+  },
+  {
+   "method": "GET",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "refused": "not a POST"
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "refused": "not sent by the page"
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "yes",
+    "origin": "http://127.0.0.1:8420",
+    "host": "127.0.0.1:8420"
+   },
+   "refused": "not sent by the page"
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "https://elsewhere.example",
+    "host": "127.0.0.1:8420"
+   },
+   "refused": "sent from another origin"
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8421",
+    "host": "127.0.0.1:8420"
+   },
+   "refused": "sent from another origin"
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "null",
+    "host": "127.0.0.1:8420"
+   },
+   "refused": "sent from another origin"
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "host": "127.0.0.1:8420"
+   },
+   "refused": null
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://127.0.0.1:8420"
+   },
+   "refused": null
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://localhost:80",
+    "host": "localhost"
+   },
+   "refused": null
+  },
+  {
+   "method": "POST",
+   "headers": {
+    "x-tactical-save": "1",
+    "origin": "http://LOCALHOST:8420",
+    "host": "localhost:8420"
+   },
+   "refused": null
+  }
+ ]
+}

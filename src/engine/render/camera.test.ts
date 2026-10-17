@@ -165,3 +165,23 @@ describe('easing', () => {
     expect(cam.pose.yaw).toBe(cam.goal.yaw);
   });
 });
+
+describe('the leash', () => {
+  it('leaves the target alone inside the circle, and draws it back to the edge from outside', () => {
+    const camera = new OrbitCamera({ target: { x: 3, y: 0, z: 0 } });
+    expect(camera.leash({ x: 0, z: 0 }, 5)).toBe(false);
+    expect(camera.goal.target.x).toBe(3);
+    camera.pan(20, 0);
+    expect(camera.leash({ x: 0, z: 0 }, 5)).toBe(true);
+    expect(Math.hypot(camera.goal.target.x, camera.goal.target.z)).toBeCloseTo(5, 9);
+  });
+
+  it('draws it straight back, keeping the way it had gone', () => {
+    const camera = new OrbitCamera({ target: { x: 30, y: 0, z: 40 } });
+    camera.leash({ x: 0, z: 0 }, 10);
+    expect(camera.goal.target.x).toBeCloseTo(6, 9);
+    expect(camera.goal.target.z).toBeCloseTo(8, 9);
+    expect(camera.goal.target.y).toBe(0);
+  });
+});
+

@@ -15,6 +15,7 @@
  */
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
+import { LISTABLE_PACKS, togglePack } from '../../game/listed-packs';
 import './editor.css';
 import { SRD_CONDITIONS } from '../../engine/content/conditions';
 import { STARTER_CONDITIONS } from '../../engine/content/pack/starter';
@@ -23,9 +24,12 @@ import type { AdversaryDef } from '../../engine/content/types';
 import type { CardDef, ContentPack } from '../../engine/content/pack/import';
 import type { Interactable } from '../../engine/scene/schema';
 import type { EditorController, EditorTool } from '../controller';
-import type { EditorSession } from '../session';
+import { addAsset, type EditorSession } from '../session';
 import { EDITOR_MODES, MODE_TOOLS, TERRAIN_RAIL, isTerrainTab, type EditorMode } from '../modes';
 import { creatureTabs, propsTab, tilesTab, type GroundType, type LibraryItem } from '../library';
+import { ArtMarkLayer } from './AiMark';
+import type { ArtKey } from '../../game/art-provenance';
+import { DEMO_MODELS } from '../../game/demo-rules';
 import { validateProject, type Problem } from '../validate';
 import { TopBar, type Menu, type Workspace } from './TopBar';
 import { FrameRate } from './FrameRate';
@@ -46,9 +50,13 @@ import { AbilityPanel } from './AbilityPanel';
 import { ItemPanel } from './ItemPanel';
 import { CodePanel } from './CodePanel';
 import { QuestsWorkspace } from './QuestsWorkspace';
+import { ProjectsWorkspace } from './ProjectsWorkspace';
+import { EffectChoicesContext } from './plans-context';
 import { ModelsWorkspace } from './ModelsWorkspace';
 import { TilesWorkspace } from './TilesWorkspace';
 import { memory, restoreInto } from '../model-memory';
+import { currentUser } from '../../game/accounts';
+import { listYourModels, yourModelsMissingFrom } from '../../game/your-models';
 import { ProblemsPopover } from './ProblemsPopover';
 
 /** What the shell needs from `main.ts`: the document, the SRD content it offers, and what a click on the bar should do. */
@@ -155,6 +163,24 @@ export function EditorShell(props: EditorShellProps): preact.JSX.Element {
       });
   }, [session]);
 
+  // The player's own models - got from the Store, or brought in by a project they opened - are laid
+  // under every project they open, as the engine's are (`game/your-models.ts`).
+  useEffect(() => {
+    if (currentUser() === null) return;
+    void listYourModels().then((mine) => {
+      if (!Array.isArray(mine)) return;
+      const missing = yourModelsMissingFrom(session.project.assets, mine);
+      // Laid under the project, not a change to it: one that was saved still is (a save leaves an unused one out).
+      const clean = !session.dirty;
+      for (const asset of missing) session.run(addAsset(asset));
+      if (missing.length === 0) return;
+      if (clean) session.markSaved();
+      props.onAssetsChanged?.();
+      props.onRequestAssets?.();
+      bump();
+    });
+  }, [session]);
+
   const [menu, setMenu] = useState<Menu | null>(null);
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
   /** The conversation whose graph is open, in Interaction. */
@@ -224,7 +250,8 @@ export function EditorShell(props: EditorShellProps): preact.JSX.Element {
     setProblems(
       validateProject(session.project, {
         knownModels: props.knownModels,
-        knownAdversaries: props.knownAdversaries,
+        // With the project's own as they are now: one made a moment ago has a stat block.
+        knownAdversaries: new Set([...props.knownAdversaries, ...session.project.adversaries.map((def) => def.id)]),
         knownConditions: new Set([...STARTER_CONDITIONS, ...SRD_CONDITIONS].map((c) => c.id)),
         characterContent: props.characterContent,
       }),
@@ -261,6 +288,19 @@ export function EditorShell(props: EditorShellProps): preact.JSX.Element {
       controller.pickProp(item.id);
     }
     bump();
+  };
+  // The creatures to place: the build's, and the project's own over them by id - read off the project
+  // each time, so one just made is in the strip at once rather than when the page next redraws it.
+  const creatures: AdversaryDef[] = [...new Map<string, AdversaryDef>([
+    ...props.adversaries.map((def) => [def.id, def] as [string, AdversaryDef]),
+    ...session.project.adversaries.map((def) => [def.id, def as AdversaryDef] as [string, AdversaryDef]),
+  ]).values()].sort((a, b) => a.name.localeCompare(b.name));
+  // The model each strip item is drawn with, as its thumbnail is: a creature by its type's model, a
+  // tile by the model it names (none for a flat colour), a prop by its own.
+  const artKey = (item: LibraryItem): ArtKey | null => {
+    if (item.tab.startsWith('tier-')) return `model:${session.project.adversaryModels[item.id] ?? DEMO_MODELS[item.id] ?? item.id}`;
+    if (item.swatch !== undefined && item.model === undefined) return null;
+    return `model:${item.model ?? item.id}`;
   };
   const pickCreature = (item: LibraryItem): void => {
     controller.setTool('adversary');
@@ -306,6 +346,7 @@ export function EditorShell(props: EditorShellProps): preact.JSX.Element {
           picked={terrainPicked}
           onPick={pickForTerrain}
           thumbnail={props.thumbnail}
+          artKey={artKey}
         />,
         <TerrainSide key="side" session={session} controller={controller} onChange={bump} onNavigate={props.onNavigateBuilding} />,
       ];
@@ -316,17 +357,18 @@ export function EditorShell(props: EditorShellProps): preact.JSX.Element {
         <LibraryStrip
           key="combat-library"
           testId="combat-library"
-          tabs={creatureTabs(props.adversaries)}
+          tabs={creatureTabs(creatures)}
           onTab={(tab) => {
-            const entries = creatureTabs(props.adversaries).find((t) => t.id === tab)?.items ?? [];
+            const entries = creatureTabs(creatures).find((t) => t.id === tab)?.items ?? [];
             if (!entries.some((item) => item.id === controller.state.adversaryId) && entries[0]) pickCreature(entries[0]);
             else { controller.setTool('adversary'); bump(); }
           }}
           picked={tool === 'adversary' ? controller.state.adversaryId : ''}
           onPick={pickCreature}
           thumbnail={props.thumbnail}
+          artKey={artKey}
         />,
-        <CombatSide key="side" session={session} controller={controller} onChange={bump} />,
+        <CombatSide key="side" session={session} controller={controller} creatures={creatures} onChange={bump} />,
       ];
     } else {
       body = <InteractionSide session={session} onOpen={setGraph} onChange={bump} />;
@@ -344,7 +386,7 @@ export function EditorShell(props: EditorShellProps): preact.JSX.Element {
           session={session}
           libraryAbilities={props.libraryAbilities}
           hookIds={hookIds}
-          adversaryIds={props.adversaries.map((a) => a.id)}
+          adversaryIds={creatures.map((a) => a.id)}
           content={props.characterContent}
           pack={props.characterPack}
           preview={props.preview}
@@ -364,6 +406,9 @@ export function EditorShell(props: EditorShellProps): preact.JSX.Element {
       break;
     case 'quests':
       workspaceBody = <QuestsWorkspace session={session} onChange={bump} onClose={closeWorkspace} />;
+      break;
+    case 'projects':
+      workspaceBody = <ProjectsWorkspace session={session} hookIds={hookIds} encounterIds={ids.encounterIds} onChange={bump} onClose={closeWorkspace} />;
       break;
     case 'tiles':
       workspaceBody = (
@@ -396,7 +441,16 @@ export function EditorShell(props: EditorShellProps): preact.JSX.Element {
   }
 
   return (
+    // Every effect list under the shell offers the project's plans to a "Teach a project plan" effect.
+    <EffectChoicesContext.Provider
+      value={{
+        planIds: (session.project.projectPlans ?? []).map((p) => p.id),
+        cardIds: [...props.characterContent.cards.keys()],
+        partyIds: session.project.party.map((sheet) => sheet.id),
+      }}
+    >
     <div class="ph-editor" data-testid="editor-shell" data-version={version}>
+      <ArtMarkLayer />
       <TopBar
         session={session}
         mode={mode}
@@ -428,6 +482,11 @@ export function EditorShell(props: EditorShellProps): preact.JSX.Element {
         onLoad={props.onLoad}
         onImportPack={props.onImportPack}
         onExportPack={props.onExportPack}
+        packs={LISTABLE_PACKS.map((pack) => ({ ...pack, listed: session.project.packs.includes(pack.id) }))}
+        onTogglePack={(id) => {
+          session.run(togglePack(id));
+          bump();
+        }}
         onCheck={check}
         onUndo={props.onUndo}
         onRedo={props.onRedo}
@@ -446,5 +505,6 @@ export function EditorShell(props: EditorShellProps): preact.JSX.Element {
         <ProblemsPopover problems={problems} onClose={() => setShowProblems(false)} />
       ) : null}
     </div>
+    </EffectChoicesContext.Provider>
   );
 }

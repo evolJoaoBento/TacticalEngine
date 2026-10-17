@@ -15,7 +15,7 @@
  */
 
 import { z } from 'zod';
-import { BUILD_LIMIT, buildingTilesSchema, structureTypeSchema } from './building';
+import { BUILD_LIMIT, DEFAULT_STRUCTURES, buildingTilesSchema, structureTypeSchema } from './building';
 import { DECO_SPAN_MAX } from './deco-span';
 import { propFunctionSchema, shopSchema } from './prop-function-schema';
 import { itemSchema, lootTableSchema } from '../content/items';
@@ -23,6 +23,7 @@ import { abilitySchema } from '../content/abilities';
 import { characterSheetSchema } from '../character/sheet-schema';
 import { conditionDefSchema } from '../content/conditions';
 import { questSchema } from '../content/quests';
+import { projectPlanSchema } from '../content/projects';
 import { modelAssetSchema } from '../render/assets';
 import {
   adversaryDefSchema,
@@ -410,6 +411,11 @@ export const projectSchema = z
      * project written before quests existed is still a valid project.
      */
     quests: z.array(questSchema).default([]),
+    /**
+     * What the party can work at on a long rest once a `learnPlan` effect has taught it (`content/projects.ts`).
+     * Optional rather than defaulted: a project with none reads exactly as it did before there were plans.
+     */
+    projectPlans: z.array(projectPlanSchema).optional(),
     /** Imported models, by id. Content names them exactly as it names a procedural model. */
     assets: z.array(modelAssetSchema).default([]),
     /**
@@ -447,6 +453,13 @@ export const projectSchema = z
     /** What a named condition does to its bearer. Defaulted, like abilities. */
     conditionDefs: z.array(conditionDefSchema).default([]),
     /**
+     * The shipped packs this project is played with, by name - `srd-characters`, the SRD's classes,
+     * ancestries, communities and cards. Laid over the project's own lists when it opens and left out
+     * when it is saved (`game/listed-packs.ts`), so the file holds what is the project's own and a
+     * pack's update reaches it. Defaulted: a project that lists nothing is played as it always was.
+     */
+    packs: z.array(z.string()).default([]),
+    /**
      * The party, as authored sheets. Everything mechanical is derived from the
      * class, ancestry and equipment a sheet names, so what is written down here
      * is the character rather than their numbers. Defaulted: a project written
@@ -471,6 +484,16 @@ export const projectSchema = z
       }
       ids.add(scene.id);
     });
+
+    // Every piece built of a structure there is: the engine's four, and the project's own.
+    const structures = new Set([...DEFAULT_STRUCTURES, ...(project.structureTypes ?? [])].map((s) => s.id));
+    project.scenes.forEach((scene, i) => {
+      for (const [key, tile] of Object.entries(scene.buildingTiles ?? {})) {
+        if (!structures.has(tile.shape)) {
+          ctx.addIssue({ code: 'custom', path: ['scenes', i, 'buildingTiles', key], message: `No structure called ${JSON.stringify(tile.shape)}` });
+        }
+      }
+    });
     const dialogueIds = new Set<string>();
     project.dialogues.forEach((dialogue, i) => {
       if (dialogueIds.has(dialogue.id)) {
@@ -488,6 +511,13 @@ export const projectSchema = z
         ctx.addIssue({ code: 'custom', path: ['items', i, 'id'], message: `duplicate item id "${item.id}"` });
       }
       seen.add(item.id);
+    });
+    const planIds = new Set<string>();
+    (project.projectPlans ?? []).forEach((plan, i) => {
+      if (planIds.has(plan.id)) {
+        ctx.addIssue({ code: 'custom', path: ['projectPlans', i, 'id'], message: `duplicate project plan id "${plan.id}"` });
+      }
+      planIds.add(plan.id);
     });
     const assetIds = new Set<string>();
     project.assets.forEach((asset, i) => {

@@ -1,6 +1,9 @@
-import { readdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
 import type { Plugin } from 'vite';
+import { SAVE_HEADER } from './default-project.ts';
+import { servesRust } from './accounts.ts';
+import { savesChanges } from './serving.ts';
 
 /**
  * The models a project ships with, found rather than listed.
@@ -16,6 +19,29 @@ import type { Plugin } from 'vite';
  * picked file: `bandit-cutter.glb` is the model `bandit-cutter`, and `stone_golem.glb`
  * is `stone-golem`, which is what content refers to and what an adversary of that id is
  * drawn with. The url keeps the name the file actually has, which is what is served.
+ *
+ * **Which ancestry a model draws** is kept here too, for every project at once: the editor's Models
+ * page sets it (`ANCESTRY_URL`), this writes it to `projects/model-ancestries.json` - a tracked file,
+ * so the choice is the repository's and outlives any one project or browser - and each model in the
+ * list carries its `ancestry`. New Game offers an ancestry its models (`character-models.ts`). The
+ * route is guarded as the project save is (`default-project.ts`): a POST, the page's own header, from
+ * the page's own origin, one file named here, and a body that is a model id and an ancestry id or
+ * nothing. It refuses when the tests are serving (`TACTICAL_BOOT=builtin`). A write updates the list
+ * the next page load gets, without reloading the page that wrote it.
+ *
+ * **Both routes are the Rust server's now** (`server/serve/src/manifest.rs`, passed through by
+ * `rust-server.ts`, held to `server/fixtures/model-manifest.json`, which these functions write), and so
+ * is **the list the page opens with** (`GET /__models/shipped`, asked by `src/game/engine-lists.ts`, read
+ * on every request). What stays here is the list a build carries - the virtual module, which the page
+ * falls back on where no server answers - the watcher that reloads the other open pages when a model
+ * arrives, and the quiet mark for the page that sent it.
+ *
+ * **A model added to the engine** comes the same way (`MODEL_ADD_URL`): the editor's Models page sends
+ * a `.glb` and this writes it into `public/models` under the name it was sent with, tidied to an id
+ * (`judgeModelAdd`) - a binary glTF only, never over a file already there, under the same guard - so it
+ * is a model every project has, as if it had been dropped in by hand. The page that sent it is not
+ * reloaded for it (`quiet`); every other page is, as for any file dropped in. The folder is git-ignored:
+ * a model reaches another machine through the lock (`npm run models`), once it is uploaded and locked.
  */
 
 /** Where the files live, under the served directory, and what the app imports to get them. */
@@ -23,11 +49,149 @@ export const MODELS_DIRECTORY = 'models';
 const VIRTUAL = 'virtual:shipped-models';
 const RESOLVED = '\0' + VIRTUAL;
 
-/** One model the folder holds: its id, the URL it is served at, and how big it is drawn. */
+/** One model the folder holds: its id, the URL it is served at, how big it is drawn, and whose it is. */
 export interface ShippedModel {
   id: string;
   url: string;
   scale: number;
+  /** The ancestry it draws, when one has been chosen for it (`projects/model-ancestries.json`). */
+  ancestry?: string;
+}
+
+/** Where the models' ancestries are kept, from the project root, and where the editor sends one. */
+export const ANCESTRY_FILE = 'projects/model-ancestries.json';
+export const ANCESTRY_URL = '/__models/ancestry';
+/** The largest request the route reads: a model id and an ancestry id are a few dozen bytes. */
+const ANCESTRY_LIMIT = 4096;
+/** What an id is: lower case, digits and hyphens, as the manifest and content make them. */
+const ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+/** Where the editor sends a model to add to the engine, and the most it may weigh. */
+export const MODEL_ADD_URL = '/__models/add';
+/** Where the page asks for the list as it opens (`src/game/engine-lists.ts`): the Rust server's answer. */
+export const SHIPPED_URL = '/__models/shipped';
+export const MODEL_ADD_LIMIT = 64 * 1024 * 1024;
+
+/**
+ * Whether a file the watcher reports is one of the engine's models: a glTF directly in the models folder,
+ * which is all the manifest reads. Matched on the folder itself, not on a `/models/` somewhere in the
+ * path - a player's own models are under `data/users/<account>/models/imported/`, and a Get or an import
+ * writing one there must not reload every open page, the one that asked for it included. Separators are
+ * the host's, and a Windows path compares without case.
+ */
+export function isEngineModelFile(file: string, folder: string): boolean {
+  const norm = (path: string): string => {
+    const slashed = path.replace(/\\/g, '/').replace(/\/+$/, '');
+    return process.platform === 'win32' ? slashed.toLowerCase() : slashed;
+  };
+  const path = norm(file);
+  const at = path.lastIndexOf('/');
+  return /\.(glb|gltf)$/i.test(path) && path.slice(0, at) === norm(folder);
+}
+
+/** A file name as the manifest makes a model id of it: `Stone Golem.glb` is `stone-golem`. */
+export function modelIdOf(name: string): string {
+  return name
+    .replace(/\.(glb|gltf)$/i, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+export type ModelAddJudgement = { ok: true; id: string; file: string } | { ok: false; status: number; reason: string };
+
+/**
+ * Whether a model may be added to the engine, and under what file: the project save's guard, a name
+ * that makes an id, the four bytes every binary glTF starts with, and no file of that name already there.
+ */
+export function judgeModelAdd(request: AncestryRequest, name: string | null, body: Uint8Array, taken: (id: string) => boolean): ModelAddJudgement {
+  if (request.method !== 'POST') return { ok: false, status: 405, reason: 'an upload is a POST' };
+  if (headerOf(request, SAVE_HEADER) !== '1') return { ok: false, status: 403, reason: 'not sent by the page' };
+  const origin = headerOf(request, 'origin');
+  const host = headerOf(request, 'host');
+  if (origin !== undefined && host !== undefined && hostOf(origin) !== host) return { ok: false, status: 403, reason: 'sent from another origin' };
+  if (body.length > MODEL_ADD_LIMIT) return { ok: false, status: 413, reason: 'larger than a model should be - lighten it first' };
+  const id = name === null || !/\.glb$/i.test(name) ? '' : modelIdOf(name);
+  if (id === '') return { ok: false, status: 422, reason: 'only a .glb can be added to the engine' };
+  const magic = body.length >= 4 && body[0] === 0x67 && body[1] === 0x6c && body[2] === 0x54 && body[3] === 0x46;
+  if (!magic) return { ok: false, status: 422, reason: 'not a binary glTF file' };
+  // By id, not by file name: `Quim.glb` and `quim.glb` are one model to the engine, whatever the disk thinks.
+  if (taken(id)) return { ok: false, status: 409, reason: `the engine already has a model called ${id}` };
+  return { ok: true, id, file: `${id}.glb` };
+}
+
+/** Model id to ancestry id. */
+export type ModelAncestries = Readonly<Record<string, string>>;
+
+/** The file's map, or nothing - no file, or anything in it that is not an id to an id, is left out. */
+export function readModelAncestries(root: string): ModelAncestries {
+  const file = resolve(root, ANCESTRY_FILE);
+  if (!existsSync(file)) return {};
+  try {
+    const parsed: unknown = JSON.parse(readFileSync(file, 'utf8'));
+    if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+    return Object.fromEntries(Object.entries(parsed as Record<string, unknown>).filter((entry): entry is [string, string] => ID.test(entry[0]) && typeof entry[1] === 'string' && ID.test(entry[1])));
+  } catch {
+    return {};
+  }
+}
+
+/** The map with one model given an ancestry, or none, its keys in order so the file diffs cleanly. */
+export function assignAncestry(map: ModelAncestries, model: string, ancestry: string | null): ModelAncestries {
+  const next: Record<string, string> = { ...map };
+  if (ancestry === null) delete next[model];
+  else next[model] = ancestry;
+  return Object.fromEntries(Object.entries(next).sort(([a], [b]) => a.localeCompare(b)));
+}
+
+/** Write the file whole or not at all. */
+export function writeModelAncestries(root: string, map: ModelAncestries): void {
+  const target = resolve(root, ANCESTRY_FILE);
+  mkdirSync(dirname(target), { recursive: true });
+  const partial = `${target}.partial`;
+  writeFileSync(partial, `${JSON.stringify(map, null, 2)}\n`, 'utf8');
+  renameSync(partial, target);
+}
+
+/** What a request to set one is judged on, kept apart from the server so it can be tested without one. */
+export interface AncestryRequest {
+  method?: string | undefined;
+  headers: Readonly<Record<string, string | string[] | undefined>>;
+}
+
+export type AncestryJudgement = { ok: true; model: string; ancestry: string | null } | { ok: false; status: number; reason: string };
+
+const headerOf = (request: AncestryRequest, name: string): string | undefined => {
+  const value = request.headers[name];
+  return Array.isArray(value) ? value[0] : value;
+};
+
+const hostOf = (origin: string): string | null => {
+  try {
+    return new URL(origin).host;
+  } catch {
+    return null;
+  }
+};
+
+/** Whether a model's ancestry may be set, and to what: checked as the project save is checked. */
+export function judgeAncestry(request: AncestryRequest, body: string): AncestryJudgement {
+  if (request.method !== 'POST') return { ok: false, status: 405, reason: 'a change is a POST' };
+  if (headerOf(request, SAVE_HEADER) !== '1') return { ok: false, status: 403, reason: 'not sent by the page' };
+  const origin = headerOf(request, 'origin');
+  const host = headerOf(request, 'host');
+  if (origin !== undefined && host !== undefined && hostOf(origin) !== host) return { ok: false, status: 403, reason: 'sent from another origin' };
+  if (body.length > ANCESTRY_LIMIT) return { ok: false, status: 413, reason: 'too large to be one model and its ancestry' };
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(body);
+  } catch {
+    return { ok: false, status: 400, reason: 'not JSON' };
+  }
+  const { model, ancestry } = (parsed ?? {}) as { model?: unknown; ancestry?: unknown };
+  if (typeof model !== 'string' || !ID.test(model)) return { ok: false, status: 422, reason: 'no model id' };
+  if (ancestry !== null && (typeof ancestry !== 'string' || !ID.test(ancestry))) return { ok: false, status: 422, reason: 'the ancestry is not an id, or nothing' };
+  return { ok: true, model, ancestry };
 }
 
 /**
@@ -45,8 +209,8 @@ export interface ShippedModel {
  */
 export const SHIPPED_SCALE = 1;
 
-/** The `.glb` files in the folder, as models, sorted so a build is the same twice. */
-export function shippedModels(publicDir: string): ShippedModel[] {
+/** The `.glb` files in the folder, as models, sorted so a build is the same twice, each with its ancestry. */
+export function shippedModels(publicDir: string, ancestries: ModelAncestries = {}): ShippedModel[] {
   let names: string[];
   try {
     names = readdirSync(join(publicDir, MODELS_DIRECTORY));
@@ -57,31 +221,40 @@ export function shippedModels(publicDir: string): ShippedModel[] {
   return names
     .filter((name) => name.toLowerCase().endsWith('.glb') || name.toLowerCase().endsWith('.gltf'))
     .sort()
-    .map((name) => ({
-      id: name
-        .replace(/\.(glb|gltf)$/i, '')
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-+|-+$/g, ''),
-      url: `/${MODELS_DIRECTORY}/${name}`,
-      scale: SHIPPED_SCALE,
-    }));
+    .map((name) => {
+      const id = modelIdOf(name);
+      const ancestry = ancestries[id];
+      return { id, url: `/${MODELS_DIRECTORY}/${name}`, scale: SHIPPED_SCALE, ...(ancestry === undefined ? {} : { ancestry }) };
+    });
 }
 
 /** Serves the found list as `virtual:shipped-models`, in dev and in a build alike. */
 export function modelManifest(): Plugin {
   let publicDir = 'public';
+  let root = process.cwd();
+  // Written to only by a dev server the tests are not using, as the project save is.
+  let saves = process.env['TACTICAL_BOOT'] !== 'builtin';
+  let rust = false;
   return {
     name: 'tactical-model-manifest',
     configResolved(config) {
       publicDir = config.publicDir || 'public';
+      root = config.root;
+      saves = savesChanges(config.command, config.mode);
+      rust = servesRust(config.command);
     },
     resolveId(id) {
       return id === VIRTUAL ? RESOLVED : null;
     },
     load(id) {
       if (id !== RESOLVED) return null;
-      return `export const SHIPPED_MODELS = ${JSON.stringify(shippedModels(publicDir))};\n`;
+      return [
+        `export const SHIPPED_MODELS = ${JSON.stringify(shippedModels(publicDir, readModelAncestries(root)))};`,
+        `export const ANCESTRY_URL = ${JSON.stringify(ANCESTRY_URL)};`,
+        `export const ANCESTRY_SAVES = ${JSON.stringify(saves)};`,
+        `export const MODEL_ADD_URL = ${JSON.stringify(MODEL_ADD_URL)};`,
+        '',
+      ].join('\n');
     },
     /**
      * Watch the folder, so a file dropped in appears without a restart.
@@ -96,18 +269,53 @@ export function modelManifest(): Plugin {
     configureServer(server) {
       const folder = join(publicDir, MODELS_DIRECTORY);
       server.watcher.add(folder);
+      // Files this server has just written for the editor: the page that sent one has it already, and
+      // reloading that page would throw away whatever was being edited.
+      // Kept for a few seconds rather than for one event: a rename can be reported more than once.
+      const quiet = new Map<string, number>();
       const changed = (file: string): void => {
-        // Separators differ by platform and the watcher reports the host's own, so the
-        // folder is matched on the segment rather than on a prefix of the joined path.
+        if (!isEngineModelFile(file, folder)) return;
         const path = file.replace(/\\/g, '/');
-        if (!/\.(glb|gltf)$/i.test(path) || !path.includes(`/${MODELS_DIRECTORY}/`)) return;
         const module = server.moduleGraph.getModuleById(RESOLVED);
         if (module !== undefined) server.moduleGraph.invalidateModule(module);
+        const name = path.slice(path.lastIndexOf('/') + 1);
+        if ((quiet.get(name) ?? 0) > Date.now()) return;
         // A full reload rather than an HMR update: the list is read at startup by the
         // scene the whole game is built from, so nothing short of starting again shows it.
         server.hot.send({ type: 'full-reload' });
       };
       for (const event of ['add', 'unlink', 'change'] as const) server.watcher.on(event, changed);
+
+      if (rust) {
+        // `/__models/add` and `/__models/ancestry` are the Rust server's (`server/serve/src/manifest.rs`,
+        // proxied by `rust-server.ts`). One thing is still this side's: the page that sends a model has it
+        // already, so the file it is about to become is marked quiet before the request goes on - the
+        // watcher sees it written, and every other page reloads.
+        server.middlewares.use(MODEL_ADD_URL, (request, _response, next) => {
+          const name = new URL(request.url ?? '', 'http://local').searchParams.get('name');
+          const id = name === null || !/\.glb$/i.test(name) ? '' : modelIdOf(name);
+          if (id !== '') quiet.set(`${id}.glb`, Date.now() + 5000);
+          next();
+        });
+        return;
+      }
+
+      // Where there is no Rust server - the tests' - the engine's models are not changed here, and the list
+      // the page asks for is the one the virtual module carries, read the same way. Answered, not refused:
+      // a refusal is a console error on every page load, and every e2e test fails on one.
+      server.middlewares.use(SHIPPED_URL, (_request, response) => {
+        response.setHeader('content-type', 'application/json');
+        response.setHeader('cache-control', 'no-store');
+        response.end(JSON.stringify(shippedModels(publicDir, readModelAncestries(root))));
+      });
+      server.middlewares.use(MODEL_ADD_URL, (_request, response) => {
+        response.statusCode = 403;
+        response.end('this server does not add models to the engine');
+      });
+      server.middlewares.use(ANCESTRY_URL, (_request, response) => {
+        response.statusCode = 403;
+        response.end('this server does not keep models’ ancestries');
+      });
     },
   };
 }

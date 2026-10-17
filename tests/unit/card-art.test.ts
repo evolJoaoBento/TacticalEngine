@@ -3,9 +3,13 @@ import { memoryStore } from '../../src/game/save-slots';
 import {
   CARD_ART_DIRECTORY,
   CardArtImports,
+  choiceArtFor,
   loadCardArtIndex,
   parseCardArtIndex,
+  resetCardArt,
   resolveArt,
+  useCardArtImports,
+  useCardArtIndex,
 } from '../../src/game/ui/card-art';
 
 /**
@@ -136,5 +140,34 @@ describe('choosing what a card shows', () => {
       const art = resolveArt(id, index, imported);
       if (art.kind === 'image') expect(art.src.startsWith(CARD_ART_DIRECTORY)).toBe(true);
     }
+  });
+});
+
+describe('the pictures New Game deals the other choices with', () => {
+  it('are the directory\'s files named for their kind and id, and nothing when it has none', () => {
+    resetCardArt();
+    expect(choiceArtFor('ancestry', 'clank')).toBeNull();
+    useCardArtIndex(parseCardArtIndex(JSON.stringify({
+      'ancestry-clank': 'ancestry-clank.jpg',
+      'class-guardian': 'class-guardian.avif',
+      clank: 'clank.jpg',
+    })));
+    expect(choiceArtFor('ancestry', 'clank')).toBe(`${CARD_ART_DIRECTORY}ancestry-clank.jpg`);
+    expect(choiceArtFor('class', 'guardian')).toBe(`${CARD_ART_DIRECTORY}class-guardian.avif`);
+    // A domain card's file is not a choice's, and a choice with no file has no emblem to fall back on.
+    expect(choiceArtFor('community', 'clank')).toBeNull();
+    expect(choiceArtFor('subclass', 'stalwart')).toBeNull();
+    resetCardArt();
+  });
+
+  it('take a picture imported for that choice over the directory\'s', () => {
+    resetCardArt();
+    const store = memoryStore();
+    const imports = new CardArtImports(store);
+    imports.set('subclass-stalwart', 'data:image/png;base64,MINE');
+    useCardArtImports(imports);
+    useCardArtIndex({ 'subclass-stalwart': 'subclass-stalwart.avif' });
+    expect(choiceArtFor('subclass', 'stalwart')).toBe('data:image/png;base64,MINE');
+    resetCardArt();
   });
 });

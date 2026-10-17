@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures';
 import { closeLoadout, openPack } from './pack';
 
 /**
@@ -60,10 +60,12 @@ test('the merchant by the camp fire sells to a party that can pay', async ({ pag
   expect(Math.abs(box.y + box.height / 2 - screen.height / 2)).toBeLessThan(4);
   await expect(shop).toContainText('Tobin the Pedlar');
   await expect(shop.getByTestId('shop-purse')).toHaveText('You have 20 gold.');
-  // His wares are cards: a potion, a shield, a coat, a dagger, a bow.
-  await expect(shop.locator('.shop-card')).toHaveCount(6);
+  // His wares are cards: two potions, a shield, a coat, a dagger, a bow - and a smith's notes, a project plan.
+  await expect(shop.locator('.shop-card')).toHaveCount(7);
   const draught = shop.locator('[data-item="consumable-minor-health-potion"]').getByTestId('shop-buy');
   await expect(draught).toContainText('6 gold');
+  // The smith's notes have no picture: drawn as a scroll, not as their kind's flask.
+  await expect(shop.locator('[data-item="smiths-notes"] svg[data-glyph="scroll"]')).toHaveCount(1);
   await page.screenshot({ path: 'test-results/merchant-shop.png' });
   await draught.click();
   await expect(shop.getByTestId('shop-purse')).toHaveText('You have 14 gold.');
@@ -85,6 +87,11 @@ test('the merchant by the camp fire sells to a party that can pay', async ({ pag
   await sell.click();
   await expect(shop.getByTestId('shop-purse')).toHaveText('You have 16 gold.');
   await expect(shop.getByTestId('shop-selling')).toHaveCount(0);
+
+  // The smith's notes: bought, they are the party's to read later - and read, a project to work at on a long rest.
+  await shop.locator('[data-item="smiths-notes"]').getByTestId('shop-buy').click();
+  await expect(shop.getByTestId('shop-purse')).toHaveText('You have 4 gold.');
+  expect(await page.evaluate(() => window.__engine!.carried().map((item) => item.name))).toContain("Smith's notes");
 
   // The conversation waits for the shop: its replies are shut, and an answer is not taken.
   await expect(page.getByTestId('dialogue-held')).toHaveText('Close the shop to go on.');
@@ -121,6 +128,10 @@ test('the merchant by the camp fire sells to a party that can pay', async ({ pag
     }
   });
   expect(await page.evaluate(() => window.__engine!.pendingKind())).toBeNull();
+
+  // Read, the notes teach the party the husk-iron blade: in the journal, to be worked at on a long rest.
+  expect(await page.evaluate(() => window.__engine!.useItem('smiths-notes'))).not.toBe('refused');
+  await expect(page.locator('[data-testid="journal"] [data-project="husk-iron-blade"]')).toContainText('Husk-iron blade — project, 0 of 2');
   expect(errors).toEqual([]);
 });
 

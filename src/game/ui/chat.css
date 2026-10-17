@@ -1,0 +1,20 @@
+/* A box of things said (`ChatBox.tsx`): at the table (`Chat.tsx`), a box above the log or a section of the lobby;
+   between friends (`FriendMessages.tsx`), on the menu's paper. */
+.chat{flex:0 1 auto;min-height:64px;max-height:30vh;display:flex;flex-direction:column;gap:6px}
+.chat.is-lobby{max-height:none;min-height:0}
+.chat-lines{flex:1 1 auto;overflow-y:auto;min-height:0;max-height:22vh;scrollbar-color:#b9a684 transparent}
+.chat.is-lobby .chat-lines{max-height:120px}
+.chat-line{margin-bottom:3px;overflow-wrap:anywhere}
+.chat-line b{color:#57493a}
+.chat-line.is-yours b{color:#856018}
+.chat-say{display:flex;gap:4px}
+.chat-say input{flex:1;min-width:0;font:inherit;font-size:12px;padding:3px 6px;border:1px solid #b9a684;border-radius:3px;background:transparent;color:inherit}
+.chat.is-friend{max-height:none;min-height:0;margin-top:8px}
+.chat.is-friend .chat-lines{max-height:min(320px,45vh);font-size:13px;line-height:1.45}
+.chat.is-friend .panel-sub{font-size:12px;font-style:italic;color:#57493a}
+.chat.is-friend .chat-say input{font-size:13px;padding:6px 9px;border-color:#b2a68d;border-radius:4px;background:#fffdf6;color:#1d1611}
+/* A player's friends during a game (`FriendsInPlay.tsx`): a button over the board, above the table's chat - paper,
+   not ghost, the board being dark - its words gold while anybody is asking or has written unread. */
+.play-friends{display:flex;justify-content:flex-end}
+.play-friends .play-btn{font-size:12px;padding:3px 10px}
+.play-friends .play-btn.is-waiting{color:#7a4a14}

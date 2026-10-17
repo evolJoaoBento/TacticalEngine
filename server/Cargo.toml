@@ -1,0 +1,21 @@
+# The Rust server (docs/SERVER.md). `engine` is the rules alone - no files, no clock, no network - so it
+# also builds to WebAssembly; `hooks` runs a project's JavaScript in QuickJS, which does not; `serve` is
+# the server, which answers the dev plugins' routes one by one.
+[workspace]
+members = ["engine", "hooks", "serve", "wasm"]
+resolver = "2"
+
+[workspace.package]
+edition = "2021"
+license = "CC-BY-NC-4.0"
+publish = false
+
+# Dependencies built optimised even in a debug build: scrypt unoptimised takes seconds a hash, which
+# made the accounts' tests take minutes.
+[profile.dev.package."*"]
+opt-level = 3
+
+# The tests themselves built a little optimised: the golden replays play whole fights, and unoptimised the
+# three of them took most of ten minutes; at this level, a minute.
+[profile.test]
+opt-level = 1

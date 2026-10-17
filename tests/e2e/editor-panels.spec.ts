@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from './fixtures';
 
 /**
  * The editor's authoring panels, clicked.
@@ -14,6 +14,7 @@ const PANELS = [
   { open: 'open-items', panel: 'item-panel', add: 'add-item', close: 'close-items' },
   { open: 'open-abilities', panel: 'ability-panel', add: 'add-ability', close: 'close-abilities' },
   { open: 'open-code', panel: 'code-panel', add: 'add-code', close: 'close-code' },
+  { open: 'open-projects', panel: 'projects-panel', add: 'add-plan', close: 'close-projects' },
 ] as const;
 
 async function editing(page: Page): Promise<string[]> {
@@ -189,6 +190,7 @@ test('a designer can add one of each thing, and the panel shows it', async ({ pa
     await page.waitForTimeout(150);
     const after = await body.innerText();
     if (after !== before) grew.push(panel);
+    if (panel === 'projects-panel') await page.screenshot({ path: 'test-results/editor-projects.png' });
     console.log(`${panel}:`, before.length, '->', after.length);
 
     await page.locator(`[data-testid="${close}"]`).click();
@@ -424,5 +426,75 @@ test("an item's worth is set in the Items panel, and emptied it is worth nothing
   await worth.fill('');
   await worth.blur();
   expect(await valueOf()).toBeUndefined();
+  // What its card is drawn with when it has no picture: chosen, and back to its kind's.
+  const glyphOf = () =>
+    page.evaluate(() => (JSON.parse(window.__engine!.exportProject()) as { items: { id: string; glyph?: string }[] }).items.find((item) => item.id === 'a-silver-ring')?.glyph);
+  await panel.locator('[data-testid="item-glyph"]').selectOption('book');
+  expect(await glyphOf()).toBe('book');
+  await panel.locator('[data-testid="item-glyph"]').selectOption('');
+  expect(await glyphOf()).toBeUndefined();
   expect(errors).toEqual([]);
+});
+
+test('+ Model is at the top of the Models page, and a shipped model is given an ancestry for every project', async ({ page }) => {
+  await editing(page);
+  await page.locator('[data-testid="open-content"]').click();
+  await page.locator('[data-testid="open-models"]').click();
+  await expect(page.getByTestId('models-panel')).toBeVisible();
+  // Adding one is where the page opens, above every model there is.
+  const add = (await page.getByTestId('add-model').boundingBox())!;
+  const first = (await page.locator('[data-asset]').first().boundingBox())!;
+  expect(add.y).toBeLessThan(first.y);
+
+  // What the file keeps is what the page shows: the fauns' own two are the fauns'.
+  await expect(page.getByTestId('asset-ancestry-faun-male')).toHaveValue('faun');
+  // Given one, it is sent to be kept for every project - standing in for the dev server here, since
+  // the tests' own server keeps nothing - and the page says it was kept.
+  const sent: unknown[] = [];
+  await page.route('**/__models/ancestry', async (route) => {
+    sent.push(route.request().postDataJSON());
+    await route.fulfill({ json: {} });
+  });
+  const pick = page.getByTestId('asset-ancestry-quim');
+  await pick.scrollIntoViewIfNeeded();
+  await expect(pick).toHaveValue('');
+  await pick.selectOption('dwarf');
+  const note = page.getByTestId('asset-ancestry-note-quim');
+  await expect(note).toContainText('Kept, for every project');
+  await expect(note).toContainText('Dwarf');
+  expect(sent).toEqual([{ model: 'quim', ancestry: 'dwarf' }]);
+  await page.screenshot({ path: 'test-results/models-ancestry.png' });
+
+  // The tests' server itself refuses, and the page says so rather than pretending.
+  await page.unroute('**/__models/ancestry');
+  await pick.selectOption('');
+  await expect(note).toContainText('Not kept');
+});
+
+test('+ Model to the engine sends the file to be written into public/models, and it is given an ancestry at once', async ({ page }) => {
+  await editing(page);
+  await page.locator('[data-testid="open-content"]').click();
+  await page.locator('[data-testid="open-models"]').click();
+  await expect(page.getByTestId('models-panel')).toBeVisible();
+  // The dev server writes the file; the tests' own server adds nothing, so it is stood in for here -
+  // the upload answered, and the file it would have written served.
+  const sent: { url: string; size: number }[] = [];
+  await page.route('**/__models/add**', async (route) => {
+    sent.push({ url: route.request().url(), size: route.request().postDataBuffer()?.length ?? 0 });
+    await route.fulfill({ json: { id: 'fox-engine', url: '/models/fox-engine.glb' } });
+  });
+  await page.route('**/models/fox-engine.glb', (route) => route.fulfill({ path: 'tests/fixtures/models/Fox.glb', contentType: 'model/gltf-binary' }));
+  await page.locator('[data-testid="add-engine-model"] input[type="file"]').setInputFiles('tests/fixtures/models/Fox.glb');
+  await expect(page.getByTestId('engine-model-note')).toContainText('Added to the engine as models/fox-engine.glb');
+  expect(sent).toHaveLength(1);
+  expect(sent[0]!.url).toContain('name=Fox.glb');
+  expect(sent[0]!.size).toBeGreaterThan(1000);
+  // In the project at once, and one of the engine's: it has an Ancestry to give it.
+  await expect(page.locator('[data-asset="fox-engine"]')).toBeVisible();
+  await expect(page.getByTestId('asset-ancestry-fox-engine')).toBeVisible();
+
+  // The tests' own server refuses, and the page says so.
+  await page.unroute('**/__models/add**');
+  await page.locator('[data-testid="add-engine-model"] input[type="file"]').setInputFiles('tests/fixtures/models/Fox.glb');
+  await expect(page.getByTestId('engine-model-note')).toContainText('Not added');
 });

@@ -95,6 +95,7 @@ import { Reactions } from './reactions';
 import { ClickRipples } from './click-ripple';
 import { buildTerrainMesh, type TerrainMesh, type TerrainMeshOptions } from './terrain-mesh';
 import { drawsTileModel, redrawTileModels } from './tile-models';
+import { artUnder as artUnderRay, named } from './art-under';
 
 export interface SceneViewOptions extends TerrainMeshOptions {
   layout?: TileLayout;
@@ -746,9 +747,9 @@ export class SceneView {
       this.assets.request(modelId);
       // Declared and on its way is not "missing": stand in without recording a miss.
       const spec = this.registry.has(modelId) ? this.registry.get(modelId) : placeholderSpec;
-      return buildModel(spec, this.resources, options);
+      return named(buildModel(spec, this.resources, options), modelId);
     }
-    return buildModel(this.registry.get(modelId), this.resources, options);
+    return named(buildModel(this.registry.get(modelId), this.resources, options), modelId);
   }
 
   /** Clone a loaded glTF scene, scaled and seated as its asset spec says. */
@@ -756,6 +757,7 @@ export class SceneView {
     const spec = this.assets!.spec(modelId)!;
     const group = new Group();
     group.name = `model:${modelId}`;
+    group.userData['model'] = modelId; // where a `token:` or `object:` rename cannot reach (`art-under.ts`)
     // SkeletonUtils handles skinned meshes; for a plain scene it is a deep clone.
     const clone = cloneSkeleton(template);
     clone.scale.setScalar(options.scale ?? spec.scale);
@@ -1202,6 +1204,11 @@ export class SceneView {
     let drawn: Object3D = hit.object;
     while (drawn.parent !== null && drawn.parent !== this.root) drawn = drawn.parent;
     return drawn.name.startsWith('object:') ? drawn.name.slice('object:'.length) : null;
+  }
+
+  /** The model the nearest creature, prop, object or tile model under a ray is made of (`art-under.ts`). */
+  artUnder(ray: Raycaster): string | null {
+    return artUnderRay(ray, [...[...this.tokens.values()].map((t) => t.group), ...this.authoredCreatures, ...this.objects, ...this.decos, ...this.tileModels], this.terrain.drawn, this.root);
   }
 
   /** Rim what the pointer is on: an object in white, a creature by bringing its line up. */
