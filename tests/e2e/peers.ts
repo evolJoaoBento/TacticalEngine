@@ -22,21 +22,20 @@ export interface Peers {
   close: () => Promise<void>;
 }
 
-/** A peer game hosted by `page`, a guest invited into it from a browser of their own, seated, and started. */
-export async function peers(page: Page, browser: Browser): Promise<Peers> {
-  await page.goto('/?peer=host&as=Hana&ice=none');
-  await seated(page);
-  await expect(page.getByTestId('lobby')).toBeVisible();
-  await page.getByTestId('peer-invite').click();
-  const code = page.getByTestId('peer-invite-code');
+/**
+ * A guest invited into the game `host` hosts, from a browser of their own: the host's code carried to them, their
+ * reply carried back, their page booted into the game. Something that is not a code is said to be none first.
+ */
+export async function invited(host: Page, browser: Browser, name: string): Promise<{ guest: Page; close: () => Promise<void> }> {
+  await host.getByTestId('peer-invite').click();
+  const code = host.getByTestId('peer-invite-code');
   await expect(code).toHaveValue(/^TE1\./, { timeout: 15_000 });
 
   const guestContext = await browser.newContext();
   const guest = await guestContext.newPage();
-  await guest.goto('/?peer=join&as=Gus&ice=none');
+  await guest.goto(`/?peer=join&as=${name}&ice=none`);
   await expect(guest.getByTestId('peer-join')).toBeVisible({ timeout: 30_000 });
-  await expect(guest.getByTestId('peer-name')).toHaveValue('Gus');
-  // Something that is not a code is said to be none, and the guest may paste again.
+  await expect(guest.getByTestId('peer-name')).toHaveValue(name);
   await guest.getByTestId('peer-code').fill('hello');
   await guest.getByTestId('peer-make-reply').click();
   await expect(guest.getByTestId('peer-join-problem')).toContainText('not an invitation code');
@@ -46,10 +45,19 @@ export async function peers(page: Page, browser: Browser): Promise<Peers> {
   await expect(reply).toHaveValue(/^TE1\./, { timeout: 15_000 });
   await guest.screenshot({ path: 'test-results/peer-reply.png' });
 
-  await page.getByTestId('peer-invite-reply').fill(await reply.inputValue());
-  await page.getByTestId('peer-invite-connect').click();
-  await expect(page.getByTestId('peer-invite-said')).toContainText('Gus is at the table', { timeout: 30_000 });
+  await host.getByTestId('peer-invite-reply').fill(await reply.inputValue());
+  await host.getByTestId('peer-invite-connect').click();
+  await expect(host.getByTestId('peer-invite-said')).toContainText(`${name} is at the table`, { timeout: 30_000 });
   await seated(guest);
+  return { guest, close: () => guestContext.close() };
+}
+
+/** A peer game hosted by `page`, a guest invited into it from a browser of their own, seated, and started. */
+export async function peers(page: Page, browser: Browser): Promise<Peers> {
+  await page.goto('/?peer=host&as=Hana&ice=none');
+  await seated(page);
+  await expect(page.getByTestId('lobby')).toBeVisible();
+  const { guest, close } = await invited(page, browser, 'Gus');
 
   // The lobby on both pages: who is at the table, the guest's seat taken by the guest, the game started by the host.
   for (const each of [page, guest]) await expect(each.getByTestId('lobby-members')).toHaveText('Hana (host) · Gus', { timeout: 15_000 });
@@ -63,7 +71,7 @@ export async function peers(page: Page, browser: Browser): Promise<Peers> {
   await page.getByTestId('lobby-start').click();
   for (const each of [page, guest]) await expect(each.getByTestId('lobby')).toHaveCount(0, { timeout: 15_000 });
   await expect.poll(() => guest.evaluate(() => window.__engine!.selected()), { timeout: 15_000 }).toBe(guests);
-  return { host: page, guest, names: { host: 'Hana', guest: 'Gus' }, hosts, guests, close: () => guestContext.close() };
+  return { host: page, guest, names: { host: 'Hana', guest: 'Gus' }, hosts, guests, close };
 }
 
 /** Whatever the game asks, answered on the page that plays its character, the other saying whom it waits on. */

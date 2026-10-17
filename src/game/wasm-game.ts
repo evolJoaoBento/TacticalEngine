@@ -33,7 +33,8 @@ import { loadAccountSaves } from './account-saves';
 import { SaveSlots, browserStore, type SaveShelf } from './save-slots';
 import { talkingAside } from './talks';
 import { friendDid, playAs } from './friends';
-import { peerMode, peerWire, prepareHost } from './peer/peer-play';
+import { hostTable, peerMode, peerWire, prepareHost } from './peer/peer-play';
+import { TableSaves, seatingOf } from './peer/table-saves';
 
 export type { GameClient, LocalPowers } from './client';
 
@@ -152,7 +153,8 @@ let shelf: SaveShelf | null = null;
  * page booted - else the browser's.
  */
 export function savesFor(): SaveShelf {
-  shelf ??= new SaveSlots(browserStore());
+  // A peer game's host keeps who plays whom with each save (`docs/PEER.md`).
+  shelf ??= peerMode() === 'host' ? new TableSaves(new SaveSlots(browserStore()), hostTable) : new SaveSlots(browserStore());
   return shelf;
 }
 
@@ -192,17 +194,14 @@ export function gameFor(demo: DemoScene): GameClient & LocalPowers {
 }
 
 /**
- * The host's table, over an engine of its own: a load read from the host's browser, the test driver's hands taken in
- * development alone.
+ * The host's table, over an engine of its own: a load read from the host's browser, who played whom with it, the test
+ * driver's hands taken in development alone.
  */
 async function hostEngine(): Promise<void> {
   const module = await engineModule();
   if (module === null) return;
   prepareHost(await WasmEngine.of(module), {
-    readSave: (slot) => {
-      const text = savesFor().read(slot);
-      return text === null ? null : { text };
-    },
+    readSave: (slot) => seatingOf(savesFor(), slot),
     testHands: import.meta.env.DEV,
   });
 }

@@ -18,8 +18,15 @@ tunnel shows.
 page) and each guest's page connects to it over WebRTC, the handshake carried by hand as two codes. It works from
 a static build. A guest is invited from the lobby, joins before their page boots, takes a seat, and plays their
 own; the fight's spotlight, the GM's turn and the questions go as at a server's game. Tests: the table played by
-the real engine (`src/game/peer/*.test.ts`), and `tests/e2e/peer.spec.ts` in two browsers. Next, ranked: who
-played whom kept in the host's save; the codes carried by a small relay for those who would rather send a link.
+the real engine (`src/game/peer/*.test.ts`), and `tests/e2e/peer.spec.ts` in two browsers. Next, ranked: an evening
+across two real networks; the codes carried by a small relay for those who would rather send a link.
+
+## Peer to peer: who played whom kept in the host's save — done
+
+`docs/PEER.md`, "Saves". The host's saves keep the table's seats - those kept for absent players too - and the name of
+everybody in them. Hosted again from one, everybody is seated as they come: by the id they were saved with, or by the
+name that id went by, since a tab's id is new each evening; the others' seats kept for them in the lobby. Tests:
+`src/game/peer/host-table.test.ts`, `src/game/peer/table-saves.test.ts`, `tests/e2e/peer-saves.spec.ts`.
 
 ## Peer to peer: a guest coming back — done
 

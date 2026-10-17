@@ -44,7 +44,16 @@ export interface SaveSlot {
    * was played over kept beside it, so any of them hosts it again (`saves.rs`). None at a game nobody shared.
    */
   players?: string[];
+  /**
+   * The names of those `seats` names, by id: a peer game has no accounts to look them up in, and its players' ids are
+   * their tabs', new each evening - so a player coming back to a peer game hosted from this save is seated in their
+   * own by their name (`docs/PEER.md`, `host-table.ts`). None anywhere else.
+   */
+  names?: Record<string, string>;
 }
+
+/** Who played whom, kept with a save of a shared game (`SaveSlot`): the seats, and the names of those in them. */
+export type SavedSeating = Pick<SaveSlot, 'seats' | 'names'>;
 
 /** The project a save that does not say is of: the only one there was when saves did not say. */
 export const DEFAULT_SAVE_PROJECT = 'demo';
@@ -72,7 +81,7 @@ export interface SaveShelf {
   list(): SaveSlot[];
   has(id: string): boolean;
   read(id: string): string | null;
-  write(text: string, name: string, where: string, id?: string, project?: string): SaveSlot | null;
+  write(text: string, name: string, where: string, id?: string, project?: string, seating?: SavedSeating): SaveSlot | null;
   remove(id: string): boolean;
   /** What to tell the player when a write came back `null`. */
   refused(): string;
@@ -122,12 +131,12 @@ export class SaveSlots implements SaveShelf {
   }
 
   /**
-   * Write a slot. A fixed id overwrites; a new id is minted when none is given.
-   * Returns the slot as listed, or null when the store refused.
+   * Write a slot. A fixed id overwrites; a new id is minted when none is given. Who played whom, when given (a peer
+   * game's host saving), is kept with it. Returns the slot as listed, or null when the store refused.
    */
-  write(text: string, name: string, where: string, id?: string, project?: string): SaveSlot | null {
+  write(text: string, name: string, where: string, id?: string, project?: string, seating?: SavedSeating): SaveSlot | null {
     const slotId = id ?? mintSlotId(this.now());
-    const slot: SaveSlot = { id: slotId, name, savedAt: this.now(), where, ...(project === undefined ? {} : { project }) };
+    const slot: SaveSlot = { id: slotId, name, savedAt: this.now(), where, ...(project === undefined ? {} : { project }), ...(seating ?? {}) };
     try {
       this.store.set(SLOT_PREFIX + slotId, text);
       const index = this.readIndex().filter((entry) => entry.id !== slotId);

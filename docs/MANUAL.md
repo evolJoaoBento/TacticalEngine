@@ -121,6 +121,10 @@ settings (Escape) and press **Answer**, and send back the code that appears. Onc
 their game picks up where yours is, in the same seat. A player whose page was closed or reloaded
 does the same from the join screen with **No code? Write one for my host**.
 
+Your saves of a peer game remember who played which character. Host the game again from a save
+and the lobby keeps each player's character for them ("Kept for Gus"). They're seated in it as
+they join, as long as they use the same name as before.
+
 ### Accounts and the Store
 
 When the dev server is running (`npm run dev`), the menu first asks you to **sign in** - a name and a

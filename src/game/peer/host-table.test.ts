@@ -180,6 +180,52 @@ describe('a peer game kept by its host\'s page', () => {
     expect(host.ask({ op: 'save', slot: 's1' }).error).toBe("the host's page keeps this game's saves");
   });
 
+  it.skipIf(!built)("gives a save who plays whom - the seats, those kept, and everybody's names", async () => {
+    const { table, host, party } = await opened();
+    const gus = guest(table);
+    gus.ask({ op: 'join' });
+    const [hers, his] = party as [string, string];
+    host.ask({ op: 'seat', character: hers, account: 'h' });
+    gus.ask({ op: 'seat', character: his, account: 'g' });
+    expect(table.seating()).toEqual({ seats: { [hers]: 'h', [his]: 'g' }, names: { h: 'Hana', g: 'Gus' } });
+  });
+
+  it.skipIf(!built)('seats everybody again from a save: by their id, by the name a new id goes by, and keeps the rest a seat until they come', async () => {
+    const saves = new Map<string, { text: string; seats: Record<string, string>; names: Record<string, string> }>();
+    // An evening played: Hana hosting, Gus and Kit seated, saved.
+    const first = await opened();
+    const [a, b, c] = first.party as [string, string, string];
+    const gus = guest(first.table, 'g1', 'Gus');
+    gus.ask({ op: 'join' });
+    const kit = guest(first.table, 'k1', 'Kit');
+    kit.ask({ op: 'join' });
+    first.host.ask({ op: 'seat', character: a, account: 'h' });
+    first.host.ask({ op: 'seat', character: b, account: 'g1' });
+    first.host.ask({ op: 'seat', character: c, account: 'k1' });
+    first.host.ask({ op: 'start' });
+    const text = (first.host.ask({ op: 'call', call: 'serialiseSave', args: [] }).ok as { answer: string }).answer;
+    saves.set('s1', { text, ...first.table.seating() });
+
+    // Another evening: every tab new, so every id; Hana hosts again as 'h2', Gus comes as 'g2' before the load.
+    const engine = await WasmEngine.load(readFileSync(WASM));
+    const table = new HostTable(engine, { id: 'h2', name: 'Hana' }, { readSave: (slot) => saves.get(slot) ?? null });
+    const host = far();
+    table.attach(host.link, { id: 'h2', name: 'Hana' }, true);
+    host.ask({ op: 'open', project, shipped: shippedContent(), table: { animated: false, askDefender: true }, rng: 12345, lobby: true });
+    const gus2 = guest(table, 'g2', ' gus ');
+    gus2.ask({ op: 'join' });
+    expect(gus2.ask({ op: 'load', slot: 's1' }).error).toBe('only the host loads a save into a game others are at');
+    expect(host.ask({ op: 'load', slot: 's1' }).error).toBeUndefined();
+    expect(table.table()).toMatchObject({ seats: { [a]: 'h2', [b]: 'g2' }, kept: { [c]: { id: 'k1', name: 'Kit' } } });
+    expect(pushes(gus2).at(-1)).toMatchObject({ table: { kept: { [c]: { name: 'Kit' } } } });
+    // Kit comes, with a tab of their own: their seat is theirs.
+    const kit2 = guest(table, 'k2', 'Kit');
+    kit2.ask({ op: 'join' });
+    expect(table.table()).toMatchObject({ seats: { [a]: 'h2', [b]: 'g2', [c]: 'k2' }, kept: {} });
+    // Saved again, it says who plays whom now.
+    expect(table.seating().seats).toEqual({ [a]: 'h2', [b]: 'g2', [c]: 'k2' });
+  });
+
   it.skipIf(!built)('turns away a guest who says they are the host', async () => {
     const { table } = await opened();
     let closed = false;

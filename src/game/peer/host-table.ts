@@ -13,7 +13,13 @@
  * - `join` - the game joined (its invitation is not asked: a link is only ever to this table);
  * - `call`, `ask`, `resume`, `seat`, `start`, `visibility`, `say` - as the server's (`play.rs`), the same refusals;
  * - `load` - the host's alone: the save read from the host's browser (`readSave`), loaded as `loadGameText`, who
- *   played whom in it seated again; `save` is refused - the host's page saves its own game, the guests' nothing.
+ *   played whom in it seated again; `save` is refused - the host's page saves its own game, the guests' nothing,
+ *   and what it keeps with the save of who played whom is the table's (`seating`).
+ *
+ * Who played whom in a save is seated again as the server seats it - each player at the game in their own, the
+ * others' kept for them until they come - but a peer player's id is their tab's, new each evening, so a player is
+ * known by the name they give as well: a seat kept for an id nobody at the table has is theirs who goes by that id's
+ * name (`sameName`), the host among them. The host already takes a guest at their word for who they are.
  *
  * What the server pushes, this pushes: `{ push: { board, views, by, seq } }`, `{ table }`, `{ chat }`. Before
  * anything of an account's is asked of the game, the game is told whom it plays for (`restoreSeating`) and refuses
@@ -57,7 +63,7 @@ type Answer = Record<string, unknown> & { ok?: unknown; error?: string };
 
 export interface TableOptions {
   /** A save in the host's browser, by its slot, and who played whom in it; `null` for none. */
-  readSave?: (slot: string) => { text: string; seats?: Record<string, string> } | null;
+  readSave?: (slot: string) => { text: string; seats?: Record<string, string>; names?: Record<string, string> } | null;
   /** Whether the host's page may use the test driver's hands. */
   testHands?: boolean;
   now?: () => number;
@@ -69,6 +75,11 @@ function freshHex(bytes: number): string {
   const buffer = new Uint8Array(bytes);
   crypto.getRandomValues(buffer);
   return Array.from(buffer, (b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+/** Whether two names are one player's: alike but for case and the space around them. */
+function sameName(a: string | undefined, b: string): boolean {
+  return a !== undefined && a.trim().toLowerCase() === b.trim().toLowerCase();
 }
 
 const isObject = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -253,7 +264,7 @@ export class HostTable {
     if (op === 'load') {
       const save = this.options.readSave?.(typeof message['slot'] === 'string' ? message['slot'] : '') ?? null;
       if (save === null) return this.reply(watcher, { error: 'no such save' }, id);
-      message = { op: 'call', call: 'loadGameText', args: [save.text], keep: save.seats ?? {} };
+      message = { op: 'call', call: 'loadGameText', args: [save.text], keep: save.seats ?? {}, names: save.names ?? {} };
     }
     if (op === 'open') this.reset(watcher, message);
     if (op === 'join' && !this.members.includes(watcher.account)) {
@@ -315,7 +326,7 @@ export class HostTable {
       }
     }
     this.reply(watcher, said, id);
-    const reseated = effective === 'call' && ok !== null && isObject(message['keep']) && this.keep(message['keep']);
+    const reseated = effective === 'call' && ok !== null && isObject(message['keep']) && this.keep(message['keep'], isObject(message['names']) ? message['names'] : {});
     if ((reseated || effective === 'seat' || effective === 'start') && ok !== null) {
       this.played += 1;
       this.reselect();
@@ -407,26 +418,43 @@ export class HostTable {
     return { ok: { table: this.table() } };
   }
 
-  /** Who played whom in a save just loaded: theirs again if they are at the game, else kept for them. */
-  private keep(keep: Record<string, unknown>): boolean {
+  /**
+   * Who played whom in a save just loaded, and their names: theirs again if they are at the game - by their id, or
+   * by the name that id went by - else kept for them.
+   */
+  private keep(keep: Record<string, unknown>, names: Record<string, unknown>): boolean {
     const entries = Object.entries(keep);
     if (entries.length === 0) return false;
     for (const [character, account] of entries) {
       if (typeof account !== 'string') continue;
       delete this.seats[character];
       delete this.kept[character];
-      if (this.members.includes(account)) this.seats[character] = account;
+      const name = names[account];
+      if (typeof name === 'string' && !this.members.includes(account) && !this.names.has(account)) this.names.set(account, name);
+      const member = this.members.includes(account) ? account : this.members.find((m) => typeof name === 'string' && sameName(this.names.get(m), name));
+      if (member !== undefined) this.seats[character] = member;
       else this.kept[character] = account;
     }
     return true;
   }
 
+  /** The seats kept for an account, theirs now that it has joined - by its id, or by the name it goes by. */
   private seatTheKept(account: string): void {
+    const name = this.names.get(account);
     for (const [character, kept] of Object.entries(this.kept)) {
-      if (kept !== account) continue;
+      const theirs = kept === account || (!this.members.includes(kept) && name !== undefined && sameName(this.names.get(kept), name));
+      if (!theirs) continue;
       delete this.kept[character];
       if (this.seats[character] === undefined) this.seats[character] = account;
     }
+  }
+
+  /** Who plays whom, for the host's save: the seats and those kept for players not back, and everybody's names. */
+  seating(): { seats: Record<string, string>; names: Record<string, string> } {
+    const seats = { ...this.kept, ...this.seats };
+    const names: Record<string, string> = {};
+    for (const id of Object.values(seats)) names[id] = this.names.get(id) ?? id;
+    return { seats, names };
   }
 
   private start(account: string): Answer {

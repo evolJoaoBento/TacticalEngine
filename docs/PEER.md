@@ -66,7 +66,8 @@ There are no accounts. A page's id is made for the tab (`sessionStorage`), so a 
 even of the same browser, is somebody else. Its name is the one given (`?as=`, else the last one given, kept in
 the browser). The id a guest gives is taken as theirs. A guest who says they are the host is turned away. Beyond
 that the host trusts the guests' word about who they are, since anybody the host invites is somebody the host
-chose.
+chose. The same goes for their name across evenings: a tab's id is new each evening, so a save knows its players by
+name as well (below).
 
 ## What the table refuses, as the server does
 
@@ -78,9 +79,18 @@ chose.
 
 ## Saves
 
-The host's page saves its own game into its own browser, as a game played alone does. **Load** reads the save
-from the host's browser and loads it into the table's game (`{ op: "load" }`), everybody's page following. A
-guest's page saves nothing worth having: the game is the host's. Who played whom is not kept in such a save yet.
+The host's page saves its own game into its own browser, as a game played alone does - with who played whom kept
+beside it (`peer/table-saves.ts`): the seats, those kept for players not back yet, and the name of everybody in
+them (`SaveSlot.seats`, `SaveSlot.names`). **Load** reads the save from the host's browser and loads it into the
+table's game (`{ op: "load" }`), everybody's page following, and everybody is seated again as the server seats
+them: each player at the game in their own, the others' kept for them - "Kept for Gus" in the lobby - until they
+come.
+
+A player's id is their tab's, so another evening every id is new. A seat is matched to a player by the id it was
+saved with, or else by the name that id went by - alike but for case and the space around it - so Gus, coming from
+any browser as Gus, is seated in his own as he joins, and the host in theirs. Two players going by one name would
+share the match: the first to come takes the seats. A guest's page saves nothing worth having: the game is the
+host's.
 
 ## A guest coming back
 
@@ -115,15 +125,17 @@ without them. What is done instead:
 - **By address:** `/?peer=host&as=Hana` hosts the demo as a lobby; `/?peer=join&as=Gus` joins. Add `&ice=none`
   on one machine.
 - **Tests:** `src/game/peer/*.test.ts` (the table played by the real engine; the link, and a guest's link lost and
-  come back; the codes, each of its kind), `tests/e2e/peer-rejoin.spec.ts` (a guest cut off in the same tab, and one
+  come back; the codes, each of its kind; a save's seats, matched by name), `tests/e2e/peer-saves.spec.ts` (an evening
+  saved and hosted again from a new tab, the guest's seat kept and theirs by name as they come from a browser of
+  their own), `tests/e2e/peer-rejoin.spec.ts` (a guest cut off in the same tab, and one
   whose page was opened again, each back by their own code and the host's answer, playing on, nothing parted), and
   `tests/e2e/peer.spec.ts`: two browsers and no server, the codes carried through the very boxes a player pastes
   into, a guest seated in the lobby, the game started, each playing their own, and a fight whose GM's turn the
   guest hands over, played on the host's table, the round going on on both pages, the logs alike, nothing parted.
   It runs in the ordinary e2e run, and is skipped in the server's run, which has a server.
   `npm run test:e2e:peer-static` builds the game statically, serves it with `vite preview` - no server of any
-  kind - and plays on it the invitation, the lobby and play, and both ways a guest comes back (not the menu's, nor the
-  fight's, which moves a character by the test driver's hand, which a build refuses).
+  kind - and plays on it the invitation, the lobby and play, both ways a guest comes back, and a save hosted again
+  (not the menu's, nor the fight's, which moves a character by the test driver's hand, which a build refuses).
 
 ## Files
 
@@ -136,4 +148,5 @@ without them. What is done instead:
 | `src/game/ui/PeerJoin.tsx` | the guest's screen before boot |
 | `src/game/ui/PeerInvites.tsx` | the host's invitations, and the answer to a player's own code, in the lobby and the players' panel |
 | `src/game/ui/PeerRejoin.tsx` | a guest cut off from the host, coming back in the same tab |
+| `src/game/peer/table-saves.ts` | the host's saves, who played whom kept with each |
 | `src/game/wasm-game.ts` | the host's table made beside the page's engine; the wire given the peer way in |
