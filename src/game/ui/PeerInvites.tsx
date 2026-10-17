@@ -3,11 +3,13 @@
  * server's invitation link: one invitation for each guest - a code to send them, their reply pasted back, and they
  * are at the table (`peer-play.ts`, `inviteGuest`). And the other way round, for a player who sends a code of their
  * own first - one whose link dropped, or whose page was opened again: pasted here, answered with a code to send back
- * (`answerGuest`), and they are back at the table, their seat theirs still. A guest's page shows nothing here.
+ * (`answerGuest`), and they are back at the table, their seat theirs still. Where the Rust server serves the page,
+ * first of all a link (`openHostRoom`, `relay.ts`): everybody who opens it joins with one click, the codes carried for
+ * them - the codes still here for anybody it does not work for. A guest's page shows nothing here.
  */
 
-import { useState } from 'preact/hooks';
-import { answerGuest, hostTable, inviteGuest, type Invited } from '../peer/peer-play';
+import { useEffect, useState } from 'preact/hooks';
+import { answerGuest, hostRoomLink, hostTable, inviteGuest, onHostRoom, type Invited } from '../peer/peer-play';
 
 /** A code's Copy: the text onto the clipboard, and said once it is. */
 export function CopyButton({ text, testid }: { text: string; testid: string }): preact.JSX.Element {
@@ -133,6 +135,8 @@ function AnswerBox(): preact.JSX.Element {
 
 export function PeerInvites(): preact.JSX.Element | null {
   const [opens, setOpens] = useState<Open[]>(kept);
+  const [link, setLink] = useState(hostRoomLink());
+  useEffect(() => onHostRoom(setLink), []);
   if (hostTable() === null) return null;
   const update = (next: Open[]): void => {
     kept = next;
@@ -151,6 +155,16 @@ export function PeerInvites(): preact.JSX.Element | null {
   };
   return (
     <div className="peer-invites" data-testid="peer-invites">
+      {link === null ? null : (
+        <div className="peer-invitation" data-testid="peer-room">
+          <div className="panel-sub">Send everybody this link:</div>
+          <div className="panel-row" style={{ gap: '4px' }}>
+            <input className="players-invite" readOnly value={link} data-testid="peer-room-link" title="Whoever opens it joins the game" onFocus={(e) => e.currentTarget.select()} />
+            <CopyButton text={link} testid="peer-room-copy" />
+          </div>
+          <div className="panel-sub">Or, for anybody it does not work for, codes:</div>
+        </div>
+      )}
       {opens.map((open) => (
         <InvitationRow key={open.key} open={open} change={(next) => change(open.key, next)} />
       ))}

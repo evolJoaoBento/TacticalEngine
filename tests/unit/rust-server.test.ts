@@ -5,7 +5,8 @@ import { IMPORT_MODEL_URL, USER_MODELS_URL, YOUR_MODELS_URL } from '../../tools/
 import { ANCESTRY_URL, MODEL_ADD_URL, SHIPPED_URL } from '../../tools/model-manifest';
 import { MARKS_URL, PROVENANCE_URL } from '../../tools/art-provenance';
 import { PROJECT_URL, SAVE_URL } from '../../tools/default-project';
-import { FRIENDS_URL, PLAYED_ROUTES, PLAY_URL, RUST_ROUTES, SAVES_URL, cargoPath, e2eRoot, rustProxy, serverArguments, serverPort, servesRust } from '../../tools/rust-server';
+import { FRIENDS_URL, PEER_URL, PLAYED_ROUTES, PLAY_URL, RUST_ROUTES, SAVES_URL, cargoPath, e2eRoot, rustProxy, serverArguments, serverPort, servesRust } from '../../tools/rust-server';
+import { PEER_URL as PAGE_PEER_URL } from '../../src/game/peer/relay';
 import { playsOnServer } from '../../tools/serving';
 import { SAVES_URL as PAGE_SAVES_URL } from '../../src/game/account-saves';
 import { FRIENDS_URL as PAGE_FRIENDS_URL } from '../../src/game/friends';
@@ -51,19 +52,22 @@ describe('the routes the Rust server answers', () => {
       '/__play': { ...to8430, ws: true },
       '/__saves': to8430,
       '/__friends': to8430,
+      // The peer games' relay: the codes their pages trade.
+      '/__peer': to8430,
     });
     expect(PLAY_URL).toBe('/__play');
     expect(SAVES_URL).toBe(PAGE_SAVES_URL);
     expect(FRIENDS_URL).toBe(PAGE_FRIENDS_URL);
+    expect(PEER_URL).toBe(PAGE_PEER_URL);
     process.env['TACTICAL_SERVER_PORT'] = '9555';
     expect(rustProxy()['/__accounts']!.target).toBe('http://127.0.0.1:9555');
   });
 
-  it('are only signing in, the games, their saves and friends for the tests whose games it plays', () => {
+  it('are only signing in, the games, their saves, friends and the peer relay for the tests whose games it plays', () => {
     const to = { target: 'http://127.0.0.1:8431', changeOrigin: false };
     // Never the project nor what saves it: the tests' server opens the demo from code and refuses every save.
-    expect(rustProxy(8431, true)).toEqual({ '/__accounts': to, '/__play': { ...to, ws: true }, '/__saves': to, '/__friends': to });
-    expect(PLAYED_ROUTES).toEqual(['/__accounts', '/__play', '/__saves', '/__friends']);
+    expect(rustProxy(8431, true)).toEqual({ '/__accounts': to, '/__play': { ...to, ws: true }, '/__saves': to, '/__friends': to, '/__peer': to });
+    expect(PLAYED_ROUTES).toEqual(['/__accounts', '/__play', '/__saves', '/__friends', '/__peer']);
   });
 });
 

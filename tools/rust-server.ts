@@ -54,9 +54,11 @@ export const PLAY_URL = '/__play';
 export const SAVES_URL = '/__saves';
 /** Each player's friends (`server/serve/src/friends.rs`). */
 export const FRIENDS_URL = '/__friends';
+/** The relay a peer game's pages meet through (`server/serve/src/peer.rs`, `docs/PEER.md`). */
+export const PEER_URL = '/__peer';
 
-/** What the tests' server passes to the Rust server when it plays their games: signing in, the games, their saves, friends. */
-export const PLAYED_ROUTES: readonly string[] = [ACCOUNTS_URL, PLAY_URL, SAVES_URL, FRIENDS_URL];
+/** What the tests' server passes to the Rust server when it plays their games: signing in, the games, their saves, friends, the peer relay. */
+export const PLAYED_ROUTES: readonly string[] = [ACCOUNTS_URL, PLAY_URL, SAVES_URL, FRIENDS_URL, PEER_URL];
 
 /** The scratch folder the tests' Rust server keeps its accounts and saves in. */
 export const e2eRoot = (): string => process.env['TACTICAL_E2E_ROOT'] ?? join(tmpdir(), 'tactical-e2e-server');
@@ -70,7 +72,7 @@ export function cargoPath(): string {
   return existsSync(own) ? own : 'cargo';
 }
 
-/** The proxy entries for the moved routes, the games' websocket and their saves - only the last three for the tests. */
+/** The proxy entries for the moved routes, the games' websocket, their saves, friends and the peer relay - all but the moved routes for the tests. */
 export function rustProxy(port: number = serverPort(), tests: boolean = playsOnServer()): Record<string, ProxyOptions> {
   const target = `http://127.0.0.1:${port}`;
   if (tests) return Object.fromEntries(PLAYED_ROUTES.map((route) => [route, { target, changeOrigin: false, ...(route === PLAY_URL ? { ws: true } : {}) }]));
@@ -79,6 +81,7 @@ export function rustProxy(port: number = serverPort(), tests: boolean = playsOnS
     [PLAY_URL]: { target, changeOrigin: false, ws: true },
     [SAVES_URL]: { target, changeOrigin: false },
     [FRIENDS_URL]: { target, changeOrigin: false },
+    [PEER_URL]: { target, changeOrigin: false },
   };
 }
 

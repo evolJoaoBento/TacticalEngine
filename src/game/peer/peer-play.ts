@@ -7,6 +7,11 @@
  * the table. A guest's page meets the host before it boots (`peer-join.ts`), reads the project the game is played
  * over through the channel, and boots over it - then the wire joins the game over the same channel.
  *
+ * Where the Rust server serves the page, it carries the codes too (`relay.ts`): the host's page opens a room
+ * (`openHostRoom`) whose link a guest opens, and answers every knock at it by itself; a guest's page knocks there
+ * (`meetAtRoom`) to join, to come back after a reload, and to come back when its link drops - nobody pasting anything.
+ * Where it does not, or the room cannot be had, the codes are carried by hand as before.
+ *
  * Who a page is at a peer game (`peerSelf`): an id of its own, kept for the tab (a reload keeps it; another tab,
  * even of the same browser, is somebody else), and the name it gave (`?as=`, else the last it gave, else the host's
  * or a guest's), kept in the browser.
@@ -15,7 +20,8 @@
 import type { Transport, WireOptions } from '../wire';
 import { HostTable, type Member } from './host-table';
 import { LinkTransport, channelLink, heldLink, linkedPorts, type Link } from './link';
-import { answer, invite, type Invitation } from './connect';
+import { answer, ask, invite, type Invitation } from './connect';
+import { answerKnock, knock, openRoom, relayAllowed, roomLink, takeKnocks, waitForAnswer, type Room, type Waiting } from './relay';
 
 export type PeerMode = 'host' | 'join';
 
@@ -233,6 +239,132 @@ export async function answerGuest(code: string, answering: typeof answer = answe
       return answered.who;
     }),
   };
+}
+
+/** The host's room at the relay, once open, and who is told when it opens or goes. */
+let room: Room | null = null;
+const roomHeard = new Set<(link: string | null) => void>();
+let polling: ReturnType<typeof setInterval> | null = null;
+
+function setRoom(next: Room | null): void {
+  room = next;
+  const link = hostRoomLink();
+  for (const listener of roomHeard) listener(link);
+}
+
+/** The link a guest opens to join the host's game, once the relay has a room for it; none without a relay. */
+export function hostRoomLink(): string | null {
+  return room === null ? null : roomLink(room.room);
+}
+
+/** Told when the host's room opens, or goes; what to call to stop. */
+export function onHostRoom(listener: (link: string | null) => void): () => void {
+  roomHeard.add(listener);
+  return () => roomHeard.delete(listener);
+}
+
+/** How often the host's page takes the knocks at its room (ms); how many failures in a row mean the room is gone. */
+export const KNOCKS_EVERY = 1000;
+export const ROOM_LOST_AFTER = 5;
+
+/** What the host's room is run with: the relay, and how a knock is answered - a test's own. */
+export interface RoomHands {
+  openRoom: typeof openRoom;
+  takeKnocks: typeof takeKnocks;
+  answerKnock: typeof answerKnock;
+  answerGuest: typeof answerGuest;
+  every?: number;
+}
+
+const HANDS: RoomHands = { openRoom, takeKnocks, answerKnock, answerGuest };
+
+/**
+ * A room opened at the relay for the host's game, where there is one and the host is signed in: its knocks taken
+ * every so often and each answered (`answerGuest`), the guest at the table once their page takes the answer. Gone -
+ * the server started again - another is opened, its link a new one. Whether one opened.
+ */
+export async function openHostRoom(hands: RoomHands = HANDS, allowed: boolean = relayAllowed()): Promise<boolean> {
+  if (table === null || polling !== null || !allowed) return false;
+  const opened = await hands.openRoom();
+  if (opened === null) return false;
+  setRoom(opened);
+  let taking = false;
+  let failed = 0;
+  polling = setInterval(() => {
+    if (taking) return;
+    taking = true;
+    void hands
+      .takeKnocks(opened)
+      .then((knocks) => {
+        if (knocks === null) {
+          if (++failed < ROOM_LOST_AFTER) return;
+          closeHostRoom();
+          void openHostRoom(hands, allowed);
+          return;
+        }
+        failed = 0;
+        for (const { knock: knocked, code } of knocks) void answerAt(opened, knocked, code, hands);
+      })
+      .finally(() => (taking = false));
+  }, hands.every ?? KNOCKS_EVERY);
+  return true;
+}
+
+/** The host's room let go: no more knocks taken. */
+export function closeHostRoom(): void {
+  if (polling !== null) clearInterval(polling);
+  polling = null;
+  setRoom(null);
+}
+
+/** A knock answered: the guest's code answered by the host's page, the answer left at the room for them. */
+async function answerAt(at: Room, knocked: string, code: string, hands: RoomHands): Promise<void> {
+  try {
+    const answered = await hands.answerGuest(code);
+    if (await hands.answerKnock(at, knocked, answered.code)) await answered.joined;
+  } catch {
+    // Not a code, or a channel that never opened: the guest's page waits, gives up, and says so.
+  }
+}
+
+/**
+ * A guest's page meeting the host at a room: its own code left there, the host's answer waited for, the channel
+ * open - `null` when the room is gone, nobody answers in time, or the channel never opens.
+ */
+export async function meetAtRoom(at: string, waiting: Waiting = {}, knocking: typeof knock = knock, asking: typeof ask = ask): Promise<RTCDataChannel | null> {
+  const asked = await asking(peerSelf());
+  const knocked = await knocking(at, asked.code, waiting.send);
+  const answered = knocked === null ? null : await waitForAnswer(at, knocked, waiting);
+  if (answered === null) {
+    asked.close();
+    return null;
+  }
+  try {
+    return await asked.accept(answered);
+  } catch {
+    asked.close();
+    return null;
+  }
+}
+
+const ROOM_KEY = 'tactical:peer-room';
+
+/** The room this tab joined a game at, so a reload comes back to it by itself. */
+export function keepRoom(at: string): void {
+  try {
+    globalThis.sessionStorage?.setItem(ROOM_KEY, at);
+  } catch {
+    // Storage refused: a reload asks for the click again.
+  }
+}
+
+/** Whether this tab joined a game at this room before. */
+export function roomKept(at: string): boolean {
+  try {
+    return globalThis.sessionStorage?.getItem(ROOM_KEY) === at;
+  } catch {
+    return false;
+  }
 }
 
 /** An invitation for one more guest, from the host's page. */

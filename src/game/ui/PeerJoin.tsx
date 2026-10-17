@@ -5,16 +5,24 @@
  * guest's own written first and the host's answer pasted. Once the channel is open, the project the game is played
  * over is read through it, and the page boots over that (`project-store.ts`). Shown over the loading curtain; gone once
  * the project is in - and from then on the page watches for its link to the host dropping (`PeerRejoin.tsx`).
+ *
+ * Opened with a room's link (`?room=`, where the Rust server carries the codes - `relay.ts`), one **Join** does it:
+ * the guest's code left at the room, the host's page answering by itself (`meetAtRoom`). A tab that joined at that room
+ * before - reloaded - joins again by itself. The codes stay below, for when the room does not answer.
  */
 
 import { h, render } from 'preact';
-import { useState } from 'preact/hooks';
+import { useEffect, useState } from 'preact/hooks';
 import { ask, reply, type Asked } from '../peer/connect';
-import { joinedOver, lastName, nameFrom, peerSelf, renamed, LONGEST_NAME } from '../peer/peer-play';
+import { joinedOver, keepRoom, lastName, meetAtRoom, nameFrom, peerSelf, renamed, roomKept, LONGEST_NAME } from '../peer/peer-play';
+import { roomOf } from '../peer/relay';
 import { CopyButton } from './PeerInvites';
 import { watchRejoin } from './PeerRejoin';
 
-type Stage = { at: 'paste' } | { at: 'making' } | { at: 'reply'; code: string } | { at: 'asking'; asked: Asked } | { at: 'joining' };
+type Stage = { at: 'paste' } | { at: 'making' } | { at: 'reply'; code: string } | { at: 'asking'; asked: Asked } | { at: 'meeting' } | { at: 'joining' };
+
+/** Why a room did not answer, as the guest is told it. */
+const UNANSWERED = 'Your host did not answer: their page may be closed. Ask them for a new link, or use codes below.';
 
 function PeerJoin({ joined }: { joined: (project: unknown) => void }): preact.JSX.Element {
   const [name, setName] = useState(new URLSearchParams(location.search).get('as') ?? lastName() ?? '');
@@ -55,6 +63,24 @@ function PeerJoin({ joined }: { joined: (project: unknown) => void }): preact.JS
       failed(failure);
     }
   };
+  const room = roomOf();
+  const viaRoom = async (at: string): Promise<void> => {
+    setProblem(null);
+    renamed(nameFrom(name, 'Guest'));
+    setStage({ at: 'meeting' });
+    try {
+      const channel = await meetAtRoom(at);
+      if (channel === null) throw new Error(UNANSWERED);
+      keepRoom(at);
+      await over(channel);
+    } catch (failure) {
+      failed(failure);
+    }
+  };
+  // Reloaded, after joining at this room: joined again, nobody clicking.
+  useEffect(() => {
+    if (room !== null && roomKept(room) && name.trim() !== '') void viaRoom(room);
+  }, []);
   const answered = async (asked: Asked): Promise<void> => {
     setProblem(null);
     try {
@@ -77,8 +103,15 @@ function PeerJoin({ joined }: { joined: (project: unknown) => void }): preact.JS
               <div className="play-eyebrow">Your name</div>
               <input className="players-invite" data-testid="peer-name" maxLength={LONGEST_NAME} value={name} placeholder="What the others call you" onInput={(e) => setName(e.currentTarget.value)} />
             </div>
+            {room === null ? null : (
+              <div className="lobby-foot" style={{ marginBottom: '8px' }}>
+                <button type="button" className="play-btn" data-testid="peer-room-join" disabled={stage.at === 'making'} onClick={() => void viaRoom(room)}>
+                  Join
+                </button>
+              </div>
+            )}
             <div className="settings-section">
-              <div className="play-eyebrow">The host's code</div>
+              <div className="play-eyebrow">{room === null ? "The host's code" : "Or, with your host's code"}</div>
               <textarea className="players-invite peer-code" data-testid="peer-code" rows={4} value={code} placeholder="Paste the invitation code your host sent" onInput={(e) => setCode(e.currentTarget.value)} />
             </div>
             {problem === null ? null : (
@@ -123,6 +156,10 @@ function PeerJoin({ joined }: { joined: (project: unknown) => void }): preact.JS
               </button>
             </div>
           </div>
+        ) : stage.at === 'meeting' ? (
+          <p className="panel-sub" data-testid="peer-join-meeting">
+            Knocking at your host's game…
+          </p>
         ) : (
           <p className="panel-sub" data-testid="peer-join-joining">
             Connected. Joining the game…

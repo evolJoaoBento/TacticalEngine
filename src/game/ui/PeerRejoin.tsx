@@ -3,12 +3,18 @@
  * on alone meanwhile, and this says so over the game, with a code of the guest's own to send the host (`connect.ts`,
  * `ask`). The host pastes it and sends an answer back; pasted here, the channel opens and the wire, which has waited
  * for it, comes back to the game - stood where it is, the guest's seat still theirs. Nothing while the link is up.
+ * A guest who joined by a room's link (`?room=`, `relay.ts`) is brought back through the room, by itself: the codes
+ * are shown only when the room does not answer (`ROOM_TRIES`).
  */
 
 import { h, render } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
 import { ask, type Asked } from '../peer/connect';
-import { onPeerLost, peerLost, peerSelf, rejoinedOver } from '../peer/peer-play';
+import { meetAtRoom, onPeerLost, peerLost, peerSelf, rejoinedOver } from '../peer/peer-play';
+import { roomOf } from '../peer/relay';
+
+/** How many times a guest's page knocks at the room before it shows the codes instead. */
+export const ROOM_TRIES = 3;
 import { CopyButton } from './PeerInvites';
 
 function PeerRejoin(): preact.JSX.Element | null {
@@ -18,6 +24,7 @@ function PeerRejoin(): preact.JSX.Element | null {
   const [answer, setAnswer] = useState('');
   const [said, setSaid] = useState('');
   const [connecting, setConnecting] = useState(false);
+  const [auto, setAuto] = useState(false);
   const write = (): void => {
     asked?.close();
     setSaid('');
@@ -26,13 +33,42 @@ function PeerRejoin(): preact.JSX.Element | null {
     void ask(peerSelf()).then(setAsked, (failure: unknown) => setSaid(failure instanceof Error ? failure.message : String(failure)));
   };
   useEffect(() => {
-    if (lost) write();
-    else {
+    if (!lost) {
       setAsked(null);
       setSaid('');
+      setAuto(false);
+      return;
     }
+    const room = roomOf();
+    if (room === null) return write();
+    // Through the room, by itself; the codes once it has not answered.
+    let stopped = false;
+    setAuto(true);
+    void (async () => {
+      for (let tried = 0; tried < ROOM_TRIES && !stopped; tried++) {
+        const channel = await meetAtRoom(room);
+        if (stopped) return;
+        if (channel !== null) return rejoinedOver(channel);
+      }
+      if (stopped) return;
+      setAuto(false);
+      write();
+    })();
+    return () => {
+      stopped = true;
+    };
   }, [lost]);
   if (!lost) return null;
+  if (auto) {
+    return (
+      <div className="play-box peer-lost" role="dialog" aria-label="Lost the host" data-testid="peer-lost">
+        <div className="play-eyebrow">Lost the host</div>
+        <p className="panel-sub" data-testid="peer-lost-auto">
+          Reconnecting to your host… You play on alone meanwhile.
+        </p>
+      </div>
+    );
+  }
   const connect = async (): Promise<void> => {
     if (asked === null) return;
     setConnecting(true);

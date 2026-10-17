@@ -18,8 +18,17 @@ tunnel shows.
 page) and each guest's page connects to it over WebRTC, the handshake carried by hand as two codes. It works from
 a static build. A guest is invited from the lobby, joins before their page boots, takes a seat, and plays their
 own; the fight's spotlight, the GM's turn and the questions go as at a server's game. Tests: the table played by
-the real engine (`src/game/peer/*.test.ts`), and `tests/e2e/peer.spec.ts` in two browsers. Next, ranked: an evening
-across two real networks; the codes carried by a small relay for those who would rather send a link.
+the real engine (`src/game/peer/*.test.ts`), and `tests/e2e/peer.spec.ts` in two browsers. Next: an evening across
+two real networks.
+
+## Peer to peer: a link instead of codes, where the Rust server serves the page — done
+
+`docs/PEER.md`, "A link instead of codes". The server carries a peer game's codes (`/__peer`, `server/serve/src/peer.rs`,
+in memory alone): the host's page, signed in, opens a room and answers every knock at it by itself; a guest - no
+account - opens its link and presses Join, and comes back by themselves after a drop or a reload. Nothing of the game
+passes through the server. A static build, or a host not signed in, has codes as before; the codes are always offered
+beside the link. Tests: `peer.rs`, `server/serve/tests/peer_routes.rs`, `src/game/peer/relay.test.ts`,
+`tests/e2e/peer-relay.spec.ts` (the server's run).
 
 ## Peer to peer: who played whom kept in the host's save — done
 

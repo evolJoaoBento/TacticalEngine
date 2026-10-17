@@ -3,7 +3,8 @@
 //! It answers every route the dev plugins answered, under their own paths - the accounts, the Store,
 //! your models, the engine's models (adding one, and their ancestries), the art marks and the default
 //! project, the two lists the page loads when it opens: the engine's models and the art marks, and the
-//! games themselves, played at `/__play` (`play.rs`, phase 3) (`app`) -
+//! games themselves, played at `/__play` (`play.rs`, phase 3), and the relay a peer game's pages meet through
+//! (`/__peer`, `peer.rs`) (`app`) -
 //! and, given a built client, serves the game itself (`site`): the page and its
 //! scripts from the build, and the models, card art and pictures live from `public/`, so a model added
 //! to the engine is there without building again. Behind the Vite dev server only `app` is reached: the
@@ -16,6 +17,7 @@ pub mod friends;
 pub mod js;
 pub mod manifest;
 pub mod messages;
+pub mod peer;
 pub mod play;
 pub mod saves;
 pub mod store;
@@ -87,7 +89,9 @@ pub fn app_over(root: PathBuf, settings: Settings, tables: play::Tables) -> Rout
         .route(&format!("{}/{{*rest}}", friends::FRIENDS_URL), any(friends::handle))
         .with_state(friends::Place { root: root_for_play.clone(), tables: tables.clone() });
     let play = play::router_for(tables);
-    accounts.merge(store).merge(models.with_state(shelf)).merge(engine).merge(saves.with_state(archive)).merge(saved).merge(friends).merge(play)
+    // The peer games' relay (`peer.rs`): the codes a peer game's pages trade, carried for those who open its link.
+    let relay = peer::router(root_for_play);
+    accounts.merge(store).merge(models.with_state(shelf)).merge(engine).merge(saves.with_state(archive)).merge(saved).merge(friends).merge(play).merge(relay)
 }
 
 /// Where the built client is, from the repository: `npm run build:server` writes it.

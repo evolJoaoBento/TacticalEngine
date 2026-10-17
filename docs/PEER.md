@@ -56,9 +56,30 @@ server, which is enough on one machine or one network; the tests use it.
 **What will not connect:** two players both behind networks that let no stranger in (some phone networks, some
 offices). That needs a relay (TURN), which this does not have.
 
-**Other ways it could go, not built:** the Rust server, or any small relay, carrying the codes instead (an
-invitation link again, no pasting), or a public broker. Each brings back a server of some kind, which is what
-this mode does without.
+## A link instead of codes, where the Rust server serves the page
+
+The codes need carrying by somebody. Where the Rust server serves the page - `npm run dev`, or a build it serves
+through the tunnel (`docs/HOSTING.md`) - it carries them, and the players paste nothing (`server/serve/src/peer.rs`,
+`src/game/peer/relay.ts`):
+
+1. The host's page, signed in, opens a **room** at the server's relay as the game opens, and the lobby (or the
+   players' panel) shows **Send everybody this link** - `/?peer=join&room=<id>`.
+2. A guest opens it, gives a name and presses **Join**. Their page leaves its own code at the room (the guest-first
+   code above), and the host's page - taking what was left at its room every second - answers it by itself; the
+   guest's page takes the answer, and the channel opens. A guest needs no account.
+3. **Coming back is by itself too.** Cut off, the guest's page knocks at the room again at once ("Reconnecting to
+   your host…"), and is back in a few seconds; reloaded, it joins again without a click. The codes are shown only if
+   the room does not answer.
+
+Only the codes pass through the server, and only until they are taken: nothing of the game does. The relay keeps its
+rooms in memory alone, never in `data/`. A room is as hard to guess as a game's invitation, and goes ten minutes after
+its host's page last asked at it; a code is at most 16 KB, a room holds at most 32 knocks not yet taken and 256 in
+all, and there are at most 500 rooms. The relay changes nothing about who can reach whom: two players both behind
+strict networks still cannot connect, with or without it.
+
+Where there is no server - a static build, or a page whose host is not signed in - there is no room, no link, and
+the codes are carried by hand as above. The codes are always offered beside the link, for anybody it does not work
+for.
 
 ## Who is who
 
@@ -111,7 +132,8 @@ without them. What is done instead:
 
 ## What it does not do yet
 
-- **Coming back takes the host's hand**, as above: two codes, carried between the two of you.
+- **With no server, coming back takes the host's hand**, as above: two codes, carried between the two of you. Where the
+  Rust server serves the page, its relay carries them (above).
 - **The game ends with the host's page.** Nothing is handed on, as the server hands on a game whose host has
   gone.
 - **A different project, opened by the host after boot,** is played alone. Only the game the page boots with is
@@ -124,7 +146,10 @@ without them. What is done instead:
   list.
 - **By address:** `/?peer=host&as=Hana` hosts the demo as a lobby; `/?peer=join&as=Gus` joins. Add `&ice=none`
   on one machine.
-- **Tests:** `src/game/peer/*.test.ts` (the table played by the real engine; the link, and a guest's link lost and
+- **Tests:** `server/serve/src/peer.rs` and `server/serve/tests/peer_routes.rs` (the relay: who may open a room, a knock
+  taken once and answered once and only by the host, the limits, a room gone), `tests/e2e/peer-relay.spec.ts` (on the
+  server alone: the host's link, a guest with no account joining by one click, back by itself after a drop and after
+  a reload), `src/game/peer/*.test.ts` (the relay asked from the page; the table played by the real engine; the link, and a guest's link lost and
   come back; the codes, each of its kind; a save's seats, matched by name), `tests/e2e/peer-saves.spec.ts` (an evening
   saved and hosted again from a new tab, the guest's seat kept and theirs by name as they come from a browser of
   their own), `tests/e2e/peer-rejoin.spec.ts` (a guest cut off in the same tab, and one
@@ -149,4 +174,6 @@ without them. What is done instead:
 | `src/game/ui/PeerInvites.tsx` | the host's invitations, and the answer to a player's own code, in the lobby and the players' panel |
 | `src/game/ui/PeerRejoin.tsx` | a guest cut off from the host, coming back in the same tab |
 | `src/game/peer/table-saves.ts` | the host's saves, who played whom kept with each |
+| `src/game/peer/relay.ts` | the server's relay, from the page: a room, knocks, answers, the link |
+| `server/serve/src/peer.rs` | the relay: the codes carried, in memory, for those who open a room's link |
 | `src/game/wasm-game.ts` | the host's table made beside the page's engine; the wire given the peer way in |

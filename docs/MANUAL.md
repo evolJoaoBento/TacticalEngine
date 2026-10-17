@@ -125,6 +125,12 @@ Your saves of a peer game remember who played which character. Host the game aga
 and the lobby keeps each player's character for them ("Kept for Gus"). They're seated in it as
 they join, as long as they use the same name as before.
 
+When the game is served by your own Rust server (`npm run dev`, or through the tunnel) and you are
+signed in, the lobby also shows **Send everybody this link**. A friend opens it, gives a name and
+presses **Join**, and they are at the table, with no codes to pass back and forth. If their
+connection drops, or they reload the page, they come back on their own. The codes are still there
+for anyone the link doesn't work for.
+
 ### Accounts and the Store
 
 When the dev server is running (`npm run dev`), the menu first asks you to **sign in** - a name and a

@@ -33,7 +33,7 @@ import { loadAccountSaves } from './account-saves';
 import { SaveSlots, browserStore, type SaveShelf } from './save-slots';
 import { talkingAside } from './talks';
 import { friendDid, playAs } from './friends';
-import { hostTable, peerMode, peerWire, prepareHost } from './peer/peer-play';
+import { hostTable, openHostRoom, peerMode, peerWire, prepareHost } from './peer/peer-play';
 import { TableSaves, seatingOf } from './peer/table-saves';
 
 export type { GameClient, LocalPowers } from './client';
@@ -204,6 +204,8 @@ async function hostEngine(): Promise<void> {
     readSave: (slot) => seatingOf(savesFor(), slot),
     testHands: import.meta.env.DEV,
   });
+  // Where the server serves the page, a room at its relay: a link for the guests in place of codes (`relay.ts`).
+  void openHostRoom();
 }
 
 /** Whether the page was reloaded rather than opened: a reload comes back to the game the server kept. */
