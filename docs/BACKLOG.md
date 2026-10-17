@@ -18,6 +18,12 @@ A game's page played on the server has a Friends button above the table's chat, 
 much is unread; it opens the menu's friends - asking, answering, writing - on a sheet over the table, Escape shutting
 it.
 
+## A blow on the guest's character, in two browsers — done
+
+`tests/e2e/shared-fight.spec.ts`, its second test: the guest's character leads into the vault, so the GM's blows land
+on it; how one lands is answered by a click on the guest's page, the host's page waiting on the guest by name, the
+GM's turn held until then and played on to its end on both. Nothing to mend.
+
 ## A fight at a shared game, in two browsers — done
 
 `tests/e2e/shared-fight.spec.ts`: the host's character wakes the vault's fight, on both pages; the guest walks their

@@ -1994,4 +1994,12 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     had nothing to press, alone or together. The key now says "GM's Turn" then and plays it, shut only while a
     question waits (`ui/turn-key.ts`, its test; `playpass.spec.ts` swings until a roll hands the spotlight over,
     and clicks it).
+  - **A blow on the guest's character, in two browsers** (17 October 2026). The fight in two browsers had the GM's
+    blows land where the dice and the room put them, which was on the host's characters; the guest was never asked.
+    A second test in `shared-fight.spec.ts` has the guest's character lead the way in - the door's roll the guest's,
+    the host's characters left outside - so the room's blows are theirs: how one lands ("Take it", "Mark an Armor
+    Slot") is answered on the panel on the guest's page, by a click, while the host's page says "Waiting for <the
+    guest> to answer for <their character>", its GM's Turn key shut; answered, the GM's turn plays on to its end on
+    both pages. Every wait said in either test now names the player it waits on. It found nothing to mend; a page
+    that answered every question, or said every wait was the host's, fails it.
   - **Next**: an evening through the tunnel.

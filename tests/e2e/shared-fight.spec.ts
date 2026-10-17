@@ -1,4 +1,4 @@
-import { test, expect, type Page } from './fixtures';
+import { test, expect, type Browser, type Page } from './fixtures';
 import { ON_SERVER } from './server-mode';
 
 /**
@@ -10,8 +10,10 @@ import { ON_SERVER } from './server-mode';
  * played, and playing it. Each time it is played on the server, the round goes on and the spotlight
  * comes back to the party on both pages, and both logs say the same. Whatever the fight asks - a roll, how a blow
  * lands - is answered on the page that plays its character, the other shown whom it waits on, and while the GM's
- * turn is held on such a question nobody's End Turn is pressed. Nothing parts. Played on the server alone: the
- * ordinary run has no server to share a game on.
+ * turn is held on such a question nobody's End Turn is pressed. And when the guest's character leads the way in, it
+ * is theirs the GM's blows land on: how one lands is the guest's to say, on the panel on their page, the host's page
+ * saying it waits on them, the GM's turn held until they do. Nothing parts. Played on the server alone: the ordinary
+ * run has no server to share a game on.
  */
 
 test.skip(!ON_SERVER, 'a shared game is played on the server: npm run test:e2e:server');
@@ -24,63 +26,31 @@ async function playing(page: Page, path: string): Promise<void> {
   await page.evaluate(() => window.__engine!.setDiceSpeed(0));
 }
 
-/** The questions answered, by the page that answered them; and how many held the GM's turn. */
-interface Asked { host: number; guest: number; heldGmTurn: number }
+/** The questions answered, by the page that answered them; and of them, those that held the GM's turn. */
+interface Asked { host: number; guest: number; heldGmTurn: number; held: { host: number; guest: number } }
 
-/**
- * Whatever the game asks, answered until neither page is asked anything: each question on the page that plays the
- * character it is put to - the one not saying whom it waits on - once the other says it. Each answer waited for
- * outside the pages, where the server's answer and the other's push come back between them.
- */
-async function settle(host: Page, guest: Page, asked: Asked): Promise<void> {
-  let quiet = 0;
-  for (let n = 0; n < 80 && quiet < 2; n++) {
-    const kinds = await Promise.all([host, guest].map((each) => each.evaluate(() => window.__engine!.pendingKind())));
-    if (kinds.every((kind) => kind === null)) {
-      quiet++;
-      await host.waitForTimeout(200);
-      continue;
-    }
-    quiet = 0;
-    const waits = await Promise.all([host, guest].map((each) => each.getByTestId('waiting-on').count()));
-    const at = [0, 1].find((i) => kinds[i] !== null && waits[i] === 0);
-    if (at === undefined) {
-      await host.waitForTimeout(200);
-      continue;
-    }
-    const [answering, other] = at === 0 ? [host, guest] : [guest, host];
-    // The other page shows it too, held: whom it waits on, nothing to answer.
-    await expect(other.getByTestId('waiting-on')).toContainText('to answer for', { timeout: 15_000 });
-    // A question holding the GM's turn: nobody hands the spotlight over meanwhile, on either page.
-    if ((await answering.evaluate(() => window.__engine!.turnSide())) === 'gm') {
-      for (const each of [host, guest]) await expect(each.getByTestId('pass-to-gm')).toBeDisabled();
-      asked.heldGmTurn++;
-    }
-    const kind = kinds[at]!;
-    await answering.bringToFront();
-    await answering.evaluate((kind) => {
-      const a = window.__engine!;
-      a.answer(kind === 'check' ? { kind: 'roll' } : kind === 'rolled' ? { kind: 'answered' } : kind === 'dialogue' ? { kind: 'continue' } : { kind: 'choose', index: 0 });
-    }, kind);
-    if (at === 0) asked.host++;
-    else asked.guest++;
-    await host.waitForTimeout(200);
-  }
-  // Both pages stood where the game is.
-  for (const each of [host, guest]) {
-    await expect.poll(() => each.evaluate(() => window.__engine!.pendingKind()), { timeout: 15_000 }).toBeNull();
-    await expect.poll(() => each.evaluate(() => window.__replica!.server()), { timeout: 15_000 }).toBe('in');
-  }
+const ASKED = (): Asked => ({ host: 0, guest: 0, heldGmTurn: 0, held: { host: 0, guest: 0 } });
+
+/** The two pages of a shared game, and who plays at them. */
+interface Sharing {
+  host: Page;
+  guest: Page;
+  names: { host: string; guest: string };
+  /** The host's first character, and the one the guest is seated in. */
+  hosts: string;
+  guests: string;
+  close: () => Promise<void>;
 }
 
-test("a fight at a shared game: the party's spotlight shared, the GM's turn between, handed over by either player", async ({ page, browser, baseURL }) => {
-  test.setTimeout(300_000);
+/** A game opened by the host's page and joined by a guest's, in a browser and an account of its own, seated. */
+async function sharing(page: Page, browser: Browser, baseURL: string, name: string): Promise<Sharing> {
   await playing(page, '/');
   const invite = await page.evaluate(() => window.__table!.table()!.invite);
   const guestContext = await browser.newContext();
+  const guestName = `${name}${Date.now().toString(36).slice(-6)}`;
   const made = await guestContext.request.post('/__accounts/register', {
-    headers: { 'x-tactical-save': '1', origin: baseURL! },
-    data: { name: `fighter${Date.now().toString(36).slice(-6)}`, password: 'played-on-the-server' },
+    headers: { 'x-tactical-save': '1', origin: baseURL },
+    data: { name: guestName, password: 'played-on-the-server' },
   });
   expect(made.status(), await made.text()).toBe(200);
   const guestId = ((await made.json()) as { id: string }).id;
@@ -91,9 +61,80 @@ test("a fight at a shared game: the party's spotlight shared, the GM's turn betw
   const [hosts, guests] = [party[0]!, party[1]!];
   expect(await page.evaluate(([character, account]) => window.__table!.seat(character!, account!), [guests, guestId])).toBe(true);
   await expect.poll(() => guest.evaluate(() => window.__engine!.selected()), { timeout: 15_000 }).toBe(guests);
-  const asked: Asked = { host: 0, guest: 0, heldGmTurn: 0 };
+  const hostName = await page.evaluate(() => {
+    const table = window.__table!.table()!;
+    return table.members.find((member) => member.id === table.host)!.name;
+  });
+  return { host: page, guest, names: { host: hostName, guest: guestName }, hosts, guests, close: () => guestContext.close() };
+}
 
-  // The host's character picks the vault door open, the roll the host's to make.
+/**
+ * Whatever the game asks, answered until neither page is asked anything: each question on the page that plays the
+ * character it is put to - the one not saying whom it waits on - once the other says it. Each answer waited for
+ * outside the pages, where the server's answer and the other's push come back between them.
+ */
+async function settle(at: Sharing, asked: Asked, byHand = false): Promise<void> {
+  const { host, guest } = at;
+  let quiet = 0;
+  for (let n = 0; n < 80 && quiet < 2; n++) {
+    const kinds = await Promise.all([host, guest].map((each) => each.evaluate(() => window.__engine!.pendingKind())));
+    if (kinds.every((kind) => kind === null)) {
+      quiet++;
+      await host.waitForTimeout(200);
+      continue;
+    }
+    quiet = 0;
+    const waits = await Promise.all([host, guest].map((each) => each.getByTestId('waiting-on').count()));
+    const i = [0, 1].find((i) => kinds[i] !== null && waits[i] === 0);
+    if (i === undefined) {
+      await host.waitForTimeout(200);
+      continue;
+    }
+    const whose = i === 0 ? 'host' : 'guest';
+    const [answering, other] = i === 0 ? [host, guest] : [guest, host];
+    // The other page shows it too, held: whom it waits on, by name, nothing to answer.
+    await expect(other.getByTestId('waiting-on')).toContainText(`Waiting for ${at.names[whose]} to answer for`, { timeout: 15_000 });
+    await expect(other.getByTestId('choice-prompt')).toHaveCount(0);
+    // A question holding the GM's turn: nobody hands the spotlight over meanwhile, on either page.
+    if ((await answering.evaluate(() => window.__engine!.turnSide())) === 'gm') {
+      for (const each of [host, guest]) await expect(each.getByTestId('pass-to-gm')).toBeDisabled();
+      asked.heldGmTurn++;
+      asked.held[whose]++;
+      if (whose === 'guest' && asked.held.guest === 1) {
+        await host.bringToFront();
+        await host.screenshot({ path: 'test-results/shared-fight-waiting.png' });
+      }
+    }
+    const kind = kinds[i]!;
+    await answering.bringToFront();
+    const panel = answering.getByTestId('choice-prompt');
+    if (byHand && kind === 'choice' && (await panel.count()) > 0) {
+      if (whose === 'guest' && asked.held.guest === 1) await guest.screenshot({ path: 'test-results/shared-fight-asked.png' });
+      await panel.locator('[data-option]').first().click();
+    } else {
+      await answering.evaluate((kind) => {
+        const a = window.__engine!;
+        a.answer(kind === 'check' ? { kind: 'roll' } : kind === 'rolled' ? { kind: 'answered' } : kind === 'dialogue' ? { kind: 'continue' } : { kind: 'choose', index: 0 });
+      }, kind);
+    }
+    asked[whose]++;
+    await host.waitForTimeout(200);
+  }
+  // Both pages stood where the game is.
+  for (const each of [host, guest]) {
+    await expect.poll(() => each.evaluate(() => window.__engine!.pendingKind()), { timeout: 15_000 }).toBeNull();
+    await expect.poll(() => each.evaluate(() => window.__replica!.server()), { timeout: 15_000 }).toBe('in');
+  }
+}
+
+/**
+ * The vault door picked open by somebody's character, the roll their player's to make, and the vault walked into
+ * east until the trigger past it wakes the room: the fight on both pages, the party's spotlight first. The foe it
+ * is about to be with, the same on both.
+ */
+async function intoTheVault(at: Sharing, who: 'host' | 'guest', asked: Asked): Promise<string> {
+  const page = at[who];
+  const id = who === 'host' ? at.hosts : at.guests;
   await page.bringToFront();
   const door = await page.evaluate((id) => {
     const a = window.__engine!;
@@ -101,15 +142,14 @@ test("a fight at a shared game: the party's spotlight shared, the GM's turn betw
     const door = a.objects().find((o) => o.includes('door')) ?? a.objects()[0]!;
     a.standBeside(door);
     return door;
-  }, hosts);
+  }, id);
   for (let n = 0; n < 20 && !(await page.evaluate((id) => window.__engine!.objectState(id).open, door)); n++) {
     await page.bringToFront();
     await page.evaluate((id) => window.__engine!.use(id), door);
-    await settle(page, guest, asked);
+    await settle(at, asked);
   }
   expect(await page.evaluate((id) => window.__engine!.objectState(id).open, door)).toBe(true);
 
-  // And walks east until the trigger past it wakes the room: the fight on both pages, the party's spotlight first.
   for (let n = 0; n < 15 && !(await page.evaluate(() => window.__engine!.inCombat())); n++) {
     await page.bringToFront();
     const moved = await page.evaluate(() => {
@@ -122,16 +162,34 @@ test("a fight at a shared game: the party's spotlight shared, the GM's turn betw
       a.arrive();
       return walked;
     });
-    await settle(page, guest, asked);
+    await settle(at, asked);
     if (!moved) break;
   }
-  for (const each of [page, guest]) {
+  for (const each of [at.host, at.guest]) {
     await expect.poll(() => each.evaluate(() => window.__engine!.inCombat()), { timeout: 15_000 }).toBe(true);
     await expect.poll(() => each.evaluate(() => window.__engine!.turnSide()), { timeout: 15_000 }).toBe('party');
   }
   const foe = (await page.evaluate(() => window.__engine!.adversaries()[0]))!;
   expect(foe).toBeDefined();
-  expect(await guest.evaluate(() => window.__engine!.adversaries())).toContain(foe);
+  expect(await at[who === 'host' ? 'guest' : 'host'].evaluate(() => window.__engine!.adversaries())).toContain(foe);
+  return foe;
+}
+
+/** Nothing parted on either page, each stood where the game is. */
+async function nothingParted(at: Sharing): Promise<void> {
+  for (const each of [at.host, at.guest]) {
+    await expect.poll(() => each.evaluate(() => window.__replica!.server()), { timeout: 15_000 }).toBe('in');
+    expect(await each.evaluate(() => window.__replica!.count().parted)).toBe(0);
+  }
+}
+
+test("a fight at a shared game: the party's spotlight shared, the GM's turn between, handed over by either player", async ({ page, browser, baseURL }) => {
+  test.setTimeout(300_000);
+  const at = await sharing(page, browser, baseURL!, 'fighter');
+  const { guest, guests } = at;
+  const asked = ASKED();
+  // The host's character opens the vault and walks in.
+  const foe = await intoTheVault(at, 'host', asked);
 
   let swung = false;
   const handedBy = { host: 0, guest: 0 };
@@ -159,7 +217,7 @@ test("a fight at a shared game: the party's spotlight shared, the GM's turn betw
       return { from, to: a.tileOf(id!) };
     }, [guests, foe]);
     await guest.waitForFunction(() => window.__engine!.gliding() === 0, null, { timeout: 15_000 });
-    await settle(page, guest, asked);
+    await settle(at, asked);
     await expect.poll(() => page.evaluate((id) => window.__engine!.tileOf(id), guests), { timeout: 15_000 }).toBe(walked.to);
     if (!(await page.evaluate(() => window.__engine!.inCombat()))) break;
 
@@ -169,7 +227,7 @@ test("a fight at a shared game: the party's spotlight shared, the GM's turn betw
       const before = await page.evaluate(() => window.__engine!.log().length);
       const hit = await page.evaluate((foe) => window.__engine!.attack(foe), foe);
       await page.waitForFunction(() => window.__engine!.gliding() === 0, null, { timeout: 15_000 });
-      await settle(page, guest, asked);
+      await settle(at, asked);
       if (hit) {
         swung = true;
         // The swing on the guest's page as on the host's: the same lines, the same dice.
@@ -201,7 +259,7 @@ test("a fight at a shared game: the party's spotlight shared, the GM's turn betw
       await page.keyboard.press('Space');
     }
     handedBy[handing]++;
-    await settle(page, guest, asked);
+    await settle(at, asked);
 
     // The GM's turn played on the server, between: the round gone on and the spotlight the party's again, on both
     // pages, and both logs the same.
@@ -222,10 +280,46 @@ test("a fight at a shared game: the party's spotlight shared, the GM's turn betw
   await guest.bringToFront();
   await guest.screenshot({ path: 'test-results/shared-fight-guest.png' });
 
-  // Nothing parted on either page.
-  for (const each of [page, guest]) {
-    await expect.poll(() => each.evaluate(() => window.__replica!.server()), { timeout: 15_000 }).toBe('in');
-    expect(await each.evaluate(() => window.__replica!.count().parted)).toBe(0);
+  await nothingParted(at);
+  await at.close();
+});
+
+test("a blow the GM's turn lands on the guest's character is the guest's to answer, the host's page waiting on them", async ({ page, browser, baseURL }) => {
+  test.setTimeout(300_000);
+  const at = await sharing(page, browser, baseURL!, 'leader');
+  const { guest, guests } = at;
+  const asked = ASKED();
+  // The guest's character leads the way in, the door's roll theirs; the host's stay outside, so the room's blows are
+  // the guest's to take.
+  const foe = await intoTheVault(at, 'guest', asked);
+  expect(asked.guest, "the door's roll the guest's").toBeGreaterThan(0);
+
+  // Each round the guest goes at the foe - closing on it, or loosing at it - and hands the spotlight over, until a
+  // blow of the GM's turn lands on them.
+  for (let turn = 0; turn < 10 && asked.held.guest === 0; turn++) {
+    if (!(await page.evaluate(() => window.__engine!.inCombat()))) break;
+    const round = await page.evaluate(() => window.__engine!.round());
+    await guest.bringToFront();
+    await guest.evaluate((foe) => window.__engine!.attack(foe), foe);
+    await guest.waitForFunction(() => window.__engine!.gliding() === 0, null, { timeout: 15_000 });
+    await settle(at, asked, true);
+    if (!(await page.evaluate(() => window.__engine!.inCombat()))) break;
+    await guest.bringToFront();
+    await guest.getByTestId('pass-to-gm').click();
+    await settle(at, asked, true);
+    // The GM's turn played to its end once the guest said how it lands: on both pages, the round on.
+    for (const each of [page, guest]) {
+      await expect.poll(() => each.evaluate(() => window.__engine!.round()), { timeout: 15_000 }).toBeGreaterThan(round);
+    }
+    if (await page.evaluate(() => window.__engine!.inCombat())) {
+      for (const each of [page, guest]) await expect.poll(() => each.evaluate(() => window.__engine!.turnSide()), { timeout: 15_000 }).toBe('party');
+    }
   }
-  await guestContext.close();
+  console.log('SHARED FIGHT, LED BY THE GUEST:', JSON.stringify({ asked, guests }));
+  expect(asked.held.guest, "a blow of the GM's turn the guest's to answer").toBeGreaterThan(0);
+  expect(asked.held.host, "none of the GM's turn the host's").toBe(0);
+  const hostLog = await page.evaluate(() => window.__engine!.log().map((l) => l.text));
+  await expect.poll(() => guest.evaluate(() => window.__engine!.log().map((l) => l.text).slice(-12)), { timeout: 15_000 }).toEqual(hostLog.slice(-12));
+  await nothingParted(at);
+  await at.close();
 });
