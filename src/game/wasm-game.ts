@@ -33,6 +33,7 @@ import { loadAccountSaves } from './account-saves';
 import { SaveSlots, browserStore, type SaveShelf } from './save-slots';
 import { talkingAside } from './talks';
 import { friendDid, playAs } from './friends';
+import { peerMode, peerWire, prepareHost } from './peer/peer-play';
 
 export type { GameClient, LocalPowers } from './client';
 
@@ -164,10 +165,13 @@ function wireUp(game: GameTable, demo: DemoScene, resume: boolean): void {
   wired?.close();
   wired = null;
   tableOf(null);
-  if (!serverOn) return;
+  // A peer game (`docs/PEER.md`): the game the page boots with, played through the host's table - another the page
+  // opens after is its own.
+  const peer = booting ? peerWire() : null;
+  if (!serverOn && peer === null) return;
   const invite = booting ? invitationOf() : null;
   const lobby = booting && lobbyAsked();
-  const wire = new Wire(() => new PlaySocket(), demo, shippedContent(), { resume, lobby, ...(lobby ? { visibility: visibilityAsked() } : {}), ...(invite === null ? {} : { join: invite }) });
+  const wire = peer !== null ? new Wire(peer.connect, demo, shippedContent(), peer.options) : new Wire(() => new PlaySocket(), demo, shippedContent(), { resume, lobby, ...(lobby ? { visibility: visibilityAsked() } : {}), ...(invite === null ? {} : { join: invite }) });
   game.wireWith(wire);
   wire.onFriends(friendDid);
   wired = wire;
@@ -187,6 +191,22 @@ export function gameFor(demo: DemoScene): GameClient & LocalPowers {
   return game;
 }
 
+/**
+ * The host's table, over an engine of its own: a load read from the host's browser, the test driver's hands taken in
+ * development alone.
+ */
+async function hostEngine(): Promise<void> {
+  const module = await engineModule();
+  if (module === null) return;
+  prepareHost(await WasmEngine.of(module), {
+    readSave: (slot) => {
+      const text = savesFor().read(slot);
+      return text === null ? null : { text };
+    },
+    testHands: import.meta.env.DEV,
+  });
+}
+
 /** Whether the page was reloaded rather than opened: a reload comes back to the game the server kept. */
 function reloaded(): boolean {
   const entry = typeof performance === 'undefined' ? undefined : (performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined);
@@ -203,7 +223,9 @@ const OPENING_MS = 3000;
 
 /** The game the page boots with, once the engine - when it is chosen - is ready, and the server's game open. */
 export async function gameReady(demo: DemoScene): Promise<GameClient & LocalPowers> {
-  const [account] = await Promise.all([serverAccount(BOOT), refill()]);
+  // At a peer game there is no server: the host's page keeps the game, in an engine of its own (`peer-play.ts`).
+  const peer = peerMode();
+  const [account] = await Promise.all([peer === null ? serverAccount(BOOT) : null, refill(), peer === 'host' ? hostEngine() : null]);
   serverOn = account !== null;
   playAs(account);
   booting = true;

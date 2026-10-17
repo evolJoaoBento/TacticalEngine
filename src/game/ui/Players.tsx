@@ -8,6 +8,8 @@
 import { useEffect, useState } from 'preact/hooks';
 import type { SharedTable } from '../wire';
 import { hosting, invitationLink, membersLine, onSharedTable, seat, seatable, sharedTable } from '../shared-game';
+import { peering } from '../peer/peer-play';
+import { PeerInvites } from './PeerInvites';
 
 /** The invitation's address, to select or copy. */
 export function InviteRow({ link, testid = 'invite-link' }: { link: string; testid?: string }): preact.JSX.Element {
@@ -58,7 +60,7 @@ export function Players(): preact.JSX.Element | null {
   return (
     <div className="settings-players" data-testid="players">
       <div className="play-eyebrow">Players</div>
-      <InviteRow link={invitationLink(table.invite)} />
+      {peering() === null ? <InviteRow link={invitationLink(table.invite)} /> : <PeerInvites />}
       <div className="panel-facts" data-testid="players-members">
         {membersLine(table)}
       </div>

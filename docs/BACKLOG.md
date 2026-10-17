@@ -12,6 +12,16 @@ friends-only or invite-only - friends both ways, chat at the table and between f
 between friends) are done: the phase is, and who is around after it. Next, what an evening played through the
 tunnel shows.
 
+## Peer to peer: a shared game with no server — slice 1 done
+
+`docs/PEER.md`. The host's page keeps the game (`src/game/peer/host-table.ts`, `play.rs`'s shared game in the
+page) and each guest's page connects to it over WebRTC, the handshake carried by hand as two codes. It works from
+a static build. A guest is invited from the lobby, joins before their page boots, takes a seat, and plays their
+own; the fight's spotlight, the GM's turn and the questions go as at a server's game. Tests: the table played by
+the real engine (`src/game/peer/*.test.ts`), and `tests/e2e/peer.spec.ts` in two browsers. Next, ranked: a guest
+who drops comes back without a fresh invitation; who played whom kept in the host's save; the codes carried by a
+small relay for those who would rather send a link.
+
 ## A friend's messages during a game — done
 
 A game's page played on the server has a Friends button above the table's chat, saying how many are asking and how

@@ -136,6 +136,11 @@ export class WasmEngine {
     return answer.ok ?? null;
   }
 
+  /** One message as the server's game is asked it (`engine::game::face`): `{ ok }` or `{ error }`, never thrown. */
+  respond(message: unknown): { ok?: unknown; error?: string } {
+    return JSON.parse(this.sendRaw(message)) as { ok?: unknown; error?: string };
+  }
+
   private ask<T>(ask: string, rest: Record<string, unknown> = {}): T {
     return this.send({ op: 'ask', ask, ...rest }) as T;
   }

@@ -105,6 +105,16 @@ clearing with a fire: the character just made is the party, and the rest of the 
 the fire - only figures for now, not yet to be talked to or taken along; the one whose model you took
 stays away. The game is kept in this browser, and its saves are its own.
 
+**Peer to Peer** plays a game with friends browser to browser, with no server between you
+(`docs/PEER.md`). Give your name, then either **Join** a game or host one of your games (or a save)
+from the list. Hosting opens the game as a lobby. Press **Invite a player** and send the code it writes
+to one friend. They paste it into the page **Join** opened and send back the reply their page writes.
+Paste that under the invitation and press **Connect**, and they are at the table. Invite each player
+with a code of their own. In the lobby the players take their seats and you press **Start**. From
+then on it plays as a game hosted on a server does. The game lives in your browser, so keep your
+page open while you play. Two players both behind strict networks (some phone networks and
+offices) may not be able to connect at all.
+
 ### Accounts and the Store
 
 When the dev server is running (`npm run dev`), the menu first asks you to **sign in** - a name and a

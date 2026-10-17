@@ -39,6 +39,7 @@ import { PlaySocket, serverAllowed } from '../play-socket';
 import { inviteFrom } from '../shared-game';
 import { joinableLine, joinableSummary, listJoinable, type JoinableGame } from '../joinable-games';
 import type { Visibility } from '../wire';
+import { lastName, nameFrom, LONGEST_NAME } from '../peer/peer-play';
 import './menu.css';
 
 /** Open the page again, on what was chosen. */
@@ -65,7 +66,9 @@ function Saves({ saves, open }: { saves: SaveSlot[]; open: (slot: string) => voi
 }
 
 export function MainMenu(props: { account?: SignedIn | null; onSignOut?: () => void }): preact.JSX.Element {
-  const [view, setView] = useState<'main' | 'load' | 'new' | 'store' | 'together' | 'password' | 'invite' | 'friends'>('main');
+  const [view, setView] = useState<'main' | 'load' | 'new' | 'store' | 'together' | 'password' | 'invite' | 'friends' | 'peer'>('main');
+  // The name a player goes by at a peer game, which has no accounts (`docs/PEER.md`).
+  const [peerName, setPeerName] = useState(lastName() ?? props.account?.name ?? '');
   const [joining, setJoining] = useState('');
   const [joinRefused, setJoinRefused] = useState(false);
   const account = props.account ?? null;
@@ -103,12 +106,12 @@ export function MainMenu(props: { account?: SignedIn | null; onSignOut?: () => v
   }, [account?.id, onServer]);
   // Who may find a game hosted from here.
   const [findable, setFindable] = useState<Visibility>('friends');
-  const savesOf = (project: string): SaveSlot[] => saves.filter((slot) => projectOfSlot(slot) === project);
+  const savesOf = (project: string, from: SaveSlot[] = saves): SaveSlot[] => from.filter((slot) => projectOfSlot(slot) === project);
   // A shared game's saves of games this browser has not got: opened over the project kept with them.
   const known = new Set([DEFAULT_SAVE_PROJECT, ...games.list().map((game) => game.id)]);
   const elsewhere = saves.filter((slot) => slot.players !== undefined && !known.has(projectOfSlot(slot)));
   // Every game, and the saves of each, opened as chosen - hosted for friends too (`?host`) from Play Together.
-  const gameList = (also: string): preact.JSX.Element[] => [
+  const gameList = (also: string, from: SaveSlot[] = saves): preact.JSX.Element[] => [
     ...games.list().map((game) => (
       <section key={game.id} className="menu-game" data-game={game.id}>
         <header>
@@ -117,7 +120,7 @@ export function MainMenu(props: { account?: SignedIn | null; onSignOut?: () => v
             Continue
           </button>
         </header>
-        <Saves saves={savesOf(game.id)} open={(slot) => openPage(`play&project=${encodeURIComponent(game.id)}&load=${encodeURIComponent(slot)}${also}`)} />
+        <Saves saves={savesOf(game.id, from)} open={(slot) => openPage(`play&project=${encodeURIComponent(game.id)}&load=${encodeURIComponent(slot)}${also}`)} />
       </section>
     )),
     <section key={DEFAULT_SAVE_PROJECT} className="menu-game" data-game={DEFAULT_SAVE_PROJECT}>
@@ -127,7 +130,7 @@ export function MainMenu(props: { account?: SignedIn | null; onSignOut?: () => v
           From the start
         </button>
       </header>
-      <Saves saves={savesOf(DEFAULT_SAVE_PROJECT)} open={(slot) => openPage(`play&load=${encodeURIComponent(slot)}${also}`)} />
+      <Saves saves={savesOf(DEFAULT_SAVE_PROJECT, from)} open={(slot) => openPage(`play&load=${encodeURIComponent(slot)}${also}`)} />
     </section>,
     ...(elsewhere.length === 0
       ? []
@@ -188,6 +191,9 @@ export function MainMenu(props: { account?: SignedIn | null; onSignOut?: () => v
                     Play Together<small>{joinableSummary(joinable) ?? 'Host a game for friends, or join theirs'}</small>
                   </button>
                 ) : null}
+                <button type="button" className="menu-choice" data-testid="menu-peer" onClick={() => setView('peer')}>
+                  Peer to Peer<small>Play with friends browser to browser, no server between you</small>
+                </button>
                 {account === null ? null : (
                   <button type="button" className="menu-choice" data-testid="menu-store" onClick={() => setView('store')}>
                     Store<small>Art from its makers, and how they made it</small>
@@ -195,6 +201,28 @@ export function MainMenu(props: { account?: SignedIn | null; onSignOut?: () => v
                 )}
               </nav>
             </>
+          ) : view === 'peer' ? (
+            <div className="menu-load" data-testid="menu-peer-list">
+              <label className="menu-field">
+                Your name
+                <input data-testid="menu-peer-name" maxLength={LONGEST_NAME} placeholder="What the others call you" value={peerName} onInput={(e) => setPeerName(e.currentTarget.value)} />
+              </label>
+              <section className="menu-game menu-join">
+                <header>
+                  <h2>Join a game</h2>
+                  <button type="button" className="menu-go" data-testid="menu-peer-join" onClick={() => openPage(`peer=join&as=${encodeURIComponent(nameFrom(peerName, 'Guest'))}`)}>
+                    Join
+                  </button>
+                </header>
+                <p className="menu-waiting-line">Your host sends you a code; you send a reply back.</p>
+              </section>
+              <p className="menu-sub">Or host one, the game kept in this browser: you invite each player with a code, they take their seats, and you start it together. Keep this page open while you play.</p>
+              {/* The browser's saves: a peer game's host keeps its saves here, whatever a server keeps. */}
+              {gameList(`&peer=host&as=${encodeURIComponent(nameFrom(peerName, 'Host'))}`, new SaveSlots(browserStore()).list())}
+              <button type="button" className="menu-back" data-testid="menu-back" onClick={() => setView('main')}>
+                Back
+              </button>
+            </div>
           ) : view === 'together' ? (
             <div className="menu-load" data-testid="menu-together-list">
               {joinable.map((game) => (

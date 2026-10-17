@@ -42,10 +42,10 @@ export interface Start {
 
 export function startOf(search: string = globalThis.location?.search ?? '', boot: 'file' | 'builtin' = BOOT): Start {
   const asked = new URLSearchParams(search);
-  const chosen = ['edit', 'play', 'project', 'load', 'boot', 'join', 'host', 'saved'].some((key) => asked.has(key));
+  const chosen = ['edit', 'play', 'project', 'load', 'boot', 'join', 'host', 'saved', 'peer'].some((key) => asked.has(key));
   return {
     menu: asked.has('menu') || (boot !== 'builtin' && !chosen),
-    locked: asked.has('play') || asked.has('project') || asked.has('join') || asked.has('host') || asked.has('saved'),
+    locked: asked.has('play') || asked.has('project') || asked.has('join') || asked.has('host') || asked.has('saved') || asked.has('peer'),
     edit: asked.has('edit'),
     load: asked.get('load'),
   };

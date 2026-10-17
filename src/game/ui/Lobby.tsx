@@ -17,6 +17,8 @@ import type { Visibility } from '../wire';
 import { invitationAddress, myInvitation, type Invitation } from '../accounts';
 import { InviteRow, SeatSelect } from './Players';
 import { Chat } from './Chat';
+import { PeerInvites } from './PeerInvites';
+import { peering } from '../peer/peer-play';
 
 /** Who may find the game, as the others are told it. */
 const FINDABLE: Record<Visibility, string> = { friends: "The host's friends", public: 'Everybody', invite: 'Only those sent the link' };
@@ -27,9 +29,11 @@ export function Lobby(): preact.JSX.Element | null {
   const [mine, setMine] = useState<Invitation | null>(null);
   // Asked only at a lobby: a page with no shared game has nobody signed in to ask for.
   const gathering = table !== null && !table.started;
+  // A peer game has no server: no accounts to invite, nobody to find it but those its host invites (`PeerInvites`).
+  const peer = peering() !== null;
   useEffect(() => {
-    if (gathering) void myInvitation().then(setMine);
-  }, [gathering]);
+    if (gathering && !peer) void myInvitation().then(setMine);
+  }, [gathering, peer]);
   if (table === null || table.started) return null;
   const nameOf = (account: string): string => table.members.find((member) => member.id === account)?.name ?? account;
   const you = playingAs();
@@ -41,8 +45,8 @@ export function Lobby(): preact.JSX.Element | null {
         </div>
         <div className="settings-section">
           <div className="play-eyebrow">Invite your friends</div>
-          <InviteRow link={invitationLink(table.invite)} />
-          {mine === null || mine.usedBy !== null ? null : (
+          {peer ? hosting() ? <PeerInvites /> : <div className="panel-sub">The host invites the players, each with a code of their own.</div> : <InviteRow link={invitationLink(table.invite)} />}
+          {peer || mine === null || mine.usedBy !== null ? null : (
             <>
               <div className="panel-sub" style={{ margin: '6px 0 2px' }}>
                 Somebody with no account yet: this one makes theirs with your invitation, and brings them here.
@@ -51,7 +55,7 @@ export function Lobby(): preact.JSX.Element | null {
             </>
           )}
         </div>
-        <div className="settings-section">
+        <div className="settings-section" hidden={peer}>
           <div className="play-eyebrow">Who can find it</div>
           {hosting() ? (
             <select data-testid="lobby-findable" value={table.visibility ?? 'invite'} onChange={(e) => void changeVisibility(e.currentTarget.value as Visibility)}>

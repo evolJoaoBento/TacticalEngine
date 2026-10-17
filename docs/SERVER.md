@@ -3,6 +3,8 @@
 The plan for turning Tactical Engine into a client and a server, as the user chose it on 29 September
 2026. This file is the plan and the record of how far it has got; `docs/BACKLOG.md` points here.
 
+A shared game can also be played with no server at all, the host's page keeping it: `docs/PEER.md`.
+
 ## What was chosen
 
 - **A Rust server that runs the game.** The rules - combat, scripts, dialogue, the grid, movement,

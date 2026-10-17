@@ -26,6 +26,7 @@ import { migrateDocument } from '../engine/scene/migrate';
 import { projectSchema } from '../engine/scene/schema';
 import { hollowVaultMap } from './demo-map';
 import { buildDemoScene, buildProjectScene, type DemoScene } from './demo-scene';
+import { peerMode } from './peer/peer-play';
 
 /** `game` is a game New Game began, opened from this browser (`game-projects.ts`): never saved over the default. */
 export type BootSource = 'file' | 'missing' | 'invalid' | 'builtin' | 'game';
@@ -47,6 +48,8 @@ export interface BootOptions {
   problems?: string[];
   /** The games New Game began, for `?project=<id>`; the browser's own when left out. */
   games?: GameProjects;
+  /** How a page joining a peer game meets its host and reads the project (`?peer=join`, `ui/PeerJoin.tsx`). */
+  peer?: () => Promise<unknown>;
 }
 
 const builtin = (): DemoScene => buildDemoScene(hollowVaultMap());
@@ -73,6 +76,14 @@ export async function bootDemo(options: BootOptions = {}): Promise<Booted> {
 async function open(options: BootOptions): Promise<Booted> {
   const search = options.search ?? globalThis.location?.search ?? '';
   const fetcher = options.fetcher ?? ((url: string, init?: RequestInit) => fetch(url, init));
+  // A peer game joined (`?peer=join`): the host met by hand first, and the project read from them (`docs/PEER.md`).
+  if (options.peer !== undefined && peerMode(search) === 'join') {
+    try {
+      return fromText(JSON.stringify(await options.peer()), options, 'game');
+    } catch (failure) {
+      return { demo: builtin(), source: 'invalid', problem: `The game could not be joined (${reasonOf(failure)}), so the demo opened instead.` };
+    }
+  }
   // Another's game, joined with its invitation: opened over the project it is played over, which the server keeps.
   const invite = new URLSearchParams(search).get('join');
   if (invite !== null) {
