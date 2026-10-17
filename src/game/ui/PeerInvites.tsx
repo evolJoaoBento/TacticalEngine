@@ -1,11 +1,13 @@
 /**
  * The host of a peer game inviting players (`docs/PEER.md`), in the lobby and the players' panel in place of a
  * server's invitation link: one invitation for each guest - a code to send them, their reply pasted back, and they
- * are at the table (`peer-play.ts`, `inviteGuest`). A guest's page shows nothing here: only the host invites.
+ * are at the table (`peer-play.ts`, `inviteGuest`). And the other way round, for a player who sends a code of their
+ * own first - one whose link dropped, or whose page was opened again: pasted here, answered with a code to send back
+ * (`answerGuest`), and they are back at the table, their seat theirs still. A guest's page shows nothing here.
  */
 
 import { useState } from 'preact/hooks';
-import { hostTable, inviteGuest, type Invited } from '../peer/peer-play';
+import { answerGuest, hostTable, inviteGuest, type Invited } from '../peer/peer-play';
 
 /** A code's Copy: the text onto the clipboard, and said once it is. */
 export function CopyButton({ text, testid }: { text: string; testid: string }): preact.JSX.Element {
@@ -76,6 +78,59 @@ function InvitationRow({ open, change }: { open: Open; change: (next: Partial<Op
 /** Kept across the lobby and the panel, so an invitation made in one is still there in the other. */
 let kept: Open[] = [];
 
+/** A player's own code, pasted by the host, and the answer written back. */
+interface Answering {
+  pasted: string;
+  state: 'pasting' | 'answering' | 'waiting' | 'joined' | 'failed';
+  code: string;
+  said: string;
+}
+
+const NONE: Answering = { pasted: '', state: 'pasting', code: '', said: '' };
+let answering: Answering = NONE;
+
+/** A player's own code pasted, an answer written to send back, and them at the table once they paste it. */
+function AnswerBox(): preact.JSX.Element {
+  const [at, setAt] = useState(answering);
+  const change = (next: Partial<Answering>): void => {
+    answering = { ...answering, ...next };
+    setAt(answering);
+  };
+  const answer = async (): Promise<void> => {
+    change({ state: 'answering', said: '' });
+    try {
+      const answered = await answerGuest(answering.pasted);
+      change({ state: 'waiting', code: answered.code, said: `Send this back to ${answered.who.name}:` });
+      const who = await answered.joined;
+      change({ state: 'joined', said: `${who.name} is at the table.` });
+    } catch (failure) {
+      change({ state: 'failed', said: failure instanceof Error ? failure.message : String(failure) });
+    }
+  };
+  return (
+    <div className="peer-invitation" data-testid="peer-answer" data-state={at.state}>
+      <div className="panel-sub">A player sent you a code? Paste it:</div>
+      <div className="panel-row" style={{ gap: '4px' }}>
+        <textarea className="players-invite peer-code" rows={2} value={at.pasted} data-testid="peer-answer-paste" onInput={(e) => change({ pasted: e.currentTarget.value, ...(at.state === 'answering' ? {} : { state: 'pasting', code: '', said: '' }) })} />
+        <button type="button" className="play-btn" data-testid="peer-answer-go" disabled={at.state === 'answering' || at.state === 'waiting' || at.pasted.trim() === ''} onClick={() => void answer()}>
+          Answer
+        </button>
+      </div>
+      {at.said === '' ? null : (
+        <p className="panel-sub" data-testid="peer-answer-said">
+          {at.said}
+        </p>
+      )}
+      {at.state === 'waiting' ? (
+        <div className="panel-row" style={{ gap: '4px' }}>
+          <textarea className="players-invite peer-code" rows={2} readOnly value={at.code} data-testid="peer-answer-code" onFocus={(e) => e.currentTarget.select()} />
+          <CopyButton text={at.code} testid="peer-answer-copy" />
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export function PeerInvites(): preact.JSX.Element | null {
   const [opens, setOpens] = useState<Open[]>(kept);
   if (hostTable() === null) return null;
@@ -102,6 +157,7 @@ export function PeerInvites(): preact.JSX.Element | null {
       <button type="button" className="play-btn is-ghost" data-testid="peer-invite" onClick={() => void add()}>
         Invite a player
       </button>
+      <AnswerBox />
     </div>
   );
 }

@@ -18,9 +18,18 @@ tunnel shows.
 page) and each guest's page connects to it over WebRTC, the handshake carried by hand as two codes. It works from
 a static build. A guest is invited from the lobby, joins before their page boots, takes a seat, and plays their
 own; the fight's spotlight, the GM's turn and the questions go as at a server's game. Tests: the table played by
-the real engine (`src/game/peer/*.test.ts`), and `tests/e2e/peer.spec.ts` in two browsers. Next, ranked: a guest
-who drops comes back without a fresh invitation; who played whom kept in the host's save; the codes carried by a
-small relay for those who would rather send a link.
+the real engine (`src/game/peer/*.test.ts`), and `tests/e2e/peer.spec.ts` in two browsers. Next, ranked: who
+played whom kept in the host's save; the codes carried by a small relay for those who would rather send a link.
+
+## Peer to peer: a guest coming back — done
+
+`docs/PEER.md`, "A guest coming back". A link WebRTC says has failed ends, the guest shown away on the host's page.
+The handshake goes either way round now: the guest's own code first, the host's answer back. A guest cut off in
+the same tab plays on alone, their wire waiting for the link instead of giving up, and once the two codes are
+carried comes back where the host's game is, nothing booted again; one whose page was opened again writes the code
+from the join screen and boots into the game going on. Their seat is theirs either way. Tests:
+`src/game/peer/peer-play.test.ts`, `tests/e2e/peer-rejoin.spec.ts`. With no server, coming back still takes the
+host's paste: that is the limit of this mode.
 
 ## A friend's messages during a game — done
 

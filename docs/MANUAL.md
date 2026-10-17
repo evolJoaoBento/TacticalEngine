@@ -115,6 +115,12 @@ then on it plays as a game hosted on a server does. The game lives in your brows
 page open while you play. Two players both behind strict networks (some phone networks and
 offices) may not be able to connect at all.
 
+If a player's connection drops, their page says it has lost the host, keeps playing on its own,
+and shows a code. They send it to you; paste it under **A player sent you a code?** in the
+settings (Escape) and press **Answer**, and send back the code that appears. Once they paste it,
+their game picks up where yours is, in the same seat. A player whose page was closed or reloaded
+does the same from the join screen with **No code? Write one for my host**.
+
 ### Accounts and the Store
 
 When the dev server is running (`npm run dev`), the menu first asks you to **sign in** - a name and a

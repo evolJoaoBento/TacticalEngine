@@ -17,7 +17,7 @@ export interface Link {
   send(text: string): void;
   /** Every text heard, as it comes. */
   onText(heard: (text: string) => void): void;
-  /** Told once the link has closed, by either end - at once, if it already has. */
+  /** Told once the link has closed, by either end - at once, if it already has; everybody who asked. */
   onClose(shut: () => void): void;
   close(): void;
 }
@@ -28,13 +28,13 @@ const BYE = '{"bye":true}';
 /** A `MessagePort` as a link. */
 export function portLink(port: MessagePort): Link {
   let heard: (text: string) => void = () => undefined;
-  let shut: (() => void) | null = null;
+  const shut: (() => void)[] = [];
   let gone = false;
   const end = (): void => {
     if (gone) return;
     gone = true;
     port.close();
-    shut?.();
+    for (const s of shut) s();
   };
   port.onmessage = (event: MessageEvent) => {
     if (gone) return;
@@ -50,7 +50,7 @@ export function portLink(port: MessagePort): Link {
       heard = h;
     },
     onClose: (s) => {
-      shut = s;
+      shut.push(s);
       if (gone) s();
     },
     close: () => {
@@ -63,12 +63,12 @@ export function portLink(port: MessagePort): Link {
 /** A WebRTC data channel as a link. */
 export function channelLink(channel: RTCDataChannel): Link {
   let heard: (text: string) => void = () => undefined;
-  let shut: (() => void) | null = null;
+  const shut: (() => void)[] = [];
   let gone = channel.readyState === 'closing' || channel.readyState === 'closed';
   const end = (): void => {
     if (gone) return;
     gone = true;
-    shut?.();
+    for (const s of shut) s();
   };
   channel.addEventListener('message', (event: MessageEvent) => {
     if (!gone) heard(String(event.data));
@@ -83,12 +83,50 @@ export function channelLink(channel: RTCDataChannel): Link {
       heard = h;
     },
     onClose: (s) => {
-      shut = s;
+      shut.push(s);
       if (gone) s();
     },
     close: () => {
       channel.close();
       end();
+    },
+  };
+}
+
+/**
+ * A link that is not there yet: what is sent kept until one is given (`attach`), and handed on to it then - a guest's
+ * wire, trying again after its link dropped, waits on it while its player and the host carry the codes between them.
+ */
+export function heldLink(): { link: Link; attach(real: Link): void } {
+  let real: Link | null = null;
+  const sent: string[] = [];
+  let heard: (text: string) => void = () => undefined;
+  const shut: (() => void)[] = [];
+  let closed = false;
+  return {
+    link: {
+      send: (text) => (real === null ? void sent.push(text) : real.send(text)),
+      onText: (h) => {
+        heard = h;
+        real?.onText(h);
+      },
+      onClose: (s) => {
+        shut.push(s);
+        if (real !== null) real.onClose(s);
+        else if (closed) s();
+      },
+      close: () => {
+        if (real !== null) return real.close();
+        closed = true;
+        for (const s of shut) s();
+      },
+    },
+    attach(given) {
+      if (real !== null || closed) return given.close();
+      real = given;
+      given.onText(heard);
+      for (const s of shut) given.onClose(s);
+      for (const text of sent.splice(0)) given.send(text);
     },
   };
 }

@@ -39,8 +39,17 @@ to carry it, the players carry it themselves (`connect.ts`):
    code their page writes.
 3. The host pastes the reply under that invitation and presses **Connect**. The guest's page boots into the lobby.
 
-One invitation is for one guest; another guest needs another. A code is `TE1.` followed by the description,
-deflated and in URL-safe base64. A page finds the address the internet sees it at with a public STUN server
+One invitation is for one guest; another guest needs another.
+
+**The other way round: the guest's code first.** A host need not be waiting with an invitation. The guest's page
+writes a code of its own (it says who they are), the host pastes it under **A player sent you a code?** in the lobby
+or the players' panel (Escape, in the game) and presses **Answer**, and the guest pastes the answer the host's page
+writes. This is how a guest comes back (below), and the join screen offers it too (**No code? Write one for my
+host**).
+
+There are four kinds of code - the host's invitation, the guest's reply, the guest's own code, the host's answer -
+and each box takes only its own, saying which it wanted when another is pasted. A code is `TE1.` followed by the
+description, deflated and in URL-safe base64. A page finds the address the internet sees it at with a public STUN server
 (`stun.l.google.com`), which learns only that address, never anything of the game. `?ice=none` asks no STUN
 server, which is enough on one machine or one network; the tests use it.
 
@@ -73,11 +82,26 @@ The host's page saves its own game into its own browser, as a game played alone 
 from the host's browser and loads it into the table's game (`{ op: "load" }`), everybody's page following. A
 guest's page saves nothing worth having: the game is the host's. Who played whom is not kept in such a save yet.
 
+## A guest coming back
+
+No server means nothing can carry the codes but the players: a guest whose link has truly gone cannot be put back
+without them. What is done instead:
+
+- **A link is known to be gone.** The channel closes when WebRTC says its connection failed or closed, which a
+  network gone never says on the channel itself. The host's page shows the guest away (`(away)` beside their
+  name), and the others are told.
+- **Cut off in the same tab, the game goes on where it was** (`ui/PeerRejoin.tsx`). The guest's page says it has
+  lost the host, plays on alone, and writes the guest's own code at once. The host answers it, the guest pastes the
+  answer, and the guest's wire - which waited for the link instead of giving up after its tries (`heldLink`,
+  `peer-play.ts`) - asks the table for the game (`resume`) and is stood where it is. Nothing boots again, and nothing
+  played meanwhile parts from the host's game: the guest's page is stood where the host's is.
+- **A page opened again** (reloaded, or its tab restored) shows the join screen; the guest writes their own code
+  from it, and boots into the game going on, not the lobby.
+- **Either way they are the same player, their seat still theirs**: a tab keeps its id across a reload.
+
 ## What it does not do yet
 
-- **A dropped guest comes back with a fresh invitation.** A guest whose channel closes plays on alone; their
-  wire gives up after its tries, and the host invites them again. The game is still the host's, and a guest who
-  comes back with the same tab is the same player, their seat still theirs.
+- **Coming back takes the host's hand**, as above: two codes, carried between the two of you.
 - **The game ends with the host's page.** Nothing is handed on, as the server hands on a game whose host has
   gone.
 - **A different project, opened by the host after boot,** is played alone. Only the game the page boots with is
@@ -90,14 +114,16 @@ guest's page saves nothing worth having: the game is the host's. Who played whom
   list.
 - **By address:** `/?peer=host&as=Hana` hosts the demo as a lobby; `/?peer=join&as=Gus` joins. Add `&ice=none`
   on one machine.
-- **Tests:** `src/game/peer/*.test.ts` (the table played by the real engine; the link; the codes), and
+- **Tests:** `src/game/peer/*.test.ts` (the table played by the real engine; the link, and a guest's link lost and
+  come back; the codes, each of its kind), `tests/e2e/peer-rejoin.spec.ts` (a guest cut off in the same tab, and one
+  whose page was opened again, each back by their own code and the host's answer, playing on, nothing parted), and
   `tests/e2e/peer.spec.ts`: two browsers and no server, the codes carried through the very boxes a player pastes
   into, a guest seated in the lobby, the game started, each playing their own, and a fight whose GM's turn the
   guest hands over, played on the host's table, the round going on on both pages, the logs alike, nothing parted.
   It runs in the ordinary e2e run, and is skipped in the server's run, which has a server.
   `npm run test:e2e:peer-static` builds the game statically, serves it with `vite preview` - no server of any
-  kind - and plays the first of those tests on it (the fight's moves a character by the test driver's hand, which a
-  build refuses).
+  kind - and plays on it the invitation, the lobby and play, and both ways a guest comes back (not the menu's, nor the
+  fight's, which moves a character by the test driver's hand, which a build refuses).
 
 ## Files
 
@@ -108,5 +134,6 @@ guest's page saves nothing worth having: the game is the host's. Who played whom
 | `src/game/peer/connect.ts` | WebRTC: the invitation, the reply, the codes |
 | `src/game/peer/peer-play.ts` | the page's peer mode: who it is, the table, the wire's way in, inviting |
 | `src/game/ui/PeerJoin.tsx` | the guest's screen before boot |
-| `src/game/ui/PeerInvites.tsx` | the host's invitations, in the lobby and the players' panel |
+| `src/game/ui/PeerInvites.tsx` | the host's invitations, and the answer to a player's own code, in the lobby and the players' panel |
+| `src/game/ui/PeerRejoin.tsx` | a guest cut off from the host, coming back in the same tab |
 | `src/game/wasm-game.ts` | the host's table made beside the page's engine; the wire given the peer way in |

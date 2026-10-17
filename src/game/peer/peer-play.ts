@@ -14,8 +14,8 @@
 
 import type { Transport, WireOptions } from '../wire';
 import { HostTable, type Member } from './host-table';
-import { LinkTransport, channelLink, linkedPorts } from './link';
-import { invite, type Invitation } from './connect';
+import { LinkTransport, channelLink, heldLink, linkedPorts, type Link } from './link';
+import { answer, invite, type Invitation } from './connect';
 
 export type PeerMode = 'host' | 'join';
 
@@ -100,9 +100,33 @@ export function prepareHost(engine: ConstructorParameters<typeof HostTable>[0], 
   return table;
 }
 
+/** The guest's link to the host now, if one is open; whether it is lost, and who is told when that changes. */
+let guestLink: Link | null = null;
+let lost = false;
+const losing = new Set<(lost: boolean) => void>();
+
+function setLost(now: boolean): void {
+  if (lost === now) return;
+  lost = now;
+  for (const listener of losing) listener(now);
+}
+
+/** A guest's channel to the host as the link they play over: lost when it closes, unless another came since. */
+function linked(channel: RTCDataChannel): Link {
+  const link = channelLink(channel);
+  guestLink = link;
+  link.onClose(() => {
+    if (guestLink !== link) return;
+    guestLink = null;
+    setLost(true);
+  });
+  setLost(false);
+  return link;
+}
+
 /** The guest's page met the host: the channel it boots and plays over. */
 export function joinedOver(channel: RTCDataChannel): LinkTransport {
-  guest = new LinkTransport(channelLink(channel));
+  guest = new LinkTransport(linked(channel));
   return guest;
 }
 
@@ -111,9 +135,43 @@ export function guestTransport(): LinkTransport | null {
   return guest;
 }
 
-/** A transport that has closed: what a guest's wire is given when it tries again, the host out of reach. */
-function gone(): Transport {
-  return { send: () => Promise.reject(new Error('the host is out of reach')), close: () => undefined, onClose: (shut) => shut(false) };
+/** Whether the guest's link to the host is lost, and none come back yet. */
+export function peerLost(): boolean {
+  return lost;
+}
+
+/** Told whenever the guest's link is lost or back; what to call to stop. */
+export function onPeerLost(listener: (lost: boolean) => void): () => void {
+  losing.add(listener);
+  return () => losing.delete(listener);
+}
+
+/** The link a guest's wire waits on while its player and the host carry the codes: given its channel when it opens. */
+let waiting: ReturnType<typeof heldLink> | null = null;
+
+/** A guest back: the channel opened by the codes carried since their link dropped - the wire, waiting, goes on over it. */
+export function rejoinedOver(channel: RTCDataChannel): void {
+  const link = linked(channel);
+  if (waiting !== null) {
+    waiting.attach(link);
+    waiting = null;
+  } else {
+    // The wire has not tried again yet: it is given this when it does.
+    ready = link;
+  }
+}
+
+let ready: Link | null = null;
+
+/** What a guest's wire is given when it tries again: the link come back, else one that waits for it. */
+function again(): Transport {
+  if (ready !== null) {
+    const link = ready;
+    ready = null;
+    return new LinkTransport(link);
+  }
+  waiting ??= heldLink();
+  return new LinkTransport(waiting.link);
 }
 
 /**
@@ -139,7 +197,7 @@ export function peerWire(mode: PeerMode | null = peerMode()): { connect: () => T
     wiredMode = 'join';
     return {
       connect: () => {
-        const given = first ?? gone();
+        const given = first ?? again();
         first = null;
         return given;
       },
@@ -162,6 +220,21 @@ export interface Invited {
   close(): void;
 }
 
+/** A guest's own code, pasted by the host: who sent it, the answer to send back, and them at the table once it opens. */
+export async function answerGuest(code: string, answering: typeof answer = answer): Promise<{ who: Member; code: string; joined: Promise<Member> }> {
+  const keeping = table;
+  if (keeping === null) throw new Error('This page hosts no peer game.');
+  const answered = await answering(code);
+  return {
+    who: answered.who,
+    code: answered.code,
+    joined: answered.channel.then((channel) => {
+      keeping.attach(channelLink(channel), answered.who);
+      return answered.who;
+    }),
+  };
+}
+
 /** An invitation for one more guest, from the host's page. */
 export async function inviteGuest(making: () => Promise<Invitation> = () => invite()): Promise<Invited> {
   const keeping = table;
@@ -177,3 +250,12 @@ export async function inviteGuest(making: () => Promise<Invitation> = () => invi
     close: () => invitation.close(),
   };
 }
+
+declare global {
+  interface Window {
+    /** A peer game, for a test: the guest's link to the host cut, as a network gone would cut it. */
+    __peer?: { drop: () => void };
+  }
+}
+
+if (typeof window !== 'undefined') window.__peer = { drop: () => guestLink?.close() };
