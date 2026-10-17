@@ -18,6 +18,7 @@ import type { Response } from '../../engine/script/runner';
 import { Conversation, type TalkingView } from './Conversation';
 import { useState } from 'preact/hooks';
 import type { AbilityView } from '../demo-abilities';
+import { turnKey } from './turn-key';
 import { CardArtwork } from './CardFace';
 import { Die, type DieColours } from './Die';
 import { D6_FACES } from './d6';
@@ -41,6 +42,8 @@ export interface ActionBarProps {
   /** Whether a fight is on, and whose turn it is. */
   fighting: boolean;
   side: 'party' | 'gm' | null;
+  /** Whether a question waits on somebody: the GM's turn held on it, nothing for the turn's key to do. */
+  asked?: boolean;
   /** The ability waiting for a target, if any. `spot` when it wants ground rather than a creature. */
   targeting: { abilityId: string; name: string; spot?: boolean } | null;
   /** Whether the selected character is offered a jump: somebody who can act, in a project that has jumping. */
@@ -305,17 +308,17 @@ export function ActionBar(props: ActionBarProps): preact.JSX.Element | null {
         </>)}
 
         <div className="hand-verbs">
-          {props.fighting ? (
+          {props.fighting ? ((key) => (
             <button
               className="play-btn is-primary is-turn"
-              disabled={props.side !== 'party'}
-              title="Hand the spotlight to the GM (Space)"
+              disabled={!key.enabled}
+              title={key.title}
               data-testid="pass-to-gm"
               onClick={props.onPassToGm}
             >
-              End Turn
+              {key.label}
             </button>
-          ) : null}
+          ))(turnKey(props.side, props.asked === true)) : null}
           {/* The two things done between fights, side by side: open the binder, and make camp. The
               book is nearer the hand, since its cards are what it holds; in a fight there is no
               resting, so the key is not there and the book has the row. */}

@@ -1981,4 +1981,17 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     Proved by `friends_routes.rs` (a connection closed and another opened inside the while: nothing; closed and none
     opened: online through the while, then gone and told, though seen moments before; asking again: online, told) and
     `friends.spec.ts` (a friend's page closed: away on the other's open list inside eight seconds).
+  - **A fight at a shared game, in two browsers** (17 October 2026). The turn at a shared game - the party's
+    spotlight shared, the GM's turn after, handed over by anybody who plays somebody - had only the engine's, the
+    server's and the wire's tests behind it; now `shared-fight.spec.ts` plays it in two browsers. The host's character
+    opens the vault and wakes the fight, on both pages; each round the guest walks their own and the host goes at the
+    foe with theirs, each seen on the other's page, and the GM's turn is handed over by each in turn - the guest with
+    the key, the host with Space - the round going on and the spotlight back with the party on both, both logs the
+    same. Whatever the fight asks is answered on the page that plays its character, the other saying whom it waits
+    on; while the GM's turn is held on it, the key is shut on both. It found one thing to mend, not the sharing's: a
+    roll that went the GM's way hands the spotlight over by itself, and then nothing plays the GM's turn until it is
+    asked for - but the key that asks was shut whenever the spotlight was not the party's, so a player without Space
+    had nothing to press, alone or together. The key now says "GM's Turn" then and plays it, shut only while a
+    question waits (`ui/turn-key.ts`, its test; `playpass.spec.ts` swings until a roll hands the spotlight over,
+    and clicks it).
   - **Next**: an evening through the tunnel.

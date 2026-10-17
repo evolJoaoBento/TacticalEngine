@@ -1415,7 +1415,7 @@ function renderPlayPanel(): void {
       abilities: game.board.party.selected === null ? [] : game.abilityList(game.board.party.selected),
       light: game.board.party.selected === null ? null : (game.board.state.entity(game.board.party.selected)?.good ?? null),
       bad: { ...game.board.state.bad }, round: game.board.encounter?.round ?? null,
-      fighting: game.inCombat(),
+      fighting: game.inCombat(), asked: game.board.pending !== null,
       side: game.inCombat() ? game.board.encounter!.view().side : null,
       targeting:
         targeting === null

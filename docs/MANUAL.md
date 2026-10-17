@@ -302,7 +302,8 @@ them.
 
 In a fight there is no initiative. The party acts until an action roll — an attack, a card's
 Spellcast Roll — comes up with Shadow or fails, which hands the spotlight to the GM; or until you
-press **Pass to GM** (or `Space` / `Enter`). On the GM's turn the GM spotlights one adversary
+press **End Turn** (or `Space` / `Enter`). A roll that hands it over leaves the key reading **GM's Turn**:
+press it (or `Space`) and the GM plays. On the GM's turn the GM spotlights one adversary
 free and spends a Shadow for each further one while Shadow lasts. A spotlighted adversary moves
 within Close range of the nearest party member and attacks; one held in place by Restrained
 spends its spotlight tearing free instead. Then the spotlight returns to the party. When the

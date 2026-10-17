@@ -18,6 +18,14 @@ A game's page played on the server has a Friends button above the table's chat, 
 much is unread; it opens the menu's friends - asking, answering, writing - on a sheet over the table, Escape shutting
 it.
 
+## A fight at a shared game, in two browsers — done
+
+`tests/e2e/shared-fight.spec.ts`: the host's character wakes the vault's fight, on both pages; the guest walks their
+own, the host swings, the GM's turn handed over by each in turn - the round on and the spotlight back on both, both
+logs the same; every question answered by its character's player, the other waiting. It found the End Turn key shut
+after a roll handed the spotlight to the GM, with nothing else but Space to play the GM's turn: the key now says
+"GM's Turn" then, and plays it.
+
 ## Gone, told at once — done
 
 A player whose last connection closes - the page shut, the network gone - is gone to their friends ten seconds later

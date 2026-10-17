@@ -132,6 +132,36 @@ test('a click on an enemy across the room walks up and swings', async ({ page })
   await page.screenshot({ path: 'test-results/charge.png' });
 });
 
+test("a roll that hands the spotlight over leaves the key saying the GM's turn, and a click plays it", async ({ page }) => {
+  const arrived = await intoTheVault(page);
+  expect(arrived.inCombat).toBe(true);
+  // Swing until a roll goes the GM's way: the spotlight handed over by itself, nothing asked.
+  const rolledOver = await page.evaluate(() => {
+    const a = window.__engine!;
+    for (let i = 0; i < 20 && a.inCombat(); i++) {
+      a.attack(a.adversaries()[0]!);
+      while (a.pendingKind() !== null) a.answer({ kind: 'choose', index: 0 });
+      if (a.turnSide() === 'gm') return a.round();
+    }
+    return null;
+  });
+  expect(rolledOver, "a roll that went the GM's way").not.toBeNull();
+  // Not shut, leaving a player without Space nothing to press.
+  const key = page.getByTestId('pass-to-gm');
+  await expect(key).toHaveText("GM's Turn");
+  await expect(key).toBeEnabled();
+  await page.screenshot({ path: 'test-results/gm-turn-key.png' });
+  await key.click();
+  // Every blow of the GM's turn that waits on how it lands, taken as it comes.
+  const asked = page.getByTestId('choice-prompt');
+  await expect.poll(async () => {
+    if ((await asked.count()) > 0) await asked.locator('[data-option="0"]').click();
+    return page.evaluate(() => window.__engine!.round());
+  }).toBeGreaterThan(rolledOver!);
+  expect(await page.evaluate(() => window.__engine!.turnSide())).toBe('party');
+  await expect(key).toHaveText('End Turn');
+});
+
 test('the warding ring burns whatever is standing in it', async ({ page }) => {
   const arrived = await intoTheVault(page);
   expect(arrived.inCombat).toBe(true);
