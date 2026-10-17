@@ -226,6 +226,30 @@ describe('a peer game kept by its host\'s page', () => {
     expect(table.seating().seats).toEqual({ [a]: 'h2', [b]: 'g2', [c]: 'k2' });
   });
 
+  it.skipIf(!built)("removes a guest at the host's word: their pages told and let go, their seats nobody's, the others told", async () => {
+    const { table, host, party } = await opened();
+    const gus = guest(table);
+    gus.ask({ op: 'join' });
+    let closed = 0;
+    const second = far();
+    table.attach({ ...second.link, close: () => void closed++ }, { id: 'g', name: 'Gus' });
+    second.ask({ op: 'join' });
+    const [his] = party as [string];
+    gus.ask({ op: 'seat', character: his, account: 'g' });
+    expect(table.isMember('g')).toBe(true);
+    expect(table.remove('h')).toBe(false);
+    expect(table.remove('nobody')).toBe(false);
+    expect(table.remove('g')).toBe(true);
+    expect(gus.heard.at(-1)).toEqual({ removed: true });
+    expect(closed).toBe(1);
+    expect(table.isMember('g')).toBe(false);
+    expect(table.table()).toMatchObject({ members: [{ id: 'h' }], seats: {} });
+    expect(pushes(host).at(-1)).toMatchObject({ table: { members: [{ id: 'h' }], seats: {} } });
+    // Nothing more of theirs is played: they are at no game.
+    expect(second.ask({ op: 'call', call: 'select', args: [his] }).error).toBe('no game: open one');
+    expect(table.isMember('h')).toBe(true);
+  });
+
   it.skipIf(!built)('turns away a guest who says they are the host', async () => {
     const { table } = await opened();
     let closed = false;

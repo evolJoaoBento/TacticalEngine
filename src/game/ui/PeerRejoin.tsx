@@ -4,17 +4,20 @@
  * `ask`). The host pastes it and sends an answer back; pasted here, the channel opens and the wire, which has waited
  * for it, comes back to the game - stood where it is, the guest's seat still theirs. Nothing while the link is up.
  * A guest who joined by a room's link (`?room=`, `relay.ts`) is brought back through the room, by itself: the codes
- * are shown only when the room does not answer (`ROOM_TRIES`).
+ * are shown only when the room does not answer (`ROOM_TRIES`). A guest the host removed, or did not let back in, is
+ * told so, and offered nothing: the host has said.
  */
 
 import { h, render } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
 import { ask, type Asked } from '../peer/connect';
-import { meetAtRoom, onPeerLost, peerLost, peerSelf, rejoinedOver } from '../peer/peer-play';
+import { meetAtRoom, onPeerLost, onPeerRemoved, peerLost, peerRemoved, peerSelf, rejoinedOver } from '../peer/peer-play';
 import { roomOf } from '../peer/relay';
 
 /** How many times a guest's page knocks at the room before it shows the codes instead. */
 export const ROOM_TRIES = 3;
+
+const REMOVED_SAID = 'The host removed you from the game. You play on alone.';
 import { CopyButton } from './PeerInvites';
 
 function PeerRejoin(): preact.JSX.Element | null {
@@ -25,6 +28,9 @@ function PeerRejoin(): preact.JSX.Element | null {
   const [said, setSaid] = useState('');
   const [connecting, setConnecting] = useState(false);
   const [auto, setAuto] = useState(false);
+  /** What the host said, when it was no: removed, or not let back in. */
+  const [ended, setEnded] = useState<string | null>(peerRemoved() ? REMOVED_SAID : null);
+  useEffect(() => onPeerRemoved(() => setEnded(REMOVED_SAID)), []);
   const write = (): void => {
     asked?.close();
     setSaid('');
@@ -39,6 +45,7 @@ function PeerRejoin(): preact.JSX.Element | null {
       setAuto(false);
       return;
     }
+    if (peerRemoved()) return;
     const room = roomOf();
     if (room === null) return write();
     // Through the room, by itself; the codes once it has not answered.
@@ -48,6 +55,10 @@ function PeerRejoin(): preact.JSX.Element | null {
       for (let tried = 0; tried < ROOM_TRIES && !stopped; tried++) {
         const channel = await meetAtRoom(room);
         if (stopped) return;
+        if (channel === 'refused') {
+          setAuto(false);
+          return setEnded('The host did not let you back in. You play on alone.');
+        }
         if (channel !== null) return rejoinedOver(channel);
       }
       if (stopped) return;
@@ -58,6 +69,14 @@ function PeerRejoin(): preact.JSX.Element | null {
       stopped = true;
     };
   }, [lost]);
+  if (ended !== null) {
+    return (
+      <div className="play-box peer-lost" role="dialog" aria-label="Not at the table" data-testid="peer-ended">
+        <div className="play-eyebrow">Not at the table</div>
+        <p className="panel-sub">{ended}</p>
+      </div>
+    );
+  }
   if (!lost) return null;
   if (auto) {
     return (

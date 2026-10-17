@@ -2,8 +2,8 @@
  * The peer games' relay, from the page (`docs/PEER.md`, "A link instead of codes"; `server/serve/src/peer.rs`): where
  * the Rust server serves the page, it carries the codes a peer game's pages trade, so a guest joins - and comes back -
  * by opening a link. The host's page opens a room (`openRoom`, signed in), takes the knocks left at it and answers
- * each (`takeKnocks`, `answerKnock`); a guest's page knocks with its own code (`knock`) and waits for the answer
- * (`waitForAnswer`). The codes are the guest-first handshake's (`connect.ts`, `ask` and `answer`): nothing new about
+ * each (`takeKnocks`, `answerKnock`) - or turns it away; a guest's page knocks with its own code (`knock`) and waits
+ * for the answer (`waitForAnswer`), which is the host's code, or `false` for a guest turned away. The codes are the guest-first handshake's (`connect.ts`, `ask` and `answer`): nothing new about
  * WebRTC, only who carries the codes.
  *
  * Anything that fails - no server behind the page, nobody signed in, the room gone - is `null`, and the page falls
@@ -70,15 +70,19 @@ export async function takeKnocks(room: Room, send: Fetch = fetch): Promise<{ kno
   return knocks.filter((k): k is { knock: string; code: string } => typeof (k as { knock?: unknown }).knock === 'string' && typeof (k as { code?: unknown }).code === 'string');
 }
 
-/** The host's answer to a knock, left for the guest: whether the relay took it. */
-export async function answerKnock(room: Room, knocked: string, code: string, send: Fetch = fetch): Promise<boolean> {
-  return (await asked(send(`${roomPath(room.room)}/answers/${encodeURIComponent(knocked)}`, posting({ code }, room.secret)))) !== null;
+/** The host's answer to a knock, left for the guest - their code, or `null` to turn them away: whether the relay took it. */
+export async function answerKnock(room: Room, knocked: string, code: string | null, send: Fetch = fetch): Promise<boolean> {
+  return (await asked(send(`${roomPath(room.room)}/answers/${encodeURIComponent(knocked)}`, posting(code === null ? { refused: true } : { code }, room.secret)))) !== null;
 }
 
-/** The answer to a knock: the code, `null` while the host has given none, `undefined` when the room or relay is gone. */
-export async function answerOf(room: string, knocked: string, send: Fetch = fetch): Promise<string | null | undefined> {
+/**
+ * The answer to a knock: the code, `false` for a guest turned away, `null` while the host has given none, `undefined`
+ * when the room or relay is gone.
+ */
+export async function answerOf(room: string, knocked: string, send: Fetch = fetch): Promise<string | false | null | undefined> {
   const said = await asked(send(`${roomPath(room)}/answers/${encodeURIComponent(knocked)}`, { credentials: 'same-origin', cache: 'no-store' }));
   if (said === null) return undefined;
+  if (said['refused'] === true) return false;
   return typeof said['code'] === 'string' ? said['code'] : null;
 }
 
@@ -91,8 +95,11 @@ export interface Waiting {
   wait?: (ms: number) => Promise<void>;
 }
 
-/** The answer to a knock, asked for every so often until it comes; `null` if it does not in time, or the room goes. */
-export async function waitForAnswer(room: string, knocked: string, { every = 1000, within = 60_000, send = fetch, wait = (ms) => new Promise((done) => setTimeout(done, ms)) }: Waiting = {}): Promise<string | null> {
+/**
+ * The answer to a knock, asked for every so often until it comes: the host's code, `false` for a guest turned away,
+ * `null` if none comes in time or the room goes.
+ */
+export async function waitForAnswer(room: string, knocked: string, { every = 1000, within = 60_000, send = fetch, wait = (ms) => new Promise((done) => setTimeout(done, ms)) }: Waiting = {}): Promise<string | false | null> {
   for (let waited = 0; waited <= within; waited += every) {
     const answer = await answerOf(room, knocked, send);
     if (answer === undefined) return null;

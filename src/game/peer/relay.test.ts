@@ -6,7 +6,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { answerKnock, answerOf, knock, openRoom, relayAllowed, roomLink, roomOf, takeKnocks, waitForAnswer, type Fetch } from './relay';
-import { closeHostRoom, hostRoomLink, meetAtRoom, onHostRoom, openHostRoom, prepareHost, ROOM_LOST_AFTER, type RoomHands } from './peer-play';
+import { closeHostRoom, hostRoomLink, knocking, letIn, meetAtRoom, onHostRoom, onKnocks, openHostRoom, peerSelf, prepareHost, turnAway, ROOM_LOST_AFTER, type RoomHands } from './peer-play';
 
 /** A fetch that answers from a table of routes, and says what it was asked. */
 function fake(answers: Record<string, unknown>, asked: { url: string; init?: RequestInit }[] = []): Fetch {
@@ -83,7 +83,7 @@ describe('the relay, from the page', () => {
 });
 
 describe("the host's room", () => {
-  it('opens where it may, answers every knock taken, and opens another once the room has gone', async () => {
+  it('opens where it may; lets in a player at the game by itself, asks about anybody else; opens another once the room has gone', async () => {
     const opened: string[] = [];
     let knocksAt = 0;
     const answered: string[] = [];
@@ -94,7 +94,19 @@ describe("the host's room", () => {
         opened.push('r');
         return Promise.resolve({ room: `${'b'.repeat(31)}${opened.length}`, secret: 's' });
       },
-      takeKnocks: () => Promise.resolve(gone ? null : ++knocksAt === 1 ? [{ knock: 'k1', code: 'TE1.g' }] : []),
+      takeKnocks: () =>
+        Promise.resolve(
+          gone
+            ? null
+            : ++knocksAt === 1
+              ? [
+                  { knock: 'k1', code: 'TE1.member' },
+                  { knock: 'k2', code: 'junk' },
+                  { knock: 'k3', code: 'TE1.gus' },
+                  { knock: 'k4', code: 'TE1.kit' },
+                ]
+              : [],
+        ),
       answerKnock: (_at, knocked, code) => {
         left.push(`${knocked}:${code}`);
         return Promise.resolve(true);
@@ -103,6 +115,8 @@ describe("the host's room", () => {
         answered.push(code);
         return Promise.resolve({ who: { id: 'g', name: 'Gus' }, code: 'TE1.h', joined: Promise.resolve({ id: 'g', name: 'Gus' }) });
       },
+      whoAsks: (code) =>
+        Promise.resolve(code === 'TE1.member' ? { id: peerSelf().id, name: 'Hana' } : code === 'TE1.gus' ? { id: 'g', name: 'Gus' } : code === 'TE1.kit' ? { id: 'k', name: 'Kit' } : null),
       every: 5,
     };
     // No table: nothing to open a room for.
@@ -113,8 +127,18 @@ describe("the host's room", () => {
     onHostRoom((link) => links.push(link));
     expect(await openHostRoom(hands, true)).toBe(true);
     expect(hostRoomLink()).toMatch(/\?peer=join&room=b{31}1$/);
-    await expect.poll(() => left).toEqual(['k1:TE1.h']);
-    expect(answered).toEqual(['TE1.g']);
+    // The host, at the game already, let in by itself; no code turned away; Gus and Kit waiting for the host's word.
+    await expect.poll(() => knocking().map((k) => k.who.name)).toEqual(['Gus', 'Kit']);
+    await expect.poll(() => [...left].sort()).toEqual(['k1:TE1.h', 'k2:null']);
+    expect(answered).toEqual(['TE1.member']);
+    const heard: number[] = [];
+    onKnocks((now) => heard.push(now.length));
+    letIn('k3');
+    turnAway('k4');
+    await expect.poll(() => [...left].sort()).toEqual(['k1:TE1.h', 'k2:null', 'k3:TE1.h', 'k4:null']);
+    expect(answered).toEqual(['TE1.member', 'TE1.gus']);
+    expect(heard).toEqual([1, 0]);
+    expect(knocking()).toEqual([]);
     // Gone: a few failures in a row, and another room - another link.
     gone = true;
     await expect.poll(() => opened.length, { timeout: 2000 }).toBe(2);

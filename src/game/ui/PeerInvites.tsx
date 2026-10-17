@@ -5,11 +5,14 @@
  * own first - one whose link dropped, or whose page was opened again: pasted here, answered with a code to send back
  * (`answerGuest`), and they are back at the table, their seat theirs still. Where the Rust server serves the page,
  * first of all a link (`openHostRoom`, `relay.ts`): everybody who opens it joins with one click, the codes carried for
- * them - the codes still here for anybody it does not work for. A guest's page shows nothing here.
+ * them - the codes still here for anybody it does not work for. And the guests at the table, each with a **Remove**
+ * (`HostTable.remove`): their page is told, and they come back only if the host lets them in again. A guest's page
+ * shows nothing here.
  */
 
 import { useEffect, useState } from 'preact/hooks';
 import { answerGuest, hostRoomLink, hostTable, inviteGuest, onHostRoom, type Invited } from '../peer/peer-play';
+import { onSharedTable, sharedTable } from '../shared-game';
 
 /** A code's Copy: the text onto the clipboard, and said once it is. */
 export function CopyButton({ text, testid }: { text: string; testid: string }): preact.JSX.Element {
@@ -137,6 +140,9 @@ export function PeerInvites(): preact.JSX.Element | null {
   const [opens, setOpens] = useState<Open[]>(kept);
   const [link, setLink] = useState(hostRoomLink());
   useEffect(() => onHostRoom(setLink), []);
+  const [table, setTable] = useState(sharedTable());
+  useEffect(() => onSharedTable(setTable), []);
+  const guests = table === null ? [] : table.members.filter((member) => member.id !== table.host);
   if (hostTable() === null) return null;
   const update = (next: Open[]): void => {
     kept = next;
@@ -172,6 +178,19 @@ export function PeerInvites(): preact.JSX.Element | null {
         Invite a player
       </button>
       <AnswerBox />
+      {guests.length === 0 ? null : (
+        <div className="peer-invitation" data-testid="peer-members">
+          <div className="panel-sub">Your guests:</div>
+          {guests.map((member) => (
+            <div key={member.id} className="panel-row players-seat" data-testid="peer-member" data-member={member.id}>
+              <span style={{ flex: 1 }}>{member.name}</span>
+              <button type="button" className="play-btn is-ghost" data-testid="peer-remove" title={`Take ${member.name} out of the game`} onClick={() => hostTable()?.remove(member.id)}>
+                Remove
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

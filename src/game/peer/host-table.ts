@@ -56,6 +56,8 @@ const VIEWS: readonly [string, string][] = [
 const UNTOLD: readonly string[] = ['readContainer', 'readThing'];
 const VISIBILITIES: readonly string[] = ['public', 'friends', 'invite'];
 export const CHAT_LONGEST = 500;
+/** What a removed guest's page is told before its link is let go (`remove`). */
+export const REMOVED = '{"removed":true}';
 const CHAT_KEPT = 100;
 
 type Message = Record<string, unknown> & { op?: unknown; id?: unknown };
@@ -165,6 +167,31 @@ export class HostTable {
   /** Who is at the game now, each once, by id. */
   here(): string[] {
     return [...new Set(this.watching.map((watcher) => watcher.account))].sort();
+  }
+
+  /** Whether an account is at the game - its host, or a member not removed. */
+  isMember(account: string): boolean {
+    return account === this.host || this.members.includes(account);
+  }
+
+  /**
+   * A guest removed from the game by the host: their pages told so and let go, their seats nobody's (the host plays
+   * them), everybody told the table. They come back only as anybody does - the host letting them in. Whether there
+   * was such a guest.
+   */
+  remove(account: string): boolean {
+    if (account === this.host || !this.members.includes(account)) return false;
+    for (const watcher of this.links.filter((w) => w.account === account)) {
+      watcher.link.send(REMOVED);
+      watcher.link.close();
+    }
+    this.members = this.members.filter((member) => member !== account);
+    for (const [character, seated] of Object.entries(this.seats)) if (seated === account) delete this.seats[character];
+    this.selected.delete(account);
+    this.played += 1;
+    this.reselect();
+    this.push(null, { table: this.table() });
+    return true;
   }
 
   /** The table as the pages are told it. */

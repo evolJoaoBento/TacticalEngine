@@ -21,6 +21,15 @@ own; the fight's spotlight, the GM's turn and the questions go as at a server's 
 the real engine (`src/game/peer/*.test.ts`), and `tests/e2e/peer.spec.ts` in two browsers. Next: an evening across
 two real networks.
 
+## Peer to peer: the host at the door — done
+
+`docs/PEER.md`, "A link instead of codes". A knock at the host's room from anybody not at the game waits for the host:
+**At the door - Gus wants to join - Let in / Turn away**, over the lobby or the game; turned away, the guest is told so
+(`{ refused: true }` at the relay). A player already at the game, coming back, is let in without asking. The host
+removes a guest from **Your guests**: their page is told, plays on alone at no table, and does not knock again; they
+come back only if let in again. Tests: `peer.rs`, `server/serve/tests/peer_routes.rs`, `src/game/peer/*.test.ts`,
+`tests/e2e/peer-relay.spec.ts`.
+
 ## Peer to peer: a link instead of codes, where the Rust server serves the page — done
 
 `docs/PEER.md`, "A link instead of codes". The server carries a peer game's codes (`/__peer`, `server/serve/src/peer.rs`,

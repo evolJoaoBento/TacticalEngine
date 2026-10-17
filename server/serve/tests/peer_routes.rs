@@ -76,4 +76,14 @@ async fn a_guest_with_no_account_meets_the_host_through_a_room() {
     assert_eq!(answered, json!({ "code": "TE1.host" }));
     let (_, again, _) = send(&app, "GET", &format!("/__peer/rooms/{room}/answers/{knock}"), "", &[], false).await;
     assert_eq!(again, json!({ "code": null }));
+
+    // Another knocks, and the host turns them away: they are told so.
+    let (_, knocked, _) = send(&app, "POST", &format!("/__peer/rooms/{room}/knock"), &json!({ "code": "TE1.stranger" }).to_string(), &[], true).await;
+    let stranger = knocked["knock"].as_str().unwrap().to_string();
+    let (status, _, _) = send(&app, "POST", &format!("/__peer/rooms/{room}/answers/{stranger}"), &json!({ "refused": "yes" }).to_string(), &[("x-peer-secret", &secret)], true).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    let (status, _, _) = send(&app, "POST", &format!("/__peer/rooms/{room}/answers/{stranger}"), &json!({ "refused": true }).to_string(), &[("x-peer-secret", &secret)], true).await;
+    assert_eq!(status, StatusCode::OK);
+    let (_, told, _) = send(&app, "GET", &format!("/__peer/rooms/{room}/answers/{stranger}"), "", &[], false).await;
+    assert_eq!(told, json!({ "refused": true }));
 }

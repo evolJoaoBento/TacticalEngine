@@ -65,11 +65,20 @@ through the tunnel (`docs/HOSTING.md`) - it carries them, and the players paste 
 1. The host's page, signed in, opens a **room** at the server's relay as the game opens, and the lobby (or the
    players' panel) shows **Send everybody this link** - `/?peer=join&room=<id>`.
 2. A guest opens it, gives a name and presses **Join**. Their page leaves its own code at the room (the guest-first
-   code above), and the host's page - taking what was left at its room every second - answers it by itself; the
-   guest's page takes the answer, and the channel opens. A guest needs no account.
-3. **Coming back is by itself too.** Cut off, the guest's page knocks at the room again at once ("Reconnecting to
-   your host…"), and is back in a few seconds; reloaded, it joins again without a click. The codes are shown only if
-   the room does not answer.
+   code above) - a **knock** - and waits ("Waiting for your host to let you in…", five minutes at most). The host's
+   page takes what was left at its room every second, and asks the host over the lobby or the game: **At the door -
+   Gus wants to join - Let in / Turn away** (`ui/PeerKnocks.tsx`). Let in, the host's page answers the code, the
+   guest's page takes the answer, and the channel opens; turned away, the guest's page says "The host did not let you
+   in." A guest needs no account.
+3. **Coming back is by itself.** A knock from a player already at the game - by their tab's id - is let in without
+   asking. Cut off, the guest's page knocks at the room again at once ("Reconnecting to your host…"), and is back in
+   a few seconds; reloaded, it joins again without a click. The codes are shown only if the room does not answer.
+
+**The host removes a guest** with **Remove** beside their name under **Your guests** (the lobby, or the players'
+panel): their page is told and let go, their seats are nobody's (the host plays those characters), and everybody is
+told the table. The removed guest's page says "The host removed you from the game. You play on alone.", drops the
+table and plays on by itself, and does not knock again; opened again from the link, they knock as anybody does, and
+it is the host's to let them in again. Codes carried by hand are the host's consent already: the host pastes them.
 
 Only the codes pass through the server, and only until they are taken: nothing of the game does. The relay keeps its
 rooms in memory alone, never in `data/`. A room is as hard to guess as a game's invitation, and goes ten minutes after
@@ -148,8 +157,8 @@ without them. What is done instead:
   on one machine.
 - **Tests:** `server/serve/src/peer.rs` and `server/serve/tests/peer_routes.rs` (the relay: who may open a room, a knock
   taken once and answered once and only by the host, the limits, a room gone), `tests/e2e/peer-relay.spec.ts` (on the
-  server alone: the host's link, a guest with no account joining by one click, back by itself after a drop and after
-  a reload), `src/game/peer/*.test.ts` (the relay asked from the page; the table played by the real engine; the link, and a guest's link lost and
+  server alone: the host's link, a guest with no account joining by one click and let in, back by itself after a drop
+  and after a reload; a stranger turned away; a guest removed, told so, not back by themselves, let in again), `src/game/peer/*.test.ts` (the relay asked from the page; the table played by the real engine; the link, and a guest's link lost and
   come back; the codes, each of its kind; a save's seats, matched by name), `tests/e2e/peer-saves.spec.ts` (an evening
   saved and hosted again from a new tab, the guest's seat kept and theirs by name as they come from a browser of
   their own), `tests/e2e/peer-rejoin.spec.ts` (a guest cut off in the same tab, and one
@@ -172,7 +181,8 @@ without them. What is done instead:
 | `src/game/peer/peer-play.ts` | the page's peer mode: who it is, the table, the wire's way in, inviting |
 | `src/game/ui/PeerJoin.tsx` | the guest's screen before boot |
 | `src/game/ui/PeerInvites.tsx` | the host's invitations, and the answer to a player's own code, in the lobby and the players' panel |
-| `src/game/ui/PeerRejoin.tsx` | a guest cut off from the host, coming back in the same tab |
+| `src/game/ui/PeerRejoin.tsx` | a guest cut off from the host, coming back in the same tab; or told they were removed |
+| `src/game/ui/PeerKnocks.tsx` | the host's door: who knocked at the room, let in or turned away |
 | `src/game/peer/table-saves.ts` | the host's saves, who played whom kept with each |
 | `src/game/peer/relay.ts` | the server's relay, from the page: a room, knocks, answers, the link |
 | `server/serve/src/peer.rs` | the relay: the codes carried, in memory, for those who open a room's link |

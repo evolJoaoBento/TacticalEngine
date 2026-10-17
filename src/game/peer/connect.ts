@@ -213,6 +213,16 @@ export async function ask(who: Member, iceServers: RTCIceServer[] = iceFrom()): 
   };
 }
 
+/** Who a guest's own code says they are, before it is answered; `null` for anything that is not one. */
+export async function whoAsks(code: string): Promise<Member | null> {
+  try {
+    const asked = await carried(code, 'rejoin', true);
+    return { id: asked.who!.id, name: asked.who!.name };
+  } catch {
+    return null;
+  }
+}
+
 /** A guest's code pasted by the host: who sent it, the answer to send back, and the channel it opens. */
 export async function answer(code: string, iceServers: RTCIceServer[] = iceFrom()): Promise<{ who: Member; code: string; channel: Promise<RTCDataChannel> }> {
   const asked = await carried(code, 'rejoin', true);

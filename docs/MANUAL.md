@@ -127,9 +127,15 @@ they join, as long as they use the same name as before.
 
 When the game is served by your own Rust server (`npm run dev`, or through the tunnel) and you are
 signed in, the lobby also shows **Send everybody this link**. A friend opens it, gives a name and
-presses **Join**, and they are at the table, with no codes to pass back and forth. If their
-connection drops, or they reload the page, they come back on their own. The codes are still there
-for anyone the link doesn't work for.
+presses **Join**. You see **Gus wants to join** at the top of your screen, with **Let in** and
+**Turn away**. Let them in and they're at the table, with no codes to pass back and forth. Turn
+them away and their page tells them so. If a player who's already at the table loses their
+connection or reloads the page, they come back on their own without asking you again. The codes
+are still there for anyone the link doesn't work for.
+
+To take a player out of the game, press **Remove** beside their name under **Your guests**, in the
+lobby or the settings (Escape). Their page tells them, and you play their characters. If they open
+the link again, you're asked again whether to let them in.
 
 ### Accounts and the Store
 

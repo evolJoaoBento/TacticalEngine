@@ -6,9 +6,11 @@
 //! sends the link to it. A guest's page knocks with its own code (`POST /__peer/rooms/<room>/knock` `{ code }`:
 //! `{ knock }`); the host's page takes the knocks (`GET /__peer/rooms/<room>/knocks`, the secret in `x-peer-secret`:
 //! `{ knocks: [{ knock, code }] }`, each given once), answers each (`POST /__peer/rooms/<room>/answers/<knock>`
-//! `{ code }`, the secret again), and the guest's page takes the answer (`GET /__peer/rooms/<room>/answers/<knock>`:
-//! `{ code }`, given once, or `{ code: null }` until there is one). A guest needs no account: the room's id and the
-//! knock's are as hard to guess as a game's invitation, which is what the server's own games ask of a guest too.
+//! `{ code }`, the secret again) - or turns it away (`{ refused: true }`) - and the guest's page takes the answer
+//! (`GET /__peer/rooms/<room>/answers/<knock>`: `{ code }`, given once, `{ refused: true }`, or `{ code: null }` until
+//! there is one). A guest needs no account: the room's id and the knock's are as hard to guess as a game's invitation,
+//! which is what the server's own games ask of a guest too; and the host's page lets in only those it plays with
+//! already, asking its player about anybody else.
 //!
 //! Kept in memory alone, never in `data/`. A room is gone once its host has not taken its knocks for `ROOM_FOR` -
 //! the host's page asks every second or so while it is open, and once a minute behind other tabs. Each code is at most `CODE_LONGEST` bytes, a room holds
@@ -56,8 +58,19 @@ struct Room {
     seen: Instant,
     /// Knocks the host has not taken yet, oldest first.
     knocks: Vec<(String, String)>,
-    /// Every knock handed out, and the answer to it once the host has given one.
-    answers: HashMap<String, Option<String>>,
+    /// Every knock handed out, and the host's answer to it.
+    answers: HashMap<String, Answer>,
+}
+
+/// The host's answer to a knock, as the guest's page is given it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Answer {
+    /// None yet - or the one there was, taken.
+    Waiting,
+    /// The host's code, for the guest's page to take once.
+    Code(String),
+    /// Turned away: said every time it is asked.
+    Refused,
 }
 
 /// Every room, kept in memory.
@@ -108,7 +121,7 @@ impl Rooms {
         }
         let knock = fresh_hex(16);
         found.knocks.push((knock.clone(), code.to_string()));
-        found.answers.insert(knock.clone(), None);
+        found.answers.insert(knock.clone(), Answer::Waiting);
         Ok(knock)
     }
 
@@ -119,20 +132,25 @@ impl Rooms {
         Ok(std::mem::take(&mut found.knocks))
     }
 
-    /// The host's answer to a knock, left for the guest.
-    pub fn answer(&mut self, room: &str, secret: &str, knock: &str, code: &str, now: Instant) -> Result<(), Refused> {
-        check(code)?;
+    /// The host's answer to a knock - their code, or `None` to turn the guest away - left for the guest.
+    pub fn answer(&mut self, room: &str, secret: &str, knock: &str, code: Option<&str>, now: Instant) -> Result<(), Refused> {
+        if let Some(code) = code {
+            check(code)?;
+        }
         let found = self.hosted(room, secret, now)?;
         let slot = found.answers.get_mut(knock).ok_or(Refused(StatusCode::NOT_FOUND, "no such knock"))?;
-        *slot = Some(code.to_string());
+        *slot = code.map_or(Answer::Refused, |code| Answer::Code(code.to_string()));
         Ok(())
     }
 
-    /// The answer to a knock, given once; `None` until the host has given one.
-    pub fn answered(&mut self, room: &str, knock: &str, now: Instant) -> Result<Option<String>, Refused> {
+    /// The answer to a knock: a code given once, a refusal every time, else waiting.
+    pub fn answered(&mut self, room: &str, knock: &str, now: Instant) -> Result<Answer, Refused> {
         let found = self.room(room, now)?;
         let slot = found.answers.get_mut(knock).ok_or(Refused(StatusCode::NOT_FOUND, "no such knock"))?;
-        Ok(slot.take())
+        Ok(match slot {
+            Answer::Refused => Answer::Refused,
+            _ => std::mem::replace(slot, Answer::Waiting),
+        })
     }
 }
 
@@ -170,14 +188,18 @@ fn header_of(headers: &HeaderMap) -> impl Fn(&str) -> Option<String> + '_ {
     |name: &str| headers.get(name).and_then(|v| v.to_str().ok()).map(str::to_string)
 }
 
-/// A POST the page sent, and the code in its body.
-async fn posted(method: &Method, headers: &HeaderMap, body: Body) -> Result<String, Refused> {
+/// A POST the page sent, and its body.
+async fn posted_body(method: &Method, headers: &HeaderMap, body: Body) -> Result<Value, Refused> {
     if from_the_page(method.as_str(), header_of(headers)).is_some() {
         return Err(Refused(StatusCode::FORBIDDEN, "not from the page"));
     }
     let bytes = to_bytes(body, CODE_LONGEST * 2).await.map_err(|_| Refused(StatusCode::PAYLOAD_TOO_LARGE, "that code is too long"))?;
-    let value: Value = serde_json::from_slice(&bytes).map_err(|_| Refused(StatusCode::BAD_REQUEST, "not a code"))?;
-    value["code"].as_str().map(str::to_string).ok_or(Refused(StatusCode::BAD_REQUEST, "no code"))
+    serde_json::from_slice(&bytes).map_err(|_| Refused(StatusCode::BAD_REQUEST, "not a code"))
+}
+
+/// A POST the page sent, and the code in its body.
+async fn posted(method: &Method, headers: &HeaderMap, body: Body) -> Result<String, Refused> {
+    posted_body(method, headers, body).await?["code"].as_str().map(str::to_string).ok_or(Refused(StatusCode::BAD_REQUEST, "no code"))
 }
 
 impl Relay {
@@ -223,11 +245,17 @@ async fn knocks(State(relay): State<Relay>, Route(room): Route<String>, headers:
 
 async fn answer(State(relay): State<Relay>, Route((room, knock)): Route<(String, String)>, method: Method, headers: HeaderMap, body: Body) -> Response {
     let secret = header_of(&headers)(SECRET_HEADER).unwrap_or_default();
-    let code = match posted(&method, &headers, body).await {
-        Ok(code) => code,
+    let said = match posted_body(&method, &headers, body).await {
+        Ok(said) => said,
         Err(why) => return refused(why),
     };
-    match relay.rooms().answer(&room, &secret, &knock, &code, Instant::now()) {
+    // Their code, or the guest turned away.
+    let code = match (said["code"].as_str(), said["refused"] == true) {
+        (Some(code), false) => Some(code.to_string()),
+        (None, true) => None,
+        _ => return refused(Refused(StatusCode::BAD_REQUEST, "a code, or refused")),
+    };
+    match relay.rooms().answer(&room, &secret, &knock, code.as_deref(), Instant::now()) {
         Ok(()) => reply(StatusCode::OK, json!({ "ok": true })),
         Err(why) => refused(why),
     }
@@ -235,7 +263,9 @@ async fn answer(State(relay): State<Relay>, Route((room, knock)): Route<(String,
 
 async fn answered(State(relay): State<Relay>, Route((room, knock)): Route<(String, String)>) -> Response {
     match relay.rooms().answered(&room, &knock, Instant::now()) {
-        Ok(code) => reply(StatusCode::OK, json!({ "code": code })),
+        Ok(Answer::Waiting) => reply(StatusCode::OK, json!({ "code": null })),
+        Ok(Answer::Code(code)) => reply(StatusCode::OK, json!({ "code": code })),
+        Ok(Answer::Refused) => reply(StatusCode::OK, json!({ "refused": true })),
         Err(why) => refused(why),
     }
 }
@@ -265,12 +295,17 @@ mod tests {
         assert_eq!(rooms.knocks(&room, "wrong", now), Err(Refused(StatusCode::FORBIDDEN, "not this room's host")));
         assert_eq!(rooms.knocks(&room, &secret, now).unwrap(), vec![(knock.clone(), "TE1.mine".to_string())]);
         assert_eq!(rooms.knocks(&room, &secret, now).unwrap(), vec![]);
-        assert_eq!(rooms.answered(&room, &knock, now), Ok(None));
-        assert_eq!(rooms.answer(&room, "wrong", &knock, "TE1.yours", now), Err(Refused(StatusCode::FORBIDDEN, "not this room's host")));
-        assert_eq!(rooms.answer(&room, &secret, "nobody", "TE1.yours", now), Err(Refused(StatusCode::NOT_FOUND, "no such knock")));
-        rooms.answer(&room, &secret, &knock, "TE1.yours", now).unwrap();
-        assert_eq!(rooms.answered(&room, &knock, now), Ok(Some("TE1.yours".to_string())));
-        assert_eq!(rooms.answered(&room, &knock, now), Ok(None));
+        assert_eq!(rooms.answered(&room, &knock, now), Ok(Answer::Waiting));
+        assert_eq!(rooms.answer(&room, "wrong", &knock, Some("TE1.yours"), now), Err(Refused(StatusCode::FORBIDDEN, "not this room's host")));
+        assert_eq!(rooms.answer(&room, &secret, "nobody", Some("TE1.yours"), now), Err(Refused(StatusCode::NOT_FOUND, "no such knock")));
+        rooms.answer(&room, &secret, &knock, Some("TE1.yours"), now).unwrap();
+        assert_eq!(rooms.answered(&room, &knock, now), Ok(Answer::Code("TE1.yours".to_string())));
+        assert_eq!(rooms.answered(&room, &knock, now), Ok(Answer::Waiting));
+        // Another, turned away: said so every time it is asked.
+        let other = rooms.knock(&room, "TE1.another", now).unwrap();
+        rooms.answer(&room, &secret, &other, None, now).unwrap();
+        assert_eq!(rooms.answered(&room, &other, now), Ok(Answer::Refused));
+        assert_eq!(rooms.answered(&room, &other, now), Ok(Answer::Refused));
         assert_eq!(rooms.knock("nowhere", "TE1.x", now), Err(Refused(StatusCode::NOT_FOUND, "no such room")));
     }
 

@@ -8,8 +8,10 @@
  * over through the channel, and boots over it - then the wire joins the game over the same channel.
  *
  * Where the Rust server serves the page, it carries the codes too (`relay.ts`): the host's page opens a room
- * (`openHostRoom`) whose link a guest opens, and answers every knock at it by itself; a guest's page knocks there
- * (`meetAtRoom`) to join, to come back after a reload, and to come back when its link drops - nobody pasting anything.
+ * (`openHostRoom`) whose link a guest opens; a guest's page knocks there (`meetAtRoom`) to join, to come back after
+ * a reload, and to come back when its link drops - nobody pasting anything. The host's page lets in by itself only a
+ * player already at the game; anybody else waits for the host to let them in or turn them away (`knocking`). And the
+ * host removes a guest (`HostTable.remove`): their page is told, and does not try to come back by itself.
  * Where it does not, or the room cannot be had, the codes are carried by hand as before.
  *
  * Who a page is at a peer game (`peerSelf`): an id of its own, kept for the tab (a reload keeps it; another tab,
@@ -18,9 +20,9 @@
  */
 
 import type { Transport, WireOptions } from '../wire';
-import { HostTable, type Member } from './host-table';
+import { HostTable, REMOVED, type Member } from './host-table';
 import { LinkTransport, channelLink, heldLink, linkedPorts, type Link } from './link';
-import { answer, ask, invite, type Invitation } from './connect';
+import { answer, ask, invite, whoAsks, type Invitation } from './connect';
 import { answerKnock, knock, openRoom, relayAllowed, roomLink, takeKnocks, waitForAnswer, type Room, type Waiting } from './relay';
 
 export type PeerMode = 'host' | 'join';
@@ -117,9 +119,36 @@ function setLost(now: boolean): void {
   for (const listener of losing) listener(now);
 }
 
-/** A guest's channel to the host as the link they play over: lost when it closes, unless another came since. */
+/** Whether the host removed this page's player from the game, and who is told when they do. */
+let removed = false;
+const removing = new Set<() => void>();
+
+/** Whether the host removed this page's player from the game: it does not try to come back by itself. */
+export function peerRemoved(): boolean {
+  return removed;
+}
+
+/** Told when the host removes this page's player; what to call to stop. */
+export function onPeerRemoved(listener: () => void): () => void {
+  removing.add(listener);
+  return () => removing.delete(listener);
+}
+
+/**
+ * A guest's channel to the host as the link they play over: lost when it closes, unless another came since - and the
+ * host's word that they are removed heard on it, never handed to the wire.
+ */
 function linked(channel: RTCDataChannel): Link {
-  const link = channelLink(channel);
+  const raw = channelLink(channel);
+  const link: Link = {
+    ...raw,
+    onText: (heard) =>
+      raw.onText((text) => {
+        if (text !== REMOVED) return heard(text);
+        removed = true;
+        for (const listener of removing) listener();
+      }),
+  };
   guestLink = link;
   link.onClose(() => {
     if (guestLink !== link) return;
@@ -267,16 +296,76 @@ export function onHostRoom(listener: (link: string | null) => void): () => void 
 export const KNOCKS_EVERY = 1000;
 export const ROOM_LOST_AFTER = 5;
 
-/** What the host's room is run with: the relay, and how a knock is answered - a test's own. */
+/** What the host's room is run with: the relay, and how a knock is read and answered - a test's own. */
 export interface RoomHands {
   openRoom: typeof openRoom;
   takeKnocks: typeof takeKnocks;
   answerKnock: typeof answerKnock;
   answerGuest: typeof answerGuest;
+  whoAsks: typeof whoAsks;
   every?: number;
 }
 
-const HANDS: RoomHands = { openRoom, takeKnocks, answerKnock, answerGuest };
+const HANDS: RoomHands = { openRoom, takeKnocks, answerKnock, answerGuest, whoAsks };
+
+/** Somebody at the host's room, not at the game, waiting for the host to let them in or turn them away. */
+export interface Knocking {
+  knock: string;
+  who: Member;
+}
+
+interface Waiter extends Knocking {
+  at: Room;
+  code: string;
+  hands: RoomHands;
+}
+
+let knocks: Waiter[] = [];
+const knocksHeard = new Set<(knocks: Knocking[]) => void>();
+
+function setKnocks(next: Waiter[]): void {
+  knocks = next;
+  const said = knocking();
+  for (const listener of knocksHeard) listener(said);
+}
+
+/** Who is waiting at the host's room to be let in, first come first. */
+export function knocking(): Knocking[] {
+  return knocks.map(({ knock: knocked, who }) => ({ knock: knocked, who }));
+}
+
+/** Told whenever somebody knocks, or is let in or turned away; what to call to stop. */
+export function onKnocks(listener: (knocks: Knocking[]) => void): () => void {
+  knocksHeard.add(listener);
+  return () => knocksHeard.delete(listener);
+}
+
+/** Somebody waiting let in, as the host says: answered, and at the table once their page takes the answer. */
+export function letIn(knocked: string): void {
+  const found = knocks.find((k) => k.knock === knocked);
+  if (found === undefined) return;
+  setKnocks(knocks.filter((k) => k !== found));
+  void answerAt(found.at, found.knock, found.code, found.hands);
+}
+
+/** Somebody waiting turned away, as the host says: their page told so. */
+export function turnAway(knocked: string): void {
+  const found = knocks.find((k) => k.knock === knocked);
+  if (found === undefined) return;
+  setKnocks(knocks.filter((k) => k !== found));
+  void found.hands.answerKnock(found.at, found.knock, null);
+}
+
+/** A knock taken: let in by itself if it is a player at the game already, turned away if it is no code, else waiting. */
+async function sortKnock(at: Room, knocked: string, code: string, hands: RoomHands): Promise<void> {
+  const who = await hands.whoAsks(code);
+  if (who === null) {
+    await hands.answerKnock(at, knocked, null);
+    return;
+  }
+  if (table?.isMember(who.id) === true) return answerAt(at, knocked, code, hands);
+  setKnocks([...knocks, { knock: knocked, who, at, code, hands }]);
+}
 
 /**
  * A room opened at the relay for the host's game, where there is one and the host is signed in: its knocks taken
@@ -295,15 +384,15 @@ export async function openHostRoom(hands: RoomHands = HANDS, allowed: boolean = 
     taking = true;
     void hands
       .takeKnocks(opened)
-      .then((knocks) => {
-        if (knocks === null) {
+      .then((taken) => {
+        if (taken === null) {
           if (++failed < ROOM_LOST_AFTER) return;
           closeHostRoom();
           void openHostRoom(hands, allowed);
           return;
         }
         failed = 0;
-        for (const { knock: knocked, code } of knocks) void answerAt(opened, knocked, code, hands);
+        for (const { knock: knocked, code } of taken) void sortKnock(opened, knocked, code, hands);
       })
       .finally(() => (taking = false));
   }, hands.every ?? KNOCKS_EVERY);
@@ -315,6 +404,7 @@ export function closeHostRoom(): void {
   if (polling !== null) clearInterval(polling);
   polling = null;
   setRoom(null);
+  setKnocks([]);
 }
 
 /** A knock answered: the guest's code answered by the host's page, the answer left at the room for them. */
@@ -329,15 +419,16 @@ async function answerAt(at: Room, knocked: string, code: string, hands: RoomHand
 
 /**
  * A guest's page meeting the host at a room: its own code left there, the host's answer waited for, the channel
- * open - `null` when the room is gone, nobody answers in time, or the channel never opens.
+ * open - `'refused'` when the host turned them away, `null` when the room is gone, nobody answers in time, or the
+ * channel never opens.
  */
-export async function meetAtRoom(at: string, waiting: Waiting = {}, knocking: typeof knock = knock, asking: typeof ask = ask): Promise<RTCDataChannel | null> {
+export async function meetAtRoom(at: string, waiting: Waiting = {}, knocking: typeof knock = knock, asking: typeof ask = ask): Promise<RTCDataChannel | 'refused' | null> {
   const asked = await asking(peerSelf());
   const knocked = await knocking(at, asked.code, waiting.send);
   const answered = knocked === null ? null : await waitForAnswer(at, knocked, waiting);
-  if (answered === null) {
+  if (answered === null || answered === false) {
     asked.close();
-    return null;
+    return answered === false ? 'refused' : null;
   }
   try {
     return await asked.accept(answered);

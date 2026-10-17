@@ -33,8 +33,9 @@ import { loadAccountSaves } from './account-saves';
 import { SaveSlots, browserStore, type SaveShelf } from './save-slots';
 import { talkingAside } from './talks';
 import { friendDid, playAs } from './friends';
-import { hostTable, openHostRoom, peerMode, peerWire, prepareHost } from './peer/peer-play';
+import { hostTable, onPeerRemoved, openHostRoom, peerMode, peerWire, prepareHost } from './peer/peer-play';
 import { TableSaves, seatingOf } from './peer/table-saves';
+import { watchKnocks } from './ui/PeerKnocks';
 
 export type { GameClient, LocalPowers } from './client';
 
@@ -178,6 +179,16 @@ function wireUp(game: GameTable, demo: DemoScene, resume: boolean): void {
   wire.onFriends(friendDid);
   wired = wire;
   tableOf(wire, () => demo.party.members().map((id) => ({ id, name: nameOf(demo, id) })));
+  // A peer game's guest the host removed: at no table now, the game theirs alone to play on.
+  if (peer !== null && peerMode() === 'join') {
+    onPeerRemoved(() => {
+      if (wired !== wire) return;
+      wire.close();
+      wired = null;
+      tableOf(null);
+      game.unwired();
+    });
+  }
   publishCount(undefined, () => wire.status());
 }
 
@@ -204,8 +215,10 @@ async function hostEngine(): Promise<void> {
     readSave: (slot) => seatingOf(savesFor(), slot),
     testHands: import.meta.env.DEV,
   });
-  // Where the server serves the page, a room at its relay: a link for the guests in place of codes (`relay.ts`).
+  // Where the server serves the page, a room at its relay: a link for the guests in place of codes (`relay.ts`), and
+  // the host asked about whoever knocks there who is not at the game.
   void openHostRoom();
+  watchKnocks();
 }
 
 /** Whether the page was reloaded rather than opened: a reload comes back to the game the server kept. */

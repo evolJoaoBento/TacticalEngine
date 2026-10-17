@@ -7,8 +7,9 @@
  * the project is in - and from then on the page watches for its link to the host dropping (`PeerRejoin.tsx`).
  *
  * Opened with a room's link (`?room=`, where the Rust server carries the codes - `relay.ts`), one **Join** does it:
- * the guest's code left at the room, the host's page answering by itself (`meetAtRoom`). A tab that joined at that room
- * before - reloaded - joins again by itself. The codes stay below, for when the room does not answer.
+ * the guest's code left at the room, and the host letting them in (`meetAtRoom`) - or turning them away, which they
+ * are told. A tab that joined at that room before - reloaded - joins again by itself, the host's page letting a player
+ * already at the game in without asking. The codes stay below, for when the room does not answer.
  */
 
 import { h, render } from 'preact';
@@ -21,8 +22,12 @@ import { watchRejoin } from './PeerRejoin';
 
 type Stage = { at: 'paste' } | { at: 'making' } | { at: 'reply'; code: string } | { at: 'asking'; asked: Asked } | { at: 'meeting' } | { at: 'joining' };
 
-/** Why a room did not answer, as the guest is told it. */
+/** Why a room did not answer, as the guest is told it; and that the host turned them away. */
 const UNANSWERED = 'Your host did not answer: their page may be closed. Ask them for a new link, or use codes below.';
+const TURNED_AWAY = 'The host did not let you in.';
+
+/** How long a guest waits at a room for the host to let them in (ms): the host may be in the middle of something. */
+export const JOIN_WAIT = 5 * 60_000;
 
 function PeerJoin({ joined }: { joined: (project: unknown) => void }): preact.JSX.Element {
   const [name, setName] = useState(new URLSearchParams(location.search).get('as') ?? lastName() ?? '');
@@ -69,7 +74,8 @@ function PeerJoin({ joined }: { joined: (project: unknown) => void }): preact.JS
     renamed(nameFrom(name, 'Guest'));
     setStage({ at: 'meeting' });
     try {
-      const channel = await meetAtRoom(at);
+      const channel = await meetAtRoom(at, { within: JOIN_WAIT });
+      if (channel === 'refused') throw new Error(TURNED_AWAY);
       if (channel === null) throw new Error(UNANSWERED);
       keepRoom(at);
       await over(channel);
@@ -158,7 +164,7 @@ function PeerJoin({ joined }: { joined: (project: unknown) => void }): preact.JS
           </div>
         ) : stage.at === 'meeting' ? (
           <p className="panel-sub" data-testid="peer-join-meeting">
-            Knocking at your host's game…
+            Waiting for your host to let you in…
           </p>
         ) : (
           <p className="panel-sub" data-testid="peer-join-joining">

@@ -272,6 +272,13 @@ export abstract class GameTable implements GameClient, LocalPowers {
     });
   }
 
+  /** No longer held to a shared game - a peer game's guest the host removed: played alone, for everybody. */
+  unwired(): void {
+    this.wire = null;
+    this.seated();
+    this.behind = true;
+  }
+
   /** Whom this game plays for at a shared game, as its wire last heard (`Wire.seating`); everybody without one. */
   protected seating(): unknown {
     return this.wire?.seating() ?? null;
