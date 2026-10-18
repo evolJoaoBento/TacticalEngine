@@ -427,6 +427,10 @@ Settings sit under headings, and there is room for more of both.
   logged and paid for. Off to begin with - and off, a jump you roll for by hand is not drawn
   until you have read the result and pressed **Accept**: the card holds the dice, and the
   character stands where they were until it is put away.
+- **Look → Reflected light** - the light the room gives back: stone and brick look rough and
+  matte, polished and wet things catch the light, and a material's shading and roughness read
+  fully. On to begin with. Off is the flatter look the game had before, and a little less work
+  for a slow machine.
 
 ### The hand
 

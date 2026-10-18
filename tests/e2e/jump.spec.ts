@@ -188,7 +188,10 @@ test('the player keeps a setting in the browser to roll jumps without being aske
   await auto.check();
   // Drawn on, not only ticked: the track goes to ink once the switch has finished moving.
   await expect.poll(() => auto.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgb(74, 61, 46)');
-  expect(JSON.parse((await page.evaluate(() => localStorage.getItem('tactical-engine:user-settings')))!)).toEqual({ autoRollJumps: true });
+  expect(JSON.parse((await page.evaluate(() => localStorage.getItem('tactical-engine:user-settings')))!)).toEqual({ autoRollJumps: true, reflections: true });
+  // The room's light, under its own heading, on to begin with.
+  await expect(box.locator('[data-section="Look"]')).toContainText('Reflected light');
+  await expect(box.getByTestId('setting-reflections')).toBeChecked();
   await page.screenshot({ path: 'test-results/user-settings.png' });
   // The keys are the sheet's while it is up: Tab does not pass the selection round the party behind it.
   const selected = await page.evaluate(() => window.__engine!.selected());
@@ -216,7 +219,7 @@ test('the player keeps a setting in the browser to roll jumps without being aske
   await page.keyboard.press('Escape');
   await expect(page.getByTestId('setting-autoRollJumps')).toBeChecked();
   await page.getByTestId('setting-autoRollJumps').uncheck();
-  expect(JSON.parse((await page.evaluate(() => localStorage.getItem('tactical-engine:user-settings')))!)).toEqual({ autoRollJumps: false });
+  expect(JSON.parse((await page.evaluate(() => localStorage.getItem('tactical-engine:user-settings')))!)).toEqual({ autoRollJumps: false, reflections: true });
   await page.getByTestId('close-settings').click();
   await expect(page.getByTestId('user-settings')).toHaveCount(0);
   expect(await page.evaluate(() => window.__engine!.errors)).toEqual([]);

@@ -15,6 +15,7 @@
 import { Fragment, h, render } from 'preact';
 import { PCFShadowMap, Plane, PerspectiveCamera, Raycaster, Vector2, Vector3, WebGLRenderer, type Intersection, type Mesh, type Object3D } from 'three';
 import { SurfaceLibrary } from './engine/render/surface-library'; import { surfaceTextureLoader } from './engine/render/surface-textures';
+import { roomEnvironment } from './engine/render/light-rig'; import { onUserSettings, userSettings, type UserSettings } from './game/user-settings';
 import { EditorController } from './editor/controller';
 import { placementRotation } from './editor/placement-rotation';
 import { EDITOR_MODES, type EditorMode } from './editor/modes';
@@ -380,6 +381,7 @@ const view = new SceneView(game.board.grid, {
 view.setScenery(game.board.scene);
 view.syncTokens(game.board.state);
 surfaces.setAll(game.board.project.surfaces ?? []); view.setSurfaces(surfaces); const buildings = new BuildingView({ surfaces }); // kinds of ground drawn in materials too
+const environment = roomEnvironment(renderer); const lighting = (settings: UserSettings): void => view.setEnvironment(settings.reflections ? environment : null); lighting(userSettings()); onUserSettings(lighting); // the light the room gives back, the player's to turn off
 view.scene.add(buildings.root);
 // `game.board.grid`, not `activeGrid`: that binding is declared further down, initialised to this
 buildings.sync(game.board.scene, game.board.grid.palette);

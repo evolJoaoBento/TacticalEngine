@@ -32,11 +32,12 @@ import {
   Object3D,
   type Raycaster,
   Scene,
+  type Texture,
 } from 'three';
 import { NO_TILE, type Spot, type TileGrid } from '../grid/grid';
 import type { SurfaceLibrary } from './surface-library';
 import { paintGround, paintedGround } from './ground-surfaces';
-import { addLightRig, fitSun } from './light-rig';
+import { addLightRig, fitSun, setEnvironment, type LightRig } from './light-rig';
 import { advanceGlide, planGlide, type Glide } from './glide';
 import { TrajectoryLine, type AimedArc } from './trajectory-line';
 import { ReachRing } from './reach-ring';
@@ -272,6 +273,7 @@ export class SceneView {
   private selectionId: string | null = null;
   /** The sun, kept so its shadow map can be let go with the rest. */
   private sun: DirectionalLight | null = null;
+  private rig: LightRig | null = null;
   /** The imported materials kinds of ground may be drawn in (`setSurfaces`). */
   private surfaces: SurfaceLibrary | null = null;
   private unsubscribeSurfaces: () => void = () => undefined;
@@ -435,8 +437,14 @@ export class SceneView {
 
   /** The light rig (`light-rig.ts`): a sky, a little ambient, and a sun that casts, fitted to the room. */
   private addLights(): void {
-    this.sun = addLightRig(this.scene);
+    this.rig = addLightRig(this.scene);
+    this.sun = this.rig.sun;
     this.fitSun();
+  }
+
+  /** The light the room gives back (`roomEnvironment`), or none: the rig as it always was. */
+  setEnvironment(environment: Texture | null): void {
+    if (this.rig !== null) setEnvironment(this.scene, this.rig, environment);
   }
 
   /** Put the sun where this room wants it, with its shadow camera round the whole room. */

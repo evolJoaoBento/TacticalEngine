@@ -21,6 +21,16 @@ own; the fight's spotlight, the GM's turn and the questions go as at a server's 
 the real engine (`src/game/peer/*.test.ts`), and `tests/e2e/peer.spec.ts` in two browsers. Next: an evening across
 two real networks.
 
+## The light the room gives back (an environment map) — done
+
+`render/light-rig.ts`: `roomEnvironment` prefilters a little room of the rig's own colours - the candle sky over the
+plum floor, a bright patch where the sun stands - and `setEnvironment` gives it to the scene at 0.55, the ambient and
+the sky light stepping down (0.42 to 0.22, 0.6 to 0.3) since it lights what they lit. So a material's roughness shapes
+its indirect light as well as the sun's highlight, and its occlusion has light to take away, while the look stays the
+painted one (before and after compared in play and in the editor). The player's settings have **Look → Reflected
+light**, on by default; off is the rig as it always was. Toon-shaded models do not take environment light, and are
+as they were. Tests: `light-rig.test.ts`, `user-settings.test.ts`, `tests/e2e/jump.spec.ts` (the switch).
+
 ## The ground drawn in a material — done
 
 A kind of ground that names a surface (`TerrainType.surface`, which every kind already had) is drawn in it: its
@@ -53,7 +63,6 @@ with the project (one nothing uses is left out), checked, drawn in play too.
 
 Follow-ups, not built:
 - **Self-shadowing parallax**: a second loop towards the light, gated by a define; declined for now.
-- **An environment map**: without one, roughness only shapes the direct light's highlight; a global look change.
 - **Silhouettes**: parallax cannot move a box's outline; inherent to the technique.
 - Downloading by ambientCG id, sharing materials across projects, shipped starter materials.
 

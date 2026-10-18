@@ -27,16 +27,16 @@ describe('the settings a player keeps in their browser', () => {
   });
 
   it('start as the defaults: jumps are asked about, not rolled for them', () => {
-    expect(userSettings()).toEqual({ autoRollJumps: false });
+    expect(userSettings()).toEqual({ autoRollJumps: false, reflections: true });
     expect(userSettingsSchema.parse({})).toEqual(userSettings());
   });
 
   it('are kept when changed, and are there when the page comes back', () => {
     setUserSetting('autoRollJumps', true);
     expect(userSettings().autoRollJumps).toBe(true);
-    expect(JSON.parse(localStorage.getItem(USER_SETTINGS_KEY)!)).toEqual({ autoRollJumps: true });
+    expect(JSON.parse(localStorage.getItem(USER_SETTINGS_KEY)!)).toEqual({ autoRollJumps: true, reflections: true });
     // The page again: nothing in memory, everything in the browser.
-    expect(reloadUserSettings()).toEqual({ autoRollJumps: true });
+    expect(reloadUserSettings()).toEqual({ autoRollJumps: true, reflections: true });
   });
 
   it('tell whoever is showing them, until they stop listening', () => {
@@ -51,10 +51,10 @@ describe('the settings a player keeps in their browser', () => {
   it('come back as the defaults from anything unreadable, and keep what is readable of the rest', () => {
     for (const kept of ['not json', '[]', '{"autoRollJumps":"yes"}', 'null']) {
       vi.stubGlobal('localStorage', fakeStorage({ [USER_SETTINGS_KEY]: kept }));
-      expect(reloadUserSettings()).toEqual({ autoRollJumps: false });
+      expect(reloadUserSettings()).toEqual({ autoRollJumps: false, reflections: true });
     }
     vi.stubGlobal('localStorage', fakeStorage({ [USER_SETTINGS_KEY]: '{"autoRollJumps":true,"somethingOlder":3}' }));
-    expect(reloadUserSettings()).toEqual({ autoRollJumps: true });
+    expect(reloadUserSettings()).toEqual({ autoRollJumps: true, reflections: true });
   });
 
   it('hold for the page when the browser will not keep them', () => {
@@ -63,7 +63,7 @@ describe('the settings a player keeps in their browser', () => {
     expect(() => setUserSetting('autoRollJumps', true)).not.toThrow();
     expect(userSettings().autoRollJumps).toBe(true);
     vi.stubGlobal('localStorage', undefined);
-    expect(reloadUserSettings()).toEqual({ autoRollJumps: false });
+    expect(reloadUserSettings()).toEqual({ autoRollJumps: false, reflections: true });
   });
 
   it('describe every setting the schema has, once, so the form can draw it', () => {
@@ -81,5 +81,7 @@ describe('the settings a player keeps in their browser', () => {
     expect(sections.map((entry) => entry.section)).toEqual([...new Set(USER_SETTINGS.map((def) => def.section))]);
     expect(sections.flatMap((entry) => entry.settings)).toHaveLength(USER_SETTINGS.length);
     expect(sections[0]).toMatchObject({ section: 'Dice', settings: [{ key: 'autoRollJumps' }] });
+    // The room's light, on unless the player turns it off.
+    expect(sections[1]).toMatchObject({ section: 'Look', settings: [{ key: 'reflections' }] });
   });
 });
