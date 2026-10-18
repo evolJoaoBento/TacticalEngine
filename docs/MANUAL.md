@@ -1107,9 +1107,13 @@ material is drawn flat, its normals still catching the light. Files it doesn't r
 map, a preview, `.usdc` and `.mtlx` files) are listed after the import.
 
 The select beside **+ Surface** sets how big the maps are kept: 512 pixels, 1K (the default) or 2K.
-The material is carried in the project file, like an imported model: at 1K one material is about
-3-4 MB, at 512 about a quarter of that. **Check** warns when the project's materials pass 8 MB.
-Saving leaves out a material no tile is drawn in.
+The importer compresses the maps for the graphics card (KTX2), so a 1K material takes about 4 MB of
+graphics memory rather than 16 MB, and many more fit before a computer or phone runs short. The first
+import of a session downloads the compressor (about 3 MB), and a 2K material can take several seconds
+to compress. If compressing fails, the material is imported uncompressed, and the import message says
+so and why. The material is carried in the project file, like an imported model: at 1K one is a few
+megabytes. **Check** warns when the project's materials pass 8 MB. Saving leaves out a material no tile
+is drawn in.
 
 Click a material to tune it, and the board redraws as you drag: **Size** (how many tiles one
 repeat of the texture covers), **Depth** (how far it reads into a face), **Normal strength** and

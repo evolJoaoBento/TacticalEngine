@@ -27,6 +27,9 @@ interface Loaded {
   flat: SurfaceMaterial;
 }
 
+/** Whether a texture is a compressed one (`CompressedTexture`), the GPU's own format. */
+const isCompressed = (texture: Texture): boolean => (texture as Texture & { isCompressedTexture?: boolean }).isCompressedTexture === true;
+
 /** Whether two surfaces' maps are the same maps. */
 const sameMaps = (a: TileSurface, b: TileSurface): boolean => a.maps.color === b.maps.color && a.maps.normalHeight === b.maps.normalHeight && a.maps.orm === b.maps.orm;
 
@@ -142,7 +145,9 @@ export class SurfaceLibrary {
           texture.wrapS = RepeatWrapping;
           texture.wrapT = RepeatWrapping;
           texture.anisotropy = this.anisotropy;
-          texture.generateMipmaps = true;
+          // A compressed map brings its mipmaps with it: WebGL cannot make them for a compressed format, and asking is
+          // an error. Any other has them made.
+          if (!isCompressed(texture)) texture.generateMipmaps = true;
           texture.needsUpdate = true;
         }
         const textures = { color, normalHeight, orm };

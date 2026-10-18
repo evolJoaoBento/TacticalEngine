@@ -21,6 +21,16 @@ own; the fight's spotlight, the GM's turn and the questions go as at a server's 
 the real engine (`src/game/peer/*.test.ts`), and `tests/e2e/peer.spec.ts` in two browsers. Next: an evening across
 two real networks.
 
+## Tile materials compressed for the GPU (KTX2) — done
+
+An imported material's three maps are encoded at import as KTX2 - UASTC, mipmaps in, Zstandard, flipped as an image is
+on upload; the normal and height spared the rate-distortion pass - by `ktx2-encoder` (Basis Universal, its 3.3 MB
+WebAssembly fetched only on an import), and loaded through three's `KTX2Loader`, transcoded for the GPU: about 4 MB of
+graphics memory a material at 1K instead of 16. Compressing failing, the maps are written as images as before, and the
+author told. Tests: `surface-edits.test.ts` (the encoding per map), `surface-library.test.ts` (no mipmaps asked of a
+compressed map), `tests/e2e/tile-surfaces.spec.ts` (the maps written as KTX2, the GPU holding them compressed).
+Follow-up: a material imported before is uncompressed until imported again - a "compress" button could do it in place.
+
 ## Tile materials: import a material, get four tiles — done
 
 An ambientCG zip (or a material's loose images), dropped in the Tiles workspace or on the Terrain strip, becomes a
@@ -32,7 +42,6 @@ with the project (one nothing uses is left out), checked, drawn in play too.
 Follow-ups, not built:
 - **Self-shadowing parallax**: a second loop towards the light, gated by a define; declined for now.
 - **Painted ground**: a material on the terrain mesh, which has no UVs yet (`terrain-mesh.ts`).
-- **KTX2 / Basis compression**: about 16 MB of GPU memory per material at 1K today.
 - **An environment map**: without one, roughness only shapes the direct light's highlight; a global look change.
 - **Silhouettes**: parallax cannot move a box's outline; inherent to the technique.
 - Downloading by ambientCG id, sharing materials across projects, shipped starter materials.

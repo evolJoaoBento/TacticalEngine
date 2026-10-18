@@ -191,6 +191,7 @@ adapter: the rest of the core does not know it exists.
 | `scene/building.ts`, `render/building-view.ts` | Sparse construction schema and chunked instanced LOD; `editor/building.ts` owns reversible cell edits. A chunk holds one instanced mesh per look - the plain box, or each imported material its pieces are drawn in - and is built again when a material it uses is (`signature`). |
 | `render/tile-surface.ts` | An imported material's shader: `MeshStandardMaterial` with its map chunks replaced - UVs projected from world position per face, parallax occlusion from the height map, the packed maps sampled with `textureGrad`. `REPLACED` names the chunks, held to three's by a test. |
 | `render/surface-library.ts` | `SurfaceLibrary` - the `AssetLibrary` of materials: each surface's three maps loaded once, a near (parallax) and a flat material shared by every piece; tuned in place (`revisionOf`), rebuilt only when its materials are new objects (`generationOf`). |
+| `render/surface-textures.ts` | How a material's maps load: a KTX2 map through `KTX2Loader` (three's Basis transcoder, served by `?url`), anything else through `TextureLoader`. |
 | `content/tile-surface-kit.ts` | Importing a material without a browser: which file is which map, the material's name, its four kinds of tile, the maps packed into three textures (`packMaps`), the mean colour. |
 | `render/procedural/` | `spec.ts`, `registry.ts` (falls back to a placeholder rather than throwing; `missing()` lists unresolved ids), `build.ts`, `library/{heroes,monsters,props}.ts`. The props library is empty: all fourteen were retired for imported models (`scene/retired-models.ts`). |
 
@@ -1006,8 +1007,16 @@ when the source changes; browser tests cover broken directory art, corrupt impor
   (`REPLACED`); a renamed chunk would make the replace do nothing. `tile-surface.test.ts` holds each name to
   `ShaderLib.standard`, so an upgrade that renames one fails there instead.
 
-- **Each imported material costs about 16 MB of GPU memory at 1K** (three textures with mipmaps). Ten materials are
-  about 160 MB; texture compression (KTX2) is the cure, and is in the backlog.
+- **An imported material's maps are KTX2 (UASTC), and that changes three things.** A compressed texture cannot have
+  its mipmaps made by WebGL - they are encoded in at import, and `SurfaceLibrary` never sets `generateMipmaps` on one
+  (asking is a GL error). Nor can it be flipped on upload: the maps are encoded flipped (`isYFlip`), so they meet the
+  shader the way an image with `flipY` does, and the parallax's sign holds. And it is a quarter of the memory - about
+  4 MB a material at 1K, not 16 - transcoded to BC7, ASTC or ETC as the GPU has (`surface-textures.ts`; a GPU with
+  none gets plain RGBA). A material imported before, or whose compressing failed, is PNG/WebP and loads as before.
+
+- **The encoder's WebAssembly is aliased by folder (`@ktx2-encoder-basis`).** Its package exports no path to it, and a
+  Vite alias matches a name or what is under it - never `name?url` - so the alias is the folder and the import is
+  `@ktx2-encoder-basis/basis_encoder.wasm?url`. It is fetched only on an import: a lazy `import()`, its own chunk.
 
 - **Name a creature with `nameOf` (`game/log.ts`), never its stat block.** A placement's own name
   rides on the entity (`EntityState.name`) and comes first; `adversaryDef(...).name` is what it is,

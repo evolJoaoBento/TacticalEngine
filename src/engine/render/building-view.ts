@@ -21,6 +21,7 @@ import type { SceneDoc } from '../scene/schema';
 import type { TerrainPalette } from '../grid/terrain';
 import { DEFAULT_LAYOUT } from './layout';
 import type { SurfaceLibrary } from './surface-library';
+import type { SurfaceMaterial } from './tile-surface';
 
 /** Tiles per chunk on each axis. One chunk is one draw call, so it sets the grain. */
 export const BUILD_CHUNK_SIZE = 16;
@@ -82,6 +83,8 @@ export interface BuildingStats {
   lods: number[];
   /** Instances drawn in an imported material rather than as plain boxes. */
   textured: number;
+  /** Of those, the instances whose material's maps the GPU holds compressed. */
+  compressed: number;
 }
 
 /**
@@ -413,13 +416,18 @@ export class BuildingView {
       triangles: 0,
       lods: [0, 0, 0],
       textured: 0,
+      compressed: 0,
     };
     for (const chunk of this.resident) {
       for (const mesh of chunk.meshes!) {
         const perInstance = mesh.geometry.index?.count ?? mesh.geometry.getAttribute('position').count;
         stats.instances += mesh.count;
         stats.triangles += perInstance / 3 * mesh.count;
-        if (mesh.material !== this.material) stats.textured += mesh.count;
+        if (mesh.material !== this.material) {
+          stats.textured += mesh.count;
+          const color = (mesh.material as SurfaceMaterial).userData.surfaceUniforms?.tColor.value as { isCompressedTexture?: boolean } | undefined;
+          if (color?.isCompressedTexture === true) stats.compressed += mesh.count;
+        }
       }
       stats.lods[chunk.lod!]!++;
     }

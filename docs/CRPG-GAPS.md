@@ -575,9 +575,10 @@ kinds of tile drawn in it - a block, a wall, a floor slab and a staircase - with
 UVs projected from world position so neighbouring pieces run on as one surface (`render/tile-surface.ts`,
 `docs/MANUAL.md`, "Surfaces").
 
+Their maps are compressed for the GPU at import (KTX2, 18 October 2026): a quarter of the memory.
+
 **Still open:** an imported model's own textures cannot be swapped or tinted; a material cannot paint the ground (the
-terrain mesh has no UVs); no self-shadowing in the parallax; no texture compression; a material's silhouette stays a
-box. (The file picker that used to be listed here landed on 2026-09-12.)
+terrain mesh has no UVs); no self-shadowing in the parallax; a material's silhouette stays a box. (The file picker that used to be listed here landed on 2026-09-12.)
 
 ### ~~10. Presentation the prototype had and this does not~~ — mostly closed
 

@@ -9,7 +9,7 @@ import { DEFAULT_TERRAIN_TYPES } from '../engine/grid/terrain';
 import { kindsForSurface } from '../engine/content/tile-surface-kit';
 import type { ProjectDoc, TileSurface } from '../engine/scene/schema';
 import { importTileSurface, removeTileSurface, roomForSurface, updateTileSurface } from './surface-edits';
-import { isLosslessWebp, withKinds } from './surface-import';
+import { KTX2_ENCODING, isLosslessWebp, withKinds } from './surface-import';
 
 const bricks: TileSurface = { id: 'bricks', name: 'Bricks', maps: { color: 'c', normalHeight: 'n', orm: 'o' }, parallax: true, size: 1, depth: 0.06, normalScale: 1, roughness: 1 };
 const four = kindsForSurface(bricks, '#884422', () => false).kinds;
@@ -97,6 +97,15 @@ describe("the project's imported materials, edited", () => {
 });
 
 describe('a material imported', () => {
+  it('compresses every map for the GPU with its mipmaps, flipped as an image is; the colour in sRGB, the rest as data, the normal and height spared the rate-distortion pass', () => {
+    for (const role of ['color', 'normalHeight', 'orm'] as const) {
+      expect(KTX2_ENCODING[role]).toMatchObject({ isUASTC: true, generateMipmap: true, needSupercompression: true, isYFlip: true });
+    }
+    expect([KTX2_ENCODING.color.isSetKTX2SRGBTransferFunc, KTX2_ENCODING.normalHeight.isSetKTX2SRGBTransferFunc, KTX2_ENCODING.orm.isSetKTX2SRGBTransferFunc]).toEqual([true, false, false]);
+    expect([KTX2_ENCODING.color.isPerceptual, KTX2_ENCODING.normalHeight.isPerceptual, KTX2_ENCODING.orm.isPerceptual]).toEqual([true, false, false]);
+    expect([KTX2_ENCODING.color.enableRDO, KTX2_ENCODING.normalHeight.enableRDO, KTX2_ENCODING.orm.enableRDO]).toEqual([true, false, true]);
+  });
+
   it('knows a lossless WebP by its bytes', () => {
     const webp = (chunk: string): Uint8Array => new TextEncoder().encode(`RIFF\0\0\0\0WEBP${chunk}\0\0\0\0`);
     expect(isLosslessWebp(webp('VP8L'))).toBe(true);
@@ -105,7 +114,7 @@ describe('a material imported', () => {
   });
 
   it('moves its id and its name along past what the project has taken', () => {
-    const { surface, kinds } = withKinds({ surface: bricks, color: '#000000', ignored: [] }, (id) => id === 'bricks-wall');
+    const { surface, kinds } = withKinds({ surface: bricks, color: '#000000', ignored: [], compressed: true }, (id) => id === 'bricks-wall');
     expect(surface.id).toBe('bricks-2');
     expect(surface.name).toBe('Bricks 2');
     expect(kinds.map((k) => k.surface)).toEqual(['bricks-2', 'bricks-2', 'bricks-2', 'bricks-2']);

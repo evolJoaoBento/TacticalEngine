@@ -22,6 +22,10 @@ export default defineConfig({
       '@editor': dir('./src/editor'),
       '@game': dir('./src/game'),
       '@content': dir('./src/engine/content'),
+      // The Basis Universal encoder an imported material's maps are compressed with (`editor/surface-import.ts`):
+      // its package exports no path to its WebAssembly, which is fetched by URL, so its folder is named here (a folder:
+      // an alias matches a name or what is under it, never a name with `?url` after it).
+      '@ktx2-encoder-basis': dir('./node_modules/ktx2-encoder/dist/basis'),
     },
   },
   // 8420 or nothing: a restart that finds the port still held must fail, not slide onto 8421, the tests' own.

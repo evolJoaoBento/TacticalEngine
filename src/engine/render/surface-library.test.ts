@@ -5,7 +5,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { RepeatWrapping, SRGBColorSpace, Texture } from 'three';
+import { CompressedTexture, RepeatWrapping, SRGBColorSpace, Texture } from 'three';
 import { SurfaceLibrary, type TextureLoad } from './surface-library';
 import type { TileSurface } from '../scene/schema';
 
@@ -105,6 +105,17 @@ describe("the project's imported materials", () => {
     expect(library.has('stone')).toBe(true);
     library.setAll([]);
     expect(library.has('stone')).toBe(false);
+  });
+
+  it('leaves a compressed map its own mipmaps: WebGL cannot make them for a compressed format', async () => {
+    const compressed = new CompressedTexture([], 4, 4);
+    const library = new SurfaceLibrary((url) => Promise.resolve(url.endsWith('-c') ? compressed : new Texture()));
+    library.add(surface());
+    library.request('bricks');
+    await new Promise((settle) => setTimeout(settle, 0));
+    const uniforms = library.materialFor('bricks')!.userData.surfaceUniforms;
+    expect(uniforms.tColor.value.generateMipmaps).toBe(false);
+    expect(uniforms.tNormalHeight.value.generateMipmaps).toBe(true);
   });
 
   it('says a load that failed, and draws the plain box rather than asking again and again', async () => {

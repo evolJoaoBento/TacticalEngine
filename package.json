@@ -26,6 +26,7 @@
     "@preact/signals": "2.11.2",
     "cannon-es": "0.20.0",
     "fflate": "0.8.3",
+    "ktx2-encoder": "0.6.0",
     "preact": "10.29.8",
     "three": "0.185.1",
     "three-mesh-bvh": "0.9.14",
