@@ -578,10 +578,10 @@ UVs projected from world position so neighbouring pieces run on as one surface (
 Their maps are compressed for the GPU at import (KTX2, 18 October 2026): a quarter of the memory.
 
 A kind of ground can be drawn in one too (18 October 2026): every cell of it, from the material's page. And a
-material takes a colour, as far as its **Tint** says: its kind's, or a tinted cell's on the ground.
+material takes a colour, as far as its **Tint** says: its kind's, or a tinted cell's on the ground; and a kind of tile
+may set its own repeat of it.
 
-**Still open:** an imported model's own textures cannot be swapped or tinted; a material's repeat is the material's,
-not each kind's; no self-shadowing in the parallax; a material's silhouette stays a box. (The file picker that used to be listed here landed on 2026-09-12.)
+**Still open:** an imported model's own textures cannot be swapped or tinted; no self-shadowing in the parallax; a material's silhouette stays a box. (The file picker that used to be listed here landed on 2026-09-12.)
 
 ### ~~10. Presentation the prototype had and this does not~~ — mostly closed
 

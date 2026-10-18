@@ -40,6 +40,7 @@ export function defaultPalette(): DeclaredPalette {
     ...(type.scale === undefined ? {} : { scale: type.scale }),
     ...(type.structure === undefined ? {} : { structure: type.structure }),
     ...(type.surface === undefined ? {} : { surface: type.surface }),
+    ...(type.surfaceSize === undefined ? {} : { surfaceSize: type.surfaceSize }),
   }));
 }
 

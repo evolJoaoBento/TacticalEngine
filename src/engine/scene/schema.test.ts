@@ -299,6 +299,10 @@ describe('projectSchema', () => {
     const parsed = projectSchema.parse(project({ surfaces: [{ id: 'bricks', name: 'Bricks', maps, parallax: true }], terrainPalette: [{ id: 'bricks-wall', structure: 'wall', surface: 'bricks' }] }));
     expect(parsed.surfaces).toEqual([{ id: 'bricks', name: 'Bricks', maps, parallax: true, size: 1, depth: 0.06, normalScale: 1, roughness: 1, tint: 0 }]);
     expect(parsed.terrainPalette![0]!.surface).toBe('bricks');
+    // A kind's own repeat of it: kept, and held to what a material's may be.
+    expect(projectSchema.parse(project({ terrainPalette: [{ id: 'bricks-wall', surface: 'bricks', surfaceSize: 0.5 }] })).terrainPalette![0]!.surfaceSize).toBe(0.5);
+    expect(projectSchema.safeParse(project({ terrainPalette: [{ id: 'bricks-wall', surface: 'bricks', surfaceSize: 20 }] })).success).toBe(false);
+    expect(projectSchema.safeParse(project({ terrainPalette: [{ id: 'bricks-wall', surface: 'bricks', surfaceSize: 0 }] })).success).toBe(false);
     // None given, none there: a project written before materials reads as it did.
     expect(projectSchema.parse(project()).surfaces).toBeUndefined();
     // A map missing, a tint or a depth past the most, a surface id that is no id.

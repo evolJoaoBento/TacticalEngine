@@ -10,6 +10,9 @@ import { TileGrid } from '../grid/grid';
 import { TerrainPalette, terrain } from '../grid/terrain';
 import { SceneView } from './scene-view';
 import { SurfaceLibrary } from './surface-library';
+import { paintGround } from './ground-surfaces';
+import type { TerrainMesh } from './terrain-mesh';
+import type { SurfaceMaterial } from './tile-surface';
 
 const paving = { id: 'paving', name: 'Paving', maps: { color: 'c', normalHeight: 'n', orm: 'o' }, parallax: true, size: 1, depth: 0.06, normalScale: 1, roughness: 1, tint: 0 };
 
@@ -30,6 +33,11 @@ it('draws a kind of ground in its material once the maps are in, keeps it throug
   expect(floor.material).toBe(library.groundMaterialFor('paving'));
   expect(floor.material).not.toBe(library.materialFor('paving'));
   expect((floor.material as Material).vertexColors).toBe(true);
+  // A kind that sets its own repeat is drawn at it.
+  const sized = new TerrainPalette([terrain('floor', { color: '#5d8a4a', surface: 'paving', surfaceSize: 3 }), terrain('mud', { color: '#6b6350' })]);
+  paintGround({ drawn: [floor] } as unknown as TerrainMesh, sized, library);
+  expect(floor.material).toBe(library.groundMaterialFor('paving', 3));
+  expect((floor.material as SurfaceMaterial).userData.surfaceUniforms.uSize.value).toBe(3);
   // Rebuilt - an edit to the ground - and painted again.
   view.rebuildTerrain();
   expect(view.paintedGround()).toEqual(['floor']);

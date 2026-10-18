@@ -220,7 +220,20 @@ test('a kind of ground drawn in a material: every cell of it, from the material\
   const said = `own ${own.map(Math.round)}, tinted ${tinted.map(Math.round)}`;
   expect(tinted[2]! - tinted[0]!, said).toBeGreaterThan(own[2]! - own[0]! + 20);
   expect(tinted[2]!, said).toBeGreaterThan(tinted[1]!);
-  // Undone a step at a time: the size, the tint, the colour, the block, the ground.
+  // The block's kind given its own repeat, smaller than the material's: drawn at it, the material's own untouched.
+  expect(await page.evaluate(() => window.__engine!.buildingStats().looks)).toEqual(['test-stone']);
+  await page.getByTestId('open-content').click();
+  await page.getByTestId('open-tiles').click();
+  await page.locator('[data-tile="test-stone-block"]').click();
+  await expect(page.getByTestId('tile-surface-size')).toHaveAttribute('placeholder', "the material's: 2.4");
+  await page.getByTestId('tile-surface-size').fill('0.5');
+  await page.getByTestId('tile-surface-size').press('Enter');
+  await page.getByTestId('close-tiles').click();
+  await expect.poll(() => page.evaluate(() => window.__engine!.buildingStats().looks), { timeout: 15_000 }).toEqual(['test-stone@0.5']);
+  await page.screenshot({ path: 'test-results/tile-surfaces-repeat.png' });
+  // Undone a step at a time: the repeat, the size, the tint, the colour, the block, the ground.
+  expect(await page.evaluate(() => window.__engine!.undo())).toBe(true);
+  await expect.poll(() => page.evaluate(() => window.__engine!.buildingStats().looks), { timeout: 15_000 }).toEqual(['test-stone']);
   for (let n = 0; n < 5; n++) expect(await page.evaluate(() => window.__engine!.undo())).toBe(true);
   await expect.poll(() => page.evaluate(() => window.__engine!.groundSurfaces()), { timeout: 15_000 }).toEqual([]);
   expect(failed).toEqual([]);

@@ -49,7 +49,10 @@ interface Chunk {
   y: number;
   z: number;
   tiles: BuildingTile[];
-  /** Each piece's look: the imported material it is drawn in, or `null` for the plain box. */
+  /**
+   * Each piece's look: the imported material it is drawn in, with the repeat its kind sets when it sets one
+   * (`bricks@2`, `lookKey`), or `null` for the plain box.
+   */
   looks: (string | null)[];
   /** What the looks were drawn with when the chunk was built, so one whose materials changed is built again. */
   signature: string;
@@ -85,6 +88,17 @@ export interface BuildingStats {
   textured: number;
   /** Of those, the instances whose material's maps the GPU holds compressed. */
   compressed: number;
+  /** The looks drawn in a material now, each once: a material's id, and `@` the repeat when a kind sets its own. */
+  looks: string[];
+}
+
+/** A look's name: the material, and the repeat a kind of tile sets in place of the material's own. */
+export const lookKey = (surface: string, size: number | undefined): string => (size === undefined ? surface : `${surface}@${size}`);
+
+/** A look's material and repeat, read back. */
+function lookParts(look: string): { surface: string; size: number | undefined } {
+  const at = look.indexOf('@');
+  return at < 0 ? { surface: look, size: undefined } : { surface: look.slice(0, at), size: Number(look.slice(at + 1)) };
 }
 
 /**
@@ -276,8 +290,9 @@ export class BuildingView {
   private lookOf(tile: BuildingTile, palette: TerrainPalette | undefined): string | null {
     if (this.surfaces === undefined || palette === undefined || tile.tile === undefined) return null;
     const index = palette.indexOf(tile.tile);
-    const surface = index >= 0 ? palette.at(index).surface : undefined;
-    return surface !== undefined && this.surfaces.has(surface) ? surface : null;
+    const kind = index >= 0 ? palette.at(index) : undefined;
+    const surface = kind?.surface;
+    return surface !== undefined && this.surfaces.has(surface) ? lookKey(surface, kind!.surfaceSize) : null;
   }
 
   /**
@@ -286,9 +301,15 @@ export class BuildingView {
    */
   private signatureOf(chunk: Chunk, palette: TerrainPalette | undefined): string {
     if (this.surfaces === undefined) return '';
-    const ids = [...new Set(chunk.looks.filter((look): look is string => look !== null))].sort();
+    const ids = [...new Set(chunk.looks.filter((look): look is string => look !== null))].sort().map((look) => [look, lookParts(look).surface] as const);
     const kinds = [...new Set(chunk.tiles.filter((_, i) => chunk.looks[i] !== null).map((tile) => `${tile.tile}=${this.kindColorOf(tile, palette) ?? ''}`))].sort();
-    return [...ids.map((id) => `${id}:${this.surfaces!.statusOf(id)}:${this.surfaces!.generationOf(id)}`), ...kinds].join('|');
+    return [...ids.map(([look, id]) => `${look}:${this.surfaces!.statusOf(id)}:${this.surfaces!.generationOf(id)}`), ...kinds].join('|');
+  }
+
+  /** The material a look is drawn in at this level of detail, or nothing while its maps are not in. */
+  private materialOf(look: string, lod: number): SurfaceMaterial | null {
+    const { surface, size } = lookParts(look);
+    return this.surfaces?.materialFor(surface, lod === 2, size) ?? null;
   }
 
   /** The colour a piece's kind of tile is drawn in, if it says. */
@@ -303,12 +324,12 @@ export class BuildingView {
     chunk.tiles.forEach((_, i) => {
       const look = chunk.looks[i] ?? null;
       // A material whose maps are not in yet draws as the plain box, in its kind's colour, until they are.
-      const drawn = look !== null && this.surfaces?.materialFor(look, lod === 2) ? look : null;
+      const drawn = look !== null && this.materialOf(look, lod) !== null ? look : null;
       groups.set(drawn, [...(groups.get(drawn) ?? []), i]);
     });
     const meshes: InstancedMesh[] = [];
     for (const [look, indices] of groups) {
-      const material = look === null ? this.material : this.surfaces!.materialFor(look, lod === 2)!;
+      const material = look === null ? this.material : this.materialOf(look, lod)!;
       const count = indices.reduce((n, i) => n + buildingParts(chunk.tiles[i]!.shape, lod === 2).length, 0);
       const mesh = new InstancedMesh(lod === 0 ? this.detailed : this.simple, material, count);
       mesh.name = `building:${chunk.key}:lod${lod}${look === null ? '' : `:${look}`}`;
@@ -427,7 +448,9 @@ export class BuildingView {
       lods: [0, 0, 0],
       textured: 0,
       compressed: 0,
+      looks: [],
     };
+    const looks = new Set<string>();
     for (const chunk of this.resident) {
       for (const mesh of chunk.meshes!) {
         const perInstance = mesh.geometry.index?.count ?? mesh.geometry.getAttribute('position').count;
@@ -437,10 +460,13 @@ export class BuildingView {
           stats.textured += mesh.count;
           const color = (mesh.material as SurfaceMaterial).userData.surfaceUniforms?.tColor.value as { isCompressedTexture?: boolean } | undefined;
           if (color?.isCompressedTexture === true) stats.compressed += mesh.count;
+          // `building:<chunk>:lod<n>:<look>`, the look last.
+          looks.add(mesh.name.split(':')[3]!);
         }
       }
       stats.lods[chunk.lod!]!++;
     }
+    stats.looks = [...looks].sort();
     return stats;
   }
 

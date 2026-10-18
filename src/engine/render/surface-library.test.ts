@@ -121,6 +121,35 @@ describe("the project's imported materials", () => {
     expect(freed).toBe(true);
   });
 
+  it('makes a material for each repeat a kind of tile sets, tuned with the rest and keeping its repeat', async () => {
+    const files = loader();
+    const library = new SurfaceLibrary(files.load);
+    library.add(surface());
+    library.request('bricks');
+    await files.give('bricks-c', 'bricks-n', 'bricks-o');
+    const own = library.materialFor('bricks')!;
+    const large = library.materialFor('bricks', false, 2.5)!;
+    expect(large).not.toBe(own);
+    expect(library.materialFor('bricks', false, 2.5)).toBe(large);
+    expect([own.userData.surfaceUniforms.uSize.value, large.userData.surfaceUniforms.uSize.value]).toEqual([1, 2.5]);
+    expect(large.userData.surfaceUniforms.tColor.value).toBe(own.userData.surfaceUniforms.tColor.value);
+    const far = library.materialFor('bricks', true, 2.5)!;
+    const ground = library.groundMaterialFor('bricks', 2.5)!;
+    expect(new Set([own, large, far, ground]).size).toBe(4);
+    expect([far.userData.surfaceUniforms.uSize.value, ground.userData.surfaceUniforms.uSize.value, ground.vertexColors]).toEqual([2.5, 2.5, true]);
+    expect(library.materialCount('bricks')).toBe(4);
+    // Tuned: the depth reaches every one; the material's own size only those at its own repeat.
+    library.add(surface('bricks', { depth: 0.1, size: 3 }));
+    for (const material of [own, large, far, ground]) expect(material.userData.surfaceUniforms.uDepth.value).toBe(0.1);
+    expect([own.userData.surfaceUniforms.uSize.value, large.userData.surfaceUniforms.uSize.value, ground.userData.surfaceUniforms.uSize.value]).toEqual([3, 2.5, 2.5]);
+    // Let go, every one.
+    const freed: string[] = [];
+    for (const [name, material] of [['own', own], ['large', large], ['far', far], ['ground', ground]] as const) material.addEventListener('dispose', () => freed.push(name));
+    library.remove('bricks');
+    expect(freed.sort()).toEqual(['far', 'ground', 'large', 'own']);
+    expect(library.materialCount('bricks')).toBe(0);
+  });
+
   it('lets go of a surface removed while its maps were on their way, and of every one the project no longer has', async () => {
     const files = loader();
     const library = new SurfaceLibrary(files.load);

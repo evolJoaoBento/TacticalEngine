@@ -35,7 +35,7 @@ export interface LibraryItem {
    * The imported material a kind of tile is drawn in, with the structure it is: its card is a picture of that, over its
    * colour while the material's maps are on their way.
    */
-  readonly surface?: { readonly id: string; readonly structure: string; readonly color?: string | undefined };
+  readonly surface?: { readonly id: string; readonly structure: string; readonly color?: string | undefined; readonly size?: number | undefined };
 }
 
 /** One tab of the strip: a label over the cards it groups. */
@@ -68,6 +68,8 @@ export interface GroundType {
   readonly structure?: string;
   /** The imported material it is drawn in, when it names one and no model. */
   readonly surface?: string;
+  /** Its own repeat of that material, when it sets one: its card is drawn at it. */
+  readonly surfaceSize?: number;
 }
 
 /**
@@ -103,7 +105,7 @@ export function tilesTab(types: readonly GroundType[], surfaceNames: ReadonlyMap
               label: type.name !== undefined && type.name !== '' ? type.name : titleCase(type.id),
               swatch: type.color ?? FALLBACK_SWATCH,
               ...(type.model === undefined ? {} : { model: type.model }),
-              ...(type.model === undefined && type.surface !== undefined ? { surface: { id: type.surface, structure: type.structure, color: type.color } } : {}),
+              ...(type.model === undefined && type.surface !== undefined ? { surface: { id: type.surface, structure: type.structure, color: type.color, size: type.surfaceSize } } : {}),
               // No "Stackable" detail any more: everything here stacks, so it said nothing. The material's name,
               // so a search for "bricks" finds every kind drawn in it.
               keywords: ['building', 'structure', type.structure, ...(type.surface === undefined ? [] : [type.surface, surfaceNames.get(type.surface) ?? ''])],

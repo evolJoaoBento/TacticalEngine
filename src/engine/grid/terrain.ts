@@ -75,6 +75,8 @@ export interface TerrainType {
    * drawn with the model. Absent means the plain box in the kind's colour, as before.
    */
   readonly surface?: string;
+  /** How many tiles one repeat of that material covers on this kind, in place of the material's own. */
+  readonly surfaceSize?: number;
 }
 
 export const MAX_TERRAIN_TYPES = 256;
@@ -97,6 +99,7 @@ export function terrain(
     ...(overrides.scale === undefined ? {} : { scale: overrides.scale }),
     ...(overrides.structure === undefined ? {} : { structure: overrides.structure }),
     ...(overrides.surface === undefined ? {} : { surface: overrides.surface }),
+    ...(overrides.surfaceSize === undefined ? {} : { surfaceSize: overrides.surfaceSize }),
   };
 }
 

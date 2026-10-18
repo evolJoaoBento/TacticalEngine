@@ -329,6 +329,11 @@ export const terrainTypeSchema = z.object({
    * project's `surfaces`, when it is drawn as a box; a `model` wins.
    */
   surface: contentIdSchema.optional(),
+  /**
+   * How many tiles one repeat of that material covers on this kind, in place of the material's own `size`: the same
+   * bricks large on a wall and small on a floor. Absent means the material's.
+   */
+  surfaceSize: z.number().positive().max(16).optional(),
 });
 
 /**

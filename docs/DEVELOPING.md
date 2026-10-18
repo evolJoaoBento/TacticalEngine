@@ -1023,6 +1023,12 @@ when the source changes; browser tests cover broken directory art, corrupt impor
   (`SurfaceLibrary.groundMaterialFor`, `vertexColors: true`): put `vertexColors` on the shared one and every piece goes
   black, since a box has no colour attribute and WebGL reads a missing one as zero.
 
+- **A surface has a material for each role and repeat, not two.** `SurfaceLibrary` makes them as they are asked for -
+  near, flat (no parallax) and ground (vertex colours), each at the material's own size or at a kind's
+  `surfaceSize` - all sharing the three textures; a tuning edit retunes each with its kind's repeat put back in place
+  of the material's size. Each is its own draw call, so a project that sets a dozen repeats of one material draws a
+  dozen meshes a chunk where it drew one; `BuildingStats.looks` names them.
+
 - **A material's tint is three's `vColor` divided by the material's average** (`tile-surface.ts`, `COLOR`, which
   replaces `color_fragment`): an instanced piece's `instanceColor` or the ground's vertex colours, over
   `TileSurface.color`, the colour map's mean kept at import, capped at four times and mixed in by `uTint`. So a kind

@@ -351,6 +351,7 @@ fn terrain_type() -> Schema {
         opt("scale", number().positive()),
         opt("structure", string().min(1.0)),
         opt("surface", content_id()),
+        opt("surfaceSize", number().positive().max(16.0)),
     ])
 }
 

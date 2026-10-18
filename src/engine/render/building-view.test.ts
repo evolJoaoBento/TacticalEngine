@@ -5,6 +5,7 @@ import { BUILD_MATERIALS, buildingKey, type BuildingTile } from '../scene/buildi
 import { TerrainPalette, terrain } from '../grid/terrain';
 import { BuildingView, BUILD_RESIDENT_LIMIT } from './building-view';
 import { SurfaceLibrary } from './surface-library';
+import type { SurfaceMaterial } from './tile-surface';
 
 /** A view over the given pieces, and a camera that can be put at a distance from them. */
 function setup(tiles: BuildingTile[]) {
@@ -182,6 +183,38 @@ describe('pieces drawn in an imported material', () => {
     const after = meshes().find((m) => m.name.endsWith(':bricks'))!;
     expect(after).not.toBe(before);
     expect(colourOf(after, 0)).toBe('#2266aa');
+    view.dispose();
+  });
+
+  it("draws a kind that sets its own repeat in the material at that repeat, its own mesh beside the material's", async () => {
+    const { library, land } = surfaces();
+    const sizedPalette = new TerrainPalette([
+      terrain('grass'),
+      terrain('bricks-wall', { structure: 'wall', surface: 'bricks', color: '#884422' }),
+      terrain('bricks-floor', { structure: 'floor', surface: 'bricks', color: '#884422', surfaceSize: 2.5 }),
+    ]);
+    const scene = blankScene('room', 1, 1);
+    const tiles = [piece(0, 'bricks-wall'), piece(1, 'bricks-floor')];
+    scene.buildingTiles = Object.fromEntries(tiles.map((t) => [buildingKey(t), t]));
+    const view = new BuildingView({ surfaces: library });
+    view.sync(scene, sizedPalette);
+    const camera = new PerspectiveCamera(60, 1.5, 0.1, 500);
+    camera.position.set(0, 6, 8);
+    camera.lookAt(0, 0, 0);
+    view.update(camera);
+    await land();
+    view.update(camera);
+    const meshes = view.root.children.filter((c): c is InstancedMesh => c instanceof InstancedMesh);
+    const own = meshes.find((m) => m.name.endsWith(':bricks'))!;
+    const large = meshes.find((m) => m.name.endsWith(':bricks@2.5'))!;
+    expect(own.material).toBe(library.materialFor('bricks'));
+    expect(large.material).toBe(library.materialFor('bricks', false, 2.5));
+    expect((large.material as SurfaceMaterial).userData.surfaceUniforms.uSize.value).toBe(2.5);
+    expect(view.stats().looks).toEqual(['bricks', 'bricks@2.5']);
+    // The repeat changed: the chunk built again at the new one.
+    view.sync(scene, new TerrainPalette([terrain('grass'), terrain('bricks-wall', { structure: 'wall', surface: 'bricks' }), terrain('bricks-floor', { structure: 'floor', surface: 'bricks', surfaceSize: 0.5 })]));
+    view.update(camera);
+    expect(view.stats().looks).toEqual(['bricks', 'bricks@0.5']);
     view.dispose();
   });
 

@@ -1133,6 +1133,12 @@ repeat of the texture covers - type an exact number in the box under the slider,
 yourself can be drawn in a material too, with its **Surface** select. Imported materials draw in
 play as well as in the editor.
 
+**A kind of tile can repeat its material at its own size.** On the kind's page, under **Surface**,
+**Repeat, in tiles** overrides the material's Size for that kind alone: the same bricks large on a
+wall and small on a floor. Leave it empty (it shows the material's own Size) to follow the
+material, so dragging the material's Size still moves every kind that hasn't set its own. It works
+on ground and pieces alike, and the strip's picture shows it.
+
 **Tint** colours a material. At 0 (where every material starts) it is its own colours. Raised, it
 takes the **Colour** of the kind of tile it is drawn on - and on the ground, a cell's own tint where
 the map has one - until at 1 the material's average colour *is* that colour, its bricks and mortar

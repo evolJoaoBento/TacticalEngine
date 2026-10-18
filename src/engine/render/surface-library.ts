@@ -5,7 +5,9 @@
  * Each surface's three maps are loaded once, whatever the number of pieces drawn in it, and handed out as shared
  * three.js materials: the **near** one, with parallax (when the surface has a height map and a depth), the **flat**
  * one, the same maps without the loop, for what is far off, and the **ground**'s, the near one reading the ground
- * mesh's vertex colours for its tint (`groundMaterialFor`) - made the first time a kind of ground asks. Until a surface's maps are in, `materialFor`
+ * mesh's vertex colours for its tint (`groundMaterialFor`). And each again for every repeat a kind of tile sets in
+ * place of the surface's own (`TerrainType.surfaceSize`), the textures shared: a material is made the first time a
+ * piece or a kind of ground asks for it. Until a surface's maps are in, `materialFor`
  * gives nothing and the piece is drawn as an untextured box in its kind's colour: a kind of tile is never invisible
  * because a load is slow.
  *
@@ -22,15 +24,17 @@ export type TextureLoad = (url: string) => Promise<Texture>;
 
 export type SurfaceStatus = 'unknown' | 'loading' | 'ready' | 'failed';
 
+/** What a material is for: a near piece, a far one, or the ground. */
+type Role = 'near' | 'flat' | 'ground';
+
 interface Loaded {
   textures: SurfaceTextures;
-  near: SurfaceMaterial;
-  flat: SurfaceMaterial;
-  ground?: SurfaceMaterial;
+  /** Each material made, by its role and the repeat a kind set (`near@2`), or the surface's own (`near@`). */
+  materials: Map<string, { material: SurfaceMaterial; size: number | undefined }>;
 }
 
-/** Every material a loaded surface has made. */
-const materialsOf = (loaded: Loaded): SurfaceMaterial[] => [loaded.near, loaded.flat, ...(loaded.ground === undefined ? [] : [loaded.ground])];
+/** A surface's tuning with a kind's repeat in place of its own. */
+const sized = (spec: TileSurface, size: number | undefined): TileSurface => (size === undefined ? spec : { ...spec, size });
 
 /** Whether two specs of a surface tune it differently. */
 const retuned = (a: TileSurface, b: TileSurface): boolean =>
@@ -65,7 +69,7 @@ export class SurfaceLibrary {
     if (current !== undefined && sameMaps(current, surface)) {
       const loaded = this.loaded.get(surface.id);
       if (loaded !== undefined && retuned(current, surface)) {
-        for (const material of materialsOf(loaded)) tuneSurface(material.userData.surfaceUniforms, surface);
+        for (const { material, size } of loaded.materials.values()) tuneSurface(material.userData.surfaceUniforms, sized(surface, size));
         this.bump(surface.id);
       }
       return;
@@ -120,30 +124,40 @@ export class SurfaceLibrary {
 
   /**
    * The shared material a piece in this surface is drawn with - the near one (parallax) for what is close, the flat
-   * one for what is far - or nothing while its maps are not in, which starts them loading.
+   * one for what is far - at a kind's repeat, or the surface's own; or nothing while its maps are not in, which starts
+   * them loading.
    */
-  materialFor(id: string, far = false): SurfaceMaterial | null {
-    const loaded = this.loaded.get(id);
-    if (loaded === undefined) {
-      this.request(id);
-      return null;
-    }
-    return far ? loaded.flat : loaded.near;
+  materialFor(id: string, far = false, size?: number): SurfaceMaterial | null {
+    return this.made(id, far ? 'flat' : 'near', size);
   }
 
   /**
    * The material the ground is drawn in, in this surface - the near one, its tint read off the ground mesh's vertex
-   * colours, which a piece's box has none of - or nothing while its maps are not in, which starts them loading.
+   * colours, which a piece's box has none of - at a kind's repeat or the surface's own; or nothing while its maps are
+   * not in, which starts them loading.
    */
-  groundMaterialFor(id: string): SurfaceMaterial | null {
+  groundMaterialFor(id: string, size?: number): SurfaceMaterial | null {
+    return this.made(id, 'ground', size);
+  }
+
+  /** How many materials a surface has made: one for each role and repeat asked for. */
+  materialCount(id: string): number {
+    return this.loaded.get(id)?.materials.size ?? 0;
+  }
+
+  private made(id: string, role: Role, size: number | undefined): SurfaceMaterial | null {
     const loaded = this.loaded.get(id);
     if (loaded === undefined) {
       this.request(id);
       return null;
     }
+    const key = `${role}@${size ?? ''}`;
+    const kept = loaded.materials.get(key);
+    if (kept !== undefined) return kept.material;
     const spec = this.specs.get(id)!;
-    loaded.ground ??= makeSurfaceMaterial(loaded.textures, spec, { parallax: spec.parallax, vertexColors: true });
-    return loaded.ground;
+    const material = makeSurfaceMaterial(loaded.textures, sized(spec, size), { parallax: role !== 'flat' && spec.parallax, vertexColors: role === 'ground' });
+    loaded.materials.set(key, { material, size });
+    return material;
   }
 
   /** Start loading a surface's maps, if it is declared and not on its way already. Whether a load started. */
@@ -160,7 +174,6 @@ export class SurfaceLibrary {
           for (const texture of [color, normalHeight, orm]) texture.dispose();
           return;
         }
-        const now = this.specs.get(id)!;
         color.colorSpace = SRGBColorSpace;
         normalHeight.colorSpace = NoColorSpace;
         orm.colorSpace = NoColorSpace;
@@ -173,12 +186,7 @@ export class SurfaceLibrary {
           if (!isCompressed(texture)) texture.generateMipmaps = true;
           texture.needsUpdate = true;
         }
-        const textures = { color, normalHeight, orm };
-        this.loaded.set(id, {
-          textures,
-          near: makeSurfaceMaterial(textures, now, { parallax: now.parallax }),
-          flat: makeSurfaceMaterial(textures, now, { parallax: false }),
-        });
+        this.loaded.set(id, { textures: { color, normalHeight, orm }, materials: new Map() });
         this.status.set(id, 'ready');
         this.generations.set(id, this.generationOf(id) + 1);
         this.bump(id);
@@ -205,7 +213,7 @@ export class SurfaceLibrary {
     const loaded = this.loaded.get(id);
     if (loaded !== undefined) {
       for (const texture of Object.values(loaded.textures)) texture.dispose();
-      for (const material of materialsOf(loaded)) material.dispose();
+      for (const { material } of loaded.materials.values()) material.dispose();
       this.loaded.delete(id);
       this.generations.set(id, this.generationOf(id) + 1);
       this.bump(id);

@@ -145,14 +145,15 @@ export class ModelThumbnails {
 
   /**
    * A kind of tile drawn in an imported material: its structure's boxes in the material, in the kind's colour as the
-   * board draws them (the material's tint takes it), framed on its tile as a model is - or null while the material's
-   * maps are not in, and the card is its colour meanwhile. Kept under the material's revision and the colour, so a
-   * tuning edit or a new colour draws it again; the boxes it built let go once it is drawn.
+   * board draws them (the material's tint takes it), at the kind's repeat when it sets one, framed on its tile as a
+   * model is - or null while the material's maps are not in, and the card is its colour meanwhile. Kept under the
+   * material's revision, the colour and the repeat, so a tuning edit or a new colour draws it again; the boxes it built
+   * let go once it is drawn.
    */
-  surfaceUrl(surfaces: SurfaceLibrary, surface: string, structure: string, color = '#ffffff'): string | null {
-    const material = surfaces.materialFor(surface);
+  surfaceUrl(surfaces: SurfaceLibrary, surface: string, structure: string, color = '#ffffff', size?: number): string | null {
+    const material = surfaces.materialFor(surface, false, size);
     if (material === null) return null;
-    const key = `surface:${surface}:${structure}:${color}:${surfaces.revisionOf(surface)}`;
+    const key = `surface:${surface}:${structure}:${color}:${size ?? ''}:${surfaces.revisionOf(surface)}`;
     const kept = this.pictures.get(key);
     if (kept !== undefined) return kept;
     const renderer = this.context();
@@ -305,8 +306,8 @@ export function thumbnailOf(registry: ModelRegistry, assets: AssetLibrary | null
 }
 
 /** The strip's picture of a kind of tile drawn in an imported material, or null while its maps are not in. */
-export function surfaceThumbnailOf(registry: ModelRegistry, assets: AssetLibrary | null, surfaces: SurfaceLibrary, surface: string, structure: string, color?: string): Thumbnail | null {
-  const url = sharedFor(registry, assets).surfaceUrl(surfaces, surface, structure, color);
+export function surfaceThumbnailOf(registry: ModelRegistry, assets: AssetLibrary | null, surfaces: SurfaceLibrary, surface: string, structure: string, color?: string, size?: number): Thumbnail | null {
+  const url = sharedFor(registry, assets).surfaceUrl(surfaces, surface, structure, color, size);
   return url === null ? null : { url, standIn: false };
 }
 

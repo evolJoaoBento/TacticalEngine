@@ -7,7 +7,8 @@
  * own is kept beside the mesh (`userData.plain`), is what `TerrainMesh.dispose` frees, and is put back when the
  * material goes. The material's UVs come from world position, so the mesh needs none. Its vertex colours - the kind's
  * colour, a cell's tint, blended across corners as the plain ground is - are what the material's tint takes
- * (`TileSurface.tint`); at none, the material's own colour.
+ * (`TileSurface.tint`); at none, the material's own colour. A kind that sets its own repeat (`surfaceSize`) gets the
+ * library's material at that repeat.
  */
 
 import type { Material } from 'three';
@@ -21,8 +22,10 @@ export function paintGround(terrain: TerrainMesh, palette: TerrainPalette, surfa
     const plain = (mesh.userData['plain'] as Material | undefined) ?? (mesh.material as Material);
     mesh.userData['plain'] = plain;
     const index = palette.indexOf(mesh.name.slice('terrain:'.length));
-    const surface = index < 0 ? undefined : palette.at(index).surface;
-    const painted = surface !== undefined && surfaces?.has(surface) === true ? surfaces.groundMaterialFor(surface) : null;
+    const kind = index < 0 ? undefined : palette.at(index);
+    const surface = kind?.surface;
+    // At the kind's own repeat, when it sets one.
+    const painted = surface !== undefined && surfaces?.has(surface) === true ? surfaces.groundMaterialFor(surface, kind!.surfaceSize) : null;
     mesh.material = painted ?? plain;
   }
 }

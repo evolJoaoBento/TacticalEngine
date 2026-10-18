@@ -49,8 +49,15 @@ becomes that colour and its detail stays. The ground reads it through a material
 pictures are drawn in the kind's colour too. And **Size** has a box beside the slider for a typed repeat, any size the
 schema takes (0.05 to 16). Tests: `tile-surface.test.ts`, `surface-library.test.ts`, `building-view.test.ts`,
 `scene-view-ground.test.ts`, `tests/e2e/tile-surfaces.spec.ts` (a block's pixels turn blue). Still open: a material
-imported before 18 October has no average kept, so its tint is a plain multiply and darkens; a repeat per kind of
-tile rather than per material.
+imported before 18 October has no average kept, so its tint is a plain multiply and darkens.
+
+A kind of tile sets its own repeat of its material (`TerrainType.surfaceSize`, 18 October 2026): **Repeat, in tiles**
+on the kind's page, under its Surface, empty for the material's own. The library makes a material for each role and
+repeat asked for (`near@2.5`, `flat@`, `ground@3`; `materialCount`), the textures shared, and a tuning edit reaches
+every one with the kind's repeat kept in place of the material's size. A piece's look is the material and the repeat
+(`lookKey`, `bricks@2.5`), so its chunk is built again when the repeat changes; `BuildingStats.looks` says which are
+drawn. Tests: `surface-library.test.ts`, `building-view.test.ts`, `scene-view-ground.test.ts`,
+`grid-from-scene.test.ts`, `schema.test.ts`, `tests/e2e/tile-surfaces.spec.ts`.
 
 ## Tile materials compressed for the GPU (KTX2) — done
 

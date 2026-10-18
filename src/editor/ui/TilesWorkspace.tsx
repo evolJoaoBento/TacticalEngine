@@ -505,6 +505,33 @@ export function TilesWorkspace(props: {
               <option key={made.id} value={made.id}>{made.name !== '' ? made.name : made.id}</option>
             ))}
           </select>
+          {tile.surface === undefined ? null : (
+            <label class="ph-heading" style={FIELD}>
+              Repeat, in tiles
+              <input
+                class="ph-input"
+                style={CONTROL}
+                data-testid="tile-surface-size"
+                type="number"
+                min={SIZE_TYPED.min}
+                max={SIZE_TYPED.max}
+                step="any"
+                placeholder={`the material's: ${surfaces.find((made) => made.id === tile.surface)?.size ?? 1}`}
+                value={tile.surfaceSize ?? ''}
+                onChange={(e) => {
+                  // Cleared goes back to the material's own repeat; a size the schema refuses is left as it was.
+                  const typed = e.currentTarget.value.trim();
+                  if (typed === '') {
+                    edit({ surfaceSize: undefined });
+                    return;
+                  }
+                  const size = Number(typed);
+                  if (Number.isFinite(size) && size >= SIZE_TYPED.min && size <= SIZE_TYPED.max) edit({ surfaceSize: size });
+                  else props.onChange();
+                }}
+              />
+            </label>
+          )}
           {tile.model === undefined ? null : (
             <div class="ph-row">
               <label class="ph-heading" style={FIELD}>
