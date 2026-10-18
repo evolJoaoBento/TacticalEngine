@@ -238,3 +238,75 @@ test('a kind of ground drawn in a material: every cell of it, from the material\
   await expect.poll(() => page.evaluate(() => window.__engine!.groundSurfaces()), { timeout: 15_000 }).toEqual([]);
   expect(failed).toEqual([]);
 });
+
+test('a texture downloaded from Poly Haven by its link: named, sized and credited as Poly Haven says, four tiles drawn in it', async ({ page }) => {
+  test.setTimeout(120_000);
+  const failed: string[] = [];
+  page.on('console', (message) => {
+    if (glFailure(message)) failed.push(message.text());
+  });
+  // Poly Haven, played by the test's own stone: its API's two answers, and the maps under Poly Haven's names - the name
+  // it gives not the one the files would, so the material is seen to take Poly Haven's.
+  const pngs = unzipSync(readFileSync(ZIP));
+  const DL = 'https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/test_slate';
+  const MAPS = { Diffuse: ['diff', 'Color'], nor_gl: ['nor_gl', 'NormalGL'], Rough: ['rough', 'Roughness'], AO: ['ao', 'AmbientOcclusion'], Displacement: ['disp', 'Displacement'] } as const;
+  const files = Object.fromEntries(Object.entries(MAPS).map(([map, [name]]) => [map, { '1k': { png: { url: `${DL}/test_slate_${name}_1k.png` } } }]));
+  const asked: string[] = [];
+  await page.route('https://api.polyhaven.com/**', (route) => {
+    const url = route.request().url();
+    asked.push(url);
+    if (url.endsWith('/info/test_slate')) return route.fulfill({ json: { name: 'Slate Tiles', dimensions: [2500, 2500] } });
+    if (url.endsWith('/files/test_slate')) return route.fulfill({ json: files });
+    return route.fulfill({ status: 404, body: 'No asset' });
+  });
+  await page.route('https://dl.polyhaven.org/**', (route) => {
+    const url = route.request().url();
+    asked.push(url);
+    const [, ambient] = Object.values(MAPS).find(([name]) => url.endsWith(`_${name}_1k.png`)) ?? [];
+    const bytes = ambient === undefined ? undefined : pngs[`TestStone_1K-PNG_${ambient}.png`];
+    return bytes === undefined ? route.fulfill({ status: 404 }) : route.fulfill({ body: Buffer.from(bytes), contentType: 'image/png' });
+  });
+  await page.goto('/');
+  await page.waitForFunction(() => (window.__engine?.frames ?? 0) > 5);
+  await page.evaluate(() => window.__engine!.setMode('edit'));
+  await page.getByTestId('mode-terrain').click();
+  await page.getByTestId('open-content').click();
+  await page.getByTestId('open-tiles').click();
+
+  // The starters are suggested; a texture Poly Haven has not got is said so.
+  await expect(page.locator('#poly-haven-starters option')).toHaveCount(27);
+  await page.getByTestId('poly-haven-id').fill('no_such_slate');
+  await page.getByTestId('poly-haven-add').click();
+  await expect(page.getByTestId('surface-status')).toContainText('Poly Haven has no "no_such_slate"', { timeout: 15_000 });
+
+  // By the link to its page.
+  await page.getByTestId('poly-haven-id').fill('https://polyhaven.com/a/test_slate');
+  await page.getByTestId('poly-haven-id').press('Enter');
+  await expect(page.getByTestId('surface-status')).toHaveText('Imported Slate Tiles: four tiles in the Terrain strip.', { timeout: 30_000 });
+  await expect(page.getByTestId('surface-editor')).toBeVisible();
+  await expect(page.getByTestId('poly-haven-id')).toHaveValue('');
+  await expect(page.getByTestId('surface-size-typed')).toHaveValue('2.5');
+  await expect(page.getByTestId('surface-editor')).toContainText('From Poly Haven test_slate (CC0).');
+  expect(asked.filter((url) => url.includes('dl.polyhaven.org'))).toHaveLength(5);
+  await page.screenshot({ path: 'test-results/tile-surfaces-poly-haven.png' });
+  await page.getByTestId('close-tiles').click();
+  for (const kind of KINDS) await expect(page.locator(`[data-testid=terrain-library] [data-item="slate-tiles-${kind}"]`)).toBeVisible();
+
+  // Stamped, and drawn in it - its maps compressed for the GPU like any import.
+  await page.evaluate(() => {
+    const a = window.__engine!;
+    a.setTerrain('slate-tiles-block');
+    a.buildAt(20, 12);
+  });
+  await expect.poll(() => page.evaluate(() => window.__engine!.buildingStats().textured), { timeout: 30_000 }).toBeGreaterThanOrEqual(1);
+  const written = JSON.parse(await page.evaluate(() => window.__engine!.exportProject())) as { surfaces?: { id: string; name: string; source?: string; size: number; maps: Record<string, string> }[] };
+  const slate = written.surfaces?.find((s) => s.id === 'slate-tiles');
+  expect(slate).toMatchObject({ name: 'Slate Tiles', source: 'Poly Haven test_slate (CC0)', size: 2.5 });
+  for (const map of Object.values(slate!.maps)) expect(map.startsWith('data:image/ktx2;base64,')).toBe(true);
+  // One undo takes it all away, as an import from files.
+  expect(await page.evaluate(() => window.__engine!.undo())).toBe(true);
+  expect(await page.evaluate(() => window.__engine!.undo())).toBe(true);
+  await expect(page.locator('[data-testid=terrain-library] [data-item="slate-tiles-block"]')).toHaveCount(0);
+  expect(failed).toEqual([]);
+  expect(await page.evaluate(() => window.__engine!.errors)).toEqual([]);
+});

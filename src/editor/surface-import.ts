@@ -24,6 +24,8 @@
 import { unzip } from 'fflate';
 import type { IEncodeOptions } from 'ktx2-encoder';
 import { classifySurfaceFiles, kindsForSurface, meanColor, packMaps, refusalOf, surfaceIdentity, type DecodedMaps, type Pixels, type SurfaceKind } from '../engine/content/tile-surface-kit';
+import { POLY_HAVEN_API, polyHavenMaps, polyHavenResolution, polyHavenSize, type PolyHavenFiles, type PolyHavenInfo } from '../engine/content/poly-haven';
+import { toContentId } from '../engine/content/types';
 import type { TileSurface } from '../engine/scene/schema';
 
 /** The largest side a material's maps are kept at: an import option. Never scaled up. */
@@ -226,6 +228,45 @@ export async function importSurface(files: readonly File[], size: SurfaceSize = 
   };
 }
 
+/** A texture's maps downloaded from Poly Haven, and what it says of itself: its name, and the tiles one repeat covers. */
+export interface PolyHavenDownload {
+  files: File[];
+  name: string;
+  size: number;
+}
+
+/**
+ * A Poly Haven texture's maps, downloaded at the resolution a material kept at `size` pixels needs (`engine/content/
+ * poly-haven.ts`), each a file named as Poly Haven names it. Throws, saying why, when there is no such texture, when it
+ * is an HDRI or a model, or when the network fails.
+ */
+export async function downloadPolyHaven(id: string, size: SurfaceSize = 1024, fetcher: typeof fetch = fetch): Promise<PolyHavenDownload> {
+  const ask = async (path: string): Promise<unknown> => {
+    const answer = await fetcher(`${POLY_HAVEN_API}/${path}/${encodeURIComponent(id)}`);
+    if (answer.status === 404) throw new Error(`Poly Haven has no "${id}": copy the id from its page's address, polyhaven.com/a/<id>.`);
+    if (!answer.ok) throw new Error(`Poly Haven did not answer (${answer.status}).`);
+    return answer.json();
+  };
+  const [info, listed] = (await Promise.all([ask('info'), ask('files')])) as [PolyHavenInfo, PolyHavenFiles];
+  const maps = polyHavenMaps(listed, polyHavenResolution(size));
+  if (maps.length === 0) throw new Error(`"${id}" is not a texture on Poly Haven (an HDRI or a model has no maps to draw a tile in).`);
+  const files = await Promise.all(
+    maps.map(async ({ name, url }) => {
+      const answer = await fetcher(url);
+      if (!answer.ok) throw new Error(`Could not download ${name} from Poly Haven (${answer.status}).`);
+      return new File([await answer.blob()], name, { type: /\.png$/i.test(name) ? 'image/png' : 'image/jpeg' });
+    }),
+  );
+  return { files, name: info.name ?? id, size: polyHavenSize(info) };
+}
+
+/** A Poly Haven texture imported: downloaded, then imported as its files would be, named and sized as Poly Haven says. */
+export async function importPolyHaven(id: string, size: SurfaceSize = 1024, fetcher: typeof fetch = fetch): Promise<ImportedSurface> {
+  const download = await downloadPolyHaven(id, size, fetcher);
+  const imported = await importSurface(download.files, size);
+  return { ...imported, surface: { ...imported.surface, id: toContentId(download.name) || imported.surface.id, name: download.name, source: `Poly Haven ${id} (CC0)`, size: download.size } };
+}
+
 /** What `addImported` needs of the editor: the project, the import, and picking the block it gave in the strip. */
 export interface SurfaceImporter {
   readonly session: { readonly project: { readonly surfaces?: readonly { id: string }[] | undefined; readonly terrainPalette?: readonly { id: string }[] | undefined } };
@@ -241,10 +282,20 @@ export interface SurfaceImporter {
  * and a drop on the workspace or on the strip all come here.
  */
 export async function addImported(editor: SurfaceImporter, files: readonly File[], size: SurfaceSize = 1024, taken: (id: string) => boolean = () => false): Promise<{ id: string | null; said: string }> {
+  return addSurface(editor, () => importSurface(files, size), taken);
+}
+
+/** A Poly Haven texture added as `addImported` adds files: downloaded, imported, its four kinds in the strip. */
+export async function addPolyHaven(editor: SurfaceImporter, id: string, size: SurfaceSize = 1024, taken: (id: string) => boolean = () => false, fetcher: typeof fetch = fetch): Promise<{ id: string | null; said: string }> {
+  return addSurface(editor, () => importPolyHaven(id, size, fetcher), taken);
+}
+
+/** A material imported however it came, added with its four kinds and its block picked: what to tell the author. */
+async function addSurface(editor: SurfaceImporter, importing: () => Promise<ImportedSurface>, taken: (id: string) => boolean): Promise<{ id: string | null; said: string }> {
   try {
     const project = editor.session.project;
     const clash = (id: string): boolean => taken(id) || (project.surfaces ?? []).some((s) => s.id === id) || (project.terrainPalette ?? []).some((t) => t.id === id);
-    const imported = await importSurface(files, size);
+    const imported = await importing();
     const { surface, kinds } = withKinds(imported, clash);
     const refused = editor.importSurface(surface, kinds);
     if (refused !== null) return { id: null, said: refused };

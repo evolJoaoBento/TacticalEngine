@@ -21,6 +21,20 @@ own; the fight's spotlight, the GM's turn and the questions go as at a server's 
 the real engine (`src/game/peer/*.test.ts`), and `tests/e2e/peer.spec.ts` in two browsers. Next: an evening across
 two real networks.
 
+## Materials from Poly Haven, by name — done
+
+The Tiles workspace downloads a texture from Poly Haven (CC0) by its id or its page's link - or one of 27 starters
+suggested, a dungeon's, a town's and the wilds' (`POLY_HAVEN_STARTERS`, each checked to have every map at 1K and 2K) -
+and imports it as its files would be: four kinds of tile, one undo step. `engine/content/poly-haven.ts` decides what to
+ask (`polyHavenMaps`: colour, OpenGL normal, roughness, occlusion and height as JPEGs, the packed `arm` copy left out),
+the material's name from `/info`, `source` "Poly Haven {id} (CC0)", and its Size from the patch the texture shows, a
+tile a metre (`METRES_PER_TILE`, as a model at scale 1 is in metres); `editor/surface-import.ts` downloads
+(`downloadPolyHaven`, `importPolyHaven`, `addPolyHaven`). Both of Poly Haven's hosts answer any page
+(`Access-Control-Allow-Origin: *`). A map is now known by the **last** word in its name that names one, so
+`rough_plasterbrick_05_disp_1k` is a height map, not a second roughness. Nothing of Poly Haven's is in the repository:
+a project carries what it downloaded. Tests: `poly-haven.test.ts`, `surface-import.test.ts` (a fake `fetch`),
+`tile-surface-kit.test.ts`, `tests/e2e/tile-surfaces.spec.ts` (Poly Haven played by `page.route`).
+
 ## The light the room gives back (an environment map) — done
 
 `render/light-rig.ts`: `roomEnvironment` prefilters a little room of the rig's own colours - the candle sky over the
@@ -83,7 +97,7 @@ with the project (one nothing uses is left out), checked, drawn in play too.
 Follow-ups, not built:
 - **Self-shadowing parallax**: a second loop towards the light, gated by a define; declined for now.
 - **Silhouettes**: parallax cannot move a box's outline; inherent to the technique.
-- Downloading by ambientCG id, sharing materials across projects, shipped starter materials.
+- Downloading by ambientCG id (Poly Haven's is done, above), sharing materials across projects, starter materials in a new project.
 
 ## Peer to peer: the host at the door — done
 

@@ -1110,6 +1110,15 @@ diffuse), **NormalGL** (or NormalDX, or normal), **Roughness**, **AmbientOcclusi
 material is drawn flat, its normals still catching the light. Files it doesn't read (an opacity
 map, a preview, `.usdc` and `.mtlx` files) are listed after the import.
 
+**Or download one from [Poly Haven](https://polyhaven.com/textures)**, whose textures are all CC0 (free for any
+use, no credit needed). Under **+ Surface**, click the **Poly Haven id or link** box: it suggests 27 that suit a
+dungeon, a town or the wilds (castle brick, cobblestone, worn planks, thatch, forest ground, snow and more). Or paste
+any texture's id or its page's address - for `https://polyhaven.com/a/rock_wall_08` that is `rock_wall_08` - and press
+**Download** (or Enter). It comes in exactly as a zip would, four tiles and all, named as Poly Haven names it, its
+page saying where it came from, and its **Size** set from the real size of the patch it shows (a tile is taken as a
+metre, so a 2.5 m patch of bricks repeats every 2.5 tiles). An HDRI or a model on Poly Haven is not a texture, and
+says so. You can also download a texture's zip from its page (1K, JPG) and drop it here, as with ambientCG.
+
 The select beside **+ Surface** sets how big the maps are kept: 512 pixels, 1K (the default) or 2K.
 The importer compresses the maps for the graphics card (KTX2), so a 1K material takes about 4 MB of
 graphics memory rather than 16 MB, and many more fit before a computer or phone runs short. The first

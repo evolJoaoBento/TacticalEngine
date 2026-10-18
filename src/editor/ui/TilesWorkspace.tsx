@@ -13,7 +13,8 @@
  * And the project's imported materials (**Surfaces**, `surface-import.ts`): a zip from ambientCG - or a material's
  * images loose - dropped here, or picked with **+ Surface**, becomes a material and four kinds of tile drawn in it, a
  * block, a wall, a floor slab and a staircase, ready in the Terrain strip. Each material is tuned here, and removed
- * here with its four kinds; a kind of tile made by hand may be drawn in one too.
+ * here with its four kinds; a kind of tile made by hand may be drawn in one too. A texture on Poly Haven comes the
+ * same way by its name, downloaded (`engine/content/poly-haven.ts`): one of the starters suggested, or any id typed.
  */
 
 import { useState } from 'preact/hooks';
@@ -26,7 +27,8 @@ import { defaultPalette, tileIdTaken, tilesStandingOn, type TileType } from '../
 import { JumpRulesEditor } from './JumpRulesEditor';
 import { Icon } from './icons';
 import { AiBadge, artMarkHandlers } from './AiMark';
-import { SURFACE_SIZES, addImported, compressMaps, isCompressedSurface, type SurfaceSize } from '../surface-import';
+import { SURFACE_SIZES, addImported, addPolyHaven, compressMaps, isCompressedSurface, type SurfaceSize } from '../surface-import';
+import { POLY_HAVEN_STARTERS, polyHavenId } from '../../engine/content/poly-haven';
 
 /** The back arrow every workspace returns to the board with, before its title, styled like the others'. */
 const CLOSE_BUTTON: Record<string, string | number> = {
@@ -84,6 +86,8 @@ export function TilesWorkspace(props: {
   const [size, setSize] = useState<SurfaceSize>(1024);
   /** What the last import said: under way, why it failed, or the files it did not read. */
   const [importing, setImporting] = useState<string | null>(null);
+  /** The Poly Haven texture named to download: a starter picked, or an id or a link typed. */
+  const [haven, setHaven] = useState('');
   const surfaces = session.project.surfaces ?? [];
   const surface = open !== null && open.startsWith(SURFACE) ? (surfaces.find((s) => s.id === open.slice(SURFACE.length)) ?? null) : null;
 
@@ -93,6 +97,23 @@ export function TilesWorkspace(props: {
     setImporting('Importing…');
     const { id, said } = await addImported(controller, files, size, (taken) => tileIdTaken(session.project, taken));
     if (id !== null) setOpen(`${SURFACE}${id}`);
+    setImporting(said);
+    props.onChange();
+  };
+
+  /** A Poly Haven texture downloaded and imported as files would be. */
+  const importHaven = async (): Promise<void> => {
+    const id = polyHavenId(haven);
+    if (id === null) {
+      setImporting('Name a Poly Haven texture: its id (rock_wall_08) or its page (polyhaven.com/a/rock_wall_08).');
+      return;
+    }
+    setImporting(`Downloading ${id} from Poly Haven…`);
+    const { id: made, said } = await addPolyHaven(controller, id, size, (taken) => tileIdTaken(session.project, taken));
+    if (made !== null) {
+      setOpen(`${SURFACE}${made}`);
+      setHaven('');
+    }
     setImporting(said);
     props.onChange();
   };
@@ -186,6 +207,30 @@ export function TilesWorkspace(props: {
               <option key={side} value={side}>{side === 512 ? '512 px' : `${side / 1024}K`}</option>
             ))}
           </select>
+        </div>
+        <div class="ph-row">
+          <input
+            class="ph-input"
+            style={{ flex: 1, minWidth: 0 }}
+            list="poly-haven-starters"
+            data-testid="poly-haven-id"
+            aria-label="A Poly Haven texture"
+            placeholder="Poly Haven id or link"
+            title="A texture from polyhaven.com (CC0): pick one, or paste its id (rock_wall_08) or its page's address"
+            value={haven}
+            onInput={(e) => setHaven(e.currentTarget.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') void importHaven();
+            }}
+          />
+          <datalist id="poly-haven-starters">
+            {POLY_HAVEN_STARTERS.map((starter) => (
+              <option key={starter.id} value={starter.id} label={`${starter.group}: ${starter.name}`} />
+            ))}
+          </datalist>
+          <button class="ph-mini" data-testid="poly-haven-add" title="Download it from Poly Haven: four tiles drawn in it" onClick={() => void importHaven()}>
+            Download
+          </button>
         </div>
         {importing === null ? null : (
           <div class="ph-note" data-testid="surface-status">

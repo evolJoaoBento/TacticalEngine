@@ -885,7 +885,10 @@ the last four commits are that pattern. Do not amend the reviewed commit; the pa
 
 ### (f) Importing a tile material
 
-What happens when an author drops an ambientCG zip, file by file, for anybody changing it.
+What happens when an author drops an ambientCG zip, file by file, for anybody changing it. A Poly Haven texture
+downloaded by name (`engine/content/poly-haven.ts`, `downloadPolyHaven`) is turned into the same files - each named as
+Poly Haven names it, so the kit knows it - and from there goes the same way; `importPolyHaven` then sets its name,
+`source` and Size from Poly Haven's `/info`.
 
 1. **`editor/surface-import.ts`** - `filesOf` unzips (`fflate`); `importSurface` asks the kit which file is which map,
    decodes each with colour management off, draws them at the chosen size on an `OffscreenCanvas`, packs them

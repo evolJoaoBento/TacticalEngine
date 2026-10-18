@@ -54,6 +54,22 @@ describe("a material's files", () => {
     });
   });
 
+  it("knows each map by the last word naming one, whatever the material is called; Poly Haven's packed copy left out", () => {
+    // `rough_plasterbrick_05`: every file says "rough", but only one is its roughness.
+    const names = ['rough_plasterbrick_05_diff_1k.jpg', 'rough_plasterbrick_05_nor_gl_1k.jpg', 'rough_plasterbrick_05_rough_1k.jpg', 'rough_plasterbrick_05_ao_1k.jpg', 'rough_plasterbrick_05_disp_1k.jpg', 'rough_plasterbrick_05_arm_1k.jpg'];
+    expect(classifySurfaceFiles(names)).toEqual({
+      color: names[0],
+      normalGL: names[1],
+      roughness: names[2],
+      ao: names[3],
+      height: names[4],
+      ignored: ['rough_plasterbrick_05_arm_1k.jpg'],
+    });
+    // Its height map first: still a height map, the roughness still its own.
+    expect(classifySurfaceFiles([names[4]!, names[2]!])).toMatchObject({ height: names[4], roughness: names[2], ignored: [] });
+    expect(classifySurfaceFiles(['MetalPlates001_1K-JPG_Color.jpg', 'metal_floor_diff_1k.jpg', 'metal_floor_nor_dx_1k.jpg'])).toMatchObject({ color: 'MetalPlates001_1K-JPG_Color.jpg', normalDX: 'metal_floor_nor_dx_1k.jpg', ignored: ['metal_floor_diff_1k.jpg'] });
+  });
+
   it('refuses a set with no colour map, and nothing else', () => {
     expect(refusalOf(classifySurfaceFiles(['x_Roughness.jpg']))).toMatch(/No colour map/);
     expect(refusalOf(classifySurfaceFiles(['x_Color.jpg']))).toBeNull();

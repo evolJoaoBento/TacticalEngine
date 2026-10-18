@@ -50,10 +50,13 @@ function roleOf(name: string): Role | null {
     .split(/[_\-. ]+/)
     .filter((word) => word !== '');
   if (words.includes('opacity')) return null;
-  if (words.includes('normalgl')) return 'normalGL';
-  if (words.includes('normaldx')) return 'normalDX';
-  if (words.some((word) => NORMAL.includes(word))) return words.includes('dx') ? 'normalDX' : 'normalGL';
-  for (const [role, said] of WORDS) if (words.some((word) => said.includes(word))) return role;
+  // The last word that names a map: a set names the map after the material, so `rough_plasterbrick_05_disp_1k` is a height map.
+  for (const word of words.reverse()) {
+    if (word === 'normalgl') return 'normalGL';
+    if (word === 'normaldx') return 'normalDX';
+    if (NORMAL.includes(word)) return words.includes('dx') ? 'normalDX' : 'normalGL';
+    for (const [role, said] of WORDS) if (said.includes(word)) return role;
+  }
   return null;
 }
 
