@@ -92,7 +92,7 @@ describe('building chunk LOD', () => {
 
 describe('pieces drawn in an imported material', () => {
   const maps = { color: 'c', normalHeight: 'n', orm: 'o' };
-  const bricks = { id: 'bricks', name: 'Bricks', maps, parallax: true, size: 1, depth: 0.06, normalScale: 1, roughness: 1 };
+  const bricks = { id: 'bricks', name: 'Bricks', maps, parallax: true, size: 1, depth: 0.06, normalScale: 1, roughness: 1, tint: 0 };
   const palette = new TerrainPalette([
     terrain('grass'),
     terrain('bricks-wall', { structure: 'wall', surface: 'bricks', color: '#884422' }),
@@ -145,7 +145,8 @@ describe('pieces drawn in an imported material', () => {
     const [plain, textured] = [meshes().find((m) => !m.name.endsWith(':bricks'))!, meshes().find((m) => m.name.endsWith(':bricks'))!];
     expect(plain.material).not.toBe(textured.material);
     expect(textured.material).toBe(library.materialFor('bricks'));
-    expect(colourOf(textured, 0)).toBe('#ffffff');
+    // Its kind's colour, which the material takes as far as its tint says.
+    expect(colourOf(textured, 0)).toBe('#884422');
     expect(colourOf(plain, 0)).toBe(`#${new Color(BUILD_MATERIALS.stone).getHexString()}`);
     // Far off, the flat material: the same maps, no parallax.
     look(105);
@@ -165,6 +166,22 @@ describe('pieces drawn in an imported material', () => {
     library.add({ ...bricks, depth: 0.1 });
     look(10);
     expect(meshes().find((m) => m.name.endsWith(':bricks'))).toBe(textured);
+    view.dispose();
+  });
+
+  it("draws a piece in its kind's new colour once the kind is recoloured, its chunk built again", async () => {
+    const { library, land } = surfaces();
+    const { view, scene, look, meshes } = drawn([piece(0, 'bricks-wall')], library);
+    look(10);
+    await land();
+    look(10);
+    const before = meshes().find((m) => m.name.endsWith(':bricks'))!;
+    const recoloured = new TerrainPalette([terrain('grass'), terrain('bricks-wall', { structure: 'wall', surface: 'bricks', color: '#2266aa' })]);
+    view.sync(scene, recoloured);
+    look(10);
+    const after = meshes().find((m) => m.name.endsWith(':bricks'))!;
+    expect(after).not.toBe(before);
+    expect(colourOf(after, 0)).toBe('#2266aa');
     view.dispose();
   });
 

@@ -3,10 +3,11 @@
  * cell of a kind that names one drawn in it once its maps are in, the kind's own colours meanwhile.
  *
  * The ground is one mesh per kind (`terrain-mesh.ts`, `terrain:<id>`), so a kind is drawn in a material by giving its
- * mesh the library's - shared, and never the ground's to dispose: the ground's own is kept beside the mesh
- * (`userData.plain`), is what `TerrainMesh.dispose` frees, and is put back when the material goes. The material's UVs
- * come from world position, so the mesh needs none. A material's colour is in its maps, so the tints a room's cells
- * carry do not reach a kind drawn in one.
+ * mesh the library's ground material (`groundMaterialFor`) - shared, and never the ground's to dispose: the ground's
+ * own is kept beside the mesh (`userData.plain`), is what `TerrainMesh.dispose` frees, and is put back when the
+ * material goes. The material's UVs come from world position, so the mesh needs none. Its vertex colours - the kind's
+ * colour, a cell's tint, blended across corners as the plain ground is - are what the material's tint takes
+ * (`TileSurface.tint`); at none, the material's own colour.
  */
 
 import type { Material } from 'three';
@@ -21,7 +22,7 @@ export function paintGround(terrain: TerrainMesh, palette: TerrainPalette, surfa
     mesh.userData['plain'] = plain;
     const index = palette.indexOf(mesh.name.slice('terrain:'.length));
     const surface = index < 0 ? undefined : palette.at(index).surface;
-    const painted = surface !== undefined && surfaces?.has(surface) === true ? surfaces.materialFor(surface) : null;
+    const painted = surface !== undefined && surfaces?.has(surface) === true ? surfaces.groundMaterialFor(surface) : null;
     mesh.material = painted ?? plain;
   }
 }

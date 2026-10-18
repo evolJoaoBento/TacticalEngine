@@ -362,6 +362,13 @@ export const tileSurfaceSchema = z.object({
   normalScale: z.number().min(0).max(4).default(1),
   /** What the roughness map is multiplied by. */
   roughness: z.number().min(0).max(2).default(1),
+  /**
+   * How far it takes the colour it is drawn in - its kind's colour, or a cell's tint on the ground - from 0, its own
+   * colour, to 1, its average that colour (`render/tile-surface.ts`).
+   */
+  tint: z.number().min(0).max(1).default(0),
+  /** The average of its colour map, which a tint is measured against: kept at import. */
+  color: z.string().min(1).optional(),
 });
 export type TileSurface = z.infer<typeof tileSurfaceSchema>;
 

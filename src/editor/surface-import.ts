@@ -185,6 +185,7 @@ export async function importSurface(files: readonly File[], size: SurfaceSize = 
     if (pixels !== undefined) decoded[role] = pixels;
   }
   const packed = packMaps(decoded);
+  const average = meanColor(decoded.color);
   const shape = { width, height, data: packed.color };
   const zip = files.find((file) => /\.zip$/i.test(file.name));
   const identity = surfaceIdentity(zip?.name ?? roles.color!);
@@ -216,8 +217,10 @@ export async function importSurface(files: readonly File[], size: SurfaceSize = 
       depth: 0.06,
       normalScale: 1,
       roughness: 1,
+      tint: 0,
+      color: average,
     },
-    color: meanColor(decoded.color),
+    color: average,
     ignored: roles.ignored,
     compressed,
   };

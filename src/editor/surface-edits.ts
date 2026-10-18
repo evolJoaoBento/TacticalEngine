@@ -55,7 +55,7 @@ export function importTileSurface(surface: TileSurface, kinds: readonly SurfaceK
 }
 
 /** What may be tuned of a material once it is imported: its maps are not among them - new maps are a new import. */
-export type SurfaceChanges = Partial<Pick<TileSurface, 'name' | 'size' | 'depth' | 'normalScale' | 'roughness'>>;
+export type SurfaceChanges = Partial<Pick<TileSurface, 'name' | 'size' | 'depth' | 'normalScale' | 'roughness' | 'tint'>>;
 
 /**
  * A material tuned: its name, how big a repeat is, how deep it reads, how strong its normal, how rough. A slider

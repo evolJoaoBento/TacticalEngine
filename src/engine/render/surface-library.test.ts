@@ -18,6 +18,7 @@ const surface = (id = 'bricks', over: Partial<TileSurface> = {}): TileSurface =>
   depth: 0.06,
   normalScale: 1,
   roughness: 1,
+  tint: 0,
   ...over,
 });
 
@@ -90,6 +91,34 @@ describe("the project's imported materials", () => {
     library.add(surface('bricks', { maps: { color: 'b2-c', normalHeight: 'b2-n', orm: 'b2-o' } }));
     expect(library.materialFor('bricks')).toBeNull();
     expect(files.asked.slice(3)).toEqual(['b2-c', 'b2-n', 'b2-o']);
+  });
+
+  it("gives the ground its own material of a surface, reading vertex colours, tuned with the rest and let go with them", async () => {
+    const files = loader();
+    const library = new SurfaceLibrary(files.load);
+    library.add(surface());
+    expect(library.groundMaterialFor('bricks')).toBeNull();
+    await files.give('bricks-c', 'bricks-n', 'bricks-o');
+    const ground = library.groundMaterialFor('bricks')!;
+    const near = library.materialFor('bricks')!;
+    expect(ground).not.toBe(near);
+    expect([ground.vertexColors, near.vertexColors]).toEqual([true, false]);
+    expect(library.groundMaterialFor('bricks')).toBe(ground);
+    expect(ground.userData.surfaceUniforms.tColor.value).toBe(near.userData.surfaceUniforms.tColor.value);
+    // A tint, and the average it is measured against, reach every material of it.
+    const before = library.revisionOf('bricks');
+    library.add(surface('bricks', { tint: 0.75 }));
+    expect(ground.userData.surfaceUniforms.uTint.value).toBe(0.75);
+    library.add(surface('bricks', { tint: 0.75, color: '#336699' }));
+    for (const material of [ground, near, library.materialFor('bricks', true)!]) {
+      expect(material.userData.surfaceUniforms.uTint.value).toBe(0.75);
+      expect(material.userData.surfaceUniforms.uMean.value.getHexString()).toBe('336699');
+    }
+    expect(library.revisionOf('bricks')).toBeGreaterThan(before);
+    let freed = false;
+    ground.addEventListener('dispose', () => (freed = true));
+    library.remove('bricks');
+    expect(freed).toBe(true);
   });
 
   it('lets go of a surface removed while its maps were on their way, and of every one the project no longer has', async () => {

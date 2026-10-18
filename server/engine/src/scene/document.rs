@@ -366,6 +366,8 @@ fn tile_surface() -> Schema {
         def("depth", number().min(0.0).max(0.25), || json!(0.06)),
         def("normalScale", number().min(0.0).max(4.0), one),
         def("roughness", number().min(0.0).max(2.0), one),
+        def("tint", number().min(0.0).max(1.0), || json!(0)),
+        opt("color", string().min(1.0)),
     ])
 }
 

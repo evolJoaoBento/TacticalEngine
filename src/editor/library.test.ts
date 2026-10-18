@@ -60,7 +60,7 @@ describe('the library', () => {
       new Map([['bricks076', 'Bricks 076']]),
     );
     expect(tab.items.map((i) => [i.id, i.surface ?? null, i.swatch])).toEqual([
-      ['bricks076-wall', { id: 'bricks076', structure: 'wall' }, '#8a5a44'],
+      ['bricks076-wall', { id: 'bricks076', structure: 'wall', color: '#8a5a44' }, '#8a5a44'],
       ['crate', null, '#5d8a4a'],
     ]);
     expect(filterLibrary([tab], 'bricks 076').map((i) => i.id)).toEqual(['bricks076-wall', 'crate']);

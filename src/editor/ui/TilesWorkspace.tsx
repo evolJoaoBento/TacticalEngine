@@ -59,7 +59,11 @@ const TUNINGS = [
   { key: 'depth', label: 'Depth', min: 0, max: 0.2, step: 0.01 },
   { key: 'normalScale', label: 'Normal strength', min: 0, max: 2, step: 0.05 },
   { key: 'roughness', label: 'Roughness', min: 0, max: 2, step: 0.05 },
+  { key: 'tint', label: "Tint, from its kind's colour", min: 0, max: 1, step: 0.05 },
 ] as const;
+
+/** The repeat typed rather than slid: any size the schema takes, to match a reference exactly. */
+const SIZE_TYPED = { min: 0.05, max: 16 };
 
 export function TilesWorkspace(props: {
   session: EditorSession;
@@ -294,8 +298,31 @@ export function TilesWorkspace(props: {
                   props.onChange();
                 }}
               />
+              {tuning.key !== 'size' ? null : (
+                <input
+                  class="ph-input"
+                  style={CONTROL}
+                  type="number"
+                  data-testid="surface-size-typed"
+                  aria-label="Size, in tiles per repeat, typed"
+                  min={SIZE_TYPED.min}
+                  max={SIZE_TYPED.max}
+                  step="any"
+                  value={surface.size}
+                  onChange={(e) => {
+                    // Out of range or not a number is left as it was: the box shows the size again.
+                    const typed = Number(e.currentTarget.value);
+                    if (Number.isFinite(typed) && typed >= SIZE_TYPED.min && typed <= SIZE_TYPED.max) controller.updateSurface(surface.id, { size: typed });
+                    props.onChange();
+                  }}
+                />
+              )}
             </label>
           ))}
+          <div class="ph-note">
+            Tint at 0 draws the material in its own colours. Raised, it takes the colour of the kind of tile it is drawn
+            on - and on the ground a cell's own tint - until at 1 its average is that colour, its detail kept.
+          </div>
           {/* The ground too: every cell of a kind ticked here is drawn in this material. */}
           <div class="ph-heading">Ground drawn in it</div>
           {types.filter((kind) => kind.structure === undefined && kind.id !== 'void').map((kind) => (

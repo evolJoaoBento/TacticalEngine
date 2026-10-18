@@ -13,20 +13,29 @@
  * - Colour, normal (rebuilt from its X and Y; height rides in the blue channel), roughness, AO and metalness sampled
  *   once at the final UV - with `textureGrad`, its derivatives taken before the loop, since a derivative inside
  *   control flow that differs between pixels is undefined and sparkles at every seam.
+ * - **A tint** (`uTint`, 0 to 1): the colour a piece or a cell is drawn in - an instance's colour, or the ground's
+ *   vertex colours, three's `vColor` - divided by the material's own average (`uMean`), so at 1 the material's average
+ *   becomes that colour and its detail stays; at 0 it is the material's own colour, whatever the colour says.
  *
  * Three's own `map`, `normalMap`, `roughnessMap` and `aoMap` are never set: their UV plumbing would fight the
  * projected UVs. The chunks replaced are named in `REPLACED`, and a test holds every one to three's shaders - a three
  * release that renames one would otherwise leave the material quietly flat.
  */
 
-import { MeshStandardMaterial, type Texture, Vector2 } from 'three';
+import { Color, MeshStandardMaterial, type Texture, Vector2 } from 'three';
 
-/** How the material's maps are tuned: tiles per repeat, depth in tiles, the normal's strength, roughness's scale. */
+/**
+ * How the material's maps are tuned: tiles per repeat, depth in tiles, the normal's strength, roughness's scale, how
+ * far it takes the colour it is drawn in; and the average of its colour map (sRGB hex), which the tint is measured
+ * against - none, for a material imported before it was kept, and the tint is a plain multiply.
+ */
 export interface SurfaceTuning {
   size: number;
   depth: number;
   normalScale: number;
   roughness: number;
+  tint: number;
+  color?: string | undefined;
 }
 
 /** The three packed maps: colour (sRGB); normal X, Y and height (linear); AO, roughness, metalness (linear). */
@@ -42,7 +51,7 @@ export const PARALLAX_FADE: readonly [number, number] = [30, 55];
 /** The chunks this replaces or anchors on, in three's standard shaders: held to them by a test. */
 export const REPLACED = {
   vertex: ['#include <common>', '#include <project_vertex>'],
-  fragment: ['#include <common>', '#include <map_fragment>', '#include <roughnessmap_fragment>', '#include <metalnessmap_fragment>', '#include <normal_fragment_maps>', '#include <aomap_fragment>'],
+  fragment: ['#include <common>', '#include <map_fragment>', '#include <color_fragment>', '#include <roughnessmap_fragment>', '#include <metalnessmap_fragment>', '#include <normal_fragment_maps>', '#include <aomap_fragment>'],
 } as const;
 
 const VARYINGS = /* glsl */ `
@@ -73,6 +82,8 @@ uniform float uSize;
 uniform float uDepth;
 uniform float uNormalScale;
 uniform float uRoughness;
+uniform float uTint;
+uniform vec3 uMean;
 uniform vec2 uFade;
 `;
 
@@ -133,6 +144,17 @@ vec4 tmOrm = textureGrad( tOrm, tmUv, tmDx, tmDy );
 diffuseColor.rgb *= textureGrad( tColor, tmUv, tmDx, tmDy ).rgb;
 `;
 
+/**
+ * Three's `color_fragment`, the colour drawn in measured against the material's average and taken as far as the tint
+ * says: white with no tint, so a plain piece's colour never darkens a material. Capped, so a pale colour over a dark
+ * material brightens it rather than blowing it out.
+ */
+const COLOR = /* glsl */ `
+#if defined( USE_COLOR ) || defined( USE_COLOR_ALPHA )
+  diffuseColor.rgb *= mix( vec3( 1.0 ), min( vColor.rgb / max( uMean, vec3( 0.02 ) ), vec3( 4.0 ) ), uTint );
+#endif
+`;
+
 const ROUGHNESS = /* glsl */ `
 float roughnessFactor = clamp( roughness * tmOrm.g * uRoughness, 0.04, 1.0 );
 `;
@@ -179,6 +201,8 @@ export interface SurfaceUniforms {
   uDepth: { value: number };
   uNormalScale: { value: number };
   uRoughness: { value: number };
+  uTint: { value: number };
+  uMean: { value: Color };
   uFade: { value: Vector2 };
 }
 
@@ -196,6 +220,7 @@ export function patchShader(shader: ShaderLike, uniforms: SurfaceUniforms, paral
   shader.fragmentShader = shader.fragmentShader
     .replace('#include <common>', `#include <common>\n${parallax ? '#define TM_PARALLAX\n' : ''}${VARYINGS}${FRAGMENT_PARS}`)
     .replace('#include <map_fragment>', FRAGMENT_PREAMBLE)
+    .replace('#include <color_fragment>', COLOR)
     .replace('#include <roughnessmap_fragment>', ROUGHNESS)
     .replace('#include <metalnessmap_fragment>', METALNESS)
     .replace('#include <normal_fragment_maps>', NORMAL)
@@ -208,14 +233,22 @@ export function tuneSurface(uniforms: SurfaceUniforms, tuning: SurfaceTuning): v
   uniforms.uDepth.value = tuning.depth;
   uniforms.uNormalScale.value = tuning.normalScale;
   uniforms.uRoughness.value = tuning.roughness;
+  uniforms.uTint.value = tuning.tint;
+  meanOf(tuning, uniforms.uMean.value);
+}
+
+/** The average a tint is measured against: the material's own, or white when it was never kept. */
+function meanOf(tuning: SurfaceTuning, into: Color): Color {
+  return tuning.color === undefined ? into.setRGB(1, 1, 1) : into.set(tuning.color);
 }
 
 /**
  * A material drawn in a surface's maps: the near one, with parallax, or the flat one, without - each its own program
- * (`customProgramCacheKey`), the textures shared.
+ * (`customProgramCacheKey`), the textures shared. The ground's takes its colours from the mesh's vertices
+ * (`vertexColors`); a piece's from its instance, which an instanced mesh hands any material.
  */
-export function makeSurfaceMaterial(textures: SurfaceTextures, tuning: SurfaceTuning, { parallax }: { parallax: boolean }): SurfaceMaterial {
-  const material = new MeshStandardMaterial({ color: '#ffffff', roughness: 1, metalness: 1 }) as SurfaceMaterial;
+export function makeSurfaceMaterial(textures: SurfaceTextures, tuning: SurfaceTuning, { parallax, vertexColors = false }: { parallax: boolean; vertexColors?: boolean }): SurfaceMaterial {
+  const material = new MeshStandardMaterial({ color: '#ffffff', roughness: 1, metalness: 1, vertexColors }) as SurfaceMaterial;
   const uniforms: SurfaceUniforms = {
     tColor: { value: textures.color },
     tNormalHeight: { value: textures.normalHeight },
@@ -224,6 +257,8 @@ export function makeSurfaceMaterial(textures: SurfaceTextures, tuning: SurfaceTu
     uDepth: { value: tuning.depth },
     uNormalScale: { value: tuning.normalScale },
     uRoughness: { value: tuning.roughness },
+    uTint: { value: tuning.tint },
+    uMean: { value: meanOf(tuning, new Color()) },
     uFade: { value: new Vector2(PARALLAX_FADE[0], PARALLAX_FADE[1]) },
   };
   material.userData = { surfaceUniforms: uniforms };

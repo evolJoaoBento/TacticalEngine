@@ -608,7 +608,7 @@ function renderPanel(): void {
       characterContent: characterContentFor(game.board.project),
       characterPack: characterContentFor(),
       preview: (card) => h(CardPreview, { card, content: characterContentFor(game.board.project) }),
-      thumbnail: (item) => item.tab.startsWith('tier-') ? thumbnailOf(view.registry, assets, adversaryModels[item.id] ?? DEMO_MODELS[item.id] ?? item.id, 'husk') : item.surface !== undefined ? surfaceThumbnailOf(view.registry, assets, surfaces, item.surface.id, item.surface.structure) : thumbnailOf(view.registry, assets, item.model ?? item.id),
+      thumbnail: (item) => item.tab.startsWith('tier-') ? thumbnailOf(view.registry, assets, adversaryModels[item.id] ?? DEMO_MODELS[item.id] ?? item.id, 'husk') : item.surface !== undefined ? surfaceThumbnailOf(view.registry, assets, surfaces, item.surface.id, item.surface.structure, item.surface.color) : thumbnailOf(view.registry, assets, item.model ?? item.id),
       playingScene: game.board.scene.id,
       onPlay: () => setMode('play'),
       onPlayHere: () => playAt(editor.sceneId, null),

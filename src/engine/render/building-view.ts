@@ -186,7 +186,7 @@ export class BuildingView {
       chunk.radius = Math.max(chunk.radius, CHUNK_RADIUS + (tile.height ?? 1) - 1);
       this.tileCount++;
     }
-    for (const chunk of next.values()) chunk.signature = this.signatureOf(chunk.looks);
+    for (const chunk of next.values()) chunk.signature = this.signatureOf(chunk, palette);
     // A chunk whose pieces are the very same objects, drawn in the very same materials, still holds good buffers.
     // `BuildingEdit` writes new tile objects rather than mutating, so identity is a sound test - which is why it must
     // keep doing that.
@@ -280,11 +280,21 @@ export class BuildingView {
     return surface !== undefined && this.surfaces.has(surface) ? surface : null;
   }
 
-  /** What a chunk's looks are drawn with now: each material, and whether - and which time - its maps are in. */
-  private signatureOf(looks: readonly (string | null)[]): string {
+  /**
+   * What a chunk's looks are drawn with now: each material, and whether - and which time - its maps are in; and the
+   * colour of each kind drawn in one, which its tint takes.
+   */
+  private signatureOf(chunk: Chunk, palette: TerrainPalette | undefined): string {
     if (this.surfaces === undefined) return '';
-    const ids = [...new Set(looks.filter((look): look is string => look !== null))].sort();
-    return ids.map((id) => `${id}:${this.surfaces!.statusOf(id)}:${this.surfaces!.generationOf(id)}`).join('|');
+    const ids = [...new Set(chunk.looks.filter((look): look is string => look !== null))].sort();
+    const kinds = [...new Set(chunk.tiles.filter((_, i) => chunk.looks[i] !== null).map((tile) => `${tile.tile}=${this.kindColorOf(tile, palette) ?? ''}`))].sort();
+    return [...ids.map((id) => `${id}:${this.surfaces!.statusOf(id)}:${this.surfaces!.generationOf(id)}`), ...kinds].join('|');
+  }
+
+  /** The colour a piece's kind of tile is drawn in, if it says. */
+  private kindColorOf(tile: BuildingTile, palette: TerrainPalette | undefined): string | undefined {
+    const index = palette === undefined || tile.tile === undefined ? -1 : palette.indexOf(tile.tile);
+    return index < 0 ? undefined : palette!.at(index).color;
   }
 
   private build(chunk: Chunk, lod: number): void {
@@ -316,10 +326,10 @@ export class BuildingView {
         const sin = Math.sin(angle);
         const cos = Math.cos(angle);
         const tall = tile.height ?? 1;
-        // A material's own colour is in its maps: white under them. A plain box is its tint - or, waiting for its
-        // material's maps, its kind's colour.
-        const waiting = chunk.looks[i] !== null && look === null ? this.last?.palette?.at(this.last.palette.indexOf(tile.tile!)).color : undefined;
-        this.color.set(look !== null ? '#ffffff' : waiting ?? BUILD_MATERIALS[tile.material]);
+        // A piece in a material is its kind's colour, which the material takes as far as its tint says
+        // (`TileSurface.tint`). A plain box is its tint - or, waiting for its material's maps, its kind's colour.
+        const kind = chunk.looks[i] !== null ? this.kindColorOf(tile, this.last?.palette) : undefined;
+        this.color.set(look !== null ? kind ?? '#ffffff' : kind ?? BUILD_MATERIALS[tile.material]);
         for (const part of buildingParts(tile.shape, lod === 2)) {
           const [x, y, z, sx, sy, sz] = part;
           this.scratch.position.set(

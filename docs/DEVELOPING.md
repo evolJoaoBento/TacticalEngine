@@ -1019,7 +1019,22 @@ when the source changes; browser tests cover broken directory art, corrupt impor
 - **A kind of ground drawn in a material swaps its terrain mesh's material, never disposes it.** The ground's own
   material stays on `mesh.userData.plain` and is still the one `TerrainMesh.dispose` frees; the library's is shared
   with every piece drawn in it. The shader's UVs come from world position, so the terrain mesh needs none, and the
-  ground runs on continuously; its per-vertex tints are not read, so a tinted cell shows the material's colour.
+  ground runs on continuously. Its vertex colours are the tint's, so the ground gets a material of its own
+  (`SurfaceLibrary.groundMaterialFor`, `vertexColors: true`): put `vertexColors` on the shared one and every piece goes
+  black, since a box has no colour attribute and WebGL reads a missing one as zero.
+
+- **A material's tint is three's `vColor` divided by the material's average** (`tile-surface.ts`, `COLOR`, which
+  replaces `color_fragment`): an instanced piece's `instanceColor` or the ground's vertex colours, over
+  `TileSurface.color`, the colour map's mean kept at import, capped at four times and mixed in by `uTint`. So a kind
+  whose colour is its material's mean - as an import makes them - draws as it did at any tint, and white (`#ffffff`,
+  the old instance colour) is what a material with no mean kept divides by. Anything new that draws a material in an
+  `InstancedMesh` must set each instance's colour, or it is black under a tint (`thumbnails.ts` does).
+
+- **Direct3D's shader compiler warns about the environment map's PMREM shader** ("X4122: sum of ... cannot be
+  represented accurately"), and three logs a warning as `console.warn('THREE.WebGLProgram: Program Info Log: ...')`.
+  It shows only when Windows' shader cache (`D3DSCache`) has not seen the shader, so a test that fails on any
+  `WebGLProgram` message is flaky by machine. `tile-surfaces.spec.ts`'s `glFailure` fails on a shader *error* (three's
+  `console.error`) and on a refused GL call, never on a warning.
 
 - **UASTC's rate-distortion pass is not worth its time here.** Measured on a 1K map it took ten times as long as the
   encoding it shrinks (25 s against 2.5 s), and on a real material (ambientCG's Bricks105) the files came out no smaller

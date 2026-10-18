@@ -38,7 +38,19 @@ terrain mesh's material swapped for the library's, the shader's world-position U
 material's page, **Ground drawn in it** ticks the kinds of ground; the kind's own Surface select does the same.
 Painting single cells is not brought back: ground is not something the placer puts down (`controller.ts`,
 `placeTile`), so it is a kind's look, as its colour is. Tests: `src/engine/render/scene-view-ground.test.ts`,
-`tests/e2e/tile-surfaces.spec.ts`. Still open: per-cell tints do not show on a kind drawn in a material.
+`tests/e2e/tile-surfaces.spec.ts`.
+
+A material takes a colour (`TileSurface.tint`, 18 October 2026): **Tint** on its page, 0 its own colours (the default,
+so every material made before reads as it did), 1 the colour it is drawn in - a piece's kind's colour, through the
+instance colour the pieces always had; on the ground the kind's colour or a cell's tint, through the vertex colours the
+plain ground always had - divided by the material's own average (`TileSurface.color`, kept at import), so its average
+becomes that colour and its detail stays. The ground reads it through a material of its own (`groundMaterialFor`,
+`vertexColors`): a piece's box has no colour attribute, and the shared one would draw every piece black. The strip's
+pictures are drawn in the kind's colour too. And **Size** has a box beside the slider for a typed repeat, any size the
+schema takes (0.05 to 16). Tests: `tile-surface.test.ts`, `surface-library.test.ts`, `building-view.test.ts`,
+`scene-view-ground.test.ts`, `tests/e2e/tile-surfaces.spec.ts` (a block's pixels turn blue). Still open: a material
+imported before 18 October has no average kept, so its tint is a plain multiply and darkens; a repeat per kind of
+tile rather than per material.
 
 ## Tile materials compressed for the GPU (KTX2) — done
 

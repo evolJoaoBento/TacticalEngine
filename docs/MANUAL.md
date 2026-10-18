@@ -1124,15 +1124,23 @@ is drawn in.
 **The ground can be drawn in a material too.** On a material's page, **Ground drawn in it** lists
 your kinds of ground (Floor, Difficult Terrain and the rest); tick one and every cell of that kind is
 drawn in the material, continuous across the whole room. A kind of tile's own **Surface** select
-does the same. A kind of ground drawn in a material is the material's colour: the tints painted on
-single cells don't show on it. Where pieces are stacked on the ground, the pieces are what you see.
+does the same. Where pieces are stacked on the ground, the pieces are what you see.
 
 Click a material to tune it, and the board redraws as you drag: **Size** (how many tiles one
-repeat of the texture covers), **Depth** (how far it reads into a face), **Normal strength** and
-**Roughness**. **✕** removes the material and its four tiles. A kind of tile you made yourself can
-be drawn in a material too, with its **Surface** select. A piece drawn in a material is the
-material's colour: the stone, wood and grass tints apply only to plain pieces. Imported
-materials draw in play as well as in the editor.
+repeat of the texture covers - type an exact number in the box under the slider, anything from
+0.05 to 16, to match a reference), **Depth** (how far it reads into a face), **Normal strength**,
+**Roughness** and **Tint**. **✕** removes the material and its four tiles. A kind of tile you made
+yourself can be drawn in a material too, with its **Surface** select. Imported materials draw in
+play as well as in the editor.
+
+**Tint** colours a material. At 0 (where every material starts) it is its own colours. Raised, it
+takes the **Colour** of the kind of tile it is drawn on - and on the ground, a cell's own tint where
+the map has one - until at 1 the material's average colour *is* that colour, its bricks and mortar
+still there. A material's four tiles start with its own average as their colour, so tinting changes
+nothing until you give a kind another colour: one material can then be red brick on one kind and
+grey on another. The strip's pictures show the tint. A material imported before 18 October 2026
+doesn't know its average, so its tint darkens as it colours; import it again to fix that. The stone,
+wood and grass chips apply only to plain pieces.
 
 ### Models (glTF import)
 

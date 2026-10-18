@@ -8,7 +8,7 @@
  * WebGL context: the strip falls back rather than this throwing.
  */
 
-import { Box3, BoxGeometry, DirectionalLight, Group, HemisphereLight, Mesh, PerspectiveCamera, Scene, Sphere, Vector3, WebGLRenderer, type Object3D } from 'three';
+import { Box3, BoxGeometry, Color, DirectionalLight, Group, HemisphereLight, InstancedMesh, Object3D, PerspectiveCamera, Scene, Sphere, Vector3, WebGLRenderer } from 'three';
 import { buildingParts } from '../scene/building';
 import type { SurfaceLibrary } from './surface-library';
 import { seatOnTile, type AssetLibrary } from './assets';
@@ -144,27 +144,34 @@ export class ModelThumbnails {
   }
 
   /**
-   * A kind of tile drawn in an imported material: its structure's boxes in the material, framed on its tile as a model
-   * is - or null while the material's maps are not in, and the card is its colour meanwhile. Kept under the material's
-   * revision, so a tuning edit draws it again; the boxes it built let go once it is drawn.
+   * A kind of tile drawn in an imported material: its structure's boxes in the material, in the kind's colour as the
+   * board draws them (the material's tint takes it), framed on its tile as a model is - or null while the material's
+   * maps are not in, and the card is its colour meanwhile. Kept under the material's revision and the colour, so a
+   * tuning edit or a new colour draws it again; the boxes it built let go once it is drawn.
    */
-  surfaceUrl(surfaces: SurfaceLibrary, surface: string, structure: string): string | null {
+  surfaceUrl(surfaces: SurfaceLibrary, surface: string, structure: string, color = '#ffffff'): string | null {
     const material = surfaces.materialFor(surface);
     if (material === null) return null;
-    const key = `surface:${surface}:${structure}:${surfaces.revisionOf(surface)}`;
+    const key = `surface:${surface}:${structure}:${color}:${surfaces.revisionOf(surface)}`;
     const kept = this.pictures.get(key);
     if (kept !== undefined) return kept;
     const renderer = this.context();
     if (renderer === null) return null;
     const box = new BoxGeometry(1, 1, 1);
-    const shown = new Group();
-    for (const [x, y, z, sx, sy, sz] of buildingParts(structure)) {
-      const part = new Mesh(box, material);
-      part.position.set(x, y, z);
-      part.scale.set(sx, sy, sz);
-      shown.add(part);
-    }
+    const parts = buildingParts(structure);
+    // Instanced, as the board's pieces are: an instance's colour is what the tint reads.
+    const shown = new InstancedMesh(box, material, parts.length);
+    const place = new Object3D();
+    const tint = new Color(color);
+    parts.forEach(([x, y, z, sx, sy, sz], i) => {
+      place.position.set(x, y, z);
+      place.scale.set(sx, sy, sz);
+      place.updateMatrix();
+      shown.setMatrixAt(i, place.matrix);
+      shown.setColorAt(i, tint);
+    });
     const picture = this.draw(renderer, shown, 'tile');
+    shown.dispose();
     box.dispose();
     this.pictures.set(key, picture);
     return picture;
@@ -298,8 +305,8 @@ export function thumbnailOf(registry: ModelRegistry, assets: AssetLibrary | null
 }
 
 /** The strip's picture of a kind of tile drawn in an imported material, or null while its maps are not in. */
-export function surfaceThumbnailOf(registry: ModelRegistry, assets: AssetLibrary | null, surfaces: SurfaceLibrary, surface: string, structure: string): Thumbnail | null {
-  const url = sharedFor(registry, assets).surfaceUrl(surfaces, surface, structure);
+export function surfaceThumbnailOf(registry: ModelRegistry, assets: AssetLibrary | null, surfaces: SurfaceLibrary, surface: string, structure: string, color?: string): Thumbnail | null {
+  const url = sharedFor(registry, assets).surfaceUrl(surfaces, surface, structure, color);
   return url === null ? null : { url, standIn: false };
 }
 

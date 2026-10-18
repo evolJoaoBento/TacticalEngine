@@ -11,7 +11,7 @@ import type { ProjectDoc, TileSurface } from '../engine/scene/schema';
 import { importTileSurface, removeTileSurface, replaceSurfaceMaps, roomForSurface, updateTileSurface } from './surface-edits';
 import { KTX2_ENCODING, isCompressedSurface, isLosslessWebp, withKinds } from './surface-import';
 
-const bricks: TileSurface = { id: 'bricks', name: 'Bricks', maps: { color: 'c', normalHeight: 'n', orm: 'o' }, parallax: true, size: 1, depth: 0.06, normalScale: 1, roughness: 1 };
+const bricks: TileSurface = { id: 'bricks', name: 'Bricks', maps: { color: 'c', normalHeight: 'n', orm: 'o' }, parallax: true, size: 1, depth: 0.06, normalScale: 1, roughness: 1, tint: 0 };
 const four = kindsForSurface(bricks, '#884422', () => false).kinds;
 const project = (over: Partial<ProjectDoc> = {}): ProjectDoc => ({ ...over }) as ProjectDoc;
 
