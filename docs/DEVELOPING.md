@@ -191,6 +191,7 @@ adapter: the rest of the core does not know it exists.
 | `scene/building.ts`, `render/building-view.ts` | Sparse construction schema and chunked instanced LOD; `editor/building.ts` owns reversible cell edits. A chunk holds one instanced mesh per look - the plain box, or each imported material its pieces are drawn in - and is built again when a material it uses is (`signature`). |
 | `render/tile-surface.ts` | An imported material's shader: `MeshStandardMaterial` with its map chunks replaced - UVs projected from world position per face, parallax occlusion from the height map, the packed maps sampled with `textureGrad`. `REPLACED` names the chunks, held to three's by a test. |
 | `render/surface-library.ts` | `SurfaceLibrary` - the `AssetLibrary` of materials: each surface's three maps loaded once, a near (parallax) and a flat material shared by every piece; tuned in place (`revisionOf`), rebuilt only when its materials are new objects (`generationOf`). |
+| `render/scene-view.ts` (ground) | `setSurfaces` and `paintGround`: a kind of ground that names a surface has its terrain mesh (one per kind, `terrain:<id>`) drawn in the library's material, its own vertex-coloured one kept on `userData.plain` and put back when the material goes; `paintedGround` says which, for the driver (`groundSurfaces`). |
 | `render/surface-textures.ts` | How a material's maps load: a KTX2 map through `KTX2Loader` (three's Basis transcoder, served by `?url`), anything else through `TextureLoader`. |
 | `content/tile-surface-kit.ts` | Importing a material without a browser: which file is which map, the material's name, its four kinds of tile, the maps packed into three textures (`packMaps`), the mean colour. |
 | `render/procedural/` | `spec.ts`, `registry.ts` (falls back to a placeholder rather than throwing; `missing()` lists unresolved ids), `build.ts`, `library/{heroes,monsters,props}.ts`. The props library is empty: all fourteen were retired for imported models (`scene/retired-models.ts`). |
@@ -1013,6 +1014,16 @@ when the source changes; browser tests cover broken directory art, corrupt impor
   shader the way an image with `flipY` does, and the parallax's sign holds. And it is a quarter of the memory - about
   4 MB a material at 1K, not 16 - transcoded to BC7, ASTC or ETC as the GPU has (`surface-textures.ts`; a GPU with
   none gets plain RGBA). A material imported before, or whose compressing failed, is PNG/WebP and loads as before.
+
+- **A kind of ground drawn in a material swaps its terrain mesh's material, never disposes it.** The ground's own
+  material stays on `mesh.userData.plain` and is still the one `TerrainMesh.dispose` frees; the library's is shared
+  with every piece drawn in it. The shader's UVs come from world position, so the terrain mesh needs none, and the
+  ground runs on continuously; its per-vertex tints are not read, so a tinted cell shows the material's colour.
+
+- **UASTC's rate-distortion pass is not worth its time here.** Measured on a 1K map it took ten times as long as the
+  encoding it shrinks (25 s against 2.5 s), and on a real material (ambientCG's Bricks105) the files came out no smaller
+  once Zstandard had had them; quality level 2 cost four times level 1. So `KTX2_ENCODING` uses neither: a 1K import is
+  a few seconds.
 
 - **The encoder's WebAssembly is aliased by folder (`@ktx2-encoder-basis`).** Its package exports no path to it, and a
   Vite alias matches a name or what is under it - never `name?url` - so the alias is the folder and the import is

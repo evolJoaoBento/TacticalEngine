@@ -148,7 +148,7 @@ declare global {
       editorTool: () => string;
       editorTerrainTab: () => string;
       setTerrain: (id: string) => void;
-      buildingStats: () => import('../../src/engine/render/building-view').BuildingStats;
+      buildingStats: () => import('../../src/engine/render/building-view').BuildingStats; groundSurfaces: () => string[];
       authoredCreatureCount: () => number;
       buildAt: (x: number, y: number) => boolean;
       buildScreenAt: (x: number, y: number) => { x: number; y: number };

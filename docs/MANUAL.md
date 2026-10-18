@@ -1109,11 +1109,19 @@ map, a preview, `.usdc` and `.mtlx` files) are listed after the import.
 The select beside **+ Surface** sets how big the maps are kept: 512 pixels, 1K (the default) or 2K.
 The importer compresses the maps for the graphics card (KTX2), so a 1K material takes about 4 MB of
 graphics memory rather than 16 MB, and many more fit before a computer or phone runs short. The first
-import of a session downloads the compressor (about 3 MB), and a 2K material can take several seconds
-to compress. If compressing fails, the material is imported uncompressed, and the import message says
-so and why. The material is carried in the project file, like an imported model: at 1K one is a few
+import of a session downloads the compressor (about 3 MB); after that a 1K material takes a few
+seconds to import and a 2K one about ten. If compressing fails, the material is imported
+uncompressed, and the import message says so and why. A material imported uncompressed (or before
+compression existed) says so on its page, with a **Compress** button that compresses it in place;
+one undo puts the old maps back. The material is carried in the project file, like an imported model: at 1K one is a few
 megabytes. **Check** warns when the project's materials pass 8 MB. Saving leaves out a material no tile
 is drawn in.
+
+**The ground can be drawn in a material too.** On a material's page, **Ground drawn in it** lists
+your kinds of ground (Floor, Difficult Terrain and the rest); tick one and every cell of that kind is
+drawn in the material, continuous across the whole room. A kind of tile's own **Surface** select
+does the same. A kind of ground drawn in a material is the material's colour: the tints painted on
+single cells don't show on it. Where pieces are stacked on the ground, the pieces are what you see.
 
 Click a material to tune it, and the board redraws as you drag: **Size** (how many tiles one
 repeat of the texture covers), **Depth** (how far it reads into a face), **Normal strength** and

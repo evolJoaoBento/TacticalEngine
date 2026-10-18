@@ -235,7 +235,7 @@ declare global {
       /** Which of Terrain's strips is open, and so which tools its rail offers. */
       editorTerrainTab: () => string;
       setTerrain: (id: string) => void;
-      buildingStats: () => BuildingStats;
+      buildingStats: () => BuildingStats; groundSurfaces: () => string[]; // and the kinds of ground drawn in a material
       pieceModels: () => number;
       authoredCreatureCount: () => number;
       buildAt: (x: number, y: number) => boolean;
@@ -379,7 +379,7 @@ const view = new SceneView(game.board.grid, {
 });
 view.setScenery(game.board.scene);
 view.syncTokens(game.board.state);
-surfaces.setAll(game.board.project.surfaces ?? []); const buildings = new BuildingView({ surfaces });
+surfaces.setAll(game.board.project.surfaces ?? []); view.setSurfaces(surfaces); const buildings = new BuildingView({ surfaces }); // kinds of ground drawn in materials too
 view.scene.add(buildings.root);
 // `game.board.grid`, not `activeGrid`: that binding is declared further down, initialised to this
 buildings.sync(game.board.scene, game.board.grid.palette);
@@ -2338,7 +2338,7 @@ const state = {
   editorTool: (): string => editor.state.tool,
   editorTerrainTab: (): string => editor.terrainTab,
   setTerrain: (id: string): void => { editor.set('tileId', id); if (mode === 'edit') renderPanel(); },
-  buildingStats: (): BuildingStats => buildings.stats(),
+  buildingStats: (): BuildingStats => buildings.stats(), groundSurfaces: (): string[] => view.paintedGround(),
   pieceModels: (): number => view.root.children.filter((c) => c.name.startsWith('pieces:')).reduce((n, g) => n + g.children.reduce((m, c) => m + ((c as { count?: number }).count ?? 0), 0), 0),
   authoredCreatureCount: (): number => view.authoredCreatureCount,
   buildAt: (x: number, y: number): boolean => {

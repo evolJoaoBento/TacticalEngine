@@ -1,4 +1,6 @@
+import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { unzipSync } from 'fflate';
 import { expect, test } from './fixtures';
 
 /**
@@ -89,4 +91,78 @@ test('a material imported gives four tiles, undone and redone as one, each stamp
   await expect.poll(() => page.evaluate(() => window.__engine!.buildingStats().textured), { timeout: 30_000 }).toBeGreaterThanOrEqual(4);
   expect(failed).toEqual([]);
   expect(await page.evaluate(() => window.__engine!.errors)).toEqual([]);
+});
+
+test('a material imported before its maps were compressed is compressed in place, from its own page', async ({ page }) => {
+  test.setTimeout(120_000);
+  const failed: string[] = [];
+  page.on('console', (message) => {
+    if (/Shader Error|WebGLProgram|GL_INVALID|WebGL: INVALID/.test(message.text())) failed.push(message.text());
+  });
+  await page.goto('/');
+  await page.waitForFunction(() => (window.__engine?.frames ?? 0) > 5);
+  await page.evaluate(() => window.__engine!.setMode('edit'));
+  await page.getByTestId('mode-terrain').click();
+  await page.getByTestId('open-content').click();
+  await page.getByTestId('open-tiles').click();
+  await page.getByTestId('surface-file').setInputFiles(ZIP);
+  await expect(page.getByTestId('surface-status')).toContainText('Imported Test Stone', { timeout: 30_000 });
+  await page.getByTestId('close-tiles').click();
+
+  // The maps made plain images, as a material imported before compression has them, and read back.
+  const pngs = unzipSync(readFileSync(ZIP));
+  const png = (name: string) => `data:image/png;base64,${Buffer.from(pngs[`TestStone_1K-PNG_${name}.png`]!).toString('base64')}`;
+  const written = JSON.parse(await page.evaluate(() => window.__engine!.exportProject())) as { surfaces: { maps: Record<string, string> }[] };
+  written.surfaces[0]!.maps = { color: png('Color'), normalHeight: png('NormalGL'), orm: png('AmbientOcclusion') };
+  expect(await page.evaluate((text) => window.__engine!.loadProjectText(text), JSON.stringify(written))).toBe('');
+  await page.getByTestId('mode-terrain').click();
+  await page.evaluate(() => {
+    const a = window.__engine!;
+    a.setTerrain('test-stone-block');
+    a.buildAt(20, 12);
+    a.buildAt(22, 12);
+  });
+  await expect.poll(() => page.evaluate(() => window.__engine!.buildingStats().textured), { timeout: 30_000 }).toBeGreaterThanOrEqual(2);
+  expect(await page.evaluate(() => window.__engine!.buildingStats().compressed)).toBe(0);
+
+  await page.getByTestId('open-content').click();
+  await page.getByTestId('open-tiles').click();
+  await page.locator('[data-surface="test-stone"]').click();
+  await expect(page.getByTestId('surface-uncompressed')).toBeVisible();
+  await page.getByTestId('surface-compress').click();
+  await expect(page.getByTestId('surface-status')).toHaveText('Compressed Test Stone for the graphics card.', { timeout: 30_000 });
+  await expect(page.getByTestId('surface-uncompressed')).toHaveCount(0);
+  await page.getByTestId('close-tiles').click();
+  const after = JSON.parse(await page.evaluate(() => window.__engine!.exportProject())) as { surfaces: { maps: Record<string, string> }[] };
+  for (const map of Object.values(after.surfaces[0]!.maps)) expect(map.startsWith('data:image/ktx2;base64,')).toBe(true);
+  await expect.poll(() => page.evaluate(() => window.__engine!.buildingStats().compressed), { timeout: 30_000 }).toBeGreaterThanOrEqual(2);
+  expect(failed).toEqual([]);
+});
+
+test('a kind of ground drawn in a material: every cell of it, from the material\u2019s page, undone in one step', async ({ page }) => {
+  test.setTimeout(120_000);
+  const failed: string[] = [];
+  page.on('console', (message) => {
+    if (/Shader Error|WebGLProgram|GL_INVALID|WebGL: INVALID/.test(message.text())) failed.push(message.text());
+  });
+  await page.goto('/');
+  await page.waitForFunction(() => (window.__engine?.frames ?? 0) > 5);
+  await page.evaluate(() => window.__engine!.setMode('edit'));
+  await page.getByTestId('mode-terrain').click();
+  await page.getByTestId('open-content').click();
+  await page.getByTestId('open-tiles').click();
+  await page.getByTestId('surface-file').setInputFiles(ZIP);
+  await expect(page.getByTestId('surface-status')).toContainText('Imported Test Stone', { timeout: 30_000 });
+  expect(await page.evaluate(() => window.__engine!.groundSurfaces())).toEqual([]);
+  await page.getByTestId('surface-ground-floor').locator('input').check();
+  await expect.poll(() => page.evaluate(() => window.__engine!.groundSurfaces()), { timeout: 30_000 }).toEqual(['floor']);
+  await page.getByTestId('close-tiles').click();
+  const middle = await page.evaluate(() => window.__engine!.buildScreenAt(10, 10));
+  await page.mouse.move(middle.x, middle.y);
+  for (let n = 0; n < 4; n++) await page.mouse.wheel(0, -300);
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: 'test-results/tile-surfaces-ground.png' });
+  expect(await page.evaluate(() => window.__engine!.undo())).toBe(true);
+  await expect.poll(() => page.evaluate(() => window.__engine!.groundSurfaces()), { timeout: 15_000 }).toEqual([]);
+  expect(failed).toEqual([]);
 });

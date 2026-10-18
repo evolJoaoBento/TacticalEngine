@@ -72,6 +72,7 @@ describe("a material's name", () => {
     expect(surfaceIdentity('Mossy Stone.zip')).toEqual({ id: 'mossy-stone', name: 'Mossy Stone' });
     expect(surfaceIdentity('TestStone_1K-PNG.zip')).toEqual({ id: 'test-stone', name: 'Test Stone' });
     expect(surfaceIdentity('PavingStones142_1K-JPG.zip')).toEqual({ id: 'pavingstones142', name: 'Paving Stones 142', source: 'ambientCG PavingStones142' });
+    expect(surfaceIdentity('Bricks075A_1K-JPG.zip')).toEqual({ id: 'bricks075a', name: 'Bricks 075A', source: 'ambientCG Bricks075A' });
     expect(surfaceIdentity('_Color.png')).toEqual({ id: 'surface', name: 'Surface' });
   });
 });

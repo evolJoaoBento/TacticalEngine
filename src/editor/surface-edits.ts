@@ -92,6 +92,31 @@ export function updateTileSurface(id: string, changes: SurfaceChanges): Edit & {
 }
 
 /**
+ * A material's maps replaced by the same maps compressed for the GPU (`compressMaps`): the one change to a material's
+ * maps that is not a new import, since what they show is what they showed. One step, undone to the maps it had.
+ */
+export function replaceSurfaceMaps(id: string, maps: TileSurface['maps']): Edit {
+  let before: TileSurface | null = null;
+  return {
+    label: `Compress surface ${id}`,
+    apply(project) {
+      const at = (project.surfaces ?? []).findIndex((s) => s.id === id);
+      before = at < 0 ? null : project.surfaces![at]!;
+      if (before === null) return;
+      project.surfaces![at] = { ...before, maps };
+    },
+    undo(project) {
+      if (before === null) return;
+      const at = (project.surfaces ?? []).findIndex((s) => s.id === id);
+      if (at >= 0) project.surfaces![at] = before;
+    },
+    isNoop() {
+      return before === null;
+    },
+  };
+}
+
+/**
  * A material removed, and every kind of tile drawn in it. Pieces already laid of those kinds are left alone, as
  * removing a kind of tile leaves them (`removeTerrainType`): the grid falls back to the palette's first kind for each,
  * and Check says so, rather than this hiding a larger edit inside itself.

@@ -8,8 +8,8 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_TERRAIN_TYPES } from '../engine/grid/terrain';
 import { kindsForSurface } from '../engine/content/tile-surface-kit';
 import type { ProjectDoc, TileSurface } from '../engine/scene/schema';
-import { importTileSurface, removeTileSurface, roomForSurface, updateTileSurface } from './surface-edits';
-import { KTX2_ENCODING, isLosslessWebp, withKinds } from './surface-import';
+import { importTileSurface, removeTileSurface, replaceSurfaceMaps, roomForSurface, updateTileSurface } from './surface-edits';
+import { KTX2_ENCODING, isCompressedSurface, isLosslessWebp, withKinds } from './surface-import';
 
 const bricks: TileSurface = { id: 'bricks', name: 'Bricks', maps: { color: 'c', normalHeight: 'n', orm: 'o' }, parallax: true, size: 1, depth: 0.06, normalScale: 1, roughness: 1 };
 const four = kindsForSurface(bricks, '#884422', () => false).kinds;
@@ -89,6 +89,22 @@ describe("the project's imported materials, edited", () => {
     expect(JSON.stringify(doc)).toBe(before);
   });
 
+  it("replaces a material's maps with the same compressed, its kinds and tunings left alone, and undoes it", () => {
+    const doc = project();
+    importTileSurface(bricks, four).apply(doc);
+    const compressed = { color: 'data:image/ktx2;base64,A', normalHeight: 'data:image/ktx2;base64,B', orm: 'data:image/ktx2;base64,C' };
+    expect(isCompressedSurface(doc.surfaces![0]!)).toBe(false);
+    const edit = replaceSurfaceMaps('bricks', compressed);
+    edit.apply(doc);
+    expect(doc.surfaces![0]).toEqual({ ...bricks, maps: compressed });
+    expect(isCompressedSurface(doc.surfaces![0]!)).toBe(true);
+    edit.undo(doc);
+    expect(doc.surfaces![0]).toEqual(bricks);
+    const none = replaceSurfaceMaps('nothing', compressed);
+    none.apply(doc);
+    expect(none.isNoop?.()).toBe(true);
+  });
+
   it('says when a palette has no room for four more kinds', () => {
     const full = Array.from({ length: 252 }, (_, i) => ({ id: `k${i}`, name: '', passable: true, cost: 1, providesCover: false, blocksSight: false }));
     expect(roomForSurface(project({ terrainPalette: full.slice(0, 251) }), 4)).toBeNull();
@@ -97,13 +113,15 @@ describe("the project's imported materials, edited", () => {
 });
 
 describe('a material imported', () => {
-  it('compresses every map for the GPU with its mipmaps, flipped as an image is; the colour in sRGB, the rest as data, the normal and height spared the rate-distortion pass', () => {
+  it('compresses every map for the GPU with its mipmaps, flipped as an image is; the colour in sRGB, the rest as data, quickly', () => {
     for (const role of ['color', 'normalHeight', 'orm'] as const) {
       expect(KTX2_ENCODING[role]).toMatchObject({ isUASTC: true, generateMipmap: true, needSupercompression: true, isYFlip: true });
     }
     expect([KTX2_ENCODING.color.isSetKTX2SRGBTransferFunc, KTX2_ENCODING.normalHeight.isSetKTX2SRGBTransferFunc, KTX2_ENCODING.orm.isSetKTX2SRGBTransferFunc]).toEqual([true, false, false]);
     expect([KTX2_ENCODING.color.isPerceptual, KTX2_ENCODING.normalHeight.isPerceptual, KTX2_ENCODING.orm.isPerceptual]).toEqual([true, false, false]);
-    expect([KTX2_ENCODING.color.enableRDO, KTX2_ENCODING.normalHeight.enableRDO, KTX2_ENCODING.orm.enableRDO]).toEqual([true, false, true]);
+    // No rate-distortion pass, and UASTC's quicker levels: a 1K import in seconds, not half a minute.
+    expect([KTX2_ENCODING.color.enableRDO, KTX2_ENCODING.normalHeight.enableRDO, KTX2_ENCODING.orm.enableRDO]).toEqual([false, false, false]);
+    expect([KTX2_ENCODING.color.uastcLDRQualityLevel, KTX2_ENCODING.normalHeight.uastcLDRQualityLevel, KTX2_ENCODING.orm.uastcLDRQualityLevel]).toEqual([1, 1, 0]);
   });
 
   it('knows a lossless WebP by its bytes', () => {

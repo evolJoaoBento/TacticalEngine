@@ -17,8 +17,8 @@
  * encoder's WebAssembly fetched only when a material is imported), which the page transcodes to whatever this GPU
  * draws and keeps at a quarter of the memory an RGBA texture takes (`engine/render/surface-textures.ts`). UASTC, its
  * mipmaps made here - a compressed texture cannot have them made later - and stored flipped, as an image is when the
- * GPU is handed it. The normal and height get no rate-distortion pass, which would cost the very edges the parallax
- * reads; the other two do. Only if compressing fails are the maps written as images, as above, and the author told.
+ * GPU is handed it (`KTX2_ENCODING`). Only if compressing fails are the maps written as images, as above, and the author
+ * told.
  */
 
 import { unzip } from 'fflate';
@@ -43,13 +43,15 @@ export type MapRole = 'color' | 'normalHeight' | 'orm';
 
 /**
  * How each map is compressed (`compress`): all UASTC, with mipmaps and Zstandard, flipped as an image is on its way to
- * the GPU; the colour perceptual and sRGB, the other two linear data; a rate-distortion pass on all but the normal and
- * height, whose edges the parallax reads.
+ * the GPU; the colour perceptual and sRGB, the other two linear data. No rate-distortion pass, and UASTC's quality level
+ * 1 - 0 for the occlusion/roughness/metalness, which is soft by nature: measured on a 1K map, the pass took ten times
+ * as long as the encoding it shrinks, and level 2 four times level 1 (`docs/DEVELOPING.md` §11). A 1K material is a few
+ * seconds; a 2K one a few times that.
  */
 export const KTX2_ENCODING: Readonly<Record<MapRole, Partial<IEncodeOptions>>> = {
-  color: { isUASTC: true, generateMipmap: true, needSupercompression: true, isYFlip: true, isPerceptual: true, isSetKTX2SRGBTransferFunc: true, enableRDO: true, rdoQualityLevel: 1 },
-  normalHeight: { isUASTC: true, generateMipmap: true, needSupercompression: true, isYFlip: true, isPerceptual: false, isSetKTX2SRGBTransferFunc: false, enableRDO: false, uastcLDRQualityLevel: 2 },
-  orm: { isUASTC: true, generateMipmap: true, needSupercompression: true, isYFlip: true, isPerceptual: false, isSetKTX2SRGBTransferFunc: false, enableRDO: true, rdoQualityLevel: 1 },
+  color: { isUASTC: true, generateMipmap: true, needSupercompression: true, isYFlip: true, isPerceptual: true, isSetKTX2SRGBTransferFunc: true, enableRDO: false, uastcLDRQualityLevel: 1 },
+  normalHeight: { isUASTC: true, generateMipmap: true, needSupercompression: true, isYFlip: true, isPerceptual: false, isSetKTX2SRGBTransferFunc: false, enableRDO: false, uastcLDRQualityLevel: 1 },
+  orm: { isUASTC: true, generateMipmap: true, needSupercompression: true, isYFlip: true, isPerceptual: false, isSetKTX2SRGBTransferFunc: false, enableRDO: false, uastcLDRQualityLevel: 0 },
 };
 
 /** A packed map compressed for the GPU: KTX2 bytes. The encoder and its WebAssembly are fetched the first time. */
@@ -58,6 +60,34 @@ async function compress(pixels: Pixels, data: Uint8ClampedArray, role: MapRole):
   const raster = { width: pixels.width, height: pixels.height, data: new Uint8Array(data.buffer, data.byteOffset, data.byteLength) };
   // The pixels are packed already: handed to the encoder as they are, not encoded as an image to be decoded again.
   return encodeToKTX2(new Uint8Array(0), { ...KTX2_ENCODING[role], wasmUrl, imageDecoder: async () => raster });
+}
+
+/** Whether every one of a material's maps is compressed for the GPU already: KTX2. */
+export function isCompressedSurface(surface: Pick<TileSurface, 'maps'>): boolean {
+  return Object.values(surface.maps).every((url) => url.startsWith('data:image/ktx2'));
+}
+
+/**
+ * A material imported before its maps were compressed - or whose compressing failed - compressed now, in place: each
+ * map decoded at its own size, untouched by colour management, and compressed as an import would (`compress`). The
+ * maps, not the material: what the project keeps is changed by an edit (`replaceSurfaceMaps`). Throws, saying why,
+ * when a map will not decode or compress.
+ */
+export async function compressMaps(surface: Pick<TileSurface, 'maps'>): Promise<TileSurface['maps']> {
+  const out: Partial<TileSurface['maps']> = {};
+  for (const role of ['color', 'normalHeight', 'orm'] as const) {
+    const url = surface.maps[role];
+    if (url.startsWith('data:image/ktx2')) {
+      out[role] = url;
+      continue;
+    }
+    const blob = await (await fetch(url)).blob();
+    const bitmap = await createImageBitmap(blob, { colorSpaceConversion: 'none', premultiplyAlpha: 'none' });
+    const pixels = await decode(blob, bitmap.width, bitmap.height);
+    bitmap.close();
+    out[role] = ktx2Url(await compress(pixels, pixels.data, role));
+  }
+  return out as TileSurface['maps'];
 }
 
 /** KTX2 bytes as a data URL. */

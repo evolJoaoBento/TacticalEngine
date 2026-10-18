@@ -19,7 +19,7 @@ import { growthToReach, type Reach } from '../engine/scene/reshape';
 import { GrowScene } from './grow-scene';
 import type { Deco, Encounter, Interactable, Point, SceneDoc } from '../engine/scene/schema';
 import { addTerrainType, defaultPalette, removeTerrainType, setTerrainModel, updateTerrainType, type TileType } from './terrain-edits';
-import { importTileSurface, removeTileSurface, roomForSurface, updateTileSurface, type SurfaceChanges } from './surface-edits';
+import { importTileSurface, removeTileSurface, replaceSurfaceMaps, roomForSurface, updateTileSurface, type SurfaceChanges } from './surface-edits';
 import type { SurfaceKind } from '../engine/content/tile-surface-kit';
 import type { TileSurface } from '../engine/scene/schema';
 import {
@@ -906,6 +906,13 @@ export class EditorController {
   /** A material tuned - its name, size, depth, normal strength or roughness - redrawn as it changes. */
   updateSurface(id: string, changes: SurfaceChanges): boolean {
     const changed = this.session.run(updateTileSurface(id, changes));
+    if (changed) this.onChange('terrain');
+    return changed;
+  }
+
+  /** A material's maps replaced by the same maps compressed for the GPU, redrawn. */
+  compressSurface(id: string, maps: TileSurface['maps']): boolean {
+    const changed = this.session.run(replaceSurfaceMaps(id, maps));
     if (changed) this.onChange('terrain');
     return changed;
   }

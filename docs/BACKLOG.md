@@ -21,6 +21,15 @@ own; the fight's spotlight, the GM's turn and the questions go as at a server's 
 the real engine (`src/game/peer/*.test.ts`), and `tests/e2e/peer.spec.ts` in two browsers. Next: an evening across
 two real networks.
 
+## The ground drawn in a material — done
+
+A kind of ground that names a surface (`TerrainType.surface`, which every kind already had) is drawn in it: its
+terrain mesh's material swapped for the library's, the shader's world-position UVs needing none of the mesh. On a
+material's page, **Ground drawn in it** ticks the kinds of ground; the kind's own Surface select does the same.
+Painting single cells is not brought back: ground is not something the placer puts down (`controller.ts`,
+`placeTile`), so it is a kind's look, as its colour is. Tests: `src/engine/render/scene-view-ground.test.ts`,
+`tests/e2e/tile-surfaces.spec.ts`. Still open: per-cell tints do not show on a kind drawn in a material.
+
 ## Tile materials compressed for the GPU (KTX2) — done
 
 An imported material's three maps are encoded at import as KTX2 - UASTC, mipmaps in, Zstandard, flipped as an image is
@@ -29,7 +38,10 @@ WebAssembly fetched only on an import), and loaded through three's `KTX2Loader`,
 graphics memory a material at 1K instead of 16. Compressing failing, the maps are written as images as before, and the
 author told. Tests: `surface-edits.test.ts` (the encoding per map), `surface-library.test.ts` (no mipmaps asked of a
 compressed map), `tests/e2e/tile-surfaces.spec.ts` (the maps written as KTX2, the GPU holding them compressed).
-Follow-up: a material imported before is uncompressed until imported again - a "compress" button could do it in place.
+A material imported before (or whose compressing failed) says so on its page, with **Compress**, which compresses its
+maps in place as one undo step (`compressMaps`, `replaceSurfaceMaps`). Measured on ambientCG's Bricks105: a 1K import
+3.5 s, a 2K one 12 s, about 2.4 MB and 9.7 MB in the project - after dropping UASTC's rate-distortion pass, which had
+made them 31 s and 122 s for files no smaller.
 
 ## Tile materials: import a material, get four tiles — done
 
@@ -41,7 +53,6 @@ with the project (one nothing uses is left out), checked, drawn in play too.
 
 Follow-ups, not built:
 - **Self-shadowing parallax**: a second loop towards the light, gated by a define; declined for now.
-- **Painted ground**: a material on the terrain mesh, which has no UVs yet (`terrain-mesh.ts`).
 - **An environment map**: without one, roughness only shapes the direct light's highlight; a global look change.
 - **Silhouettes**: parallax cannot move a box's outline; inherent to the technique.
 - Downloading by ambientCG id, sharing materials across projects, shipped starter materials.

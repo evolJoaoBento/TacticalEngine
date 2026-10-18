@@ -15,14 +15,12 @@
 import {
   AnimationAction,
   AnimationMixer,
-  AmbientLight,
   BoxGeometry,
   BufferAttribute,
   BufferGeometry,
   Color,
   DirectionalLight,
   Group,
-  HemisphereLight,
   InstancedMesh,
   Line,
   LineBasicMaterial,
@@ -36,12 +34,15 @@ import {
   Scene,
 } from 'three';
 import { NO_TILE, type Spot, type TileGrid } from '../grid/grid';
+import type { SurfaceLibrary } from './surface-library';
+import { paintGround, paintedGround } from './ground-surfaces';
+import { addLightRig, fitSun } from './light-rig';
 import { advanceGlide, planGlide, type Glide } from './glide';
 import { TrajectoryLine, type AimedArc } from './trajectory-line';
 import { ReachRing } from './reach-ring';
 import type { Deco, SceneDoc } from '../scene/schema';
 import type { EntityState, SceneState } from '../scene/state';
-import { DEFAULT_LAYOUT, mapExtent, placementCentre, spotToWorld, standHeight, tileCenter, worldToSpot, type TileLayout } from './layout';
+import { DEFAULT_LAYOUT, placementCentre, spotToWorld, standHeight, tileCenter, worldToSpot, type TileLayout } from './layout';
 import { bandedLine, type PathPoint } from './path-bands';
 import { spanOf } from '../scene/deco-span';
 import { outlineTiles } from './tile-outline';
@@ -271,6 +272,9 @@ export class SceneView {
   private selectionId: string | null = null;
   /** The sun, kept so its shadow map can be let go with the rest. */
   private sun: DirectionalLight | null = null;
+  /** The imported materials kinds of ground may be drawn in (`setSurfaces`). */
+  private surfaces: SurfaceLibrary | null = null;
+  private unsubscribeSurfaces: () => void = () => undefined;
   /** How many tiles the overlay layers have room for; grows with the biggest room seen. */
   private maxHighlights: number;
   private highlightCount = 0;
@@ -429,54 +433,15 @@ export class SceneView {
     this.setObjects(options.objects ?? []);
   }
 
-  /**
-   * The light rig: a sky over the room, a little ambient so nothing is black,
-   * and a sun that casts. The shadow is the depth cue that makes a wall read
-   * as standing on the floor rather than painted on it, and a token as
-   * standing rather than floating; its camera is fitted to the map so the
-   * whole room is inside it whatever the room's size.
-   */
+  /** The light rig (`light-rig.ts`): a sky, a little ambient, and a sun that casts, fitted to the room. */
   private addLights(): void {
-    // Warm, as a painted room is: a candle-coloured sky, a plum floor bounce, and an
-    // afternoon sun, which the toon ramp turns into flat lit and shaded sides.
-    this.scene.add(new AmbientLight(new Color('#fff1e0'), 0.42));
-    this.scene.add(new HemisphereLight(new Color('#ffe6c4'), new Color('#3d2c48'), 0.6));
-
-    const sun = new DirectionalLight(new Color('#ffe3b8'), 1.5);
-    sun.castShadow = true;
-    // 1024 is soft enough on a 22-tile room, and half the cost of the next
-    // size up on the software GL the browser suite runs on.
-    sun.shadow.mapSize.set(1024, 1024);
-    // Flat-shaded boxes lit at a low angle acne without a bias along the normal.
-    sun.shadow.normalBias = 0.03;
-    sun.shadow.bias = -0.0005;
-    this.sun = sun;
-    this.scene.add(sun);
-    // The light aims at its target, which lives at the origin unless it is in the scene.
-    this.scene.add(sun.target);
+    this.sun = addLightRig(this.scene);
     this.fitSun();
   }
 
   /** Put the sun where this room wants it, with its shadow camera round the whole room. */
   private fitSun(): void {
-    const sun = this.sun;
-    if (sun === null) return;
-    // Low enough that a wall throws a shadow you can see, high enough that
-    // the shadow does not cover the tile beside it: about fifty degrees up.
-    sun.position.set(
-      this.grid.width * 0.55,
-      Math.max(this.grid.width, this.grid.height) * 0.6,
-      this.grid.height * 0.5,
-    );
-    const extent = mapExtent(this.grid, this.layout);
-    const reach = extent.radius * 1.1;
-    sun.shadow.camera.left = -reach;
-    sun.shadow.camera.right = reach;
-    sun.shadow.camera.top = reach;
-    sun.shadow.camera.bottom = -reach;
-    sun.shadow.camera.near = 0.5;
-    sun.shadow.camera.far = extent.radius * 6;
-    sun.shadow.camera.updateProjectionMatrix();
+    if (this.sun !== null) fitSun(this.sun, this.grid, this.layout);
   }
 
   /** The sun, for a test of the rig or a caller that wants to move it. */
@@ -958,7 +923,21 @@ export class SceneView {
       ...(tints === undefined ? {} : { tints }),
     });
     for (const mesh of this.terrain.meshes) this.root.add(mesh);
+    paintGround(this.terrain, this.grid.palette, this.surfaces);
     this.tileModels = redrawTileModels(this.root, this.tileModels, this.grid, this.layout, (id, at) => this.build(id, at === undefined ? {} : { scale: at }), (group) => this.clipSets.delete(group));
+  }
+
+  /** Kinds of ground drawn in imported materials (`ground-surfaces.ts`): painted again as each lands, is tuned or goes. */
+  setSurfaces(library: SurfaceLibrary): void {
+    this.unsubscribeSurfaces();
+    this.surfaces = library;
+    this.unsubscribeSurfaces = library.onChange(() => paintGround(this.terrain, this.grid.palette, this.surfaces));
+    paintGround(this.terrain, this.grid.palette, this.surfaces);
+  }
+
+  /** The kinds of ground drawn in an imported material right now, by id. */
+  paintedGround(): string[] {
+    return paintedGround(this.terrain);
   }
 
   /** The model standing for an entity, if it has one. */

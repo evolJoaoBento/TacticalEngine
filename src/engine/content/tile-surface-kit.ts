@@ -80,7 +80,8 @@ const spaced = (word: string): string => word.replace(/([a-z])([A-Z])/g, '$1 $2'
 export function surfaceIdentity(fileName: string): { id: string; name: string; source?: string } {
   const base = fileOf(fileName).replace(/\.(zip|jpe?g|png|webp)$/i, '');
   // ambientCG: a name, a number, and the resolution and format downloaded - `Bricks076_1K-JPG`.
-  const ambient = /^([A-Za-z]+)(\d+)_\d+K-[A-Za-z]+(?:_|$)/.exec(base);
+  // A letter after the number is part of the name too: `Bricks075A`.
+  const ambient = /^([A-Za-z]+)(\d+[A-Z]?)_\d+K-[A-Za-z]+(?:_|$)/.exec(base);
   if (ambient !== null) {
     const [, word = '', number = ''] = ambient;
     return { id: toContentId(`${word}${number}`), name: `${spaced(word)} ${number}`, source: `ambientCG ${word}${number}` };

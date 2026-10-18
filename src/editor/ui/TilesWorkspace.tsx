@@ -26,7 +26,7 @@ import { defaultPalette, tileIdTaken, tilesStandingOn, type TileType } from '../
 import { JumpRulesEditor } from './JumpRulesEditor';
 import { Icon } from './icons';
 import { AiBadge, artMarkHandlers } from './AiMark';
-import { SURFACE_SIZES, addImported, type SurfaceSize } from '../surface-import';
+import { SURFACE_SIZES, addImported, compressMaps, isCompressedSurface, type SurfaceSize } from '../surface-import';
 
 /** The back arrow every workspace returns to the board with, before its title, styled like the others'. */
 const CLOSE_BUTTON: Record<string, string | number> = {
@@ -296,6 +296,47 @@ export function TilesWorkspace(props: {
               />
             </label>
           ))}
+          {/* The ground too: every cell of a kind ticked here is drawn in this material. */}
+          <div class="ph-heading">Ground drawn in it</div>
+          {types.filter((kind) => kind.structure === undefined && kind.id !== 'void').map((kind) => (
+            <label key={kind.id} class="ph-row" data-testid={`surface-ground-${kind.id}`}>
+              <input
+                type="checkbox"
+                checked={kind.surface === surface.id}
+                onChange={(e) => {
+                  controller.updateTile(kind.id, e.currentTarget.checked ? { surface: surface.id } : { surface: undefined });
+                  props.onChange();
+                }}
+              />
+              <span style={{ flex: 1 }}>{kind.name !== '' ? kind.name : kind.id}</span>
+              {kind.surface !== undefined && kind.surface !== surface.id ? <small>in {surfaces.find((s) => s.id === kind.surface)?.name ?? kind.surface}</small> : null}
+            </label>
+          ))}
+          {isCompressedSurface(surface) ? null : (
+            <div class="ph-row" data-testid="surface-uncompressed">
+              <span class="ph-note" style={{ flex: 1 }}>
+                Not compressed for the graphics card: it takes four times the memory a compressed material does.
+              </span>
+              <button
+                class="ph-mini"
+                data-testid="surface-compress"
+                onClick={() => {
+                  const id = surface.id;
+                  setImporting('Compressing…');
+                  void compressMaps(surface).then(
+                    (maps) => {
+                      controller.compressSurface(id, maps);
+                      setImporting(`Compressed ${surface.name || id} for the graphics card.`);
+                      props.onChange();
+                    },
+                    (failure: unknown) => setImporting(`Not compressed: ${failure instanceof Error ? failure.message : String(failure)}`),
+                  );
+                }}
+              >
+                Compress
+              </button>
+            </div>
+          )}
           <div class="ph-note">
             {surface.parallax
               ? 'Depth is how far the material reads into a face, in tiles: mortar sinking behind bricks.'
