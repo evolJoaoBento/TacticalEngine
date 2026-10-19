@@ -5,8 +5,9 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { downloadPolyHaven, isCompressedSurface, linkedKey, linkedSurfaceResolver, type ImportedSurface, type ResolvedSurface, type SurfaceCache } from './surface-import';
-import type { TileSurface } from '../engine/scene/schema';
+import { downloadPolyHaven, isCompressedSurface, linkPolyHaven, linkedKey, linkedSurfaceResolver, type ImportedSurface, type ResolvedSurface, type SurfaceCache, type SurfaceImporter } from './surface-import';
+import { tileSurfaceSchema, type TileSurface } from '../engine/scene/schema';
+import type { SurfaceKind } from '../engine/content/tile-surface-kit';
 
 const DL = 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg';
 const map = (res: string, name: string) => ({ jpg: { url: `${DL}/${res}/bricks/bricks_${name}_${res}.jpg` } });
@@ -48,6 +49,13 @@ describe('a Poly Haven texture downloaded', () => {
     expect(asked.some((url) => url.includes('_arm_'))).toBe(false);
   });
 
+  it('counts its maps in as they land', async () => {
+    const { fetcher } = polyHaven({ [`${API}/info/bricks`]: { name: 'Bricks 01' }, [`${API}/files/bricks`]: FILES, ...images('1k') });
+    const said: string[] = [];
+    await downloadPolyHaven('bricks', 1024, fetcher, (words) => said.push(words));
+    expect(said).toEqual(['downloading 0 of 4 maps', 'downloading 1 of 4 maps', 'downloading 2 of 4 maps', 'downloading 3 of 4 maps', 'downloading 4 of 4 maps']);
+  });
+
   it('at 2K for a material kept at 2K', async () => {
     const { fetcher } = polyHaven({ [`${API}/info/bricks`]: { name: 'Bricks 01' }, [`${API}/files/bricks`]: FILES, ...images('2k') });
     const download = await downloadPolyHaven('bricks', 2048, fetcher);
@@ -72,12 +80,14 @@ describe('a linked material, resolved', () => {
     const kept = new Map<string, ResolvedSurface>();
     return { kept, get: async (key) => kept.get(key), put: async (key, value) => void kept.set(key, value) };
   };
-  /** An import of the test's own, counting what it was asked for. */
+  /** An import of the test's own, counting what it was asked for, and saying it is half done. */
   const importer = () => {
     const asked: string[] = [];
     let failing = false;
-    const importing = async (id: string, size: number): Promise<ImportedSurface> => {
+    const importing = async (id: string, size: number, _fetcher: typeof fetch, progress?: (said: string) => void): Promise<ImportedSurface> => {
       asked.push(`${id}@${size}`);
+      progress?.('half done');
+      await Promise.resolve();
       if (failing) throw new Error('offline');
       return { surface: { id, name: id, maps: { color: `${id}-c`, normalHeight: `${id}-n`, orm: `${id}-o` }, parallax: true, size: 1, depth: 0.06, normalScale: 1, roughness: 1, tint: 0 }, color: '#405060', ignored: [], compressed: true };
     };
@@ -104,6 +114,20 @@ describe('a linked material, resolved', () => {
     expect(asked).toEqual(['rock_wall_10@512']);
   });
 
+  it('tells everyone waiting on it how it is getting on, and says nothing when this browser has it', async () => {
+    const cache = memory();
+    const { importing } = importer();
+    const resolve = linkedSurfaceResolver(cache, fetch, importing);
+    const first: string[] = [];
+    const second: string[] = [];
+    const both = Promise.all([resolve(linked(), (said) => first.push(said)), resolve(linked(), (said) => second.push(said))]);
+    await both;
+    expect([first, second]).toEqual([['half done'], ['half done']]);
+    const later: string[] = [];
+    await linkedSurfaceResolver(cache, fetch, importing)(linked(), (said) => later.push(said));
+    expect(later).toEqual([]);
+  });
+
   it('keeps nothing when the fetch fails, and tries again the next time it is asked for', async () => {
     const cache = memory();
     const { asked, importing, fail } = importer();
@@ -126,5 +150,80 @@ describe('a linked material, resolved', () => {
     const { importing } = importer();
     const { polyHaven: _link, ...carried } = { ...linked(), maps: { color: 'c', normalHeight: 'n', orm: 'o' } };
     await expect(linkedSurfaceResolver(memory(), fetch, importing)(carried)).rejects.toThrow('"slate" is not linked to any texture');
+  });
+});
+
+describe('a Poly Haven texture linked from the editor', () => {
+  /** The editor, as far as an import goes: what it was given, and what it picked. */
+  const editor = () => {
+    const given: { surface: TileSurface; kinds: readonly SurfaceKind[] }[] = [];
+    const picked: string[] = [];
+    const importer: SurfaceImporter = {
+      session: { project: { surfaces: [], terrainPalette: [] } },
+      importSurface: (surface, kinds) => {
+        given.push({ surface, kinds });
+        return null;
+      },
+      openTerrainTab: () => undefined,
+      setTool: () => undefined,
+      set: (_key, value) => void picked.push(value),
+    };
+    return { importer, given, picked };
+  };
+  const cache = (): SurfaceCache & { kept: Map<string, ResolvedSurface> } => {
+    const kept = new Map<string, ResolvedSurface>();
+    return { kept, get: async (key) => kept.get(key), put: async (key, value) => void kept.set(key, value) };
+  };
+  const imported = (id: string): ImportedSurface => ({
+    surface: { id: 'castle-brick', name: 'Castle Brick 07', source: `Poly Haven ${id} (CC0)`, maps: { color: 'k-c', normalHeight: 'k-n', orm: 'k-o' }, parallax: true, size: 2.5, depth: 0.06, normalScale: 1, roughness: 1, tint: 0, color: '#705040' },
+    color: '#705040',
+    ignored: [],
+    compressed: true,
+  });
+
+  it('is named in the project with the size its maps are kept at, its maps kept in this browser where the page will look for them', async () => {
+    const { importer, given, picked } = editor();
+    const kept = cache();
+    const said: string[] = [];
+    const sizes: number[] = [];
+    const result = await linkPolyHaven(importer, 'castle_brick_07', 2048, () => false, {
+      cache: kept,
+      progress: (words) => said.push(words),
+      importing: async (id, size, _fetcher, progress) => {
+        sizes.push(size);
+        progress?.('packing its maps');
+        return imported(id);
+      },
+    });
+    expect(result).toEqual({ id: 'castle-brick', said: 'Linked Castle Brick 07, kept in this browser and named in the project: four tiles in the Terrain strip.' });
+    expect(sizes).toEqual([2048]);
+    expect(said).toEqual(['packing its maps']);
+    const surface = given[0]!.surface;
+    expect(surface.maps).toBeUndefined();
+    expect(surface).toMatchObject({ name: 'Castle Brick 07', polyHaven: { id: 'castle_brick_07', pixels: 2048 }, size: 2.5, color: '#705040', source: 'Poly Haven castle_brick_07 (CC0)' });
+    expect(tileSurfaceSchema.safeParse(surface).success).toBe(true);
+    expect(given[0]!.kinds).toHaveLength(4);
+    expect(picked).toEqual([given[0]!.kinds[0]!.id]);
+    // Under the key the page's resolver asks for: drawn at once, never downloaded twice.
+    expect([...kept.kept.entries()]).toEqual([[linkedKey(surface.polyHaven!), { maps: { color: 'k-c', normalHeight: 'k-n', orm: 'k-o' }, color: '#705040' }]]);
+    const again: string[] = [];
+    await linkedSurfaceResolver(kept, fetch, async () => {
+      again.push('fetched');
+      return imported('castle_brick_07');
+    })(surface);
+    expect(again).toEqual([]);
+  });
+
+  it('says why when Poly Haven will not give it, and adds and keeps nothing', async () => {
+    const { importer, given } = editor();
+    const kept = cache();
+    const result = await linkPolyHaven(importer, 'no_such', 1024, () => false, {
+      cache: kept,
+      importing: async () => {
+        throw new Error('Poly Haven has no "no_such"');
+      },
+    });
+    expect(result).toEqual({ id: null, said: 'Poly Haven has no "no_such"' });
+    expect([given, kept.kept.size]).toEqual([[], 0]);
   });
 });

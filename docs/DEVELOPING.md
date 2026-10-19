@@ -899,6 +899,18 @@ one is not kept. The library loads carried maps at once and resolves linked ones
 colour for Tint (`tuned`). `isCompressedSurface` answers yes for a linked material (no Compress button), and
 `checkSurfaces` weighs it at nothing.
 
+The editor's **Link** is `linkPolyHaven`: `importPolyHaven`, then the maps `put` in the cache under `linkedKey({ id,
+pixels: size })` - the key the resolver asks for, so the first draw is a cache hit - and the surface added with its maps
+taken off and `polyHaven` on. `pixels` must stay a `SurfaceSize`, or the resolver imports at `keptAt(pixels)` and
+misses the key. **Progress:** `downloadPolyHaven`, `importSurface` and `importPolyHaven` take a `Progress` (`(said) =>
+void`) and say "downloading 2 of 5 maps", "packing its maps", "compressing 1 of 3 maps for the graphics card". The
+resolver passes it on to every asker of a fetch; `SurfaceResolve` takes it as a second argument, and the library keeps
+the last said while the surface is loading (`progressOf`), lists the linked ones on their way (`fetching()`), and
+notifies its listeners - not bumping a revision, so no picture of it goes stale. What is said while the surface has
+been replaced by other maps is dropped; redeclared the same (a project loaded again), it is still heard.
+`game/ui/SurfaceNote.tsx` is mounted once by `main.ts`, listens to the library itself, and is the note at the top of the
+page; the Tiles workspace reads `surfaceStatus` (through `EditorShell`) for a linked material's page.
+
 1. **`editor/surface-import.ts`** - `filesOf` unzips (`fflate`); `importSurface` asks the kit which file is which map,
    decodes each with colour management off, draws them at the chosen size on an `OffscreenCanvas`, packs them
    (`packMaps`) and encodes three data URLs - the normal and height losslessly. `addImported` adds the result through

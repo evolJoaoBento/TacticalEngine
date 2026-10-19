@@ -1162,12 +1162,21 @@ one undo puts the old maps back. The material is carried in the project file, li
 megabytes. **Check** warns when the project's materials pass 8 MB. Saving leaves out a material no tile
 is drawn in.
 
-**A material can be linked rather than carried.** A project file can name a Poly Haven texture in place
-of a material's maps (`"polyHaven": { "id": "castle_brick_07" }`): the page downloads, packs and
-compresses it the first time anything is drawn in it, and keeps it in this browser, so the next time
-it is there at once. The project stays small however many materials it uses - the Ashwell is dressed
-this way. Until a linked material is in, and if it cannot be fetched (offline), its tiles are drawn in
-their kind's colour. Its page says it is linked, and it weighs nothing in **Check**.
+**A material can be linked rather than carried.** Name a Poly Haven texture in the box and press **Link**
+instead of **Download**: it is downloaded and imported the same - four tiles, Poly Haven's name and
+Size - but the project keeps only its name (`"polyHaven": { "id": "castle_brick_07", "pixels": 1024 }`,
+at the size the select beside **+ Surface** says), and this browser keeps its maps. Any other browser
+that opens the project downloads, packs and compresses it the first time anything is drawn in it, and
+keeps it in turn, so the next time it is there at once. The project stays small however many materials
+it uses - the Ashwell is dressed this way. Until a linked material is in, and if it cannot be fetched
+(offline), its tiles are drawn in their kind's colour. Its page says it is linked and where its maps
+are - not asked for yet, being fetched and how far, in this browser, or why they would not come - and
+it weighs nothing in **Check**.
+
+Both buttons say how they are getting on as they go: downloading so many of the maps, packing them,
+compressing each. And while any linked material is being fetched for the board, a note at the top of
+the page, in play or in the editor, names it and says how far it has got, so a room drawn plain for a
+few seconds the first time is seen to be waiting for its textures.
 
 **The ground can be drawn in a material too.** On a material's page, **Ground drawn in it** lists
 your kinds of ground (Floor, Difficult Terrain and the rest); tick one and every cell of that kind is

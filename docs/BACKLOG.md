@@ -34,8 +34,16 @@ Tests: `surface-library.test.ts` (a linked material resolved, its tint against t
 golden, `ashwell.test.ts` (every material a linked starter, every level its own kinds, the project small),
 `tests/e2e/ashwell.spec.ts` (Poly Haven played by the fixture; the Throat drawn compressed).
 
-- Follow-ups: linking a material from the editor (the Poly Haven box downloads and carries; a **Link** beside it
-  would not), and a material's first fetch shown in the Tiles workspace as it happens.
+- Linking from the editor, and a fetch shown as it happens — done: **Link** beside **Download** in the Tiles
+  workspace (`linkPolyHaven`, the maps put in this browser's keeping so the first draw is at once); every download and
+  fetch saying how far it has got (`Progress`); a linked material's page saying where its maps are; and a note at the
+  top of the page while any is fetched for the board (`SurfaceNote.tsx`). Tests: `surface-library.test.ts` (what a
+  fetch says, kept while loading, dropped for a replaced material), `surface-import.test.ts` (maps counted in, both
+  askers told, a link's surface and key), `tests/e2e/tile-surfaces.spec.ts` (linked from the box with the maps held
+  and released; drawn at once with no second download; the same project linked at another size, the note up until
+  it is in).
+- Follow-ups: turning a carried Poly Haven material into a linked one from its page (and back); and a failed fetch
+  tried again without loading the page again.
 
 ## The Ashwell, Level 5: the Ledger Throne — done; the Ashwell complete
 

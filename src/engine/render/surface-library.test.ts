@@ -76,17 +76,71 @@ describe('a material linked, not carried', () => {
 
   it('is said to have failed, and drawn in its kind\u2019s colour, when it cannot be resolved - or nothing can resolve it', async () => {
     const files = loader();
-    const library = new SurfaceLibrary(files.load, 1, () => Promise.reject(new Error('offline')));
+    const library = new SurfaceLibrary(files.load, 1, (_spec, progress) => {
+      progress?.('downloading 1 of 5 maps');
+      return Promise.reject(new Error('offline'));
+    });
     library.add(linked());
     library.materialFor('slate');
     await new Promise((settle) => setTimeout(settle, 0));
     expect([library.statusOf('slate'), library.errorOf('slate'), library.materialFor('slate'), files.asked]).toEqual(['failed', 'offline', null, []]);
+    expect([library.progressOf('slate'), library.fetching()]).toEqual([undefined, []]);
     const bare = new SurfaceLibrary(files.load);
     bare.add(linked());
     bare.materialFor('slate');
     await new Promise((settle) => setTimeout(settle, 0));
     expect(bare.statusOf('slate')).toBe('failed');
     expect(bare.errorOf('slate')).toContain('nothing here can fetch them');
+    expect(bare.fetching()).toEqual([]);
+  });
+
+  it('says how it is getting on while on its way - a carried one never listed - and nothing once its maps are in', async () => {
+    const files = loader();
+    let tell: (said: string) => void = () => undefined;
+    const land = new Map<string, () => void>();
+    const library = new SurfaceLibrary(files.load, 1, (spec, progress) => {
+      if (spec.id === 'slate') tell = progress ?? tell;
+      return new Promise((done) => land.set(spec.id, () => done({ maps: { color: 'got-c', normalHeight: 'got-n', orm: 'got-o' }, color: '#204060' })));
+    });
+    library.setAll([linked('slate', { name: 'Slate' }), linked('marble', { name: '' }), surface('bricks')]);
+    const told: string[] = [];
+    library.onChange((id) => told.push(id));
+    // Not asked for by anything drawn: not on its way.
+    expect(library.fetching()).toEqual([]);
+    library.materialFor('slate');
+    library.materialFor('bricks');
+    expect(library.fetching()).toEqual([{ id: 'slate', name: 'Slate', said: 'waiting' }]);
+    // Redeclared the same - the project loaded again - it is the same fetch, and still heard.
+    library.add(linked('slate', { name: 'Slate' }));
+    tell('downloading 2 of 5 maps');
+    expect(told).toEqual(['slate']);
+    expect(library.progressOf('slate')).toBe('downloading 2 of 5 maps');
+    expect(library.fetching()).toEqual([{ id: 'slate', name: 'Slate', said: 'downloading 2 of 5 maps' }]);
+    library.materialFor('marble');
+    expect(library.fetching().map((f) => f.name)).toEqual(['Slate', 'marble']);
+    land.get('slate')!();
+    await new Promise((settle) => setTimeout(settle, 0));
+    await files.give('got-c', 'got-n', 'got-o');
+    expect(library.statusOf('slate')).toBe('ready');
+    expect(library.progressOf('slate')).toBeUndefined();
+    expect(library.fetching().map((f) => f.id)).toEqual(['marble']);
+  });
+
+  it('pays no heed to what a fetch says once its material is replaced', () => {
+    let tell: (said: string) => void = () => undefined;
+    const library = new SurfaceLibrary(loader().load, 1, (_spec, progress) => {
+      tell = progress ?? tell;
+      return new Promise(() => undefined);
+    });
+    library.add(linked());
+    library.materialFor('slate');
+    const stale = tell;
+    library.add(linked('slate', { polyHaven: { id: 'castle_brick_07', pixels: 1024 } }));
+    library.materialFor('slate');
+    expect(library.statusOf('slate')).toBe('loading');
+    stale('compressing 1 of 3');
+    expect(library.progressOf('slate')).toBeUndefined();
+    expect(library.fetching()).toEqual([{ id: 'slate', name: 'Bricks', said: 'waiting' }]);
   });
 });
 

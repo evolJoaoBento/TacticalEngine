@@ -162,7 +162,7 @@ project is whole (`ashwell.test.ts`) and a play through it in the browser (`test
   at the size of the patch it shows. They are **linked, not carried**: the project names each texture, and the page
   fetches, packs and compresses it the first time a room needs it and keeps it in the browser after. So the project
   is a few hundred kilobytes, which the browser's saves can hold when the Ashwell is begun; a level's first visit on a
-  device shows its rooms in plain stone for a few seconds while its two textures are prepared, and never again on
-  that device. Rubble and the low walls are the demo's own models; the black water and the bedrock are plain colour.
+  device shows its rooms in plain stone for a few seconds while its two textures are prepared - a note at the top of
+  the page says so, and how far each has got - and never again on that device. Rubble and the low walls are the demo's own models; the black water and the bedrock are plain colour.
 - **Adversaries** come from the engine's starter blocks, renamed for the place; a boss is a stat block of the
   adventure's own (`project.adversaries`).

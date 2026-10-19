@@ -27,7 +27,7 @@ import { defaultPalette, tileIdTaken, tilesStandingOn, type TileType } from '../
 import { JumpRulesEditor } from './JumpRulesEditor';
 import { Icon } from './icons';
 import { AiBadge, artMarkHandlers } from './AiMark';
-import { SURFACE_SIZES, addImported, addPolyHaven, compressMaps, isCompressedSurface, type SurfaceSize } from '../surface-import';
+import { SURFACE_SIZES, addImported, addPolyHaven, compressMaps, isCompressedSurface, linkPolyHaven, type SurfaceSize } from '../surface-import';
 import { POLY_HAVEN_STARTERS, polyHavenId } from '../../engine/content/poly-haven';
 
 /** The back arrow every workspace returns to the board with, before its title, styled like the others'. */
@@ -67,6 +67,20 @@ const TUNINGS = [
 /** The repeat typed rather than slid: any size the schema takes, to match a reference exactly. */
 const SIZE_TYPED = { min: 0.05, max: 16 };
 
+/** Where a linked material's maps are: not asked for yet, on their way and how far, in, or why they would not come. */
+function fetchNote(state: { status: string; said?: string | undefined; error?: string | undefined } | undefined): string {
+  switch (state?.status) {
+    case 'loading':
+      return `Fetching it now: ${state.said ?? 'waiting'}…`;
+    case 'ready':
+      return 'In this browser, and drawn.';
+    case 'failed':
+      return `It could not be fetched (${state.error ?? 'no reason given'}): its tiles are drawn in their kind's colour until the page is opened again.`;
+    default:
+      return 'Fetched when a tile in it is first drawn.';
+  }
+}
+
 export function TilesWorkspace(props: {
   session: EditorSession;
   /**
@@ -77,6 +91,8 @@ export function TilesWorkspace(props: {
   controller: EditorController;
   /** Every model the project can draw with: the library's, plus what it imported. */
   models?: readonly string[];
+  /** How a material's maps are getting on (`SurfaceLibrary`): for a linked one, whether it is fetched yet, and how far. */
+  surfaceStatus?: (id: string) => { status: string; said?: string | undefined; error?: string | undefined };
   onChange: () => void;
   onClose: () => void;
 }): preact.JSX.Element {
@@ -101,15 +117,20 @@ export function TilesWorkspace(props: {
     props.onChange();
   };
 
-  /** A Poly Haven texture downloaded and imported as files would be. */
-  const importHaven = async (): Promise<void> => {
+  /**
+   * A Poly Haven texture downloaded and imported as files would be - carried in the project - or linked: imported the
+   * same, but only its name kept in the project and its maps in this browser. Either says how it is getting on.
+   */
+  const importHaven = async (linked = false): Promise<void> => {
     const id = polyHavenId(haven);
     if (id === null) {
       setImporting('Name a Poly Haven texture: its id (rock_wall_08) or its page (polyhaven.com/a/rock_wall_08).');
       return;
     }
-    setImporting(`Downloading ${id} from Poly Haven…`);
-    const { id: made, said } = await addPolyHaven(controller, id, size, (taken) => tileIdTaken(session.project, taken));
+    const progress = (said: string): void => setImporting(`${id} from Poly Haven: ${said}…`);
+    progress('asking for it');
+    const taken = (other: string): boolean => tileIdTaken(session.project, other);
+    const { id: made, said } = linked ? await linkPolyHaven(controller, id, size, taken, { progress }) : await addPolyHaven(controller, id, size, taken, fetch, progress);
     if (made !== null) {
       setOpen(`${SURFACE}${made}`);
       setHaven('');
@@ -228,8 +249,16 @@ export function TilesWorkspace(props: {
               <option key={starter.id} value={starter.id} label={`${starter.group}: ${starter.name}`} />
             ))}
           </datalist>
-          <button class="ph-mini" data-testid="poly-haven-add" title="Download it from Poly Haven: four tiles drawn in it" onClick={() => void importHaven()}>
+          <button class="ph-mini" data-testid="poly-haven-add" title="Download it from Poly Haven: four tiles drawn in it, its maps carried in the project" onClick={() => void importHaven()}>
             Download
+          </button>
+          <button
+            class="ph-mini"
+            data-testid="poly-haven-link"
+            title="Link it: four tiles drawn in it, the project naming it and this browser keeping its maps - any other browser fetches them from Poly Haven the first time it draws it. The project stays small."
+            onClick={() => void importHaven(true)}
+          >
+            Link
           </button>
         </div>
         {importing === null ? null : (
@@ -417,6 +446,7 @@ export function TilesWorkspace(props: {
             {surface.polyHaven === undefined ? null : (
               <span data-testid="surface-linked">
                 Linked, not carried: fetched from Poly Haven ({surface.polyHaven.id}) the first time it is drawn, and kept in this browser after, so the project stays small.{' '}
+                <span data-testid="surface-fetch">{fetchNote(props.surfaceStatus?.(surface.id))}</span>{' '}
               </span>
             )}
             Its four tiles are in the Terrain strip; each is a

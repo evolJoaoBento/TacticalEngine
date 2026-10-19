@@ -161,16 +161,21 @@ function dataUrl(blob: Blob): Promise<string> {
   });
 }
 
+/** Told how a download or an import is getting on, in a few words: "downloading 2 of 5 maps", "packing its maps". */
+export type Progress = (said: string) => void;
+
 /**
  * A material from the files given - a zip, or its images loose - at most `size` pixels on a side: its maps found by
- * name, decoded, packed and encoded. Throws, with something to say, when there is no colour map to draw it from.
+ * name, decoded, packed and encoded, saying so as it goes. Throws, with something to say, when there is no colour map
+ * to draw it from.
  */
-export async function importSurface(files: readonly File[], size: SurfaceSize = 1024): Promise<ImportedSurface> {
+export async function importSurface(files: readonly File[], size: SurfaceSize = 1024, progress: Progress = () => undefined): Promise<ImportedSurface> {
   const found = await filesOf(files);
   const roles = classifySurfaceFiles(found.map((file) => file.name));
   const refusal = refusalOf(roles);
   if (refusal !== null) throw new Error(refusal);
   const blobOf = (name: string | undefined): Blob | undefined => found.find((file) => file.name === name)?.blob;
+  progress('packing its maps');
   // Every map drawn at the colour map's size, scaled down to fit `size`, never up.
   const first = await createImageBitmap(blobOf(roles.color)!);
   const scale = Math.min(1, size / Math.max(first.width, first.height));
@@ -197,11 +202,11 @@ export async function importSurface(files: readonly File[], size: SurfaceSize = 
   let maps: SurfaceMaps;
   let compressed: ImportedSurface['compressed'] = true;
   try {
-    maps = {
-      color: ktx2Url(await compress(shape, packed.color, 'color')),
-      normalHeight: ktx2Url(await compress(shape, packed.normalHeight, 'normalHeight')),
-      orm: ktx2Url(await compress(shape, packed.orm, 'orm')),
+    const squeezed = async (role: MapRole, nth: number): Promise<string> => {
+      progress(`compressing ${nth} of 3 maps for the graphics card`);
+      return ktx2Url(await compress(shape, packed[role], role));
     };
+    maps = { color: await squeezed('color', 1), normalHeight: await squeezed('normalHeight', 2), orm: await squeezed('orm', 3) };
   } catch (failure) {
     compressed = { why: failure instanceof Error ? failure.message : String(failure) };
     maps = {
@@ -242,7 +247,7 @@ export interface PolyHavenDownload {
  * poly-haven.ts`), each a file named as Poly Haven names it. Throws, saying why, when there is no such texture, when it
  * is an HDRI or a model, or when the network fails.
  */
-export async function downloadPolyHaven(id: string, size: SurfaceSize = 1024, fetcher: typeof fetch = fetch): Promise<PolyHavenDownload> {
+export async function downloadPolyHaven(id: string, size: SurfaceSize = 1024, fetcher: typeof fetch = fetch, progress: Progress = () => undefined): Promise<PolyHavenDownload> {
   const ask = async (path: string): Promise<unknown> => {
     const answer = await fetcher(`${POLY_HAVEN_API}/${path}/${encodeURIComponent(id)}`);
     if (answer.status === 404) throw new Error(`Poly Haven has no "${id}": copy the id from its page's address, polyhaven.com/a/<id>.`);
@@ -252,20 +257,24 @@ export async function downloadPolyHaven(id: string, size: SurfaceSize = 1024, fe
   const [info, listed] = (await Promise.all([ask('info'), ask('files')])) as [PolyHavenInfo, PolyHavenFiles];
   const maps = polyHavenMaps(listed, polyHavenResolution(size));
   if (maps.length === 0) throw new Error(`"${id}" is not a texture on Poly Haven (an HDRI or a model has no maps to draw a tile in).`);
+  let landed = 0;
+  progress(`downloading 0 of ${maps.length} maps`);
   const files = await Promise.all(
     maps.map(async ({ name, url }) => {
       const answer = await fetcher(url);
       if (!answer.ok) throw new Error(`Could not download ${name} from Poly Haven (${answer.status}).`);
-      return new File([await answer.blob()], name, { type: /\.png$/i.test(name) ? 'image/png' : 'image/jpeg' });
+      const file = new File([await answer.blob()], name, { type: /\.png$/i.test(name) ? 'image/png' : 'image/jpeg' });
+      progress(`downloading ${++landed} of ${maps.length} maps`);
+      return file;
     }),
   );
   return { files, name: info.name ?? id, size: polyHavenSize(info) };
 }
 
 /** A Poly Haven texture imported: downloaded, then imported as its files would be, named and sized as Poly Haven says. */
-export async function importPolyHaven(id: string, size: SurfaceSize = 1024, fetcher: typeof fetch = fetch): Promise<ImportedSurface> {
-  const download = await downloadPolyHaven(id, size, fetcher);
-  const imported = await importSurface(download.files, size);
+export async function importPolyHaven(id: string, size: SurfaceSize = 1024, fetcher: typeof fetch = fetch, progress: Progress = () => undefined): Promise<ImportedSurface> {
+  const download = await downloadPolyHaven(id, size, fetcher, progress);
+  const imported = await importSurface(download.files, size, progress);
   return { ...imported, surface: { ...imported.surface, id: toContentId(download.name) || imported.surface.id, name: download.name, source: `Poly Haven ${id} (CC0)`, size: download.size } };
 }
 
@@ -290,34 +299,44 @@ const keptAt = (pixels: number): SurfaceSize => [...SURFACE_SIZES].reverse().fin
 /**
  * How the page resolves a linked material (`SurfaceLibrary`'s `SurfaceResolve`): from the cache when this browser has
  * fetched it before; else downloaded from Poly Haven and imported as its files would be - packed, compressed - and
- * kept. Asked for twice while on its way, it is fetched once; a fetch that fails is not kept, and is tried again the
- * next time the material is asked for.
+ * kept. Asked for twice while on its way, it is fetched once, and both askers are told how it is getting on; a fetch
+ * that fails is not kept, and is tried again the next time the material is asked for.
  */
 export function linkedSurfaceResolver(
   cache: SurfaceCache,
   fetcher: typeof fetch = fetch,
-  importing: (id: string, size: SurfaceSize, fetcher: typeof fetch) => Promise<ImportedSurface> = importPolyHaven,
-): (surface: TileSurface) => Promise<ResolvedSurface> {
-  const pending = new Map<string, Promise<ResolvedSurface>>();
-  return (surface) => {
+  importing: PolyHavenImport = importPolyHaven,
+): (surface: TileSurface, progress?: Progress) => Promise<ResolvedSurface> {
+  const pending = new Map<string, { fetching: Promise<ResolvedSurface>; told: Set<Progress> }>();
+  return (surface, progress) => {
     const link = surface.polyHaven;
     if (link === undefined) return Promise.reject(new Error(`"${surface.id}" is not linked to any texture`));
     const key = linkedKey(link);
     const going = pending.get(key);
-    if (going !== undefined) return going;
+    if (going !== undefined) {
+      if (progress !== undefined) going.told.add(progress);
+      return going.fetching;
+    }
+    const told = new Set<Progress>(progress === undefined ? [] : [progress]);
+    const tell: Progress = (said) => {
+      for (const listener of told) listener(said);
+    };
     const fetching = (async (): Promise<ResolvedSurface> => {
       const kept = await cache.get(key).catch(() => undefined);
       if (kept !== undefined) return kept;
-      const imported = await importing(link.id, keptAt(link.pixels), fetcher);
+      const imported = await importing(link.id, keptAt(link.pixels), fetcher, tell);
       const resolved = { maps: imported.surface.maps!, color: imported.color };
       await cache.put(key, resolved).catch(() => undefined);
       return resolved;
     })();
-    pending.set(key, fetching);
+    pending.set(key, { fetching, told });
     fetching.catch(() => pending.delete(key));
     return fetching;
   };
 }
+
+/** How a Poly Haven texture is imported: `importPolyHaven`, or a test's own. */
+export type PolyHavenImport = (id: string, size: SurfaceSize, fetcher: typeof fetch, progress?: Progress) => Promise<ImportedSurface>;
 
 /**
  * The browser's cache of linked materials: IndexedDB, which holds megabytes where the saves' storage holds a few. Every
@@ -367,8 +386,34 @@ export async function addImported(editor: SurfaceImporter, files: readonly File[
 }
 
 /** A Poly Haven texture added as `addImported` adds files: downloaded, imported, its four kinds in the strip. */
-export async function addPolyHaven(editor: SurfaceImporter, id: string, size: SurfaceSize = 1024, taken: (id: string) => boolean = () => false, fetcher: typeof fetch = fetch): Promise<{ id: string | null; said: string }> {
-  return addSurface(editor, () => importPolyHaven(id, size, fetcher), taken);
+export async function addPolyHaven(editor: SurfaceImporter, id: string, size: SurfaceSize = 1024, taken: (id: string) => boolean = () => false, fetcher: typeof fetch = fetch, progress?: Progress): Promise<{ id: string | null; said: string }> {
+  return addSurface(editor, () => importPolyHaven(id, size, fetcher, progress), taken);
+}
+
+/**
+ * A Poly Haven texture added **linked**, not carried: downloaded and imported as `addPolyHaven` does - so its name, its
+ * Size, its average colour and its four kinds are Poly Haven's - but the project keeps only its name and the size its
+ * maps are kept at (`polyHaven`), and the maps go into this browser's keeping (`cache`), under the key the page's
+ * resolver looks for, so it is drawn at once here and fetched by any other browser the first time it is drawn there.
+ */
+export async function linkPolyHaven(
+  editor: SurfaceImporter,
+  id: string,
+  size: SurfaceSize = 1024,
+  taken: (id: string) => boolean = () => false,
+  options: { cache?: SurfaceCache; progress?: Progress; importing?: PolyHavenImport; fetcher?: typeof fetch } = {},
+): Promise<{ id: string | null; said: string }> {
+  const { cache = browserSurfaceCache(), progress, importing = importPolyHaven, fetcher = fetch } = options;
+  return addSurface(
+    editor,
+    async () => {
+      const imported = await importing(id, size, fetcher, progress);
+      const { maps, ...named } = imported.surface;
+      await cache.put(linkedKey({ id, pixels: size }), { maps: maps!, color: imported.color });
+      return { ...imported, surface: { ...named, polyHaven: { id, pixels: size } } };
+    },
+    taken,
+  );
 }
 
 /** A material imported however it came, added with its four kinds and its block picked: what to tell the author. */
@@ -385,7 +430,8 @@ async function addSurface(editor: SurfaceImporter, importing: () => Promise<Impo
     editor.set('tileId', kinds[0]!.id);
     const skipped = imported.ignored.length === 0 ? '' : ` Not read: ${imported.ignored.join(', ')}.`;
     const squeezed = imported.compressed === true ? '' : ` Not compressed for the GPU (${imported.compressed.why}), so it takes four times the memory.`;
-    return { id: surface.id, said: `Imported ${surface.name}: four tiles in the Terrain strip.${skipped}${squeezed}` };
+    const done = surface.polyHaven === undefined ? `Imported ${surface.name}` : `Linked ${surface.name}, kept in this browser and named in the project`;
+    return { id: surface.id, said: `${done}: four tiles in the Terrain strip.${skipped}${squeezed}` };
   } catch (failure) {
     return { id: null, said: failure instanceof Error ? failure.message : String(failure) };
   }

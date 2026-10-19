@@ -14,7 +14,7 @@
 
 import { Fragment, h, render } from 'preact';
 import { PCFShadowMap, Plane, PerspectiveCamera, Raycaster, Vector2, Vector3, WebGLRenderer, type Intersection, type Mesh, type Object3D } from 'three';
-import { SurfaceLibrary } from './engine/render/surface-library'; import { surfaceTextureLoader } from './engine/render/surface-textures'; import { browserSurfaceCache, linkedSurfaceResolver } from './editor/surface-import';
+import { SurfaceLibrary } from './engine/render/surface-library'; import { surfaceTextureLoader } from './engine/render/surface-textures'; import { browserSurfaceCache, linkedSurfaceResolver } from './editor/surface-import'; import { mountSurfaceNote } from './game/ui/SurfaceNote';
 import { roomEnvironment } from './engine/render/light-rig'; import { onUserSettings, userSettings, type UserSettings } from './game/user-settings';
 import { EditorController } from './editor/controller';
 import { placementRotation } from './editor/placement-rotation';
@@ -410,7 +410,7 @@ editor.setMode('inspect');
 // A file arriving changes what the Models panel can offer - a clip list it could not know until
 // the file was here. The view already redraws itself on this; the panel has to be told too, or the
 // dropdowns stay empty until something else re-renders them. The curtain reads the same library.
-assets.onChange(() => { if (mode === 'edit') renderPanel(); else refreshPlay(); }); surfaces.onChange(() => { if (mode === 'edit') renderPanel(); }); // a material's maps in: its cards drawn
+assets.onChange(() => { if (mode === 'edit') renderPanel(); else refreshPlay(); }); surfaces.onChange(() => { if (mode === 'edit') renderPanel(); }); mountSurfaceNote(surfaces); // a material's maps in: its cards drawn; a linked one on its way said so
 liftCurtainWhenReady(assets, () => state.frames);
 
 // The library's own plus the project's, read afresh so a model added mid-session is offered.
@@ -628,7 +628,7 @@ function renderPanel(): void {
       // the loaded template rather than the declaration.
       assetClips: (id: string): readonly string[] =>
         (assets.template(id)?.animations ?? []).map((clip) => clip.name),
-      assetStatus: (id: string): string => assets.statusOf(id),
+      assetStatus: (id: string): string => assets.statusOf(id), surfaceStatus: (id: string) => ({ status: surfaces.statusOf(id), said: surfaces.progressOf(id), error: surfaces.errorOf(id) }),
       onRequestAssets: (id?: string) => (id === undefined ? assets.requestAll() : void assets.request(id)),
       assetPreview: (id: string) => thumbnailOf(view.registry, assets, id)?.url ?? null,
       onAssetTuned: (id: string) => {

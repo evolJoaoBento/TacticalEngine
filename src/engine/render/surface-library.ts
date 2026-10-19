@@ -17,7 +17,9 @@
  * A material linked rather than carried (`polyHaven`, no `maps`) has its maps resolved first, by whatever the page
  * hands in (`SurfaceResolve`: downloaded, packed and compressed, and kept in the browser), and its average colour with
  * them, which its Tint is measured against. With nothing to resolve it, or a resolve that fails, it is drawn in its
- * kind's colour, as any material is until its maps are in.
+ * kind's colour, as any material is until its maps are in. While it is on its way the resolve says how it is getting on
+ * - downloading, packing, compressing - and the library keeps the last it said (`progressOf`, `fetching`), so the page
+ * can say why a room is plain for now.
  */
 
 import { NoColorSpace, RepeatWrapping, SRGBColorSpace, type Texture } from 'three';
@@ -27,8 +29,18 @@ import type { SurfaceMaps, TileSurface } from '../scene/schema';
 /** Loads one texture from its URL. */
 export type TextureLoad = (url: string) => Promise<Texture>;
 
-/** A linked material's maps, and their average colour: where they are fetched from is the page's to say. */
-export type SurfaceResolve = (surface: TileSurface) => Promise<{ maps: SurfaceMaps; color: string }>;
+/**
+ * A linked material's maps, and their average colour: where they are fetched from is the page's to say. It may say how
+ * it is getting on as it goes (`progress`: "downloading 2 of 5 maps").
+ */
+export type SurfaceResolve = (surface: TileSurface, progress?: (said: string) => void) => Promise<{ maps: SurfaceMaps; color: string }>;
+
+/** A linked material on its way: which, its name, and the last its resolve said of how it is getting on. */
+export interface SurfaceFetch {
+  id: string;
+  name: string;
+  said: string;
+}
 
 export type SurfaceStatus = 'unknown' | 'loading' | 'ready' | 'failed';
 
@@ -69,6 +81,8 @@ export class SurfaceLibrary {
   private readonly listeners = new Set<(id: string) => void>();
   /** A linked material's average colour, resolved with its maps: what its Tint is measured against. */
   private readonly means = new Map<string, string>();
+  /** What a linked material's resolve last said while it was on its way. */
+  private readonly progress = new Map<string, string>();
 
   constructor(
     private readonly load: TextureLoad,
@@ -123,6 +137,21 @@ export class SurfaceLibrary {
     return this.errors.get(id);
   }
 
+  /** What a linked material's resolve last said of how it is getting on, while it is on its way; nothing otherwise. */
+  progressOf(id: string): string | undefined {
+    return this.progress.get(id);
+  }
+
+  /**
+   * Every linked material on its way now - asked for by something drawn in it, its maps not yet in - and how each is
+   * getting on. A carried material loads from the project itself, and is never listed.
+   */
+  fetching(): SurfaceFetch[] {
+    return [...this.specs.values()]
+      .filter((spec) => spec.maps === undefined && this.statusOf(spec.id) === 'loading')
+      .map((spec) => ({ id: spec.id, name: spec.name || spec.id, said: this.progress.get(spec.id) ?? 'waiting' }));
+  }
+
   /** How many times what a surface draws with has changed, tuning too: a picture of it keeps it to know it is stale. */
   revisionOf(id: string): number {
     return this.revisions.get(id) ?? 0;
@@ -136,7 +165,7 @@ export class SurfaceLibrary {
     return this.generations.get(id) ?? 0;
   }
 
-  /** Called with an id whenever its maps land, its load fails, or it is tuned. */
+  /** Called with an id whenever its maps land, its load fails, it is tuned, or a linked one's fetch says how it is getting on. */
   onChange(listener: (id: string) => void): () => void {
     this.listeners.add(listener);
     return () => void this.listeners.delete(listener);
@@ -193,7 +222,13 @@ export class SurfaceLibrary {
       spec.maps !== undefined
         ? loadAll(spec.maps)
         : this.resolve !== undefined
-          ? this.resolve(spec).then((got) => {
+          ? this.resolve(spec, (said) => {
+              // Heard while the surface is still these maps: redeclared the same (a project loaded again), still.
+              const now = this.specs.get(id);
+              if (now === undefined || (now !== spec && !sameMaps(now, spec))) return;
+              this.progress.set(id, said);
+              this.notify(id);
+            }).then((got) => {
               this.means.set(id, got.color);
               return loadAll(got.maps);
             })
@@ -219,12 +254,14 @@ export class SurfaceLibrary {
         }
         this.loaded.set(id, { textures: { color, normalHeight, orm }, materials: new Map() });
         this.status.set(id, 'ready');
+        this.progress.delete(id);
         this.generations.set(id, this.generationOf(id) + 1);
         this.bump(id);
       },
       (error: unknown) => {
         if (this.specs.get(id) !== spec) return;
         this.status.set(id, 'failed');
+        this.progress.delete(id);
         this.errors.set(id, error instanceof Error ? error.message : String(error));
         this.notify(id);
       },
@@ -251,6 +288,7 @@ export class SurfaceLibrary {
     }
     this.errors.delete(id);
     this.means.delete(id);
+    this.progress.delete(id);
   }
 
   private bump(id: string): void {

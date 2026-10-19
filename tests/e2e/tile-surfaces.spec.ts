@@ -310,3 +310,102 @@ test('a texture downloaded from Poly Haven by its link: named, sized and credite
   expect(failed).toEqual([]);
   expect(await page.evaluate(() => window.__engine!.errors)).toEqual([]);
 });
+
+test('a texture linked from Poly Haven: the project names it, this browser keeps it, and a fetch is said as it goes', async ({ page }) => {
+  test.setTimeout(150_000);
+  const failed: string[] = [];
+  page.on('console', (message) => {
+    if (glFailure(message)) failed.push(message.text());
+  });
+  // Poly Haven as in the download's test; its maps held back while `holding` is, so the fetch can be seen under way.
+  const pngs = unzipSync(readFileSync(ZIP));
+  const DL = 'https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/test_slate';
+  const MAPS = { Diffuse: ['diff', 'Color'], nor_gl: ['nor_gl', 'NormalGL'], Rough: ['rough', 'Roughness'], AO: ['ao', 'AmbientOcclusion'], Displacement: ['disp', 'Displacement'] } as const;
+  const files = Object.fromEntries(Object.entries(MAPS).map(([map, [name]]) => [map, { '1k': { png: { url: `${DL}/test_slate_${name}_1k.png` } } }]));
+  const downloads: string[] = [];
+  let release: () => void = () => undefined;
+  let holding: Promise<void> | null = null;
+  const hold = (): void => {
+    holding = new Promise((done) => (release = done));
+  };
+  await page.route('https://api.polyhaven.com/**', (route) => {
+    const url = route.request().url();
+    if (url.endsWith('/info/test_slate')) return route.fulfill({ json: { name: 'Slate Tiles', dimensions: [2500, 2500] } });
+    if (url.endsWith('/files/test_slate')) return route.fulfill({ json: files });
+    return route.fulfill({ status: 404, body: 'No asset' });
+  });
+  await page.route('https://dl.polyhaven.org/**', async (route) => {
+    const url = route.request().url();
+    downloads.push(url);
+    if (holding !== null) await holding;
+    const [, ambient] = Object.values(MAPS).find(([name]) => url.endsWith(`_${name}_1k.png`)) ?? [];
+    const bytes = ambient === undefined ? undefined : pngs[`TestStone_1K-PNG_${ambient}.png`];
+    return bytes === undefined ? route.fulfill({ status: 404 }) : route.fulfill({ body: Buffer.from(bytes), contentType: 'image/png' });
+  });
+  await page.goto('/');
+  await page.waitForFunction(() => (window.__engine?.frames ?? 0) > 5);
+  await page.evaluate(() => window.__engine!.setMode('edit'));
+  await page.getByTestId('mode-terrain').click();
+  await page.getByTestId('open-content').click();
+  await page.getByTestId('open-tiles').click();
+
+  // Linked: the box says how it is getting on while the maps are held, and what came of it once they are in.
+  hold();
+  await page.getByTestId('poly-haven-id').fill('test_slate');
+  await page.getByTestId('poly-haven-link').click();
+  await expect(page.getByTestId('surface-status')).toContainText('test_slate from Poly Haven: downloading 0 of 5 maps', { timeout: 15_000 });
+  release();
+  holding = null;
+  await expect(page.getByTestId('surface-status')).toHaveText('Linked Slate Tiles, kept in this browser and named in the project: four tiles in the Terrain strip.', { timeout: 30_000 });
+  await expect(page.getByTestId('surface-linked')).toContainText('fetched from Poly Haven (test_slate)');
+  await expect(page.getByTestId('surface-editor')).toContainText('From Poly Haven test_slate (CC0).');
+  await expect(page.getByTestId('surface-size-typed')).toHaveValue('2.5');
+  // No Compress offered: a linked material is compressed as it is fetched.
+  await expect(page.getByTestId('surface-uncompressed')).toHaveCount(0);
+  // Named in the project, its maps nowhere in it.
+  const written = JSON.parse(await page.evaluate(() => window.__engine!.exportProject())) as { surfaces?: { id: string; maps?: unknown; polyHaven?: unknown; size: number }[] };
+  const slate = written.surfaces?.find((s) => s.id === 'slate-tiles');
+  expect(slate).toMatchObject({ polyHaven: { id: 'test_slate', pixels: 1024 }, size: 2.5 });
+  expect(slate?.maps).toBeUndefined();
+
+  // Stamped, it is drawn at once from what this browser kept - compressed, and never downloaded a second time.
+  await page.getByTestId('close-tiles').click();
+  await page.evaluate(() => {
+    const a = window.__engine!;
+    a.setTerrain('slate-tiles-block');
+    a.buildAt(20, 12);
+  });
+  await expect.poll(() => page.evaluate(() => window.__engine!.buildingStats().textured), { timeout: 30_000 }).toBeGreaterThanOrEqual(1);
+  const drawn = await page.evaluate(() => window.__engine!.buildingStats());
+  expect(drawn.compressed).toBe(drawn.textured);
+  expect(downloads).toHaveLength(5);
+  await page.getByTestId('open-content').click();
+  await page.getByTestId('open-tiles').click();
+  await page.locator('[data-testid=tile-list] [data-surface="slate-tiles"]').click();
+  await expect(page.getByTestId('surface-fetch')).toHaveText('In this browser, and drawn.');
+  await page.getByTestId('close-tiles').click();
+
+  // The same project linking it at another size, which this browser has not kept: fetched when a block of it is
+  // drawn (the loaded project opens on its first room), and the page says so - over the board - until it is in.
+  hold();
+  const elsewhere = JSON.stringify({ ...written, surfaces: written.surfaces!.map((s) => (s.id === 'slate-tiles' ? { ...s, polyHaven: { id: 'test_slate', pixels: 512 } } : s)) });
+  expect(await page.evaluate((text) => window.__engine!.loadProjectText(text), elsewhere)).toBe('');
+  await page.evaluate(() => window.__engine!.setMode('edit'));
+  await page.getByTestId('mode-terrain').click();
+  expect(
+    await page.evaluate(() => {
+      const a = window.__engine!;
+      a.setTerrain('slate-tiles-block');
+      return a.buildAt(20, 12);
+    }),
+  ).toBe(true);
+  await expect(page.getByTestId('surface-fetching')).toContainText('Slate Tiles: downloading 0 of 5 maps', { timeout: 15_000 });
+  await page.screenshot({ path: 'test-results/tile-surfaces-linked-fetching.png' });
+  release();
+  holding = null;
+  await expect(page.getByTestId('surface-fetching')).toHaveCount(0, { timeout: 30_000 });
+  await expect.poll(() => page.evaluate(() => window.__engine!.buildingStats().textured), { timeout: 30_000 }).toBeGreaterThanOrEqual(1);
+  expect(downloads).toHaveLength(10);
+  expect(failed).toEqual([]);
+  expect(await page.evaluate(() => window.__engine!.errors)).toEqual([]);
+});

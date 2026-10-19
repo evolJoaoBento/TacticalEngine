@@ -109,6 +109,8 @@ export interface EditorShellProps {
   assetClips?: (id: string) => readonly string[];
   /** How an imported model is getting on: unknown, loading, ready or failed. */
   assetStatus?: (id: string) => string;
+  /** How a material's maps are getting on: unknown, loading (and how far, for a linked one), ready or failed (and why). */
+  surfaceStatus?: (id: string) => { status: string; said?: string | undefined; error?: string | undefined };
   /** Start loading one declared model, so its clips can be listed. All of them with no id. */
   onRequestAssets?: (id?: string) => void;
   /** A picture of an imported model as the board will draw it, base and all. */
@@ -424,6 +426,7 @@ export function EditorShell(props: EditorShellProps): preact.JSX.Element {
           session={session}
           controller={controller}
           models={[...props.knownModels].sort()}
+          surfaceStatus={props.surfaceStatus}
           onChange={bump}
           onClose={closeWorkspace}
         />
