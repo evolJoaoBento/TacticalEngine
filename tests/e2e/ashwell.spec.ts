@@ -80,6 +80,7 @@ const quest = (page: Page) => questOf(page, 'down-the-ashwell');
 const market = (page: Page) => questOf(page, 'the-ossuary-market');
 const library = (page: Page) => questOf(page, 'the-drowned-library');
 const furnace = (page: Page) => questOf(page, 'the-furnace-of-names');
+const throne = (page: Page) => questOf(page, 'the-ledger-throne');
 const logged = (page: Page) => page.evaluate(() => window.__engine!.log().map((line) => line.text));
 const scene = (page: Page) => page.evaluate(() => window.__engine!.sceneId());
 
@@ -272,12 +273,11 @@ test('the Ashwell, Level 2 paid for: the errand in the pit, the Guild\u2019s mar
   expect(await page.evaluate(() => window.__engine!.errors)).toEqual([]);
 });
 
-test('the Ashwell, Levels 3 and 4: the Library\u2019s page read at the sealed stair, the Furnace fed a name, and back to Ketch', async ({ page }) => {
-  test.setTimeout(420_000);
-  await levelOne(page);
-  await toTheBroker(page);
-  await payTheBroker(page);
-  await downTheWetStair(page);
+/**
+ * Levels 3 and 4, from the Library's foot to the Throne's door: Aud's tinder, the Stacks, the Index and the party's page
+ * (and the catalogue burnt), the Choir, the valve, the Saint, and Quim's name for the furnace.
+ */
+async function levelsThreeAndFour(page: Page): Promise<void> {
   await page.waitForTimeout(500);
   await page.screenshot({ path: 'test-results/ashwell-reading-room.png' });
 
@@ -375,14 +375,87 @@ test('the Ashwell, Levels 3 and 4: the Library\u2019s page read at the sealed st
   await use(page, 'throne-stair');
   await drain(page);
   expect((await logged(page)).some((text) => text.startsWith('Entry 11,040'))).toBe(true);
-  await expect.poll(() => scene(page)).toBe('lantern-and-lye');
+  await expect.poll(() => scene(page)).toBe('ledger-throne');
   expect(await furnace(page)).toMatchObject({ status: 'completed' });
+  expect(await throne(page)).toMatchObject({ status: 'active', done: ['reach-the-throne'] });
 
-  // Ketch, after all of it.
+}
+
+/** The whole way down, from the menu to the Throne: every level before the last, the Broker paid. */
+async function toTheThrone(page: Page): Promise<void> {
+  await levelOne(page);
+  await toTheBroker(page);
+  await payTheBroker(page);
+  await downTheWetStair(page);
+  await levelsThreeAndFour(page);
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: 'test-results/ashwell-throne.png' });
+}
+
+/** Ketch, after it is over: the word she has for how it ended. */
+async function ketchAfter(page: Page, said: string): Promise<void> {
+  await expect.poll(() => scene(page)).toBe('lantern-and-lye');
+  expect(await throne(page)).toMatchObject({ status: 'completed' });
   await use(page, 'mother-ketch');
-  await expect.poll(() => page.evaluate(() => window.__engine!.dialogueOptions())).toContain('We have been to the Market under the Sump.');
-  await choose(page, 'We came up from the Furnace.');
+  await choose(page, said);
   await expect.poll(() => page.evaluate(() => window.__engine!.dialogueOptions())).toEqual(['[Sit down by the fire.]']);
+}
+
+test('the Ashwell, Levels 3 and 4: the Library\u2019s page read at the sealed stair, the Furnace fed a name, and down to the Throne', async ({ page }) => {
+  test.setTimeout(420_000);
+  await toTheThrone(page);
+  expect(await page.evaluate(() => window.__engine!.errors)).toEqual([]);
+});
+
+test('the Ashwell, Level 5 ended with the pen: Vane heard out, his pen taken, and Ketch leaves the lamp lit', async ({ page }) => {
+  test.setTimeout(420_000);
+  await toTheThrone(page);
+  await talkTo(page, 'orsolde-vane');
+  // He remembers the Index the party burnt; and the name they gave the Broker was their own, so nothing of Ketch.
+  await expect.poll(() => page.evaluate(() => window.__engine!.dialogueOptions())).toContain('We burnt your Index.');
+  expect(await page.evaluate(() => window.__engine!.dialogueOptions())).not.toContain('You took Ketch\u2019s name.');
+  await choose(page, 'We have decided.');
+  await choose(page, 'Give us the pen.');
+  await choose(page, '[Take it.]');
+  await drain(page);
+  expect((await throne(page))?.done).toContain('hear-vane');
+  expect(await logged(page)).toContain('The Pen ' + 'He holds it out to you as if it were hot. It is not heavy. It is the lightest thing you have ever held, and the moment it is in your hand you know three hundred names you did not know before, and how each of them ended, and that somebody ought to write it down. "There," says Vane. "There. Oh, that is better." He sits back in his chair and closes his eyes and, after a little while, you write him down too: four lines, and one of them is about his hands. You climb back up to the Lantern, because you live there now, more or less. Every evening one of you goes down the rope with a lamp. You take it in turns. You do not talk about it.');
+  await ketchAfter(page, 'It is over. We kept his ledger.');
+  expect(await page.evaluate(() => window.__engine!.errors)).toEqual([]);
+});
+
+test('the Ashwell, Level 5 ended by leaving: Vane left writing, and Ketch keeps her slate', async ({ page }) => {
+  test.setTimeout(420_000);
+  await toTheThrone(page);
+  await talkTo(page, 'orsolde-vane');
+  await choose(page, 'We have decided.');
+  await choose(page, 'Keep writing. We are leaving.');
+  await choose(page, '[Go.]');
+  await drain(page);
+  expect(await page.evaluate(() => window.__engine!.inCombat())).toBe(false);
+  await ketchAfter(page, 'It is over. We left him to it.');
+  expect(await page.evaluate(() => window.__engine!.errors)).toEqual([]);
+});
+
+test('the Ashwell, Level 5 ended in fire: the ledger refused him, Vane and the Written fought, the ledger burnt, Ketch\u2019s slate clean', async ({ page }) => {
+  test.setTimeout(420_000);
+  await toTheThrone(page);
+  // Not while he is writing in it.
+  await use(page, 'the-ledger');
+  await drain(page);
+  expect(await lastLine(page)).toBe('Vane looks up from the page, mildly. "Not yet, I think. Talk to me first."');
+  await talkTo(page, 'orsolde-vane');
+  await choose(page, 'We have decided.');
+  await choose(page, 'We are going to burn the ledger.');
+  await choose(page, '[Draw steel.]');
+  await drain(page);
+  await expect.poll(() => page.evaluate(() => window.__engine!.inCombat()), { timeout: 15_000 }).toBe(true);
+  expect((await page.evaluate(() => window.__engine!.adversaries())).sort()).toEqual(['orsolde-vane', 'the-written-1', 'the-written-2', 'the-written-3']);
+  await win(page);
+  await use(page, 'the-ledger');
+  await drain(page);
+  expect((await logged(page)).some((text) => text.startsWith('Ash It takes a long time to catch.'))).toBe(true);
+  await ketchAfter(page, 'It is over. We burnt his ledger.');
   expect(await page.evaluate(() => window.__engine!.errors)).toEqual([]);
 });
 

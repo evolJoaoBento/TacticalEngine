@@ -11,7 +11,7 @@ import { walkEffects, type Effect } from '../../engine/script/schema';
 import { itemsFor } from '../../engine/content/equipment/catalogue';
 import { STARTER_ADVERSARIES } from '../../engine/content/pack/starter';
 import { buildingKey } from '../../engine/scene/building';
-import { ASHWELL_ID, AUD_DIALOGUE, BONE_KEY, BROKER_ID, COUNTING_ID, FURNACE_QUEST, GALLERY_ID, GUILD_MARK, HALL_ID, HUB_ID, INDEX_BOSS_ID, INDEX_ID, KENNEL_ID, KINDLING, LIBRARY_QUEST, MARKET_ID, MARKET_QUEST, NAVE_ID, PIT_ID, QUEST_ID, READING_ID, SAINT_ID, SELA_DIALOGUE, STACKS_ID, SUMP_ID, SUMP_KEY, THROAT_ID, WARDEN_ID, YOUR_PAGE, ashwellProject, sceneFromRows } from './ashwell';
+import { ASHWELL_ID, AUD_DIALOGUE, BONE_KEY, BROKER_ID, COUNTING_ID, FURNACE_QUEST, GALLERY_ID, GUILD_MARK, HALL_ID, HUB_ID, INDEX_BOSS_ID, INDEX_ID, KENNEL_ID, KINDLING, LIBRARY_QUEST, MARKET_ID, MARKET_QUEST, NAVE_ID, PIT_ID, QUEST_ID, READING_ID, SAINT_ID, SELA_DIALOGUE, STACKS_ID, SUMP_ID, SUMP_KEY, THRONE_ID, THRONE_QUEST, THROAT_ID, VANE_DIALOGUE, VANE_ID, WARDEN_ID, YOUR_PAGE, ashwellProject, sceneFromRows } from './ashwell';
 
 /** Every effect the project can run: on its props, in its dialogues, in each branch of either. */
 function effectsOf(project: ProjectDoc): Effect[] {
@@ -77,8 +77,9 @@ describe('the Ashwell, as a project', () => {
     expect(leads.get(INDEX_ID)).toEqual(new Set([STACKS_ID, NAVE_ID]));
     expect(leads.get(NAVE_ID)).toEqual(new Set([INDEX_ID, GALLERY_ID, HALL_ID]));
     expect(leads.get(GALLERY_ID)).toEqual(new Set([NAVE_ID]));
-    // The Furnace Hall's last stair ends Level 4, and climbs back to the Lantern until Level 5 is built.
-    expect(leads.get(HALL_ID)).toEqual(new Set([NAVE_ID, HUB_ID]));
+    // The Furnace Hall's last stair ends Level 4 and goes on to the Throne; every ending climbs back to the Lantern.
+    expect(leads.get(HALL_ID)).toEqual(new Set([NAVE_ID, THRONE_ID]));
+    expect(leads.get(THRONE_ID)).toEqual(new Set([HALL_ID, HUB_ID]));
   });
 
   it('hands out only things that exist, and fields only stat blocks it has or the engine ships', () => {
@@ -241,6 +242,90 @@ describe('Level 4, the Furnace of Names', () => {
     const { all, done } = objectives(project, FURNACE_QUEST);
     expect(done).toEqual(all);
     expect(effectsOf(project).some((effect) => effect.kind === 'startQuest' && effect.quest === FURNACE_QUEST)).toBe(true);
+  });
+});
+
+/** Effects, and every effect inside them - a branch's, a choice's options' - in order. */
+function deep(effects: readonly Effect[]): Effect[] {
+  const found: Effect[] = [];
+  walkEffects(effects, (effect) => {
+    found.push(effect);
+    if (effect.kind === 'choice') for (const option of effect.options) found.push(...deep(option.effects));
+  });
+  return found;
+}
+
+describe('Level 5, the Ledger Throne', () => {
+  const project = ashwellProject();
+  const throne = project.scenes.find((s) => s.id === THRONE_ID)!;
+  const vane = project.dialogues.find((d) => d.id === VANE_DIALOGUE)!;
+  const node = (id: string) => vane.nodes.find((n) => n.id === id)!;
+
+  it('is one room where nobody fights unless the ledger is threatened, and then all of them do', () => {
+    const archivist = throne.encounters[0]!;
+    expect([throne.encounters.length, archivist.id, archivist.startsOnTrigger, archivist.triggerCells]).toEqual([1, 'the-archivist', false, []]);
+    expect(archivist.adversaries.map((a) => a.adversary)).toContain(VANE_ID);
+    expect(archivist.adversaries.every((a) => a.interaction?.kind === 'friendly' && a.interaction.dialogue === VANE_DIALOGUE)).toBe(true);
+    expect(deep(node('refused').onEnter!).find((e) => e.kind === 'setAttitude')).toMatchObject({ attitude: 'hostile', target: { kind: 'entities', ids: archivist.adversaries.map((a) => a.id) } });
+  });
+
+  it('ends three ways - the pen taken, Vane left writing, the ledger burnt over him - each the Ashwell\u2019s end, and back to the Lantern', () => {
+    const pen = deep(node('pen').choices![0]!.effects!);
+    const left = deep(node('leave').choices![0]!.effects!);
+    const ledger = throne.decos.find((d) => d.id === 'the-ledger')!.function!;
+    if (ledger.kind !== 'script') throw new Error('the ledger is no script');
+    // Burnt only once his fight is over: the ledger asks for it then.
+    const after = deep(ledger.effects).find((e) => e.kind === 'branch' && e.when.kind === 'encounter');
+    expect(after?.kind === 'branch' && after.when).toEqual({ kind: 'encounter', id: 'the-archivist', state: 'ended' });
+    const choice = deep(ledger.effects).find((e) => e.kind === 'choice');
+    if (choice?.kind !== 'choice') throw new Error('the ledger offers no choice');
+    const burnt = deep(choice.options.find((o) => o.label === 'Burn it.')!.effects);
+    for (const [flag, effects] of [['ending-took-the-pen', pen], ['ending-left-him', left], ['ending-burned', burnt]] as const) {
+      expect(effects, flag).toContainEqual({ kind: 'setFlag', flag });
+      expect(effects, flag).toContainEqual({ kind: 'setFlag', flag: 'ashwell-ended' });
+      expect(effects, flag).toContainEqual({ kind: 'completeQuest', quest: THRONE_QUEST });
+      expect(effects.at(-1), flag).toEqual({ kind: 'goto', scene: HUB_ID });
+    }
+  });
+
+  it('remembers what was done above: Ketch\u2019s name and the Index, and Ketch has a word for each ending', () => {
+    const offered = node('greet').choices!;
+    expect(offered.find((c) => c.goto === 'ketch')?.available).toEqual({ kind: 'flag', flag: 'gave-ketchs-name' });
+    expect(offered.find((c) => c.goto === 'index')?.available).toEqual({ kind: 'flag', flag: 'burned-the-index' });
+    const ketch = project.dialogues.find((d) => d.id === 'mother-ketch')!.nodes.find((n) => n.id === 'slate')!.choices!;
+    for (const flag of ['ending-burned', 'ending-took-the-pen', 'ending-left-him']) expect(ketch.some((c) => c.available?.kind === 'flag' && c.available.flag === flag), flag).toBe(true);
+  });
+
+  it('completes every objective of its quest somewhere, and begins it where Level 4 ends', () => {
+    const all = [...effectsOf(project), ...deep(throne.decos.flatMap((d) => (d.function?.kind === 'script' ? d.function.effects : []))), ...vane.nodes.flatMap((n) => [...deep(n.onEnter ?? []), ...(n.choices ?? []).flatMap((c) => deep(c.effects ?? []))])];
+    const done = new Set(all.flatMap((e) => (e.kind === 'completeObjective' && e.quest === THRONE_QUEST ? [e.objective] : [])));
+    expect([...done].sort()).toEqual(project.quests.find((q) => q.id === THRONE_QUEST)!.objectives.map((o) => o.id).sort());
+    expect(all.some((e) => e.kind === 'startQuest' && e.quest === THRONE_QUEST)).toBe(true);
+  });
+});
+
+describe('each level\u2019s last stair', () => {
+  const project = ashwellProject();
+  // The stair, the flag its first use sets, and the level it goes on into.
+  const STAIRS: readonly [string, string, string, string][] = [
+    [SUMP_ID, 'stair-down', 'level-1-done', MARKET_ID],
+    [COUNTING_ID, 'library-stair', 'level-2-done', READING_ID],
+    [INDEX_ID, 'furnace-stair', 'level-3-done', NAVE_ID],
+    [HALL_ID, 'throne-stair', 'level-4-done', THRONE_ID],
+  ];
+
+  it('goes on into the next level both ways: the first time, the level ended on the way; every time after, straight there', () => {
+    for (const [room, stair, flag, next] of STAIRS) {
+      const fn = project.scenes.find((s) => s.id === room)!.decos.find((d) => d.id === stair)!.function!;
+      if (fn.kind !== 'script') throw new Error(`${stair} is no script`);
+      expect(fn.repeatable, stair).toBe(true);
+      const branch = deep(fn.effects).find((e) => e.kind === 'branch' && e.when.kind === 'flag' && e.when.flag === flag);
+      if (branch?.kind !== 'branch') throw new Error(`${stair} does not ask whether ${flag}`);
+      expect(branch.then.at(-1), `${stair}, after`).toEqual({ kind: 'goto', scene: next });
+      expect(branch.otherwise?.at(-1), `${stair}, the first time`).toEqual({ kind: 'goto', scene: next });
+      expect(branch.otherwise, `${stair}, the first time`).toContainEqual({ kind: 'setFlag', flag });
+      expect(branch.otherwise, `${stair}, the first time`).toContainEqual({ kind: 'levelUp' });
+    }
   });
 });
 

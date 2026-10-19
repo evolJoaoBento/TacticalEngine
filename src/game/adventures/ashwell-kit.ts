@@ -44,6 +44,10 @@ export const FURNACE_QUEST = 'the-furnace-of-names';
 export const ILSE_DIALOGUE = 'ilse-grey';
 export const STOKER_ID = 'iron-stoker';
 export const SAINT_ID = 'bellows-saint';
+export const THRONE_ID = 'ledger-throne';
+export const THRONE_QUEST = 'the-ledger-throne';
+export const VANE_DIALOGUE = 'orsolde-vane';
+export const VANE_ID = 'sallow-archivist';
 
 
 /** What each character of a map is. */

@@ -21,7 +21,23 @@ own; the fight's spotlight, the GM's turn and the questions go as at a server's 
 the real engine (`src/game/peer/*.test.ts`), and `tests/e2e/peer.spec.ts` in two browsers. Next: an evening across
 two real networks.
 
-## The Ashwell, Levels 3 and 4: the Drowned Library and the Furnace of Names — done; Level 5 next
+## The Ashwell, Level 5: the Ledger Throne — done; the Ashwell complete
+
+`docs/ASHWELL.md`. One scene (`ashwell-level5.ts`): Vane and the Written stand on nobody's side and talk
+(`interaction: friendly`, his dialogue) until the party says it will burn the ledger, and then all turn (`setAttitude
+hostile` over `entities`) - the fight begun by an answer, `startsOnTrigger: false`, as the Broker's is. Three endings -
+the pen and leaving in his dialogue, burning in the ledger's `choice` once his fight has ended - each setting its flag
+and `ashwell-ended`, completing the quest and climbing to the Lantern, where Ketch has a line for each. Vane's
+dialogue offers lines on `gave-ketchs-name` and `burned-the-index`; the burnt ending gives Ketch her name back if it
+was sold. The Furnace Hall's last stair now goes on to the Throne. Vane is a tier-3 solo of the adventure's own.
+
+- **Balance is the open question.** The e2e never takes the levels the Ashwell grants, so every fight is won by the
+  driver's hand. A party levelled as it goes - level 5 at the Throne - needs a play-through, and the stat blocks
+  tuning to it.
+- Tests: `ashwell.test.ts` (the Throne: its one fight, begun only by refusing him; three endings, each the end;
+  what Vane and Ketch remember), `tests/e2e/ashwell.spec.ts` (each ending played from the menu).
+
+## The Ashwell, Levels 3 and 4: the Drowned Library and the Furnace of Names — done
 
 `docs/ASHWELL.md`. Six scenes, as before a fight to a room: the Reading Room (Aud Brennock, her tinder), the Wet
 Stacks, the Index (the party's own page, and the catalogue burnt or left - a script `choice` whose Burn option needs

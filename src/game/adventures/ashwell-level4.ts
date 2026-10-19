@@ -3,7 +3,7 @@
 import { sceneSchema, type ProjectDoc, type SceneDoc } from '../../engine/scene/schema';
 import type { AdversaryDef } from '../../engine/content/types';
 import type { Effect } from '../../engine/script/schema';
-import { HUB_ID, INDEX_ID, NAVE_ID, GALLERY_ID, HALL_ID, FURNACE_QUEST, ILSE_DIALOGUE, STOKER_ID, SAINT_ID, sceneFromRows, passage, afterTheFight } from './ashwell-kit';
+import { INDEX_ID, NAVE_ID, GALLERY_ID, HALL_ID, FURNACE_QUEST, ILSE_DIALOGUE, STOKER_ID, SAINT_ID, sceneFromRows, passage, afterTheFight, THRONE_ID, THRONE_QUEST } from './ashwell-kit';
 
 // ---------------------------------------------------------------------------------------------------------------
 // Level 4: the Furnace of Names
@@ -70,7 +70,10 @@ const REMEMBERED: readonly { id: string; name: string; loses: string }[] = [
   { id: 'arty', name: 'Arty', loses: 'why they ever came down the well' },
 ];
 
-/** The stair down from the Furnace Hall: shut until a name has been burnt; then the end of Level 4, and the climb back. */
+/**
+ * The Furnace Hall's last stair: shut until a name has been burnt; then, the first time, the end of Level 4 - Vane's
+ * page, the quest done, a level gained - and the way into Level 5, its quest begun; every time after, the way down.
+ */
 const THRONE_STAIR: Effect[] = [
   {
     kind: 'branch',
@@ -79,7 +82,7 @@ const THRONE_STAIR: Effect[] = [
       {
         kind: 'branch',
         when: { kind: 'flag', flag: 'level-4-done' },
-        then: [{ kind: 'log', text: 'The stair goes down into warm, lamplit quiet. Not yet. He is still writing.', tone: 'narration' }, { kind: 'goto', scene: HUB_ID }],
+        then: [{ kind: 'goto', scene: THRONE_ID }],
         otherwise: [
           { kind: 'completeObjective', quest: FURNACE_QUEST, objective: 'burn-a-name' },
           {
@@ -87,15 +90,16 @@ const THRONE_STAIR: Effect[] = [
             title: 'Entry 11,040',
             paragraphs: [
               'Past the furnace the stair is warm and dry, and lamplit, and quiet. At the bottom is a door of plain wood with a plain brass handle, and a page pinned to it.',
-              '"They have given the Furnace a name, and it has given them the stair. I have been eleven thousand and forty entries without anyone reaching this door. I find I am nervous. I have tidied. Go up first, and rest, and come down when you are ready. I will be here. I am always here."',
-              'You go up. The ash coming up the well behind you is thinner than it was, and warmer, and smells very faintly of someone you used to know.',
+              '"They have given the Furnace a name, and it has given them the stair. I have been eleven thousand and forty entries without anyone reaching this door. I find I am nervous. I have tidied. Come in."',
             ],
-            button: 'Climb back up',
+            button: 'Open the door',
           },
           { kind: 'completeQuest', quest: FURNACE_QUEST },
           { kind: 'levelUp' },
           { kind: 'setFlag', flag: 'level-4-done' },
-          { kind: 'goto', scene: HUB_ID },
+          { kind: 'startQuest', quest: THRONE_QUEST },
+          { kind: 'completeObjective', quest: THRONE_QUEST, objective: 'reach-the-throne' },
+          { kind: 'goto', scene: THRONE_ID },
         ],
       },
     ],

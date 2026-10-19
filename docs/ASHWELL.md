@@ -2,10 +2,10 @@
 
 An adventure of the engine's own: every place, person and beat in it is written for this project. It is built in code
 (`src/game/adventures/ashwell.ts`, with what the levels share in `ashwell-kit.ts` and each level in a file of its own,
-`ashwell-level1.ts` to `ashwell-level4.ts`) as a project document, and begun from the main menu (**The Ashwell → Begin**),
+`ashwell-level1.ts` to `ashwell-level5.ts`) as a project document, and begun from the main menu (**The Ashwell → Begin**),
 which keeps it as a game of its own in the browser, as New Game keeps a camp.
 
-**Status:** the hub and Levels 1 to 4 are built and playable. Level 5 is designed here and is the next slice, as each was
+**Status:** the hub and all five levels are built and playable, end to end, with three endings. Each was a slice, as
 level.
 
 ## The premise
@@ -124,7 +124,25 @@ ash is what the well breathes. **Faction:** the **Choir of Ash**, the faithful w
 burnt into the light. **Threat:** iron constructs that stoke the fires. **Boss:** **the Bellows Saint**. **What the
 stair costs:** a party member's name, burnt, and with it something they remember.
 
-## Level 5 — The Ledger Throne
+## Level 5 — The Ledger Throne (built)
+
+One scene. **Orsolde Vane** writes at his lectern inside a ring of reading screens, and the Written - three of his
+drowned and burnt, ink-wraiths - stand among the shelves; all of them on nobody's side, and Vane talks for all of them.
+He answers for what the party did on the way down: Ketch's name, if it was sold, and the Index, if it was burnt. Three
+endings, each the Ashwell's end (`ashwell-ended`), each written up and sending the party back to the Lantern, where
+Ketch has a word for it:
+
+- **The pen** (`ending-took-the-pen`): he gives it up, gladly; the party keeps the ledger now, taking it in turns, and
+  Ketch leaves the lamp lit by the rope.
+- **Leaving him to it** (`ending-left-him`): the ash keeps coming up the well; Ketch keeps her slate.
+- **The ledger burnt** (`ending-burned`): the only way to a fight. Vane refuses, the Written stand up, and once they
+  are down the ledger burns. The well stops breathing ash, Ketch's slate is clean and she does not know what it was
+  for - and if it was her name the Broker took, she has it back.
+
+Vane is a tier-3 solo of the adventure's own (the Sallow Archivist).
+
+The design, as it was set down:
+
 
 A quiet room, warm and lamplit, and the ledger on its lectern, eleven thousand entries long. **Orsolde Vane** waits,
 with the pen. He is old and small, and he will not fight unless the party makes him. **The choice:** destroy the

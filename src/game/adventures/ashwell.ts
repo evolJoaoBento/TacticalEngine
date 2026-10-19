@@ -1,10 +1,10 @@
 /**
  * The Ashwell (`docs/ASHWELL.md`): a grim megadungeon of the engine's own, in five levels under the drowned town of
- * Hallowmere, built in code as a project document - the hub, the Lantern & Lye, and Levels 1 to 4 so far.
+ * Hallowmere, built in code as a project document - the hub, the Lantern & Lye, and all five levels below it.
  *
  * What every level shares - the ids, the maps drawn as rows of characters (`sceneFromRows`), the stair paired across
  * two rooms, the chest that waits for a fight - is in `ashwell-kit.ts`; each level's rooms, people and quest are in a
- * file of their own, `ashwell-level1.ts` to `ashwell-level4.ts`. Here is what they pay out, and the project they make:
+ * file of their own, `ashwell-level1.ts` to `ashwell-level5.ts`. Here is what they pay out, and the project they make:
  * played with the demo's party and everything their cards need, begun from the main menu (**The Ashwell**), which keeps
  * it as a game of its own.
  */
@@ -21,6 +21,7 @@ import { hub, throat, kennel, sump, CISTERN_WARDEN, KETCH, QUEST } from './ashwe
 import { market, pit, countingHouse, PIT_GHOUL, BONE_BROKER, GRALE, SELA, MARKET_QUEST_DEF } from './ashwell-level2';
 import { readingRoom, stacks, index, INK_WRAITH, UNDERTOW_INDEX, AUD, LIBRARY_QUEST_DEF } from './ashwell-level3';
 import { nave, gallery, hall, IRON_STOKER, BELLOWS_SAINT, ILSE, FURNACE_QUEST_DEF } from './ashwell-level4';
+import { throne, ORSOLDE_VANE, VANE, THRONE_QUEST_DEF } from './ashwell-level5';
 
 export * from './ashwell-kit';
 
@@ -79,18 +80,18 @@ const KEPT_ITEMS = new Set([GOLD, 'healing-draught', 'longsword', 'round-shield'
 /** The party that goes down: four of the demo's company. */
 const PARTY = PARTY_SHEETS.slice(0, 4);
 
-/** The Ashwell, as a project: the hub and the levels built so far (four), the demo's party, and everything their cards need. */
+/** The Ashwell, as a project: the hub and its five levels, the demo's party, and everything their cards need. */
 export function ashwellProject(): ProjectDoc {
   return projectSchema.parse({
     id: ASHWELL_ID,
     name: 'The Ashwell',
     terrainPalette: PALETTE,
-    scenes: [hub(), throat(), kennel(), sump(), market(), pit(), countingHouse(), readingRoom(), stacks(), index(), nave(), gallery(), hall()],
-    dialogues: [KETCH, GRALE, SELA, AUD, ILSE],
+    scenes: [hub(), throat(), kennel(), sump(), market(), pit(), countingHouse(), readingRoom(), stacks(), index(), nave(), gallery(), hall(), throne()],
+    dialogues: [KETCH, GRALE, SELA, AUD, ILSE, VANE],
     items: [...DEMO_ITEMS.filter((item) => KEPT_ITEMS.has(item.id)), ...ITEMS],
     lootTables: LOOT,
-    quests: [QUEST, MARKET_QUEST_DEF, LIBRARY_QUEST_DEF, FURNACE_QUEST_DEF],
-    adversaries: [CISTERN_WARDEN, PIT_GHOUL, BONE_BROKER, INK_WRAITH, UNDERTOW_INDEX, IRON_STOKER, BELLOWS_SAINT],
+    quests: [QUEST, MARKET_QUEST_DEF, LIBRARY_QUEST_DEF, FURNACE_QUEST_DEF, THRONE_QUEST_DEF],
+    adversaries: [CISTERN_WARDEN, PIT_GHOUL, BONE_BROKER, INK_WRAITH, UNDERTOW_INDEX, IRON_STOKER, BELLOWS_SAINT, ORSOLDE_VANE],
     cards: [...DEMO_PROJECT_CARDS],
     abilities: [...STARTER_ABILITIES, ...DEMO_PROJECT_ABILITIES],
     code: [...DEMO_CODE],

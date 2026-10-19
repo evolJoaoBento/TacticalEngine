@@ -77,7 +77,11 @@ sealed stair below opens only to that page read aloud, and costs everyone a Stre
 Furnace of Names**, is below it: the Choir of Ash in their nave, the doors too hot to pass until the
 great valve in the Coal Gallery is turned, the Bellows Saint at the furnace - and then the furnace
 itself, which opens the last stair for one of you to write their name and lose a memory. The last
-stair ends Level 4 for now and sends you back up to the Lantern.
+stair goes down to **Level 5, the Ledger Throne**: one quiet room, and Orsolde Vane writing in his
+ledger. Talk to him - he will not fight you unless you make him - and decide: **take his pen** and
+keep the ledger yourselves, **leave him** to it and climb out, or **burn the ledger**, which he will
+fight to stop, the Written with him. Each ending is the Ashwell's last, and sends you back up to
+the Lantern, where Ketch has a word for each.
 
 **New Game** is played at a wooden table, one choice at a time. Each choice is a **deck** dealt face
 up, and only its top card shows. **Drag** cards off the top and put them down anywhere on the table to
