@@ -1,0 +1,101 @@
+# The Ashwell — a grim megadungeon in five levels
+
+An adventure of the engine's own: every place, person and beat in it is written for this project. It is built in code
+(`src/game/adventures/ashwell.ts`) as a project document, and begun from the main menu (**The Ashwell → Begin**),
+which keeps it as a game of its own in the browser, as New Game keeps a camp.
+
+**Status:** the hub and Level 1 are built and playable. Levels 2 to 5 are designed here and are the next slices, one a
+level.
+
+## The premise
+
+Hallowmere was a market town on a salt marsh, until the sea came up through its well. The well was capped with a
+millstone and a prayer, and for a generation the town forgot it. This winter the millstone cracked, and the well began
+to breathe ash: grey, warm, smelling of pages burnt. People who go down do not come back, and the ones who come back
+are worse.
+
+Below the town is the work of **Orsolde Vane, the Sallow Archivist**. He was the town's recorder of births and
+deaths, and he found he could not bear that a death goes unrecorded once the last person who remembers it is gone.
+So he went down into the dark and began to keep a ledger of everyone who dies below Hallowmere: how they died, what
+they were afraid of, what they said at the end. The ledger is his life. He does not want the party dead. He wants
+them to die *well*, in ways worth writing, and he arranges the dungeon so that they will.
+
+**Tone:** grim. Nobody below is saved by being good. Rewards are small and cost something. Vane is never cruel for
+its own sake; he is an archivist, and that is worse.
+
+**His voice:** Vane speaks through ledger pages pinned where the party will find them, written before they arrive.
+Each one describes the party a little too well.
+
+## The hub: the Lantern & Lye
+
+A low tavern built over the well's mouth, which is now a ring of cracked stone in the middle of its floor with a rope
+and a winch over it. **Mother Ketch** keeps it. She washes and buries the bodies that come up, sells rope and lamp oil,
+and keeps a slate of names by the door: everyone who has gone down. She is not kind, but she is fair, and she will
+tell the party exactly how the last ones died.
+
+- She starts the quest **Down the Ashwell** and gives each delve a reason.
+- The winch over the well is the way down to Level 1; the same rope is the way back.
+
+## Level 1 — The Throat (built)
+
+The old well shaft and the flooded cistern under the town, built as three scenes - the Throat, the Kennel and the
+Sump - since a fight is everyone hostile in the scene it is in, and the level has three. Passages join them by stairs
+paired across the scenes, so the party comes up where it went down. **Faction:** the **Wellrats**, townsfolk who went down for
+the dead's belongings and stayed, stripping whoever falls. **Boss:** **the Cistern Warden**, once the town's
+well-keeper, now the Wellrats' chief, armoured in rusted well-chain.
+
+- **The Shaft Foot** — where the rope ends, on a heap of what fell before. Vane's first page is nailed to the wall.
+- **The Long Gallery** — a channel of black water, waist-deep in the middle, shallow at the edges. Slow going.
+- **The Wellrat Camp** — a fire, stolen goods, and the Wellrats who keep it: cutters and a slinger.
+- **The Kennel** — where the Wellrats keep what they feed the dead to: rot-hounds, and something that waits in the
+  wet. A chest of what the hounds did not eat.
+- **The Sump** — the cistern's deepest chamber, where the Warden holds court with grave-moths in the lamp smoke.
+  His strongbox holds the key to the Sump Gate.
+- **The Sump Gate** — an iron grate over the stair down, locked with the Warden's key.
+- **The stair down** — to the Ossuary Market. For now it ends at bone, and the party climbs back with what they
+  learned.
+
+**Vane's page:** *"They came down in good order. They checked the rope twice. The tall one was afraid of the water
+and did not say so. Entry 4,112."*
+
+## Level 2 — The Ossuary Market
+
+A market cut into an old charnel pit, where the **Quiet Guild** trades in bones, teeth and names: who died, where,
+and what they carried. They are polite, and they buy everything. **Threat:** ghouls that come up through the floor
+when the market bell rings. **Boss:** the **Bone-Broker Sela Marrow**, who will sell the party the way down for a
+price paid in the dead (their own, if they have none to spare). **What the stair costs:** a name given to the Guild.
+**Vane's page:** an exact list of what the party will be offered, and what they will choose.
+
+## Level 3 — The Drowned Library
+
+Vane's first archive, flooded when the sea came up. Shelves standing in black water; pages that float and
+whisper. **Threat:** **ink-wraiths**, the drowned recorded dead, who want to be read aloud. **Rival:** the
+**Kindlers**, a band who came down to burn the ledger and are slowly being written into it. **Boss:** **the Undertow
+Index**, a catalogue that hunts by name. **What the stair costs:** a page of the ledger, carried and read.
+**Vane's page:** the party's own entries, half-written, waiting for an ending.
+
+## Level 4 — The Furnace of Names
+
+Where names are smelted: Vane burns the pages of the finished dead to fuel the lamps that light his halls, and the
+ash is what the well breathes. **Faction:** the **Choir of Ash**, the faithful who sing in the smoke and want to be
+burnt into the light. **Threat:** iron constructs that stoke the fires. **Boss:** **the Bellows Saint**. **What the
+stair costs:** a party member's name, burnt, and with it something they remember.
+
+## Level 5 — The Ledger Throne
+
+A quiet room, warm and lamplit, and the ledger on its lectern, eleven thousand entries long. **Orsolde Vane** waits,
+with the pen. He is old and small, and he will not fight unless the party makes him. **The choice:** destroy the
+ledger (and every name in it is forgotten — Ketch's slate goes blank), take the pen (and keep the ledger), or leave
+him to it and climb out. **The fight, if it comes:** Vane writes the room around him, and every entry he finishes is
+a wound.
+
+## Building it, level by level
+
+Each level is a slice: its scene, its encounters, its loot, its page from Vane, and the stair down; a test that the
+project is whole (`ashwell.test.ts`) and a play through it in the browser (`tests/e2e/ashwell.spec.ts`).
+
+- **Materials:** the levels are built on the engine's own tiles. To dress one, open it in the editor, download a
+  Poly Haven material (Content → Tiles) and give it to a kind of tile; the dungeon set (castle brick, cobblestone
+  floor, rock wall, dirt floor) suits it.
+- **Adversaries** come from the engine's starter blocks, renamed for the place; a boss is a stat block of the
+  adventure's own (`project.adversaries`).

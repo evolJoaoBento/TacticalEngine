@@ -21,6 +21,27 @@ own; the fight's spotlight, the GM's turn and the questions go as at a server's 
 the real engine (`src/game/peer/*.test.ts`), and `tests/e2e/peer.spec.ts` in two browsers. Next: an evening across
 two real networks.
 
+## The Ashwell: the hub and Level 1 — done; Levels 2 to 5 next
+
+`docs/ASHWELL.md`: a grim megadungeon of the engine's own in five levels, all designed there. Built in code as a
+project (`src/game/adventures/ashwell.ts`, `ashwellProject`) and begun from the main menu's Load Game (**The Ashwell
+→ From the start**), which writes it into the browser's games (`GameProjects`) afresh each time and opens
+`?play&project=the-ashwell`; its saves are listed under it. The hub, the Lantern & Lye (Mother Ketch, her dialogue,
+the quest *Down the Ashwell*), and Level 1 as three scenes - the Throat, the Kennel, the Sump - each with one fight,
+joined by stairs paired across scenes (`portal` functions) so a party comes up where it went down; the Cistern Warden
+a stat block of its own; the gate's key in his strongbox, which opens only once his fight has ended
+(`{ kind: 'encounter', state: 'ended' }`); the stair down ending the level with a page, a level and the climb back.
+Maps are drawn as rows of characters (`sceneFromRows`): wall, floor, black water, rubble, low wall.
+
+- **A fight is everyone hostile in the scene.** An encounter's trigger starts a fight that every adversary in the room
+  joins, whichever encounter placed it, and it ends only when all are down. So a level of several fights is several
+  scenes. Each next level follows the same pattern.
+- **The test driver's `wound` marks Hit Points and fells nobody.** `tests/e2e/ashwell.spec.ts` wounds each foe to a
+  blow from down, then strikes: real blows end the fight as a fight ends.
+- Next: Level 2, the Ossuary Market (the Quiet Guild, a shop, ghouls, Sela Marrow), then 3 to 5. Tests:
+  `src/game/adventures/ashwell.test.ts` (whole, valid, every room reached, every item and stat block known),
+  `tests/e2e/ashwell.spec.ts` (Level 1 played from the menu).
+
 ## Materials from Poly Haven, by name — done
 
 The Tiles workspace downloads a texture from Poly Haven (CC0) by its id or its page's link - or one of 27 starters

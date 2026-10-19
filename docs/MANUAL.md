@@ -41,15 +41,27 @@ modders and test authors can drive the game through it, but nothing in the engin
 The page opens on the **main menu**:
 
 - **New Game** makes a character, card by card, and begins a camp of their own (below).
-- **Load Game** plays on: the Demo Vault from the start or from any save of it, and every game New
-  Game began, from where it was left (**Continue**) or from any save of it. Each game's saves are
-  listed under it. A game is **played only** here: there is no editor, and `Ctrl+E` does nothing.
+- **Load Game** plays on: the Demo Vault from the start or from any save of it, **The Ashwell** (below)
+  from the start or from any save of it, and every game New Game began, from where it was left
+  (**Continue**) or from any save of it. Each game's saves are listed under it. A game is **played
+  only** here: there is no editor, and `Ctrl+E` does nothing.
 - **Edit Game** is the app as it always was: the project with the editor, opening in edit mode.
   `Ctrl+E` (or `Cmd+E`) switches between play and edit at any time.
 
 Each choice opens the page again with it in the address (`?edit`, `?play`, `?project=<id>`,
 `?load=<save>`), and **Main menu** at the foot of the settings (Esc) comes back to it. A server
 started for the tests opens straight on the game; `?menu` opens the menu there.
+
+**The Ashwell** is the engine's own adventure: a grim dungeon under the drowned town of Hallowmere,
+five levels deep when it is done, of which the first is built (`docs/ASHWELL.md` has the whole of it).
+Choose **Load Game → The Ashwell → From the start**. You begin in the Lantern & Lye, the tavern built
+over the well, with four of the demo's company. Talk to **Mother Ketch** first - the well will not take
+you until you have - then use the well to climb down into the Throat. Level 1 is three rooms: the
+Throat itself, with the Wellrats' camp at the end of its flooded gallery; the Kennel, down the
+passage from the shaft; and the Sump, down the passage from the camp, where the Cistern Warden keeps
+the key to the gate over the stair down. Each room holds one fight, begun by walking into it. A chest
+that belongs to a fight's side will not open while that side is standing. The stair down ends the
+level for now: you climb back to the Lantern a level higher, and Ketch has something to say.
 
 **New Game** is played at a wooden table, one choice at a time. Each choice is a **deck** dealt face
 up, and only its top card shows. **Drag** cards off the top and put them down anywhere on the table to

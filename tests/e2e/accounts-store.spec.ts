@@ -73,9 +73,10 @@ test('signing in shows your own games, not another player’s, and signing out a
   await expect(page.getByTestId('menu-account')).toContainText('Signed in as Bramble');
   expect(await page.evaluate(() => localStorage.getItem('tactical:current-user'))).toBe('bramble');
   await page.screenshot({ path: 'test-results/accounts-menu.png' });
-  // Load Game: Bramble's own games only - the old camp is admin's.
+  // Load Game: Bramble's own games only - the old camp is admin's - beside the two every player has, the Ashwell and the demo.
   await page.getByTestId('menu-load').click();
-  await expect(page.locator('[data-testid="menu-load-list"] .menu-game')).toHaveCount(1);
+  await expect(page.locator('[data-testid="menu-load-list"] .menu-game')).toHaveCount(2);
+  expect(await page.locator('[data-testid="menu-load-list"] .menu-game').evaluateAll((games) => games.map((game) => game.getAttribute('data-game')))).toEqual(['the-ashwell', 'demo']);
   await expect(page.locator('[data-testid="menu-load-list"]')).not.toContainText("Old's camp");
   await page.getByTestId('menu-back').click();
 
