@@ -22,6 +22,14 @@ async function drain(page: Page): Promise<void> {
  * does, and whatever waits on its end sees it end.
  */
 async function fight(page: Page, at: { x: number; y: number }): Promise<void> {
+  // Rested first, as a party between fights would: ten fights end to end, with nobody resting, wear any four down.
+  await page.evaluate(() => {
+    const a = window.__engine!;
+    for (const member of a.party()) {
+      a.wound(member, 0);
+      a.markStress(member, 0);
+    }
+  });
   await page.evaluate(({ x, y }) => {
     const a = window.__engine!;
     a.walkTo(x + 0.5, y + 0.5);
@@ -36,6 +44,9 @@ async function win(page: Page): Promise<void> {
   for (let round = 0; round < 40 && (await page.evaluate(() => window.__engine!.inCombat())); round++) {
     await page.evaluate(() => {
       const a = window.__engine!;
+      // The party held up by the same hand: the levels the Ashwell grants are never taken here (the level-up panel
+      // has its own tests), so a level-1 company is fighting tier-2 creatures, and what is tested is the level.
+      for (const member of a.party()) a.wound(member, 0);
       for (const foe of a.adversaries()) a.wound(foe, a.hitPoints(foe).max - 1);
       for (const member of a.party()) {
         const foe = a.adversaries()[0];
@@ -52,6 +63,9 @@ async function win(page: Page): Promise<void> {
     }
   }
   await expect.poll(() => page.evaluate(() => window.__engine!.inCombat()), { timeout: 15_000 }).toBe(false);
+  // Won, not lost: every adversary down, and the party standing.
+  expect(await page.evaluate(() => window.__engine!.adversaries())).toEqual([]);
+  expect(await page.evaluate(() => window.__engine!.log().map((line) => line.text))).not.toContain('The party falls.');
 }
 
 /** A thing walked up to and used, every prompt it raised answered: what using it said. */
@@ -64,6 +78,9 @@ async function use(page: Page, id: string): Promise<string> {
 const questOf = (page: Page, id: string) => page.evaluate((wanted) => window.__engine!.journal().find((q) => q.id === wanted) ?? null, id);
 const quest = (page: Page) => questOf(page, 'down-the-ashwell');
 const market = (page: Page) => questOf(page, 'the-ossuary-market');
+const library = (page: Page) => questOf(page, 'the-drowned-library');
+const furnace = (page: Page) => questOf(page, 'the-furnace-of-names');
+const logged = (page: Page) => page.evaluate(() => window.__engine!.log().map((line) => line.text));
 const scene = (page: Page) => page.evaluate(() => window.__engine!.sceneId());
 
 /**
@@ -200,16 +217,31 @@ async function toTheBroker(page: Page): Promise<void> {
   await page.screenshot({ path: 'test-results/ashwell-counting-house.png' });
 }
 
-/** The Bone Door opened with the Broker's key, and the wet stair taken: the Level done, and the climb back to the Lantern. */
+/** The Bone Door opened with the Broker's key, and the wet stair taken: Level 2 done, and on down into the Library. */
 async function downTheWetStair(page: Page): Promise<void> {
   await use(page, 'bone-door');
   await drain(page);
   expect(await page.evaluate(() => window.__engine!.objectState('bone-door').removed)).toBe(true);
   await use(page, 'library-stair');
   await drain(page);
-  expect((await page.evaluate(() => window.__engine!.log().map((line) => line.text))).some((text) => text.startsWith('Entry 4,120'))).toBe(true);
-  await expect.poll(() => scene(page)).toBe('lantern-and-lye');
+  expect((await logged(page)).some((text) => text.startsWith('Entry 4,120'))).toBe(true);
+  await expect.poll(() => scene(page)).toBe('reading-room');
   expect(await market(page)).toMatchObject({ status: 'completed' });
+  expect(await library(page)).toMatchObject({ status: 'active', done: ['reach-the-library'] });
+}
+
+/** Sela paid with a name of the party's own: two Stress each, and the key. */
+async function payTheBroker(page: Page): Promise<void> {
+  const before = await page.evaluate(() => window.__engine!.party().map((id) => window.__engine!.stressOf(id).marked));
+  await talkTo(page, 'sela-marrow');
+  await choose(page, 'Take one of ours.');
+  await choose(page, '[Take the key.]');
+  await drain(page);
+  expect(await page.evaluate(() => window.__engine!.inCombat())).toBe(false);
+  expect((await market(page))?.done).toContain('the-broker');
+  // It cost them: every one of them is the worse for it.
+  const after = await page.evaluate(() => window.__engine!.party().map((id) => window.__engine!.stressOf(id).marked));
+  after.forEach((marked, i) => expect(marked).toBeGreaterThan(before[i]!));
 }
 
 test('the Ashwell, Level 1: begun from the menu, Ketch heard, the Throat cleared, the gate opened and the stair taken into the Market', async ({ page }) => {
@@ -235,20 +267,121 @@ test('the Ashwell, Level 2 paid for: the errand in the pit, the Guild\u2019s mar
   await use(page, 'brokers-ledger-box');
   await drain(page);
   expect(await lastLine(page)).toBe('A Guild clerk looks at your hand on the box until you take it off.');
-  const before = await page.evaluate(() => window.__engine!.party().map((id) => window.__engine!.stressOf(id).marked));
-  await talkTo(page, 'sela-marrow');
-  await choose(page, 'Take one of ours.');
-  await choose(page, '[Take the key.]');
-  await drain(page);
-  expect(await page.evaluate(() => window.__engine!.inCombat())).toBe(false);
-  expect((await market(page))?.done).toContain('the-broker');
-  // It cost them: every one of them is the worse for it.
-  const after = await page.evaluate(() => window.__engine!.party().map((id) => window.__engine!.stressOf(id).marked));
-  after.forEach((marked, i) => expect(marked).toBeGreaterThan(before[i]!));
+  await payTheBroker(page);
   await downTheWetStair(page);
-  // Ketch, after the Market - her own name still hers.
+  expect(await page.evaluate(() => window.__engine!.errors)).toEqual([]);
+});
+
+test('the Ashwell, Levels 3 and 4: the Library\u2019s page read at the sealed stair, the Furnace fed a name, and back to Ketch', async ({ page }) => {
+  test.setTimeout(420_000);
+  await levelOne(page);
+  await toTheBroker(page);
+  await payTheBroker(page);
+  await downTheWetStair(page);
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: 'test-results/ashwell-reading-room.png' });
+
+  // Aud Brennock, by her fire: the tinder.
+  await use(page, 'aud-brennock');
+  await choose(page, 'We are going deeper.');
+  await choose(page, '[Take the tinder.]');
+  await drain(page);
+  expect((await library(page))?.done).toContain('meet-the-kindlers');
+  expect((await page.evaluate(() => window.__engine!.carried())).some((c) => c.id === 'auds-tinder')).toBe(true);
+
+  // The Wet Stacks, and the satchel over the water once the ink is still.
+  await use(page, 'down-to-the-stacks');
+  await drain(page);
+  await expect.poll(() => scene(page)).toBe('wet-stacks');
+  await fight(page, { x: 7, y: 3 });
+  await use(page, 'drowned-satchel');
+  await drain(page);
+  expect((await library(page))?.done).toContain('clear-the-stacks');
+
+  // The Index: the sealed stair will not open without the party's page; the catalogue gives it, and burns.
+  await use(page, 'down-to-the-index');
+  await drain(page);
+  await expect.poll(() => scene(page)).toBe('index-vault');
+  await fight(page, { x: 7, y: 3 });
+  // (Tried after the fight: the driver's approach, with nothing drawn walking, crosses no trigger on its way.)
+  await page.evaluate(() => {
+    const a = window.__engine!;
+    a.walkTo(8.5, 10.5);
+    a.arrive();
+  });
+  await use(page, 'furnace-stair');
+  await drain(page);
+  expect(await scene(page)).toBe('index-vault');
+  expect(await lastLine(page)).toBe('The paper does not tear. Written across it, very small: "Bring your page."');
+  await use(page, 'catalogue-drawers');
+  await drain(page);
+  expect((await library(page))?.done).toContain('the-index');
+  expect((await logged(page)).some((text) => text.startsWith('The cards go up like dry leaves.'))).toBe(true);
+  expect((await page.evaluate(() => window.__engine!.carried())).some((c) => c.id === 'auds-tinder')).toBe(false);
+  await page.screenshot({ path: 'test-results/ashwell-index.png' });
+
+  // The page read, and down into the Furnace.
+  await use(page, 'furnace-stair');
+  await drain(page);
+  await expect.poll(() => scene(page)).toBe('ash-nave');
+  expect(await library(page)).toMatchObject({ status: 'completed' });
+  expect(await furnace(page)).toMatchObject({ status: 'active', done: ['reach-the-furnace'] });
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: 'test-results/ashwell-nave.png' });
+
+  // The Furnace Door is too hot; Ilse sends the party to the valve.
+  await use(page, 'furnace-door');
+  await drain(page);
+  expect(await page.evaluate(() => window.__engine!.objectState('furnace-door').removed)).toBe(false);
+  await use(page, 'ilse-grey');
+  await choose(page, 'The doors are too hot to touch.');
+  await choose(page, '[Go to the gallery.]');
+  await drain(page);
+  expect((await furnace(page))?.done).toContain('hear-the-choir');
+  await use(page, 'down-to-the-gallery');
+  await drain(page);
+  await expect.poll(() => scene(page)).toBe('coal-gallery');
+  await fight(page, { x: 7, y: 3 });
+  await use(page, 'great-valve');
+  await drain(page);
+  expect((await furnace(page))?.done).toContain('turn-the-valve');
+  await use(page, 'up-from-the-gallery');
+  await drain(page);
+  await expect.poll(() => scene(page)).toBe('ash-nave');
+  await use(page, 'furnace-door');
+  await drain(page);
+  expect(await page.evaluate(() => window.__engine!.objectState('furnace-door').removed)).toBe(true);
+
+  // The Furnace Hall: the last stair waits for a name; the Saint first.
+  await use(page, 'into-the-furnace');
+  await drain(page);
+  await expect.poll(() => scene(page)).toBe('furnace-hall');
+  await fight(page, { x: 7, y: 3 });
+  await page.evaluate(() => {
+    const a = window.__engine!;
+    a.walkTo(8.5, 10.5);
+    a.arrive();
+  });
+  await use(page, 'throne-stair');
+  await drain(page);
+  expect(await lastLine(page)).toBe('The stair is barred with white-hot iron. The Furnace has not been fed.');
+  const quim = await page.evaluate(() => window.__engine!.stressOf('kara').marked);
+  await use(page, 'name-furnace');
+  await drain(page);
+  expect((await furnace(page))?.done).toContain('the-saint');
+  expect(await logged(page)).toContain('Quim writes, and feeds the page to the fire, and watches it go. Afterwards, Quim cannot remember the face of whoever first taught them to hold a sword.');
+  expect(await page.evaluate(() => window.__engine!.stressOf('kara').marked)).toBeGreaterThan(quim);
+  await page.screenshot({ path: 'test-results/ashwell-furnace.png' });
+  await use(page, 'throne-stair');
+  await drain(page);
+  expect((await logged(page)).some((text) => text.startsWith('Entry 11,040'))).toBe(true);
+  await expect.poll(() => scene(page)).toBe('lantern-and-lye');
+  expect(await furnace(page)).toMatchObject({ status: 'completed' });
+
+  // Ketch, after all of it.
   await use(page, 'mother-ketch');
-  await choose(page, 'We have been to the Market under the Sump.');
+  await expect.poll(() => page.evaluate(() => window.__engine!.dialogueOptions())).toContain('We have been to the Market under the Sump.');
+  await choose(page, 'We came up from the Furnace.');
   await expect.poll(() => page.evaluate(() => window.__engine!.dialogueOptions())).toEqual(['[Sit down by the fire.]']);
   expect(await page.evaluate(() => window.__engine!.errors)).toEqual([]);
 });

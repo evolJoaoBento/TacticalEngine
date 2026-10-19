@@ -1,10 +1,11 @@
 # The Ashwell — a grim megadungeon in five levels
 
 An adventure of the engine's own: every place, person and beat in it is written for this project. It is built in code
-(`src/game/adventures/ashwell.ts`) as a project document, and begun from the main menu (**The Ashwell → Begin**),
+(`src/game/adventures/ashwell.ts`, with what the levels share in `ashwell-kit.ts` and each level in a file of its own,
+`ashwell-level1.ts` to `ashwell-level4.ts`) as a project document, and begun from the main menu (**The Ashwell → Begin**),
 which keeps it as a game of its own in the browser, as New Game keeps a camp.
 
-**Status:** the hub, Level 1 and Level 2 are built and playable. Levels 3 to 5 are designed here and are the next slices, one a
+**Status:** the hub and Levels 1 to 4 are built and playable. Level 5 is designed here and is the next slice, as each was
 level.
 
 ## The premise
@@ -84,7 +85,18 @@ when the market bell rings. **Boss:** the **Bone-Broker Sela Marrow**, who will 
 price paid in the dead (their own, if they have none to spare). **What the stair costs:** a name given to the Guild.
 **Vane's page:** an exact list of what the party will be offered, and what they will choose.
 
-## Level 3 — The Drowned Library
+## Level 3 — The Drowned Library (built)
+
+Three scenes: the **Reading Room**, knee-deep, with no fight - **Aud Brennock**, the last of the Kindlers, feeding
+pages to a fire on a reading platform, who gives the party her tinder; the **Wet Stacks** and their ink-wraiths (a
+stat block of the adventure's own, tier 2), with a drowned reader's satchel that opens once the ink is still; and the
+**Index**, where the Undertow Index (a tier-2 solo of its own) guards the catalogue. Once it is down, the catalogue
+gives the party its own page - and, with Aud's tinder, may be burnt, every name in it with it. The sealed stair opens
+only to that page, read aloud: every one of them marks a Stress, and the way goes on down into the Furnace. Aud
+answers differently after, burnt or not.
+
+The design, as it was set down:
+
 
 Vane's first archive, flooded when the sea came up. Shelves standing in black water; pages that float and
 whisper. **Threat:** **ink-wraiths**, the drowned recorded dead, who want to be read aloud. **Rival:** the
@@ -92,7 +104,20 @@ whisper. **Threat:** **ink-wraiths**, the drowned recorded dead, who want to be 
 Index**, a catalogue that hunts by name. **What the stair costs:** a page of the ledger, carried and read.
 **Vane's page:** the party's own entries, half-written, waiting for an ending.
 
-## Level 4 — The Furnace of Names
+## Level 4 — The Furnace of Names (built)
+
+Three scenes: the **Ash Nave**, with no fight - the Choir of Ash in rows between the pews, **Precentor Ilse Grey**
+conducting, and the Furnace Door too hot to touch; the **Coal Gallery**, its iron Stokers (a tier-2 bruiser of the
+adventure's own) and the great valve that cools the door once they are down; and the **Furnace Hall**, where **Oswin
+Pell, the Bellows Saint** (a tier-2 solo of its own) works the bellows. Past him, the Name Furnace opens the last stair
+for one name: one of the four writes theirs, marks three Stress, and loses one thing they remember, said in the log -
+Quim the face of whoever taught them the sword, Violet their childhood house, Scarlet their mother's voice, Arty why
+they came down at all. The last stair ends the level with Vane, nervous, waiting behind a plain wooden door; back at
+the Lantern, Ketch counts the party twice. Vane's page on the pew tells why the Choir sings, and Ilse, asked, begs the
+party not to tell them.
+
+The design, as it was set down:
+
 
 Where names are smelted: Vane burns the pages of the finished dead to fuel the lamps that light his halls, and the
 ash is what the well breathes. **Faction:** the **Choir of Ash**, the faithful who sing in the smoke and want to be

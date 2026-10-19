@@ -11,7 +11,7 @@ import { walkEffects, type Effect } from '../../engine/script/schema';
 import { itemsFor } from '../../engine/content/equipment/catalogue';
 import { STARTER_ADVERSARIES } from '../../engine/content/pack/starter';
 import { buildingKey } from '../../engine/scene/building';
-import { ASHWELL_ID, BONE_KEY, BROKER_ID, COUNTING_ID, GUILD_MARK, HUB_ID, KENNEL_ID, MARKET_ID, MARKET_QUEST, PIT_ID, QUEST_ID, SELA_DIALOGUE, SUMP_ID, SUMP_KEY, THROAT_ID, WARDEN_ID, ashwellProject, sceneFromRows } from './ashwell';
+import { ASHWELL_ID, AUD_DIALOGUE, BONE_KEY, BROKER_ID, COUNTING_ID, FURNACE_QUEST, GALLERY_ID, GUILD_MARK, HALL_ID, HUB_ID, INDEX_BOSS_ID, INDEX_ID, KENNEL_ID, KINDLING, LIBRARY_QUEST, MARKET_ID, MARKET_QUEST, NAVE_ID, PIT_ID, QUEST_ID, READING_ID, SAINT_ID, SELA_DIALOGUE, STACKS_ID, SUMP_ID, SUMP_KEY, THROAT_ID, WARDEN_ID, YOUR_PAGE, ashwellProject, sceneFromRows } from './ashwell';
 
 /** Every effect the project can run: on its props, in its dialogues, in each branch of either. */
 function effectsOf(project: ProjectDoc): Effect[] {
@@ -70,8 +70,15 @@ describe('the Ashwell, as a project', () => {
     expect(leads.get(SUMP_ID)).toEqual(new Set([THROAT_ID, MARKET_ID]));
     expect(leads.get(MARKET_ID)).toEqual(new Set([SUMP_ID, PIT_ID, COUNTING_ID]));
     expect(leads.get(PIT_ID)).toEqual(new Set([MARKET_ID]));
-    // The Counting House's wet stair ends Level 2, and climbs back to the Lantern.
-    expect(leads.get(COUNTING_ID)).toEqual(new Set([MARKET_ID, HUB_ID]));
+    // The Counting House's wet stair ends Level 2 and goes on into the Library; and so on down.
+    expect(leads.get(COUNTING_ID)).toEqual(new Set([MARKET_ID, READING_ID]));
+    expect(leads.get(READING_ID)).toEqual(new Set([COUNTING_ID, STACKS_ID]));
+    expect(leads.get(STACKS_ID)).toEqual(new Set([READING_ID, INDEX_ID]));
+    expect(leads.get(INDEX_ID)).toEqual(new Set([STACKS_ID, NAVE_ID]));
+    expect(leads.get(NAVE_ID)).toEqual(new Set([INDEX_ID, GALLERY_ID, HALL_ID]));
+    expect(leads.get(GALLERY_ID)).toEqual(new Set([NAVE_ID]));
+    // The Furnace Hall's last stair ends Level 4, and climbs back to the Lantern until Level 5 is built.
+    expect(leads.get(HALL_ID)).toEqual(new Set([NAVE_ID, HUB_ID]));
   });
 
   it('hands out only things that exist, and fields only stat blocks it has or the engine ships', () => {
@@ -152,6 +159,88 @@ describe('Level 2, the Ossuary Market', () => {
     const done = new Set(effectsOf(project).flatMap((effect) => (effect.kind === 'completeObjective' && effect.quest === MARKET_QUEST ? [effect.objective] : [])));
     expect([...done].sort()).toEqual(project.quests.find((q) => q.id === MARKET_QUEST)!.objectives.map((o) => o.id).sort());
     expect(effectsOf(project).some((effect) => effect.kind === 'startQuest' && effect.quest === MARKET_QUEST)).toBe(true);
+  });
+});
+
+/** Every objective a quest has, and the objectives the project completes somewhere. */
+function objectives(project: ProjectDoc, quest: string): { all: string[]; done: string[] } {
+  const done = new Set(effectsOf(project).flatMap((effect) => (effect.kind === 'completeObjective' && effect.quest === quest ? [effect.objective] : [])));
+  return { all: project.quests.find((q) => q.id === quest)!.objectives.map((o) => o.id).sort(), done: [...done].sort() };
+}
+
+describe('Level 3, the Drowned Library', () => {
+  const project = ashwellProject();
+  const scene = (id: string) => project.scenes.find((s) => s.id === id)!;
+  const fn = (id: string, name: string) => scene(id).decos.find((d) => d.id === name)!.function!;
+
+  it('is a reading room with no fight, the Stacks, and the Index with its boss', () => {
+    expect([READING_ID, STACKS_ID, INDEX_ID].map((id) => scene(id).encounters.map((e) => e.id))).toEqual([[], ['the-stacks'], ['the-index']]);
+    expect(scene(INDEX_ID).encounters[0]!.adversaries.map((a) => a.adversary)).toContain(INDEX_BOSS_ID);
+  });
+
+  it('opens the stair down only to the party\u2019s own page, which the catalogue gives once the Index is down', () => {
+    const stair = fn(INDEX_ID, 'furnace-stair');
+    expect(stair.kind === 'script' && stair.requiresKey).toBe(YOUR_PAGE);
+    const drawers = fn(INDEX_ID, 'catalogue-drawers');
+    expect(drawers.kind === 'script' && drawers.effects[0]).toMatchObject({ kind: 'branch', when: { kind: 'encounter', id: 'the-index', state: 'ended' } });
+    const given: Effect[] = [];
+    if (drawers.kind === 'script') walkEffects(drawers.effects, (effect) => void given.push(effect));
+    expect(given.some((effect) => effect.kind === 'giveKey' && effect.key === YOUR_PAGE)).toBe(true);
+    // The catalogue burns only with Aud's tinder, and Aud gives it.
+    const choice = given.find((effect) => effect.kind === 'choice');
+    expect(choice?.kind === 'choice' && choice.options.find((o) => o.label === 'Burn it.')?.available).toEqual({ kind: 'hasItem', item: KINDLING });
+    const aud: Effect[] = [];
+    walkEffects(project.dialogues.find((d) => d.id === AUD_DIALOGUE)!.nodes.find((n) => n.id === 'deeper')!.onEnter!, (effect) => void aud.push(effect));
+    expect(aud.some((effect) => effect.kind === 'addItem' && effect.item === KINDLING)).toBe(true);
+  });
+
+  it('completes every objective of its quest somewhere', () => {
+    const { all, done } = objectives(project, LIBRARY_QUEST);
+    expect(done).toEqual(all);
+  });
+});
+
+describe('Level 4, the Furnace of Names', () => {
+  const project = ashwellProject();
+  const scene = (id: string) => project.scenes.find((s) => s.id === id)!;
+  const fn = (id: string, name: string) => scene(id).decos.find((d) => d.id === name)!.function!;
+
+  it('is a nave with no fight, the Coal Gallery, and the Furnace Hall with its boss', () => {
+    expect([NAVE_ID, GALLERY_ID, HALL_ID].map((id) => scene(id).encounters.map((e) => e.id))).toEqual([[], ['the-stokers'], ['the-saint']]);
+    expect(scene(HALL_ID).encounters[0]!.adversaries.map((a) => a.adversary)).toContain(SAINT_ID);
+  });
+
+  it('cools the Furnace Door only with the valve turned, and the valve only once the Stokers are down', () => {
+    const door = fn(NAVE_ID, 'furnace-door');
+    expect(door.kind === 'script' && door.effects[0]).toMatchObject({ kind: 'branch', when: { kind: 'flag', flag: 'valve-turned' } });
+    const valve = fn(GALLERY_ID, 'great-valve');
+    expect(valve.kind === 'script' && valve.effects[0]).toMatchObject({ kind: 'branch', when: { kind: 'encounter', id: 'the-stokers', state: 'ended' } });
+    const turned: Effect[] = [];
+    if (valve.kind === 'script') walkEffects(valve.effects, (effect) => void turned.push(effect));
+    expect(turned.some((effect) => effect.kind === 'setFlag' && effect.flag === 'valve-turned')).toBe(true);
+  });
+
+  it('takes one of the company\u2019s names for the last stair, each costing its owner, and the stair waits for it', () => {
+    const furnace = fn(HALL_ID, 'name-furnace');
+    const given: Effect[] = [];
+    if (furnace.kind === 'script') walkEffects(furnace.effects, (effect) => void given.push(effect));
+    const choice = given.find((effect) => effect.kind === 'choice');
+    if (choice?.kind !== 'choice') throw new Error('the furnace offers no choice');
+    // One option for each of the company, by their sheet's id.
+    const ids = project.party.map((sheet) => sheet.id);
+    expect(choice.options).toHaveLength(ids.length);
+    choice.options.forEach((option, at) => {
+      expect(option.effects).toContainEqual({ kind: 'setFlag', flag: 'name-burnt' });
+      expect(option.effects).toContainEqual({ kind: 'markStress', amount: 3, target: { kind: 'entity', id: ids[at] } });
+    });
+    const stair = fn(HALL_ID, 'throne-stair');
+    expect(stair.kind === 'script' && stair.effects[0]).toMatchObject({ kind: 'branch', when: { kind: 'flag', flag: 'name-burnt' } });
+  });
+
+  it('completes every objective of its quest somewhere, and begins it where Level 3 ends', () => {
+    const { all, done } = objectives(project, FURNACE_QUEST);
+    expect(done).toEqual(all);
+    expect(effectsOf(project).some((effect) => effect.kind === 'startQuest' && effect.quest === FURNACE_QUEST)).toBe(true);
   });
 });
 

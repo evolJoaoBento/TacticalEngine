@@ -21,7 +21,26 @@ own; the fight's spotlight, the GM's turn and the questions go as at a server's 
 the real engine (`src/game/peer/*.test.ts`), and `tests/e2e/peer.spec.ts` in two browsers. Next: an evening across
 two real networks.
 
-## The Ashwell, Level 2: the Ossuary Market — done; Level 3 next
+## The Ashwell, Levels 3 and 4: the Drowned Library and the Furnace of Names — done; Level 5 next
+
+`docs/ASHWELL.md`. Six scenes, as before a fight to a room: the Reading Room (Aud Brennock, her tinder), the Wet
+Stacks, the Index (the party's own page, and the catalogue burnt or left - a script `choice` whose Burn option needs
+the tinder); the Ash Nave (Ilse Grey, the Furnace Door that opens on the `valve-turned` flag), the Coal Gallery (the
+Stokers, the valve), the Furnace Hall (the Bellows Saint, and the Name Furnace: a `choice` of the four, each setting
+`name-burnt` and `burnt-<id>` and marking that one three Stress). Each level's last stair is a `branch`: the first
+time, the level's end and the next one's start; after, the way down. Four stat blocks of its own (Ink-Wraith,
+Undertow Index, Iron Stoker, Bellows Saint), two quests, Ketch's line after the Furnace.
+
+- **The driver's `approach` crosses no trigger when nothing is drawn walking**: it uses the thing from where the
+  engine lets it. A walk a player clicks is stopped by a trigger and wakes its fight. The e2e tries a stair across a
+  fight's trigger after the fight, from beside it.
+- **The levels the Ashwell grants are not taken in its e2e** (the level-up panel has its own tests), so its fights
+  are won by the driver's hand, the party held up each round. How hard each fight is for a properly levelled party
+  is not tested: play it.
+- Next: Level 5, the Ledger Throne. Tests: `ashwell.test.ts` (Levels 3 and 4: their rooms, the page, the tinder, the
+  valve, a name for each of the four), `tests/e2e/ashwell.spec.ts` (Levels 3 and 4 played through to Ketch).
+
+## The Ashwell, Level 2: the Ossuary Market — done
 
 Three scenes (`docs/ASHWELL.md`): the Market, with no fight - Factor Dunmere's shop, Usher Grale's errand, the
 Guild's door that opens to his mark; the Charnel Pit, its fight and the bell-rope; the Counting House, where Sela

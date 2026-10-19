@@ -70,6 +70,15 @@ and take the key from her instead. Factor Dunmere's stall sells potions and gear
 stair past the Bone Door ends Level 2 for now: back to the Lantern, a level higher, where Ketch has
 heard of the Guild - and, if it was her name you sold, has lost something she cannot place.
 
+The wet stair now goes on into **Level 3, the Drowned Library**: Aud Brennock's fire in the Reading Room
+(talk to her before you go deeper - she gives you her tinder), the ink-wraiths of the Wet Stacks, and
+the Index, where the party's own page is filed. Take it, and decide whether to burn the rest. The
+sealed stair below opens only to that page read aloud, and costs everyone a Stress. **Level 4, the
+Furnace of Names**, is below it: the Choir of Ash in their nave, the doors too hot to pass until the
+great valve in the Coal Gallery is turned, the Bellows Saint at the furnace - and then the furnace
+itself, which opens the last stair for one of you to write their name and lose a memory. The last
+stair ends Level 4 for now and sends you back up to the Lantern.
+
 **New Game** is played at a wooden table, one choice at a time. Each choice is a **deck** dealt face
 up, and only its top card shows. **Drag** cards off the top and put them down anywhere on the table to
 see what is under them, and move any of them about; **double-click the table** and they slide back
