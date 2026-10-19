@@ -413,7 +413,13 @@ export function TilesWorkspace(props: {
             {surface.parallax
               ? 'Depth is how far the material reads into a face, in tiles: mortar sinking behind bricks.'
               : 'This material came with no height map, so it is drawn flat: its normals still catch the light.'}{' '}
-            {surface.source === undefined ? null : <>From {surface.source}.</>} Its four tiles are in the Terrain strip; each is a
+            {surface.source === undefined ? null : <>From {surface.source}.</>}{' '}
+            {surface.polyHaven === undefined ? null : (
+              <span data-testid="surface-linked">
+                Linked, not carried: fetched from Poly Haven ({surface.polyHaven.id}) the first time it is drawn, and kept in this browser after, so the project stays small.{' '}
+              </span>
+            )}
+            Its four tiles are in the Terrain strip; each is a
             kind of tile here, below.
           </div>
         </div>

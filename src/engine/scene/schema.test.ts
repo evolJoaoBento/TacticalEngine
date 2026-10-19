@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { blankScene } from './grid-from-scene';
-import { CURRENT_FORMAT_VERSION, contentIdSchema, effectSchema, projectSchema, sceneSchema } from './schema';
+import { CURRENT_FORMAT_VERSION, contentIdSchema, effectSchema, projectSchema, sceneSchema, tileSurfaceSchema } from './schema';
 
 const scene = (overrides: Record<string, unknown> = {}) => ({
   ...blankScene('room', 3, 2),
@@ -316,5 +316,20 @@ describe('projectSchema', () => {
     const maps = { color: 'a', normalHeight: 'b', orm: 'c' };
     const bad = projectSchema.safeParse(project({ surfaces: [{ id: 'bricks', name: 'A', maps, parallax: false }, { id: 'bricks', name: 'B', maps, parallax: false }] }));
     expect(bad.success ? [] : bad.error.issues.map((i) => [i.path.join('.'), i.message])).toEqual([['surfaces.1.id', 'duplicate surface id "bricks"']]);
+  });
+});
+
+describe('a material\u2019s maps', () => {
+  const base = { id: 'slate', name: 'Slate', parallax: true };
+  it('are carried, or fetched from a Poly Haven texture - one, not both and not neither', () => {
+    const maps = { color: 'c', normalHeight: 'n', orm: 'o' };
+    expect(tileSurfaceSchema.safeParse({ ...base, maps }).success).toBe(true);
+    expect(tileSurfaceSchema.parse({ ...base, polyHaven: { id: 'rock_wall_10' } }).polyHaven).toEqual({ id: 'rock_wall_10', pixels: 1024 });
+    for (const both of [{ ...base, maps, polyHaven: { id: 'rock_wall_10' } }, base]) {
+      const parsed = tileSurfaceSchema.safeParse(both);
+      expect(parsed.success).toBe(false);
+      expect(parsed.error?.issues[0]).toMatchObject({ path: ['maps'], message: 'A material has its maps or a Poly Haven texture to fetch them from: one, not both' });
+    }
+    expect(tileSurfaceSchema.safeParse({ ...base, polyHaven: { id: 'rock_wall_10', pixels: 4096 } }).success).toBe(false);
   });
 });

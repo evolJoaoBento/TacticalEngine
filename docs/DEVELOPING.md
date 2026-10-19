@@ -890,6 +890,15 @@ downloaded by name (`engine/content/poly-haven.ts`, `downloadPolyHaven`) is turn
 Poly Haven names it, so the kit knows it - and from there goes the same way; `importPolyHaven` then sets its name,
 `source` and Size from Poly Haven's `/info`.
 
+A material **linked** rather than carried has `polyHaven: { id, pixels }` and no `maps` (`tileSurfaceSchema`: one or the
+other, mirrored in `document.rs`'s `one_way_to_its_maps`). The `SurfaceLibrary` is handed a `SurfaceResolve` by
+`main.ts` - `linkedSurfaceResolver(browserSurfaceCache())`, in `editor/surface-import.ts` - which returns the maps and
+their average colour: from IndexedDB (`tactical-surfaces`, keyed `polyhaven:<id>@<pixels>`) when this browser fetched
+it before, else by `importPolyHaven` and kept. One fetch serves every request made while it is on its way; a failed
+one is not kept. The library loads carried maps at once and resolves linked ones first, keeping the resolved mean
+colour for Tint (`tuned`). `isCompressedSurface` answers yes for a linked material (no Compress button), and
+`checkSurfaces` weighs it at nothing.
+
 1. **`editor/surface-import.ts`** - `filesOf` unzips (`fflate`); `importSurface` asks the kit which file is which map,
    decodes each with colour management off, draws them at the chosen size on an `OffscreenCanvas`, packs them
    (`packMaps`) and encodes three data URLs - the normal and height losslessly. `addImported` adds the result through

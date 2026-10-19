@@ -26,7 +26,7 @@ import type { IEncodeOptions } from 'ktx2-encoder';
 import { classifySurfaceFiles, kindsForSurface, meanColor, packMaps, refusalOf, surfaceIdentity, type DecodedMaps, type Pixels, type SurfaceKind } from '../engine/content/tile-surface-kit';
 import { POLY_HAVEN_API, polyHavenMaps, polyHavenResolution, polyHavenSize, type PolyHavenFiles, type PolyHavenInfo } from '../engine/content/poly-haven';
 import { toContentId } from '../engine/content/types';
-import type { TileSurface } from '../engine/scene/schema';
+import type { SurfaceMaps, TileSurface } from '../engine/scene/schema';
 
 /** The largest side a material's maps are kept at: an import option. Never scaled up. */
 export const SURFACE_SIZES = [512, 1024, 2048] as const;
@@ -64,9 +64,9 @@ async function compress(pixels: Pixels, data: Uint8ClampedArray, role: MapRole):
   return encodeToKTX2(new Uint8Array(0), { ...KTX2_ENCODING[role], wasmUrl, imageDecoder: async () => raster });
 }
 
-/** Whether every one of a material's maps is compressed for the GPU already: KTX2. */
+/** Whether every one of a material's maps is compressed for the GPU already: KTX2. A linked one is compressed as it is fetched. */
 export function isCompressedSurface(surface: Pick<TileSurface, 'maps'>): boolean {
-  return Object.values(surface.maps).every((url) => url.startsWith('data:image/ktx2'));
+  return surface.maps === undefined || Object.values(surface.maps).every((url) => url.startsWith('data:image/ktx2'));
 }
 
 /**
@@ -75,10 +75,12 @@ export function isCompressedSurface(surface: Pick<TileSurface, 'maps'>): boolean
  * maps, not the material: what the project keeps is changed by an edit (`replaceSurfaceMaps`). Throws, saying why,
  * when a map will not decode or compress.
  */
-export async function compressMaps(surface: Pick<TileSurface, 'maps'>): Promise<TileSurface['maps']> {
-  const out: Partial<TileSurface['maps']> = {};
+export async function compressMaps(surface: Pick<TileSurface, 'maps'>): Promise<SurfaceMaps> {
+  const carried = surface.maps;
+  if (carried === undefined) throw new Error('A linked material has no maps of its own to compress.');
+  const out: Partial<SurfaceMaps> = {};
   for (const role of ['color', 'normalHeight', 'orm'] as const) {
-    const url = surface.maps[role];
+    const url = carried[role];
     if (url.startsWith('data:image/ktx2')) {
       out[role] = url;
       continue;
@@ -89,7 +91,7 @@ export async function compressMaps(surface: Pick<TileSurface, 'maps'>): Promise<
     bitmap.close();
     out[role] = ktx2Url(await compress(pixels, pixels.data, role));
   }
-  return out as TileSurface['maps'];
+  return out as SurfaceMaps;
 }
 
 /** KTX2 bytes as a data URL. */
@@ -192,7 +194,7 @@ export async function importSurface(files: readonly File[], size: SurfaceSize = 
   const zip = files.find((file) => /\.zip$/i.test(file.name));
   const identity = surfaceIdentity(zip?.name ?? roles.color!);
   // Compressed for the GPU; written as images only if that fails, all three alike.
-  let maps: TileSurface['maps'];
+  let maps: SurfaceMaps;
   let compressed: ImportedSurface['compressed'] = true;
   try {
     maps = {
@@ -265,6 +267,85 @@ export async function importPolyHaven(id: string, size: SurfaceSize = 1024, fetc
   const download = await downloadPolyHaven(id, size, fetcher);
   const imported = await importSurface(download.files, size);
   return { ...imported, surface: { ...imported.surface, id: toContentId(download.name) || imported.surface.id, name: download.name, source: `Poly Haven ${id} (CC0)`, size: download.size } };
+}
+
+/** A linked material, resolved: its maps packed and compressed as an import makes them, and their average colour. */
+export interface ResolvedSurface {
+  maps: SurfaceMaps;
+  color: string;
+}
+
+/** Where linked materials are kept once fetched, so each is downloaded and compressed once a browser. */
+export interface SurfaceCache {
+  get(key: string): Promise<ResolvedSurface | undefined>;
+  put(key: string, value: ResolvedSurface): Promise<void>;
+}
+
+/** The key a linked material is kept under: the texture and how big its maps are kept. */
+export const linkedKey = (link: { id: string; pixels: number }): string => `polyhaven:${link.id}@${link.pixels}`;
+
+/** The largest size an import keeps that is no bigger than a link asks: what it is fetched and packed at. */
+const keptAt = (pixels: number): SurfaceSize => [...SURFACE_SIZES].reverse().find((side) => side <= pixels) ?? SURFACE_SIZES[0];
+
+/**
+ * How the page resolves a linked material (`SurfaceLibrary`'s `SurfaceResolve`): from the cache when this browser has
+ * fetched it before; else downloaded from Poly Haven and imported as its files would be - packed, compressed - and
+ * kept. Asked for twice while on its way, it is fetched once; a fetch that fails is not kept, and is tried again the
+ * next time the material is asked for.
+ */
+export function linkedSurfaceResolver(
+  cache: SurfaceCache,
+  fetcher: typeof fetch = fetch,
+  importing: (id: string, size: SurfaceSize, fetcher: typeof fetch) => Promise<ImportedSurface> = importPolyHaven,
+): (surface: TileSurface) => Promise<ResolvedSurface> {
+  const pending = new Map<string, Promise<ResolvedSurface>>();
+  return (surface) => {
+    const link = surface.polyHaven;
+    if (link === undefined) return Promise.reject(new Error(`"${surface.id}" is not linked to any texture`));
+    const key = linkedKey(link);
+    const going = pending.get(key);
+    if (going !== undefined) return going;
+    const fetching = (async (): Promise<ResolvedSurface> => {
+      const kept = await cache.get(key).catch(() => undefined);
+      if (kept !== undefined) return kept;
+      const imported = await importing(link.id, keptAt(link.pixels), fetcher);
+      const resolved = { maps: imported.surface.maps!, color: imported.color };
+      await cache.put(key, resolved).catch(() => undefined);
+      return resolved;
+    })();
+    pending.set(key, fetching);
+    fetching.catch(() => pending.delete(key));
+    return fetching;
+  };
+}
+
+/**
+ * The browser's cache of linked materials: IndexedDB, which holds megabytes where the saves' storage holds a few. Every
+ * touch is guarded: with storage turned off, nothing is kept, and each material is fetched again when it is drawn.
+ */
+export function browserSurfaceCache(): SurfaceCache {
+  const STORE = 'linked';
+  let opened: Promise<IDBDatabase> | null = null;
+  const db = (): Promise<IDBDatabase> =>
+    (opened ??= new Promise((done, fail) => {
+      const request = indexedDB.open('tactical-surfaces', 1);
+      request.onupgradeneeded = () => request.result.createObjectStore(STORE);
+      request.onsuccess = () => done(request.result);
+      request.onerror = () => fail(request.error ?? new Error('IndexedDB would not open'));
+    }));
+  const asked = <T>(mode: IDBTransactionMode, ask: (store: IDBObjectStore) => IDBRequest): Promise<T> =>
+    db().then(
+      (base) =>
+        new Promise<T>((done, fail) => {
+          const request = ask(base.transaction(STORE, mode).objectStore(STORE));
+          request.onsuccess = () => done(request.result as T);
+          request.onerror = () => fail(request.error ?? new Error('IndexedDB refused'));
+        }),
+    );
+  return {
+    get: (key) => asked<ResolvedSurface | undefined>('readonly', (store) => store.get(key)).catch(() => undefined),
+    put: (key, value) => asked<unknown>('readwrite', (store) => store.put(value, key)).then(() => undefined, () => undefined),
+  };
 }
 
 /** What `addImported` needs of the editor: the project, the import, and picking the block it gave in the strip. */

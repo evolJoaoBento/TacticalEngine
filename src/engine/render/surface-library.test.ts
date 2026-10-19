@@ -5,7 +5,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { CompressedTexture, RepeatWrapping, SRGBColorSpace, Texture } from 'three';
+import { Color, CompressedTexture, RepeatWrapping, SRGBColorSpace, Texture } from 'three';
 import { SurfaceLibrary, type TextureLoad } from './surface-library';
 import type { TileSurface } from '../scene/schema';
 
@@ -41,6 +41,54 @@ function loader() {
   };
   return { load, asked, give, refuse };
 }
+
+describe('a material linked, not carried', () => {
+  const linked = (id = 'slate', over: Partial<TileSurface> = {}): TileSurface => {
+    const { maps: _maps, ...rest } = surface(id);
+    return { ...rest, polyHaven: { id: 'rock_wall_10', pixels: 1024 }, ...over };
+  };
+
+  it('has its maps resolved first, then loads them as a carried one, its tint measured against the colour resolved with them', async () => {
+    const files = loader();
+    const asked: string[] = [];
+    const library = new SurfaceLibrary(files.load, 1, async (spec) => {
+      asked.push(spec.id);
+      return { maps: { color: 'got-c', normalHeight: 'got-n', orm: 'got-o' }, color: '#204060' };
+    });
+    library.add(linked());
+    expect(library.materialFor('slate')).toBeNull();
+    await new Promise((settle) => setTimeout(settle, 0));
+    expect(asked).toEqual(['slate']);
+    expect(files.asked).toEqual(['got-c', 'got-n', 'got-o']);
+    await files.give('got-c', 'got-n', 'got-o');
+    const material = library.materialFor('slate')!;
+    expect(material.userData.surfaceUniforms.uMean.value.getHexString()).toBe(new Color('#204060').getHexString());
+    // Retuned, the same texture: nothing resolved or loaded again.
+    library.add(linked('slate', { depth: 0.1 }));
+    expect(material.userData.surfaceUniforms.uDepth.value).toBe(0.1);
+    expect([asked.length, files.asked.length]).toEqual([1, 3]);
+    // Linked to another texture: resolved afresh.
+    library.add(linked('slate', { polyHaven: { id: 'castle_brick_07', pixels: 1024 } }));
+    library.materialFor('slate');
+    await new Promise((settle) => setTimeout(settle, 0));
+    expect(asked).toEqual(['slate', 'slate']);
+  });
+
+  it('is said to have failed, and drawn in its kind\u2019s colour, when it cannot be resolved - or nothing can resolve it', async () => {
+    const files = loader();
+    const library = new SurfaceLibrary(files.load, 1, () => Promise.reject(new Error('offline')));
+    library.add(linked());
+    library.materialFor('slate');
+    await new Promise((settle) => setTimeout(settle, 0));
+    expect([library.statusOf('slate'), library.errorOf('slate'), library.materialFor('slate'), files.asked]).toEqual(['failed', 'offline', null, []]);
+    const bare = new SurfaceLibrary(files.load);
+    bare.add(linked());
+    bare.materialFor('slate');
+    await new Promise((settle) => setTimeout(settle, 0));
+    expect(bare.statusOf('slate')).toBe('failed');
+    expect(bare.errorOf('slate')).toContain('nothing here can fetch them');
+  });
+});
 
 describe("the project's imported materials", () => {
   it('loads a surface once however often it is asked for, and draws nothing in it until it is in', async () => {

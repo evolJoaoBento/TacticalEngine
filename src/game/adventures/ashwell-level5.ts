@@ -3,7 +3,7 @@
 import { sceneSchema, type ProjectDoc, type SceneDoc } from '../../engine/scene/schema';
 import type { AdversaryDef } from '../../engine/content/types';
 import type { Effect } from '../../engine/script/schema';
-import { HALL_ID, HUB_ID, INK_WRAITH_ID, THRONE_ID, THRONE_QUEST, VANE_DIALOGUE, VANE_ID, sceneFromRows } from './ashwell-kit';
+import { HALL_ID, HUB_ID, INK_WRAITH_ID, THRONE_ID, THRONE_QUEST, VANE_DIALOGUE, VANE_ID, sceneFromRows, kindsOf } from './ashwell-kit';
 
 // ---------------------------------------------------------------------------------------------------------------
 // Level 5: the Ledger Throne
@@ -115,7 +115,7 @@ export function throne(): SceneDoc {
     id: THRONE_ID,
     name: 'The Ledger Throne',
     intro: 'A warm, quiet room of shelves and lamps, like a good study in a good house. In the middle, inside a ring of low reading screens, a small old man in a moth-eaten coat sits at a lectern the size of an altar, writing. He finishes the line before he looks up.',
-    ...sceneFromRows(THRONE_ROWS),
+    ...sceneFromRows(THRONE_ROWS, kindsOf('lantern')),
     spawns: [
       { x: 2, y: 1 },
       { x: 3, y: 1 },

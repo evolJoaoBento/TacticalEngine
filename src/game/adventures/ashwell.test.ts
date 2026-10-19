@@ -10,6 +10,7 @@ import { projectSchema, type ProjectDoc } from '../../engine/scene/schema';
 import { walkEffects, type Effect } from '../../engine/script/schema';
 import { itemsFor } from '../../engine/content/equipment/catalogue';
 import { STARTER_ADVERSARIES } from '../../engine/content/pack/starter';
+import { POLY_HAVEN_STARTERS } from '../../engine/content/poly-haven';
 import { buildingKey } from '../../engine/scene/building';
 import { ASHWELL_ID, AUD_DIALOGUE, BONE_KEY, BROKER_ID, COUNTING_ID, FURNACE_QUEST, GALLERY_ID, GUILD_MARK, HALL_ID, HUB_ID, INDEX_BOSS_ID, INDEX_ID, KENNEL_ID, KINDLING, LIBRARY_QUEST, MARKET_ID, MARKET_QUEST, NAVE_ID, PIT_ID, QUEST_ID, READING_ID, SAINT_ID, SELA_DIALOGUE, STACKS_ID, SUMP_ID, SUMP_KEY, THRONE_ID, THRONE_QUEST, THROAT_ID, VANE_DIALOGUE, VANE_ID, WARDEN_ID, YOUR_PAGE, ashwellProject, sceneFromRows } from './ashwell';
 
@@ -329,6 +330,38 @@ describe('each level\u2019s last stair', () => {
   });
 });
 
+describe('the Ashwell, dressed', () => {
+  const project = ashwellProject();
+  const surfaces = project.surfaces ?? [];
+
+  it('is drawn in Poly Haven starters, every one linked rather than carried, so the project stays small', () => {
+    const starters = new Set(POLY_HAVEN_STARTERS.map((s) => s.id));
+    expect(surfaces.length).toBeGreaterThanOrEqual(10);
+    for (const surface of surfaces) {
+      expect(surface.maps, surface.id).toBeUndefined();
+      expect(starters.has(surface.polyHaven!.id), surface.id).toBe(true);
+      expect(surface.source).toBe(`Poly Haven ${surface.polyHaven!.id} (CC0)`);
+    }
+    // Small enough for the browser's saves to keep: begun, it is written there whole.
+    expect(JSON.stringify(project).length).toBeLessThan(1_500_000);
+  });
+
+  it('gives every level its own wall and floor, drawn in a material the project has, and nothing drawn in one it has not', () => {
+    const ids = new Set(surfaces.map((s) => s.id));
+    const palette = project.terrainPalette ?? [];
+    for (const kind of palette) if (kind.surface !== undefined) expect(ids.has(kind.surface), kind.id).toBe(true);
+    for (const surface of surfaces) expect(palette.some((kind) => kind.surface === surface.id), surface.id).toBe(true);
+    // Each room is laid with its level's kinds: its walls and its floors.
+    const LOOK: Record<string, string> = { [HUB_ID]: 'lantern', [THRONE_ID]: 'lantern', [THROAT_ID]: 'throat', [KENNEL_ID]: 'throat', [SUMP_ID]: 'throat', [MARKET_ID]: 'market', [PIT_ID]: 'market', [COUNTING_ID]: 'market', [READING_ID]: 'library', [STACKS_ID]: 'library', [INDEX_ID]: 'library', [NAVE_ID]: 'furnace', [GALLERY_ID]: 'furnace', [HALL_ID]: 'furnace' };
+    for (const scene of project.scenes) {
+      const tiles = new Set(Object.values(scene.buildingTiles ?? {}).map((piece) => piece.tile));
+      expect(tiles.has(`${LOOK[scene.id]}-wall`), scene.id).toBe(true);
+      expect(tiles.has(`${LOOK[scene.id]}-floor`), scene.id).toBe(true);
+      expect(tiles.has('rampart') || tiles.has('flagstone'), scene.id).toBe(false);
+    }
+  });
+});
+
 describe('a map drawn as rows', () => {
   it('lays a floor everywhere but the water, a wall two blocks high, rubble that is slow and a low wall to crouch behind', () => {
     const map = sceneFromRows(['#.', '~,', 'c.']);
@@ -342,6 +375,12 @@ describe('a map drawn as rows', () => {
     expect(at(0, 1, 0)).toBeUndefined();
     expect(at(1, 1, 0)?.tile).toBe('road');
     expect([at(0, 2, 0)?.tile, at(0, 2, 0.25)?.tile, at(0, 2, 0.25)?.shape]).toEqual(['flagstone', 'barrier', 'wall']);
+  });
+
+  it('lays a level\u2019s own kinds of wall and floor when given them', () => {
+    const map = sceneFromRows(['#.', ',c'], { wall: 'w', floor: 'f', rubble: 'r', cover: 'c' });
+    const at = (x: number, y: number, level: number) => map.buildingTiles![buildingKey({ x, y, level })]?.tile;
+    expect([at(0, 0, 0), at(0, 0, 0.25), at(0, 0, 1.25), at(1, 0, 0), at(0, 1, 0), at(1, 1, 0), at(1, 1, 0.25)]).toEqual(['f', 'w', 'w', 'f', 'r', 'f', 'c']);
   });
 
   it('refuses a row of the wrong length, and a character not in the legend', () => {

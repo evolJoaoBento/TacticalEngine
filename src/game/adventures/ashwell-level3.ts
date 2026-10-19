@@ -3,7 +3,7 @@
 import { sceneSchema, type ProjectDoc, type SceneDoc } from '../../engine/scene/schema';
 import type { AdversaryDef } from '../../engine/content/types';
 import type { Effect } from '../../engine/script/schema';
-import { COUNTING_ID, READING_ID, STACKS_ID, INDEX_ID, LIBRARY_QUEST, AUD_DIALOGUE, KINDLING, YOUR_PAGE, INK_WRAITH_ID, INDEX_BOSS_ID, NAVE_ID, FURNACE_QUEST, sceneFromRows, passage, afterTheFight } from './ashwell-kit';
+import { COUNTING_ID, READING_ID, STACKS_ID, INDEX_ID, LIBRARY_QUEST, AUD_DIALOGUE, KINDLING, YOUR_PAGE, INK_WRAITH_ID, INDEX_BOSS_ID, NAVE_ID, FURNACE_QUEST, sceneFromRows, passage, afterTheFight, kindsOf } from './ashwell-kit';
 
 // ---------------------------------------------------------------------------------------------------------------
 // Level 3: the Drowned Library
@@ -102,7 +102,7 @@ export function readingRoom(): SceneDoc {
     id: READING_ID,
     name: 'The Reading Room',
     intro: 'The water stands knee-deep between the shelves, black and still, and pages turn slowly in it like leaves. On a reading platform in the middle of the room, somebody has lit a fire.',
-    ...sceneFromRows(READING_ROWS),
+    ...sceneFromRows(READING_ROWS, kindsOf('library')),
     spawns: [
       { x: 2, y: 2 },
       { x: 3, y: 2 },
@@ -157,7 +157,7 @@ export function stacks(): SceneDoc {
     id: STACKS_ID,
     name: 'The Wet Stacks',
     intro: 'Rows of shelves, waist-high in water, their books swollen shut. The ink has run out of them and hangs in the water in threads. The threads are moving against the current.',
-    ...sceneFromRows(STACKS_ROWS),
+    ...sceneFromRows(STACKS_ROWS, kindsOf('library')),
     spawns: [
       { x: 8, y: 1 },
       { x: 8, y: 2 },
@@ -211,7 +211,7 @@ export function index(): SceneDoc {
     id: INDEX_ID,
     name: 'The Index',
     intro: 'A round room with a moat of black water, and in its middle a cabinet of a thousand small drawers, taller than a house. As you come in, every drawer slides open an inch, and something inside each one says a name.',
-    ...sceneFromRows(INDEX_ROWS),
+    ...sceneFromRows(INDEX_ROWS, kindsOf('library')),
     spawns: [
       { x: 8, y: 1 },
       { x: 8, y: 2 },

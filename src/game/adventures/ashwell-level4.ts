@@ -3,7 +3,7 @@
 import { sceneSchema, type ProjectDoc, type SceneDoc } from '../../engine/scene/schema';
 import type { AdversaryDef } from '../../engine/content/types';
 import type { Effect } from '../../engine/script/schema';
-import { INDEX_ID, NAVE_ID, GALLERY_ID, HALL_ID, FURNACE_QUEST, ILSE_DIALOGUE, STOKER_ID, SAINT_ID, sceneFromRows, passage, afterTheFight, THRONE_ID, THRONE_QUEST } from './ashwell-kit';
+import { INDEX_ID, NAVE_ID, GALLERY_ID, HALL_ID, FURNACE_QUEST, ILSE_DIALOGUE, STOKER_ID, SAINT_ID, sceneFromRows, passage, afterTheFight, THRONE_ID, THRONE_QUEST, kindsOf } from './ashwell-kit';
 
 // ---------------------------------------------------------------------------------------------------------------
 // Level 4: the Furnace of Names
@@ -117,7 +117,7 @@ export function nave(): SceneDoc {
     id: NAVE_ID,
     name: 'The Ash Nave',
     intro: 'A long hall like a chapel, warm as a bread oven. Robed figures grey with ash from hood to hem stand in rows between the pews, singing without words. At the far end, iron doors glow a dull red.',
-    ...sceneFromRows(NAVE_ROWS),
+    ...sceneFromRows(NAVE_ROWS, kindsOf('furnace')),
     spawns: [
       { x: 1, y: 2 },
       { x: 2, y: 2 },
@@ -195,7 +195,7 @@ export function gallery(): SceneDoc {
     id: GALLERY_ID,
     name: 'The Coal Gallery',
     intro: 'A low, black gallery heaped with coal and paper ash. Iron shapes move between the heaps with shovels, feeding chutes that roar. A great wheel-valve stands at the far end, wrapped in chain.',
-    ...sceneFromRows(GALLERY_ROWS),
+    ...sceneFromRows(GALLERY_ROWS, kindsOf('furnace')),
     spawns: [
       { x: 8, y: 1 },
       { x: 8, y: 2 },
@@ -248,7 +248,7 @@ export function hall(): SceneDoc {
     id: HALL_ID,
     name: 'The Furnace Hall',
     intro: 'The furnace fills one wall, a mouth of white light. Pages go into it on a chain of hooks, one after another, and every one makes the light a little brighter. Before it, working the bellows with both arms, stands a man made of fire, singing.',
-    ...sceneFromRows(HALL_ROWS),
+    ...sceneFromRows(HALL_ROWS, kindsOf('furnace')),
     spawns: [
       { x: 8, y: 1 },
       { x: 8, y: 2 },

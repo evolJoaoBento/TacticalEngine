@@ -5,7 +5,8 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { downloadPolyHaven } from './surface-import';
+import { downloadPolyHaven, isCompressedSurface, linkedKey, linkedSurfaceResolver, type ImportedSurface, type ResolvedSurface, type SurfaceCache } from './surface-import';
+import type { TileSurface } from '../engine/scene/schema';
 
 const DL = 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg';
 const map = (res: string, name: string) => ({ jpg: { url: `${DL}/${res}/bricks/bricks_${name}_${res}.jpg` } });
@@ -62,5 +63,68 @@ describe('a Poly Haven texture downloaded', () => {
     await expect(downloadPolyHaven('bricks', 1024, down.fetcher)).rejects.toThrow('Poly Haven did not answer (503)');
     const missing = polyHaven({ [`${API}/info/bricks`]: { name: 'Bricks 01' }, [`${API}/files/bricks`]: FILES, ...images('1k'), [`${DL}/1k/bricks/bricks_disp_1k.jpg`]: new Response('', { status: 500 }) });
     await expect(downloadPolyHaven('bricks', 1024, missing.fetcher)).rejects.toThrow('Could not download bricks_disp_1k.jpg from Poly Haven (500)');
+  });
+});
+
+describe('a linked material, resolved', () => {
+  /** A cache of the test's own: a Map. */
+  const memory = (): SurfaceCache & { kept: Map<string, ResolvedSurface> } => {
+    const kept = new Map<string, ResolvedSurface>();
+    return { kept, get: async (key) => kept.get(key), put: async (key, value) => void kept.set(key, value) };
+  };
+  /** An import of the test's own, counting what it was asked for. */
+  const importer = () => {
+    const asked: string[] = [];
+    let failing = false;
+    const importing = async (id: string, size: number): Promise<ImportedSurface> => {
+      asked.push(`${id}@${size}`);
+      if (failing) throw new Error('offline');
+      return { surface: { id, name: id, maps: { color: `${id}-c`, normalHeight: `${id}-n`, orm: `${id}-o` }, parallax: true, size: 1, depth: 0.06, normalScale: 1, roughness: 1, tint: 0 }, color: '#405060', ignored: [], compressed: true };
+    };
+    return { asked, importing, fail: (on: boolean) => void (failing = on) };
+  };
+  const linked = (pixels = 1024): TileSurface => ({ id: 'slate', name: 'Slate', polyHaven: { id: 'rock_wall_10', pixels }, parallax: true, size: 1.8, depth: 0.06, normalScale: 1, roughness: 1, tint: 0 });
+
+  it('is imported once, kept, and read back from the cache after - by this browser, and by any other copy of the page', async () => {
+    const cache = memory();
+    const { asked, importing } = importer();
+    const resolve = linkedSurfaceResolver(cache, fetch, importing);
+    const first = await resolve(linked());
+    expect(first).toEqual({ maps: { color: 'rock_wall_10-c', normalHeight: 'rock_wall_10-n', orm: 'rock_wall_10-o' }, color: '#405060' });
+    expect([...cache.kept.keys()]).toEqual([linkedKey({ id: 'rock_wall_10', pixels: 1024 })]);
+    expect(await resolve(linked())).toEqual(first);
+    expect(await linkedSurfaceResolver(cache, fetch, importing)(linked())).toEqual(first);
+    expect(asked).toEqual(['rock_wall_10@1024']);
+  });
+
+  it('is fetched once when asked for twice while on its way, at the largest size an import keeps that the link allows', async () => {
+    const { asked, importing } = importer();
+    const resolve = linkedSurfaceResolver(memory(), fetch, importing);
+    await Promise.all([resolve(linked(700)), resolve(linked(700))]);
+    expect(asked).toEqual(['rock_wall_10@512']);
+  });
+
+  it('keeps nothing when the fetch fails, and tries again the next time it is asked for', async () => {
+    const cache = memory();
+    const { asked, importing, fail } = importer();
+    const resolve = linkedSurfaceResolver(cache, fetch, importing);
+    fail(true);
+    await expect(resolve(linked())).rejects.toThrow('offline');
+    expect(cache.kept.size).toBe(0);
+    fail(false);
+    await expect(resolve(linked())).resolves.toMatchObject({ color: '#405060' });
+    expect(asked).toEqual(['rock_wall_10@1024', 'rock_wall_10@1024']);
+  });
+
+  it('counts as compressed, so its page offers no Compress: it is compressed as it is fetched', () => {
+    expect(isCompressedSurface({ maps: undefined })).toBe(true);
+    expect(isCompressedSurface({ maps: { color: 'data:image/ktx2;base64,A', normalHeight: 'data:image/ktx2;base64,B', orm: 'data:image/ktx2;base64,C' } })).toBe(true);
+    expect(isCompressedSurface({ maps: { color: 'data:image/ktx2;base64,A', normalHeight: 'data:image/png;base64,B', orm: 'data:image/ktx2;base64,C' } })).toBe(false);
+  });
+
+  it('refuses a material that is not linked', async () => {
+    const { importing } = importer();
+    const { polyHaven: _link, ...carried } = { ...linked(), maps: { color: 'c', normalHeight: 'n', orm: 'o' } };
+    await expect(linkedSurfaceResolver(memory(), fetch, importing)(carried)).rejects.toThrow('"slate" is not linked to any texture');
   });
 });

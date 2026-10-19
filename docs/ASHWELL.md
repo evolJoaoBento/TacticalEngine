@@ -155,8 +155,14 @@ a wound.
 Each level is a slice: its scene, its encounters, its loot, its page from Vane, and the stair down; a test that the
 project is whole (`ashwell.test.ts`) and a play through it in the browser (`tests/e2e/ashwell.spec.ts`).
 
-- **Materials:** the levels are built on the engine's own tiles. To dress one, open it in the editor, download a
-  Poly Haven material (Content → Tiles) and give it to a kind of tile; the dungeon set (castle brick, cobblestone
-  floor, rock wall, dirt floor) suits it.
+- **Materials:** each level is drawn in Poly Haven textures (CC0), its own wall and its own floor
+  (`ashwell-kit.ts`, `LOOKS`): plastered stone and worn wood at the Lantern and at the Throne, castle brick and
+  cobblestone in the Throat, stone brick and sandstone blocks in the Market, rock wall and marble in the Library, rustic
+  stone and a dirt floor in the Furnace - ten textures, every one a starter checked against Poly Haven, each repeating
+  at the size of the patch it shows. They are **linked, not carried**: the project names each texture, and the page
+  fetches, packs and compresses it the first time a room needs it and keeps it in the browser after. So the project
+  is a few hundred kilobytes, which the browser's saves can hold when the Ashwell is begun; a level's first visit on a
+  device shows its rooms in plain stone for a few seconds while its two textures are prepared, and never again on
+  that device. Rubble and the low walls are the demo's own models; the black water and the bedrock are plain colour.
 - **Adversaries** come from the engine's starter blocks, renamed for the place; a boss is a stat block of the
   adventure's own (`project.adversaries`).

@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { unzipSync } from 'fflate';
 import type { Page } from '@playwright/test';
 import { expect, test } from './fixtures';
 
@@ -7,6 +10,29 @@ import { expect, test } from './fixtures';
  * down - and back up to Ketch, the quest done. The fights are begun by walking into them, and settled by the driver's
  * wounds rather than played out: what is tested is the level, not the rules, which have suites of their own.
  */
+
+/**
+ * Poly Haven, played by the test's own stone: every texture the Ashwell links answered from the fixture the material
+ * import is tested with, under Poly Haven's names - never the real site, which a suite should not depend on.
+ */
+const STONE = unzipSync(readFileSync(resolve('tests/fixtures/tile-surface/TestStone_1K-PNG.zip')));
+const MAPS = { Diffuse: ['diff', 'Color'], nor_gl: ['nor_gl', 'NormalGL'], Rough: ['rough', 'Roughness'], AO: ['ao', 'AmbientOcclusion'], Displacement: ['disp', 'Displacement'] } as const;
+const DL = 'https://dl.polyhaven.org/file/ph-assets/Textures/png/1k';
+
+test.beforeEach(async ({ page }) => {
+  await page.route('https://api.polyhaven.com/**', (route) => {
+    const [, ask, id] = /\/(info|files)\/([a-z0-9_]+)$/.exec(route.request().url()) ?? [];
+    if (ask === 'info') return route.fulfill({ json: { name: id, dimensions: [2000, 2000] } });
+    if (ask === 'files') return route.fulfill({ json: Object.fromEntries(Object.entries(MAPS).map(([map, [name]]) => [map, { '1k': { png: { url: `${DL}/${id}/${id}_${name}_1k.png` } } }])) });
+    return route.fulfill({ status: 404, body: 'No asset' });
+  });
+  await page.route('https://dl.polyhaven.org/**', (route) => {
+    const url = route.request().url();
+    const [, file] = Object.values(MAPS).find(([name]) => url.endsWith(`_${name}_1k.png`)) ?? [];
+    const bytes = file === undefined ? undefined : STONE[`TestStone_1K-PNG_${file}.png`];
+    return bytes === undefined ? route.fulfill({ status: 404 }) : route.fulfill({ body: Buffer.from(bytes), contentType: 'image/png' });
+  });
+});
 
 /** Every prompt waiting answered with its first choice: a page read, a roll let pass. */
 async function drain(page: Page): Promise<void> {
@@ -137,6 +163,11 @@ async function levelOne(page: Page): Promise<void> {
   await drain(page);
   await expect.poll(() => page.evaluate(() => window.__engine!.sceneId())).toBe('the-throat');
   expect((await quest(page))?.done).toEqual(['go-down']);
+  // Its walls and floors in their linked materials: fetched the first time, packed, compressed for the GPU.
+  await expect.poll(() => page.evaluate(() => window.__engine!.buildingStats().looks), { timeout: 60_000 }).toEqual(expect.arrayContaining(['castle-brick-07', 'cobblestone-floor-04']));
+  await expect.poll(() => page.evaluate(() => window.__engine!.buildingStats().textured), { timeout: 60_000 }).toBeGreaterThan(0);
+  const drawn = await page.evaluate(() => window.__engine!.buildingStats());
+  expect(drawn.compressed).toBe(drawn.textured);
   await page.waitForTimeout(500);
   await page.screenshot({ path: 'test-results/ashwell-throat.png' });
 

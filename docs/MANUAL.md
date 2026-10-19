@@ -1162,6 +1162,13 @@ one undo puts the old maps back. The material is carried in the project file, li
 megabytes. **Check** warns when the project's materials pass 8 MB. Saving leaves out a material no tile
 is drawn in.
 
+**A material can be linked rather than carried.** A project file can name a Poly Haven texture in place
+of a material's maps (`"polyHaven": { "id": "castle_brick_07" }`): the page downloads, packs and
+compresses it the first time anything is drawn in it, and keeps it in this browser, so the next time
+it is there at once. The project stays small however many materials it uses - the Ashwell is dressed
+this way. Until a linked material is in, and if it cannot be fetched (offline), its tiles are drawn in
+their kind's colour. Its page says it is linked, and it weighs nothing in **Check**.
+
 **The ground can be drawn in a material too.** On a material's page, **Ground drawn in it** lists
 your kinds of ground (Floor, Difficult Terrain and the rest); tick one and every cell of that kind is
 drawn in the material, continuous across the whole room. A kind of tile's own **Surface** select

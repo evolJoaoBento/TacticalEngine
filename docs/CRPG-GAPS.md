@@ -579,7 +579,8 @@ Their maps are compressed for the GPU at import (KTX2, 18 October 2026): a quart
 
 A kind of ground can be drawn in one too (18 October 2026): every cell of it, from the material's page. And a
 material takes a colour, as far as its **Tint** says: its kind's, or a tinted cell's on the ground; and a kind of tile
-may set its own repeat of it. A texture on Poly Haven is downloaded by its name or link, or picked from 27 suggested.
+may set its own repeat of it. A texture on Poly Haven is downloaded by its name or link, or picked from 27 suggested; or
+linked, the project naming it and the page fetching and keeping it in the browser the first time it is drawn.
 
 **Still open:** an imported model's own textures cannot be swapped or tinted; no self-shadowing in the parallax; a material's silhouette stays a box. (The file picker that used to be listed here landed on 2026-09-12.)
 

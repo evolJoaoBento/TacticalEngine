@@ -4,7 +4,7 @@ import { sceneSchema, type ProjectDoc, type SceneDoc } from '../../engine/scene/
 import type { AdversaryDef } from '../../engine/content/types';
 import type { Effect } from '../../engine/script/schema';
 import { GOLD } from '../demo-items';
-import { HUB_ID, THROAT_ID, KENNEL_ID, SUMP_ID, QUEST_ID, KETCH_DIALOGUE, SUMP_KEY, WARDEN_ID, MARKET_ID, MARKET_QUEST, FURNACE_QUEST, sceneFromRows, passage, afterTheFight } from './ashwell-kit';
+import { HUB_ID, THROAT_ID, KENNEL_ID, SUMP_ID, QUEST_ID, KETCH_DIALOGUE, SUMP_KEY, WARDEN_ID, MARKET_ID, MARKET_QUEST, FURNACE_QUEST, sceneFromRows, passage, afterTheFight, kindsOf } from './ashwell-kit';
 
 // ---------------------------------------------------------------------------------------------------------------
 // The Lantern & Lye
@@ -34,7 +34,7 @@ export function hub(): SceneDoc {
     id: HUB_ID,
     name: 'The Lantern & Lye',
     intro: 'A low room that smells of lye and lamp oil. In the middle of the floor, ringed in cracked stone, the old well breathes grey ash up into the rafters.',
-    ...sceneFromRows(HUB_ROWS),
+    ...sceneFromRows(HUB_ROWS, kindsOf('lantern')),
     spawns: [
       { x: 7, y: 9 },
       { x: 8, y: 9 },
@@ -177,7 +177,7 @@ export function throat(): SceneDoc {
     id: THROAT_ID,
     name: 'The Throat',
     intro: 'The rope ends on a heap of what fell before you: boots, a lantern, a hand. Water drips somewhere ahead in the dark, and the ash hangs in the air like breath on a cold morning.',
-    ...sceneFromRows(THROAT_ROWS),
+    ...sceneFromRows(THROAT_ROWS, kindsOf('throat')),
     spawns: [
       { x: 2, y: 2 },
       { x: 3, y: 2 },
@@ -265,7 +265,7 @@ export function kennel(): SceneDoc {
     id: KENNEL_ID,
     name: 'The Kennel',
     intro: 'The passage opens on a low, wet room that stinks of old meat. The floor is gnawed bone from wall to wall, and something in the far corner is breathing.',
-    ...sceneFromRows(KENNEL_ROWS),
+    ...sceneFromRows(KENNEL_ROWS, kindsOf('throat')),
     spawns: [
       { x: 4, y: 1 },
       { x: 4, y: 2 },
@@ -303,7 +303,7 @@ export function sump(): SceneDoc {
     id: SUMP_ID,
     name: 'The Sump',
     intro: 'The cistern’s deepest chamber. Lamps hang from chains over black water, and moths the size of hands turn in their smoke. On a platform of stacked doors sits a broad man wrapped in rusted chain.',
-    ...sceneFromRows(SUMP_ROWS),
+    ...sceneFromRows(SUMP_ROWS, kindsOf('throat')),
     spawns: [
       { x: 8, y: 1 },
       { x: 8, y: 2 },

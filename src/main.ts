@@ -14,7 +14,7 @@
 
 import { Fragment, h, render } from 'preact';
 import { PCFShadowMap, Plane, PerspectiveCamera, Raycaster, Vector2, Vector3, WebGLRenderer, type Intersection, type Mesh, type Object3D } from 'three';
-import { SurfaceLibrary } from './engine/render/surface-library'; import { surfaceTextureLoader } from './engine/render/surface-textures';
+import { SurfaceLibrary } from './engine/render/surface-library'; import { surfaceTextureLoader } from './engine/render/surface-textures'; import { browserSurfaceCache, linkedSurfaceResolver } from './editor/surface-import';
 import { roomEnvironment } from './engine/render/light-rig'; import { onUserSettings, userSettings, type UserSettings } from './game/user-settings';
 import { EditorController } from './editor/controller';
 import { placementRotation } from './editor/placement-rotation';
@@ -349,7 +349,7 @@ const assets = new AssetLibrary(
   game.board.project.assets,
 );
 /** The project's imported materials, each loaded once and shared by every piece drawn in it (`surface-library.ts`). */
-const surfaces = new SurfaceLibrary(surfaceTextureLoader(renderer), Math.min(8, renderer.capabilities.getMaxAnisotropy())); // compressed maps transcoded for this GPU
+const surfaces = new SurfaceLibrary(surfaceTextureLoader(renderer), Math.min(8, renderer.capabilities.getMaxAnisotropy()), linkedSurfaceResolver(browserSurfaceCache())); // compressed maps transcoded for this GPU; a linked material fetched once a browser
 
 /**
  * What each adversary type is drawn with, held here rather than read off the

@@ -200,7 +200,10 @@ const SAMPLE: Raw = {
   quests: first('quests'),
   assets: [{ id: 'rat', url: 'rat.glb', scale: 0.5, clips: { idle: 'Idle', walk: 'Walk' }, pivot: 'file' }, ...first('assets')],
   // Size, normal strength and roughness left out, so their defaults are what the Rust fills in too.
-  surfaces: [{ id: 'bricks', name: 'Bricks', source: 'ambientCG Bricks076', maps: { color: 'data:image/png;base64,AA', normalHeight: 'data:image/png;base64,AB', orm: 'data:image/png;base64,AC' }, parallax: true, depth: 0.1 }],
+  surfaces: [
+    { id: 'bricks', name: 'Bricks', source: 'ambientCG Bricks076', maps: { color: 'data:image/png;base64,AA', normalHeight: 'data:image/png;base64,AB', orm: 'data:image/png;base64,AC' }, parallax: true, depth: 0.1 },
+    { id: 'slate', name: 'Slate', source: 'Poly Haven rock_wall_10 (CC0)', polyHaven: { id: 'rock_wall_10' }, parallax: true, size: 1.8 },
+  ],
   adversaryModels: { rat: 'rat' },
   cards: first('cards'),
   weapons: first('weapons'),
@@ -322,6 +325,7 @@ function corners(): { name: string; value: unknown }[] {
     { name: 'jump rules all defaulted', value: { ...SAMPLE, jump: {} } },
     { name: 'pairs too short and wrong', value: { ...SAMPLE, party: [{ ...(SAMPLE['party'] as Raw[])[0]!, levels: [{ level: 2, advancements: [{ kind: 'traits', traits: [7] }, { kind: 'experiences', names: [false] }], domainCard: 'x' }] }], structureTypes: [{ id: 'x', atoms: [{ shape: 'wall', at: ['a', 2] }] }] } },
     { name: 'a structure made of nothing', value: { ...SAMPLE, structureTypes: [{ id: '', atoms: [] }, { id: 'x', atoms: [{ shape: 'wall', at: [0, 0] }, { shape: 'wall', at: [0, 0, 0, 0] }, { shape: '', at: 'here' }] }] } },
+    { name: 'a material with its maps and a link both, and one with neither', value: { ...SAMPLE, surfaces: [{ id: 'both', name: '', maps: { color: 'c', normalHeight: 'n', orm: 'o' }, polyHaven: { id: 'x', pixels: 100 }, parallax: true }, { id: 'neither', name: '', parallax: false }] } },
     { name: 'assets and models', value: { ...SAMPLE, assets: [{ id: 'm', url: '', kind: 'obj', scale: 0, clips: { idle: '' }, pivot: 'middle' }], adversaryModels: { rat: '' } } },
   ];
 }

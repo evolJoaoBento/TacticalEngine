@@ -13,14 +13,22 @@
  *
  * A tuning edit - size, depth, normal strength, roughness, tint - changes the materials' uniforms in place; new maps (an
  * import again) load afresh. The loader is given, so the tests hand in their own.
+ *
+ * A material linked rather than carried (`polyHaven`, no `maps`) has its maps resolved first, by whatever the page
+ * hands in (`SurfaceResolve`: downloaded, packed and compressed, and kept in the browser), and its average colour with
+ * them, which its Tint is measured against. With nothing to resolve it, or a resolve that fails, it is drawn in its
+ * kind's colour, as any material is until its maps are in.
  */
 
 import { NoColorSpace, RepeatWrapping, SRGBColorSpace, type Texture } from 'three';
 import { makeSurfaceMaterial, tuneSurface, type SurfaceMaterial, type SurfaceTextures } from './tile-surface';
-import type { TileSurface } from '../scene/schema';
+import type { SurfaceMaps, TileSurface } from '../scene/schema';
 
 /** Loads one texture from its URL. */
 export type TextureLoad = (url: string) => Promise<Texture>;
+
+/** A linked material's maps, and their average colour: where they are fetched from is the page's to say. */
+export type SurfaceResolve = (surface: TileSurface) => Promise<{ maps: SurfaceMaps; color: string }>;
 
 export type SurfaceStatus = 'unknown' | 'loading' | 'ready' | 'failed';
 
@@ -43,8 +51,11 @@ const retuned = (a: TileSurface, b: TileSurface): boolean =>
 /** Whether a texture is a compressed one (`CompressedTexture`), the GPU's own format. */
 const isCompressed = (texture: Texture): boolean => (texture as Texture & { isCompressedTexture?: boolean }).isCompressedTexture === true;
 
-/** Whether two surfaces' maps are the same maps. */
-const sameMaps = (a: TileSurface, b: TileSurface): boolean => a.maps.color === b.maps.color && a.maps.normalHeight === b.maps.normalHeight && a.maps.orm === b.maps.orm;
+/** Whether two surfaces' maps are the same maps: the same carried, or fetched from the same texture at the same size. */
+const sameMaps = (a: TileSurface, b: TileSurface): boolean =>
+  a.maps !== undefined && b.maps !== undefined
+    ? a.maps.color === b.maps.color && a.maps.normalHeight === b.maps.normalHeight && a.maps.orm === b.maps.orm
+    : a.maps === undefined && b.maps === undefined && a.polyHaven?.id === b.polyHaven?.id && a.polyHaven?.pixels === b.polyHaven?.pixels;
 
 export class SurfaceLibrary {
   private readonly specs = new Map<string, TileSurface>();
@@ -56,11 +67,20 @@ export class SurfaceLibrary {
   /** Bumped only when a surface's materials are new objects - its maps landing, or let go - which a mesh must follow. */
   private readonly generations = new Map<string, number>();
   private readonly listeners = new Set<(id: string) => void>();
+  /** A linked material's average colour, resolved with its maps: what its Tint is measured against. */
+  private readonly means = new Map<string, string>();
 
   constructor(
     private readonly load: TextureLoad,
     private readonly anisotropy: number = 1,
+    private readonly resolve?: SurfaceResolve,
   ) {}
+
+  /** A surface's tuning, its average colour the resolved one when it carries none: a linked material has none of its own. */
+  private tuned(spec: TileSurface, size: number | undefined): TileSurface {
+    const mean = spec.color === undefined ? this.means.get(spec.id) : undefined;
+    return sized(mean === undefined ? spec : { ...spec, color: mean }, size);
+  }
 
   /** Declare a surface, or redeclare it: tuned in place when its maps are the same, loaded afresh when they are not. */
   add(surface: TileSurface): void {
@@ -69,7 +89,7 @@ export class SurfaceLibrary {
     if (current !== undefined && sameMaps(current, surface)) {
       const loaded = this.loaded.get(surface.id);
       if (loaded !== undefined && retuned(current, surface)) {
-        for (const { material, size } of loaded.materials.values()) tuneSurface(material.userData.surfaceUniforms, sized(surface, size));
+        for (const { material, size } of loaded.materials.values()) tuneSurface(material.userData.surfaceUniforms, this.tuned(surface, size));
         this.bump(surface.id);
       }
       return;
@@ -155,7 +175,7 @@ export class SurfaceLibrary {
     const kept = loaded.materials.get(key);
     if (kept !== undefined) return kept.material;
     const spec = this.specs.get(id)!;
-    const material = makeSurfaceMaterial(loaded.textures, sized(spec, size), { parallax: role !== 'flat' && spec.parallax, vertexColors: role === 'ground' });
+    const material = makeSurfaceMaterial(loaded.textures, this.tuned(spec, size), { parallax: role !== 'flat' && spec.parallax, vertexColors: role === 'ground' });
     loaded.materials.set(key, { material, size });
     return material;
   }
@@ -167,8 +187,19 @@ export class SurfaceLibrary {
     const current = this.status.get(id);
     if (current === 'loading' || current === 'ready' || current === 'failed') return false;
     this.status.set(id, 'loading');
-    void Promise.all([this.load(spec.maps.color), this.load(spec.maps.normalHeight), this.load(spec.maps.orm)]).then(
-      ([color, normalHeight, orm]) => {
+    // Carried, its maps load now; linked, they are resolved first - and the average colour with them.
+    const loadAll = (maps: SurfaceMaps): Promise<Texture[]> => Promise.all([this.load(maps.color), this.load(maps.normalHeight), this.load(maps.orm)]);
+    const textures: Promise<Texture[]> =
+      spec.maps !== undefined
+        ? loadAll(spec.maps)
+        : this.resolve !== undefined
+          ? this.resolve(spec).then((got) => {
+              this.means.set(id, got.color);
+              return loadAll(got.maps);
+            })
+          : Promise.reject(new Error(`"${id}" has no maps, and nothing here can fetch them`));
+    void textures.then(
+      ([color, normalHeight, orm]: Texture[]) => {
         // Replaced or removed while the maps were on their way: theirs to let go.
         if (this.specs.get(id) !== spec && !(this.specs.has(id) && sameMaps(this.specs.get(id)!, spec))) {
           for (const texture of [color, normalHeight, orm]) texture.dispose();
@@ -219,6 +250,7 @@ export class SurfaceLibrary {
       this.bump(id);
     }
     this.errors.delete(id);
+    this.means.delete(id);
   }
 
   private bump(id: string): void {

@@ -5,6 +5,7 @@
  */
 
 import { buildingKey, type BuildingTile } from '../../engine/scene/building';
+import type { TileSurface } from '../../engine/scene/schema';
 import type { ProjectDoc, SceneDoc } from '../../engine/scene/schema';
 import type { Effect } from '../../engine/script/schema';
 import { DEMO_TERRAIN } from '../demo-scenes';
@@ -60,13 +61,69 @@ export const LEGEND: Readonly<Record<string, Cell>> = { '#': 'wall', '.': 'floor
 const WALL_BLOCKS = 2;
 const FLOOR_TOP = 0.25;
 
+/** The kinds of tile a level's rows are laid with: what a wall, a floor, rubble and a low wall are, in that level. */
+export interface Kinds {
+  wall: string;
+  floor: string;
+  rubble: string;
+  cover: string;
+}
+
+/** The demo's stone, for a map drawn without a look of its own. */
+const STONE: Kinds = { wall: 'rampart', floor: 'flagstone', rubble: 'road', cover: 'barrier' };
+
+/**
+ * Each level's look: the Poly Haven texture its walls and its floors are drawn in (CC0, every one a starter
+ * `POLY_HAVEN_STARTERS` checked against Poly Haven), what it is called, how many tiles one repeat covers - the patch the
+ * texture shows, a metre a tile - and the colour its kinds are drawn in until the texture is in. The Lantern and the
+ * Throne share one: a good study in a good house, at the top of the well and at the bottom.
+ */
+const LOOKS = {
+  lantern: { wall: ['plastered_stone_wall', 'Plastered Stone Wall', 2.5, '#8a7f70'], floor: ['wood_floor_worn', 'Worn Wood Floor', 2, '#6b5038'] },
+  throat: { wall: ['castle_brick_07', 'Castle Brick', 2.5, '#5c4a40'], floor: ['cobblestone_floor_04', 'Cobblestone Floor', 1.5, '#5d5b58'] },
+  market: { wall: ['stone_brick_wall_001', 'Stone Brick Wall', 2.5, '#77736a'], floor: ['large_sandstone_blocks_01', 'Large Sandstone Blocks', 3, '#9a8c74'] },
+  library: { wall: ['rock_wall_10', 'Rock Wall', 1.8, '#4f4f52'], floor: ['marble_01', 'Marble', 1.5, '#b8b4ac'] },
+  furnace: { wall: ['rustic_stone_wall_02', 'Rustic Stone Wall', 1.5, '#5e5650'], floor: ['dirt_floor', 'Dirt Floor', 2.07, '#5a4636'] },
+} as const satisfies Record<string, Record<'wall' | 'floor', readonly [string, string, number, string]>>;
+
+export type Look = keyof typeof LOOKS;
+
+/** A material's id in the project, from the Poly Haven texture it is linked to. */
+const surfaceId = (texture: string): string => texture.replace(/_/g, '-');
+
+/** The kinds of tile a level's rows are laid with: its own wall and floor, the demo's rubble and low wall. */
+export function kindsOf(look: Look): Kinds {
+  return { ...STONE, wall: `${look}-wall`, floor: `${look}-floor` };
+}
+
+/**
+ * The adventure's materials: every texture a level is drawn in, once, linked rather than carried - fetched from Poly
+ * Haven the first time it is drawn, and kept in the browser - so the project stays a few hundred kilobytes.
+ */
+export const LINKED_SURFACES: TileSurface[] = [
+  ...new Map(
+    Object.values(LOOKS)
+      .flatMap((look) => [look.wall, look.floor])
+      .map(([texture, name, size]) => [
+        texture,
+        { id: surfaceId(texture), name, source: `Poly Haven ${texture} (CC0)`, polyHaven: { id: texture, pixels: 1024 }, parallax: true, size, depth: 0.06, normalScale: 1, roughness: 1, tint: 0 } as TileSurface,
+      ]),
+  ).values(),
+];
+
+/** Each level's two kinds of tile: a wall as the demo's impassable stone is, and a floor, each drawn in its texture. */
+const LEVEL_KINDS: NonNullable<ProjectDoc['terrainPalette']> = Object.entries(LOOKS).flatMap(([look, { wall, floor }]) => [
+  { id: `${look}-wall`, name: `${wall[1]} (wall)`, passable: false, cost: 1, providesCover: false, blocksSight: true, color: wall[3], structure: 'block', surface: surfaceId(wall[0]) },
+  { id: `${look}-floor`, name: floor[1], passable: true, cost: 1, providesCover: false, blocksSight: false, color: floor[3], structure: 'floor', surface: surfaceId(floor[0]) },
+]);
+
 /**
  * A room drawn as rows of characters (`LEGEND`), as a scene's ground: every cell a floor piece - stone, or rubble,
  * which is slow - with a wall's blocks or a low wall stood on it, on bedrock; black water left as ground, below the
  * floor's top and slow to wade. The bedrock is dark, as the water is: the ground's colours blend from cell to cell,
  * and a lawn's green under the stone showed round every pool. Throws on a row of the wrong length or a character the legend has not got.
  */
-export function sceneFromRows(rows: readonly string[]): Pick<SceneDoc, 'width' | 'height' | 'terrain' | 'heights' | 'buildingTiles'> {
+export function sceneFromRows(rows: readonly string[], kinds: Kinds = STONE): Pick<SceneDoc, 'width' | 'height' | 'terrain' | 'heights' | 'buildingTiles'> {
   const width = rows[0]?.length ?? 0;
   const height = rows.length;
   const terrain: string[] = [];
@@ -82,9 +139,9 @@ export function sceneFromRows(rows: readonly string[]): Pick<SceneDoc, 'width' |
       if (cell === undefined) throw new Error(`"${char}" at ${x},${y} is not in the legend`);
       terrain.push(cell === 'water' ? 'black-water' : 'bedrock');
       if (cell === 'water') return;
-      put(x, y, 0, cell === 'rubble' ? 'road' : 'flagstone', 'floor');
-      if (cell === 'wall') for (let n = 0; n < WALL_BLOCKS; n++) put(x, y, FLOOR_TOP + n, 'rampart', 'block');
-      if (cell === 'cover') put(x, y, FLOOR_TOP, 'barrier', 'wall');
+      put(x, y, 0, cell === 'rubble' ? kinds.rubble : kinds.floor, 'floor');
+      if (cell === 'wall') for (let n = 0; n < WALL_BLOCKS; n++) put(x, y, FLOOR_TOP + n, kinds.wall, 'block');
+      if (cell === 'cover') put(x, y, FLOOR_TOP, kinds.cover, 'wall');
     });
   });
   return { width, height, terrain, heights: terrain.map(() => 0), buildingTiles: pieces };
@@ -93,6 +150,7 @@ export function sceneFromRows(rows: readonly string[]): Pick<SceneDoc, 'width' |
 /** The kinds of tile it is laid with: the demo's, the bedrock under the stone, and the black water of the cistern. */
 export const PALETTE: NonNullable<ProjectDoc['terrainPalette']> = [
   ...DEMO_TERRAIN,
+  ...LEVEL_KINDS,
   { id: 'bedrock', name: 'Bedrock', passable: true, cost: 1, providesCover: false, blocksSight: false, color: '#26272b' },
   { id: 'black-water', name: 'Black Water', passable: true, cost: 2, providesCover: false, blocksSight: false, color: '#16242a' },
 ];

@@ -350,14 +350,28 @@ export const tileSurfaceSchema = z.object({
   name: z.string(),
   /** Where it came from, for credits: "ambientCG Bricks076". Free text. */
   source: z.string().optional(),
-  maps: z.object({
-    /** The colour, sRGB. */
-    color: z.string().min(1),
-    /** Linear: red and green the normal's X and Y (OpenGL's way up), blue the height. */
-    normalHeight: z.string().min(1),
-    /** Linear: red the ambient occlusion, green the roughness, blue the metalness. */
-    orm: z.string().min(1),
-  }),
+  /** Its maps, carried in the project: what an import makes. Or none, and a texture to fetch them from (`polyHaven`). */
+  maps: z
+    .object({
+      /** The colour, sRGB. */
+      color: z.string().min(1),
+      /** Linear: red and green the normal's X and Y (OpenGL's way up), blue the height. */
+      normalHeight: z.string().min(1),
+      /** Linear: red the ambient occlusion, green the roughness, blue the metalness. */
+      orm: z.string().min(1),
+    })
+    .optional(),
+  /**
+   * A material linked rather than carried: a Poly Haven texture, by its id, fetched, packed and compressed the first
+   * time it is drawn and kept in the browser after (`editor/surface-import.ts`, `linkedSurfaceResolver`), its maps kept
+   * at most `pixels` on a side. A project of many materials stays small: an adventure ships them this way.
+   */
+  polyHaven: z
+    .object({
+      id: z.string().min(1),
+      pixels: z.number().int().min(256).max(2048).default(1024),
+    })
+    .optional(),
   /** Whether it had a height map: without one it is drawn with no parallax at all. */
   parallax: z.boolean(),
   /** How many tiles one repeat of the texture covers. */
@@ -374,8 +388,15 @@ export const tileSurfaceSchema = z.object({
   tint: z.number().min(0).max(1).default(0),
   /** The average of its colour map, which a tint is measured against: kept at import. */
   color: z.string().min(1).optional(),
+}).superRefine((surface, ctx) => {
+  // One way to its maps: carried, or fetched - not both, and not neither.
+  if ((surface.maps === undefined) === (surface.polyHaven === undefined)) {
+    ctx.addIssue({ code: 'custom', path: ['maps'], message: 'A material has its maps or a Poly Haven texture to fetch them from: one, not both' });
+  }
 });
 export type TileSurface = z.infer<typeof tileSurfaceSchema>;
+/** A material's three maps, packed: what it is drawn with, carried or fetched. */
+export type SurfaceMaps = NonNullable<TileSurface['maps']>;
 
 /**
  * A piece of logic in code the project carries. The body is a JavaScript

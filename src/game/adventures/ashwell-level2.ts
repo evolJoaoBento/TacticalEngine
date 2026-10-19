@@ -4,7 +4,7 @@ import { sceneSchema, type ProjectDoc, type SceneDoc } from '../../engine/scene/
 import type { AdversaryDef } from '../../engine/content/types';
 import type { Effect } from '../../engine/script/schema';
 import { GOLD } from '../demo-items';
-import { SUMP_ID, MARKET_ID, PIT_ID, COUNTING_ID, MARKET_QUEST, GRALE_DIALOGUE, SELA_DIALOGUE, GUILD_MARK, BONE_KEY, GHOUL_ID, BROKER_ID, READING_ID, LIBRARY_QUEST, sceneFromRows, passage, afterTheFight } from './ashwell-kit';
+import { SUMP_ID, MARKET_ID, PIT_ID, COUNTING_ID, MARKET_QUEST, GRALE_DIALOGUE, SELA_DIALOGUE, GUILD_MARK, BONE_KEY, GHOUL_ID, BROKER_ID, READING_ID, LIBRARY_QUEST, sceneFromRows, passage, afterTheFight, kindsOf } from './ashwell-kit';
 
 // ---------------------------------------------------------------------------------------------------------------
 // Level 2: the Ossuary Market
@@ -101,7 +101,7 @@ export function market(): SceneDoc {
     id: MARKET_ID,
     name: 'The Ossuary Market',
     intro: 'Lamps of yellow fat burn along stalls of stacked bone. People in grey aprons weigh teeth on little brass scales and write in ledgers, and nobody raises their voice. Somewhere a bell hangs silent on a rope.',
-    ...sceneFromRows(MARKET_ROWS),
+    ...sceneFromRows(MARKET_ROWS, kindsOf('market')),
     spawns: [
       { x: 2, y: 3 },
       { x: 3, y: 3 },
@@ -197,7 +197,7 @@ export function pit(): SceneDoc {
     id: PIT_ID,
     name: 'The Charnel Pit',
     intro: 'The old burial pit under the market. Bones are heaped against the walls in drifts, and a pool of black water fills the middle. A bell-rope hangs down from a hole in the ceiling. The heaps are moving.',
-    ...sceneFromRows(PIT_ROWS),
+    ...sceneFromRows(PIT_ROWS, kindsOf('market')),
     spawns: [
       { x: 8, y: 1 },
       { x: 8, y: 2 },
@@ -257,7 +257,7 @@ export function countingHouse(): SceneDoc {
     id: COUNTING_ID,
     name: 'The Counting House',
     intro: 'A long, warm room of ledgers. A woman with bone rings on every finger sits behind a desk of stacked jawbones, writing. She does not look up. "Sit, if you like. Stand, if you are not staying."',
-    ...sceneFromRows(COUNTING_ROWS),
+    ...sceneFromRows(COUNTING_ROWS, kindsOf('market')),
     spawns: [
       { x: 7, y: 1 },
       { x: 7, y: 2 },

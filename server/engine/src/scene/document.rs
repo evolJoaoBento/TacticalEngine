@@ -361,7 +361,8 @@ fn tile_surface() -> Schema {
         req("id", content_id()),
         req("name", string()),
         opt("source", string()),
-        req("maps", object(vec![req("color", string().min(1.0)), req("normalHeight", string().min(1.0)), req("orm", string().min(1.0))])),
+        opt("maps", object(vec![req("color", string().min(1.0)), req("normalHeight", string().min(1.0)), req("orm", string().min(1.0))])),
+        opt("polyHaven", object(vec![req("id", string().min(1.0)), def("pixels", int().min(256.0).max(2048.0), || json!(1024))])),
         req("parallax", boolean()),
         def("size", number().positive().max(16.0), one),
         def("depth", number().min(0.0).max(0.25), || json!(0.06)),
@@ -370,6 +371,14 @@ fn tile_surface() -> Schema {
         def("tint", number().min(0.0).max(1.0), || json!(0)),
         opt("color", string().min(1.0)),
     ])
+    .refine(one_way_to_its_maps)
+}
+
+/// `tileSurfaceSchema`'s refinement: a material's maps carried, or a Poly Haven texture to fetch them from - one.
+fn one_way_to_its_maps(surface: &Map<String, Value>, found: &mut Refinements) {
+    if surface.contains_key("maps") == surface.contains_key("polyHaven") {
+        found.add(vec![Key::Name("maps".into())], "A material has its maps or a Poly Haven texture to fetch them from: one, not both".into());
+    }
 }
 
 /// `modelAssetSchema` (`render/assets.ts`): a model a project brings, and how it is seated.

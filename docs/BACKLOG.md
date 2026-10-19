@@ -21,6 +21,22 @@ own; the fight's spotlight, the GM's turn and the questions go as at a server's 
 the real engine (`src/game/peer/*.test.ts`), and `tests/e2e/peer.spec.ts` in two browsers. Next: an evening across
 two real networks.
 
+## Linked materials, and the Ashwell dressed in them — done
+
+A material may name a Poly Haven texture instead of carrying its maps (`TileSurface.polyHaven`, one or the other,
+mirrored in Rust; `docs/DEVELOPING.md` §10 (f)): the page fetches, packs and compresses it the first time it is drawn
+and keeps it in IndexedDB, so a project of many materials stays small - which an adventure begun into the browser's
+saves (`GameProjects`, localStorage, a few megabytes) needs: two carried 1K materials would already fill it. The
+Ashwell is dressed so: ten starters, a wall and a floor a level (`LOOKS`, `kindsOf`, `sceneFromRows(rows, kinds)`).
+Measured live: the Throat's castle brick fetched, packed and drawn compressed 8.8 s after arriving, the first time.
+Tests: `surface-library.test.ts` (a linked material resolved, its tint against the resolved mean; failed, drawn plain),
+`surface-import.test.ts` (the resolver: cached, one fetch for two asks, a failure not kept), `schema.test.ts`, the scene
+golden, `ashwell.test.ts` (every material a linked starter, every level its own kinds, the project small),
+`tests/e2e/ashwell.spec.ts` (Poly Haven played by the fixture; the Throat drawn compressed).
+
+- Follow-ups: linking a material from the editor (the Poly Haven box downloads and carries; a **Link** beside it
+  would not), and a material's first fetch shown in the Tiles workspace as it happens.
+
 ## The Ashwell, Level 5: the Ledger Throne — done; the Ashwell complete
 
 `docs/ASHWELL.md`. One scene (`ashwell-level5.ts`): Vane and the Written stand on nobody's side and talk
@@ -170,7 +186,8 @@ with the project (one nothing uses is left out), checked, drawn in play too.
 Follow-ups, not built:
 - **Self-shadowing parallax**: a second loop towards the light, gated by a define; declined for now.
 - **Silhouettes**: parallax cannot move a box's outline; inherent to the technique.
-- Downloading by ambientCG id (Poly Haven's is done, above), sharing materials across projects, starter materials in a new project.
+- Downloading by ambientCG id (Poly Haven's is done, above). Sharing materials across projects and starters in a new
+  project are what a linked material is for (above): a project names them, and the browser keeps them for every one.
 
 ## Peer to peer: the host at the door — done
 

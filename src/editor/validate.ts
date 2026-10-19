@@ -1245,7 +1245,7 @@ export function checkSurfaces(
   }
   let bytes = 0;
   for (const surface of project.surfaces ?? []) {
-    for (const url of Object.values(surface.maps)) bytes += Math.floor(((url.length - url.indexOf(',') - 1) * 3) / 4);
+    for (const url of Object.values(surface.maps ?? {})) bytes += Math.floor(((url.length - url.indexOf(',') - 1) * 3) / 4);
   }
   if (bytes >= EMBEDDED_WARN_BYTES) add('warning', `Imported materials are carried inside the project at ${(bytes / 1_048_576).toFixed(1)} MB; saving and loading will feel it.`);
 }

@@ -16,7 +16,7 @@ import { DEMO_ITEMS, GOLD } from '../demo-items';
 import { DEMO_CODE, DEMO_PROJECT_ABILITIES, DEMO_PROJECT_CARDS } from '../demo-code';
 import { DEMO_WEAPONS, PARTY_SHEETS } from '../demo-rules';
 import { SHIPPED_MODELS } from '../project-open';
-import { ASHWELL_ID, HUB_ID, SUMP_KEY, GUILD_MARK, BONE_KEY, KINDLING, YOUR_PAGE, PALETTE } from './ashwell-kit';
+import { ASHWELL_ID, HUB_ID, SUMP_KEY, GUILD_MARK, BONE_KEY, KINDLING, YOUR_PAGE, PALETTE, LINKED_SURFACES } from './ashwell-kit';
 import { hub, throat, kennel, sump, CISTERN_WARDEN, KETCH, QUEST } from './ashwell-level1';
 import { market, pit, countingHouse, PIT_GHOUL, BONE_BROKER, GRALE, SELA, MARKET_QUEST_DEF } from './ashwell-level2';
 import { readingRoom, stacks, index, INK_WRAITH, UNDERTOW_INDEX, AUD, LIBRARY_QUEST_DEF } from './ashwell-level3';
@@ -86,6 +86,7 @@ export function ashwellProject(): ProjectDoc {
     id: ASHWELL_ID,
     name: 'The Ashwell',
     terrainPalette: PALETTE,
+    surfaces: LINKED_SURFACES,
     scenes: [hub(), throat(), kennel(), sump(), market(), pit(), countingHouse(), readingRoom(), stacks(), index(), nave(), gallery(), hall(), throne()],
     dialogues: [KETCH, GRALE, SELA, AUD, ILSE, VANE],
     items: [...DEMO_ITEMS.filter((item) => KEPT_ITEMS.has(item.id)), ...ITEMS],
