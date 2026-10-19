@@ -11,6 +11,8 @@ import { buildProjectScene } from './demo-scene';
 import { withListedPacks, shippedPack } from './listed-packs';
 import { characterContentFor } from './room';
 import { CAMP_CREW, campProject, crewPlaces } from './camp';
+import { COMPANIONS, figureOf } from './camp-company';
+import { validateProject } from '../editor/validate';
 import { GEAR, SPREADS, idFromName, sheetFor, type Creation } from './new-character';
 
 const WREN: Creation = {
@@ -49,6 +51,40 @@ describe('a character made at New Game', () => {
   it('takes an id from the name, and a name of nothing is a hero', () => {
     expect(idFromName('  Ëlva  of the Fen ')).toBe('elva-of-the-fen');
     expect(idFromName('!!!')).toBe('hero');
+  });
+});
+
+describe('the company at the fire', () => {
+  it('are companions made as a character is, each asked along at their figure, the one with the character\'s model away', () => {
+    const project = campProject(sheetFor(WREN), 0);
+    expect(project.party.map((sheet) => sheet.id)).toEqual(['wren-ashdown']);
+    expect(project.companions.map((sheet) => sheet.model)).toEqual(CAMP_CREW.filter((model) => model !== WREN.model));
+    const content = characterContentFor(withListedPacks(project));
+    for (const sheet of project.companions) {
+      expect(deriveCharacter(sheet, content, withListedPacks(project).abilities).issues, sheet.id).toEqual([]);
+      for (const card of sheet.domainCards ?? []) expect(content.cards.get(card)?.level, `${sheet.id}: ${card}`).toBe(1);
+      const figure = project.scenes[0]!.decos.find((deco) => deco.id === figureOf(sheet.model!))!;
+      expect(figure.function).toEqual({ kind: 'interaction', dialogue: `camp-${sheet.id}` });
+      const talk = project.dialogues.find((dialogue) => dialogue.id === `camp-${sheet.id}`)!;
+      const asks = talk.nodes.flatMap((node) => node.choices ?? []).flatMap((choice) => choice.effects ?? []);
+      // Asked along from the first thing they say, and again after saying what they can do.
+      for (const node of talk.nodes) expect(node.choices?.[0]?.text, `${talk.id} ${node.id}`).toBe('Come with us.');
+      for (const effect of asks) expect(effect).toEqual({ kind: 'joinParty', companion: sheet.id, figure: figure.id });
+    }
+  });
+
+  it('every class there is, one of each but three, and nothing the editor\'s check finds wrong', () => {
+    const classes = new Set(COMPANIONS.map((companion) => companion.creation.classId));
+    expect(classes.size).toBe(COMPANIONS.length);
+    const project = withListedPacks(campProject(sheetFor(WREN), 0));
+    const problems = validateProject(project, { characterContent: characterContentFor(project) }).filter((problem) => problem.severity === 'error');
+    expect(problems).toEqual([]);
+  });
+
+  it('leaves out one who would share the character\'s id', () => {
+    const project = campProject(sheetFor({ ...WREN, name: 'Quim' }), 0);
+    expect(project.companions.map((sheet) => sheet.id)).not.toContain('quim');
+    expect(project.scenes[0]!.decos.some((deco) => deco.id === figureOf('quim'))).toBe(false);
   });
 });
 

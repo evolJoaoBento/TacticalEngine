@@ -977,6 +977,11 @@ export class SceneView {
     this.swings.setOpen(ids);
   }
 
+  /** Which things a script took away (`remove`): not drawn, until the room is drawn again without them gone. */
+  setGone(ids: ReadonlySet<string>): void {
+    for (const drawn of [...this.decos, ...this.objects]) drawn.visible = !ids.has(drawn.name.replace(/^object:/, ''));
+  }
+
   /** How far a door is swung from its facing, in radians; null for a prop that is not a door. */
   doorAngle(id: string): number | null {
     return this.swings.angleOf(id);
@@ -1184,7 +1189,7 @@ export class SceneView {
    */
   objectUnder(ray: Raycaster): string | null {
     // Scenery too: a tree in front of a chest is pointed at, not the chest.
-    const hit = ray.intersectObjects([...this.objects, ...this.decos], true).find((h) => h.object.visible);
+    const hit = ray.intersectObjects([...this.objects, ...this.decos].filter((drawn) => drawn.visible), true).find((h) => h.object.visible);
     if (hit === undefined) return null;
     const ground = ray.intersectObjects(this.terrain.drawn, false)[0];
     if (ground !== undefined && ground.distance < hit.distance) return null;
@@ -1225,7 +1230,7 @@ export class SceneView {
 
   /** The tile of the nearest authored thing drawn under a ray - a creature, a prop, a mark - unless ground hides it. */
   authoredUnder(ray: Raycaster): { x: number; y: number } | null {
-    const hit = ray.intersectObjects([...this.authoredCreatures, ...this.decos, ...this.objects, ...this.marks], true).find((h) => h.object.visible);
+    const hit = ray.intersectObjects([...this.authoredCreatures, ...this.decos, ...this.objects, ...this.marks].filter((drawn) => drawn.visible), true).find((h) => h.object.visible);
     const ground = ray.intersectObjects(this.terrain.drawn, false)[0];
     if (hit === undefined || (ground !== undefined && ground.distance < hit.distance)) return null;
     let drawn: Object3D = hit.object;

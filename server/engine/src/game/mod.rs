@@ -18,6 +18,7 @@ pub mod fight;
 pub mod leap;
 pub mod log;
 pub mod movement;
+pub mod party_join;
 pub mod play;
 pub mod projects;
 pub mod replica;

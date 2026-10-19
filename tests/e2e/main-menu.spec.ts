@@ -59,6 +59,22 @@ async function inspectMini(page: Page, id: string): Promise<void> {
 }
 
 /** Choose a mini as a player does: take it up close, and Choose. */
+/** One of the company at the fire asked along: walked up to, talked to, and the reply that asks them. */
+async function askAlong(page: Page, model: string, also?: string): Promise<void> {
+  await page.evaluate((figure) => {
+    const a = window.__engine!;
+    a.approach(figure);
+    a.arrive();
+  }, `${model}-figure`);
+  await expect.poll(() => page.evaluate(() => window.__engine!.hasDialogue())).toBe(true);
+  if (also !== undefined) {
+    await page.getByTestId('dialogue').locator('.panel-option', { hasText: also }).first().click();
+    await expect.poll(() => page.evaluate(() => window.__engine!.dialogueOptions())).toContain('Come with us.');
+  }
+  await page.getByTestId('dialogue').locator('.panel-option', { hasText: 'Come with us.' }).first().click();
+  await expect.poll(() => page.evaluate(() => window.__engine!.hasDialogue())).toBe(false);
+}
+
 async function pickMini(page: Page, id: string): Promise<void> {
   await inspectMini(page, id);
   await page.getByTestId('choose-card').click();
@@ -252,6 +268,22 @@ test('New Game makes a character card by card and begins a camp, played; Load Ga
   const gear = { primary: hero.primaryWeaponId, armor: hero.armorId };
   expect(gear).toEqual({ primary: 'primary-broadsword', armor: 'armor-gambeson-armor' });
   await page.screenshot({ path: 'test-results/new-game-camp.png' });
+
+  // The company at the fire, asked along: each joins the party and leaves the fire. Quim is not there - Ash took
+  // his model - and four is a party, so Pint, asked fifth, stays.
+  expect(await page.evaluate(() => window.__engine!.objects().includes('quim-figure'))).toBe(false);
+  await askAlong(page, 'violet');
+  await askAlong(page, 'scarlet', 'What can you do?');
+  await askAlong(page, 'arty');
+  expect(await page.evaluate(() => window.__engine!.party())).toEqual(['ash-ironvein', 'violet', 'scarlet', 'arty']);
+  for (const model of ['violet', 'scarlet', 'arty']) expect(await page.evaluate((id) => window.__engine!.objectState(id).removed, `${model}-figure`), model).toBe(true);
+  await askAlong(page, 'pint');
+  expect(await page.evaluate(() => window.__engine!.party())).toHaveLength(4);
+  expect(await page.evaluate(() => window.__engine!.objectState('pint-figure').removed)).toBe(false);
+  expect(await page.evaluate(() => window.__engine!.log().map((line) => line.text))).toEqual(expect.arrayContaining(['Violet joins the party.', 'Arty joins the party.', 'Pint would come, but the party is 4 already.']));
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: 'test-results/new-game-camp-company.png' });
+
   // No way into the editor: neither the key nor the driver opens it.
   await page.keyboard.press('Control+e');
   await page.evaluate(() => window.__engine!.setMode('edit'));
@@ -269,7 +301,9 @@ test('New Game makes a character card by card and begins a camp, played; Load Ga
   await game.getByTestId('menu-load-save').click();
   await page.waitForURL(/load=/);
   await ready(page);
-  expect(await page.evaluate(() => window.__engine!.party())).toEqual(['ash-ironvein']);
+  // Loaded, the company that came along is still the party's, and gone from the fire.
+  expect(await page.evaluate(() => window.__engine!.party())).toEqual(['ash-ironvein', 'violet', 'scarlet', 'arty']);
+  expect(await page.evaluate(() => window.__engine!.objectState('violet-figure').removed)).toBe(true);
 
   // And the Demo Vault's own save, under the Demo Vault: played, and loaded as it opens.
   await page.goto('/?play');

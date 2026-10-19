@@ -465,6 +465,7 @@ fn project_holds_together(project: &Map<String, Value>, found: &mut Refinements)
     duplicates(project, "quests", "quest", found);
     duplicates(project, "projectPlans", "project plan", found);
     duplicates(project, "party", "character", found);
+    duplicates(project, "companions", "companion", found);
     duplicates(project, "abilities", "ability", found);
     duplicates(project, "lootTables", "loot table", found);
     let start = project.get("startScene").and_then(Value::as_str).unwrap_or_default();
@@ -541,6 +542,7 @@ pub fn project() -> &'static Schema {
             listed("conditionDefs", Kind::ConditionDef),
             def("packs", array(string()), empty_list),
             def("party", array(lazy(crate::character::schema::sheet_schema)), empty_list),
+            def("companions", array(lazy(crate::character::schema::sheet_schema)), empty_list),
             opt("jump", jump_rules()),
             req("startScene", content_id()),
         ])

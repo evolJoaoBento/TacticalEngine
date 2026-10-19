@@ -2,10 +2,10 @@
  * The camp a new game begins at: a clearing round a fire, the character just made standing by it,
  * and the rest of the company - Quim, Violet, Scarlet, Arty, Pint and Ganja - gathered round.
  *
- * For now they are figures and nothing more: props drawn with their models, standing where they
- * stand, in the way of a walk and not yet to be talked to or taken along. The party is the new
- * character alone. Making the camp a place to come back to - its people to talk to and recruit, its
- * fire to rest at - is the next of it.
+ * The party is the new character alone at first. Each of the company is a figure at the fire to talk
+ * to, and a companion of the project's (`camp-company.ts`): asked along, they join the party and
+ * their figure leaves the fire, four to a party (`joinParty`). The one whose model the character took
+ * is not there, nor anyone who would share the character's id.
  *
  * Built in code rather than read from a file, so the camp is always whole and always this build's;
  * the project it makes lists the SRD character pack (`listed-packs.ts`), which is what the
@@ -16,6 +16,7 @@ import type { CharacterSheet } from '../engine/character/sheet';
 import { blankScene } from '../engine/scene/grid-from-scene';
 import { projectSchema, sceneSchema, type ProjectDoc } from '../engine/scene/schema';
 import { idFromName } from './new-character';
+import { companionConversation, companionDialogue, companyFor, figureOf } from './camp-company';
 
 /** The company, by the model each is drawn with. */
 export const CAMP_CREW = ['quim', 'violet', 'scarlet', 'arty', 'pint', 'ganja'] as const;
@@ -82,10 +83,21 @@ export function campProject(sheet: CharacterSheet, now: number = Date.now()): Pr
   }
   const scene = sceneSchema.parse({ ...blankScene('camp', WIDTH, HEIGHT), name: 'The camp', intro: 'The fire is lit, and the company is gathered round it.', buildingTiles: ground });
   scene.spawns = [{ x: FIRE.x, y: FIRE.y + 4 }];
+  // The one whose model the new character took stays away: nobody meets their twin at the fire.
+  const company = companyFor(sheet);
+  const asked = new Map(company.map(({ sheet: theirs, companion }) => [companion.creation.model, theirs.id]));
   scene.decos = [
     { id: 'camp-fire', model: 'camp-fire-prop', position: { ...FIRE }, rotation: 0, solid: true },
-    // The one whose model the new character took stays away: nobody meets their twin at the fire.
-    ...crewPlaces().filter((figure) => figure.model !== sheet.model).map((figure) => ({ id: `${figure.model}-figure`, model: figure.model, position: { x: figure.x, y: figure.y }, rotation: figure.rotation, solid: true })),
+    ...crewPlaces()
+      .filter((figure) => asked.has(figure.model))
+      .map((figure) => ({
+        id: figureOf(figure.model),
+        model: figure.model,
+        position: { x: figure.x, y: figure.y },
+        rotation: figure.rotation,
+        solid: true,
+        function: { kind: 'interaction' as const, dialogue: companionDialogue(asked.get(figure.model)!) },
+      })),
     ...PROPS.map((prop) => ({ id: `${prop.model}-${prop.x}-${prop.y}`, model: prop.model, position: { x: prop.x, y: prop.y }, rotation: prop.rotation ?? 0, solid: true })),
   ];
   return projectSchema.parse({
@@ -95,6 +107,8 @@ export function campProject(sheet: CharacterSheet, now: number = Date.now()): Pr
     scenes: [scene],
     startScene: 'camp',
     party: [sheet],
+    companions: company.map(({ sheet: theirs }) => theirs),
+    dialogues: company.map(({ sheet: theirs, companion }) => companionConversation(theirs, companion)),
     packs: ['srd-characters'],
   });
 }

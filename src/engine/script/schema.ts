@@ -652,6 +652,11 @@ export const effectSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('learnPlan'), plan: contentIdSchema }),
   /** A card put in a character's hands (the engine's `game/cards.rs`): the actor's, unless a party member is named. */
   z.object({ kind: z.literal('grantCard'), card: contentIdSchema, to: contentIdSchema.optional() }),
+  /**
+   * One of the project's companions (`project.companions`) taken into the party - asked along at a camp fire - and
+   * the figure that stood for them, if named, taken away. The engine's (`game/party_join.rs`): at most four in a party.
+   */
+  z.object({ kind: z.literal('joinParty'), companion: contentIdSchema, figure: z.string().min(1).optional() }),
   /** Ticks one step off. Starts the quest if nothing has yet. */
   z.object({
     kind: z.literal('completeObjective'),

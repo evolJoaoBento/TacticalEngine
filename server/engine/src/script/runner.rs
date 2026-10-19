@@ -969,6 +969,17 @@ impl<'a, W: ScriptWorld + ?Sized> ScriptRunner<'a, W> {
                 }
                 None
             }
+            "joinParty" => {
+                // Taken along in the session, which holds the party (`game/party_join.rs`).
+                if let Some(companion) = s(effect, "companion") {
+                    let mut entry = json!({ "kind": "partyJoined", "companion": companion });
+                    if let Some(figure) = s(effect, "figure") {
+                        entry["figure"] = json!(figure);
+                    }
+                    self.journal.push(entry);
+                }
+                None
+            }
             "learnPlan" => {
                 let plan = s(effect, "plan").unwrap_or_default();
                 if self.world.learn_plan(plan) {

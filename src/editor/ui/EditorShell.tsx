@@ -458,6 +458,7 @@ export function EditorShell(props: EditorShellProps): preact.JSX.Element {
         planIds: (session.project.projectPlans ?? []).map((p) => p.id),
         cardIds: [...props.characterContent.cards.keys()],
         partyIds: session.project.party.map((sheet) => sheet.id),
+        companionIds: session.project.companions.map((sheet) => sheet.id),
       }}
     >
     <div class="ph-editor" data-testid="editor-shell" data-version={version}>

@@ -1191,7 +1191,7 @@ function refreshPlay(): void {
   if (activeScene().id === game.board.scene.id) {
     drainMotions();
     view.syncTokens(game.board.state, { reading: game.board.rolls.length > 0 });
-    view.setOpenings(new Set(interactablesOf(game.board.scene).map((thing) => thing.id).filter((id) => game.board.state.isOpen(id)))); // doors swing
+    view.setOpenings(new Set(interactablesOf(game.board.scene).map((thing) => thing.id).filter((id) => game.board.state.isOpen(id)))); view.setGone(new Set(interactablesOf(game.board.scene).map((thing) => thing.id).filter((id) => game.board.state.isRemoved(id)))); // doors swing; a thing taken away is gone
     drainFloaters();
     view.showZones(paintedZones());
     view.showSelection(game.board.party.selected === null ? NO_TILE : (game.board.state.entity(game.board.party.selected)?.tile ?? NO_TILE), game.board.party.selected);

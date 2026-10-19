@@ -12,6 +12,27 @@ friends-only or invite-only - friends both ways, chat at the table and between f
 between friends) are done: the phase is, and who is around after it. Next, what an evening played through the
 tunnel shows.
 
+## Adventures begun from the camp — slice 1 of 4 done: the company at the fire joins the party
+
+The user's plan (19 October 2026): New Game makes a character and begins at the camp; the company round the fire
+are companions who join the party when asked; a **portal** at the camp opens a chooser of the adventures this
+browser has - the Ashwell, and any imported - which begins with the party as it stands; the Ashwell is played with
+SRD characters and their cards, and leaves Load Game's "From the start"; adventures are imported on the main menu
+from a file, and are a kind of listing in the Store, published and got there.
+
+1. **Done: the company joins.** `project.companions` (mirrored in `document.rs`), the `joinParty` effect ("Join the
+   party": `script/schema.rs`, the runner journals `partyJoined`, `game/party_join.rs` acts on it - into the
+   project's party, `sync_roster`, the figure removed; four at most), the camp's six as SRD characters with a
+   conversation each (`game/camp-company.ts`), the page writing a companion the board's game took along into its
+   project (`restoreFromBoard`, or a rebuild of the engine would lose them), a removed thing no longer drawn
+   (`SceneView.setGone`), and the effect in the editor and in Check. Tests: `server/hooks/tests/party_join.rs`,
+   `camp.test.ts`, `board.test.ts`, `companions.test.ts`, `scene-view.test.ts`, `main-menu.spec.ts` (three asked
+   along, a fourth refused, kept through a save).
+2. Next: the portal and the chooser; the Ashwell rebuilt for the party that comes (`packs: ['srd-characters']`, the
+   Furnace's names from the party's sheets), begun only through the camp.
+3. The Adventures list on the main menu: import from a file, remove.
+4. Adventures in the Store: an `Adventure` listing, published and got.
+
 ## Peer to peer: a shared game with no server — slice 1 done
 
 `docs/PEER.md`. The host's page keeps the game (`src/game/peer/host-table.ts`, `play.rs`'s shared game in the
@@ -1105,8 +1126,7 @@ Decisions the user can overturn: a model is an ancestry's by its **file name** (
 field in the Models workspace, since new models arrive as files; the company's models stand in for
 an ancestry with none of its own. Traits and gear per class are the engine's (`new-character.ts`).
 
-**Still open:** the camp's company is scenery - talking to them and taking them along is the next
-step; the creation wizard does not ask for experiences, traits or gear (defaults, editable in Edit
+**Still open:** the camp's company joins when asked (above, "Adventures begun from the camp"); the creation wizard does not ask for experiences, traits or gear (defaults, editable in Edit
 Game); no starting items; the six company models belong to no ancestry; Load Game cannot delete a
 game yet. Unit `listed-packs.test.ts`, `camp.test.ts`, `start.test.ts`; e2e `main-menu.spec.ts`.
 

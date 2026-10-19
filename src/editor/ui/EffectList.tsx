@@ -49,6 +49,8 @@ export interface EffectListProps {
   /** What a `grantCard` can name: the cards there are, and the party members to give one to (`plans-context.ts`). */
   cardIds?: readonly string[];
   partyIds?: readonly string[];
+  /** What a `joinParty` can name: the project's companions. */
+  companionIds?: readonly string[];
 }
 
 /** The kinds this can build. Anything else is shown, not offered. */
@@ -69,6 +71,7 @@ const ADDABLE = [
   'startQuest',
   'learnPlan',
   'grantCard',
+  'joinParty',
   'completeObjective',
   'revealObjective',
   'completeQuest',
@@ -144,6 +147,7 @@ const LABELS: Readonly<Record<Addable, string>> = {
   startQuest: 'Start a quest',
   learnPlan: 'Teach a project plan',
   grantCard: 'Give a card',
+  joinParty: 'Join the party',
   completeObjective: 'Complete an objective',
   revealObjective: 'Reveal an objective',
   completeQuest: 'Complete a quest',
@@ -1145,6 +1149,18 @@ function renderBody(
               <option key={id} value={id}>{id}</option>
             ))}
           </select>
+        </>
+      );
+    case 'joinParty':
+      // The companion, and the figure that stood for them, taken away when they join.
+      return (
+        <>
+          {pick(effect.companion, props.companionIds ?? [], (companion) => ({ ...effect, companion }))}
+          <input style={field} value={effect.figure ?? ''} placeholder="the figure's object id (optional)" title="An object taken away when they join: the figure that stood for them" onChange={(e) => {
+            const figure = (e.target as HTMLInputElement).value.trim();
+            const { figure: _, ...rest } = effect;
+            onChange(figure === '' ? rest : { ...rest, figure });
+          }} />
         </>
       );
     case 'completeObjective':

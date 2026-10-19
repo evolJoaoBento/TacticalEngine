@@ -111,6 +111,9 @@ export function validateProject(
   checkCardsGiven(project, options, (severity, message, entity) => {
     problems.push({ severity, message, ...(entity === undefined ? {} : { entity }) });
   });
+  checkCompanionsJoining(project, (severity, message, entity) => {
+    problems.push({ severity, message, ...(entity === undefined ? {} : { entity }) });
+  });
   checkAbilitiesAndCode(project, options, (severity, message, entity) => {
     problems.push({ severity, message, ...(entity === undefined ? {} : { entity }) });
   });
@@ -820,6 +823,23 @@ function checkCardsGiven(
     if (cards !== null && !cards.has(effect.card)) add('error', `A "Give a card" effect gives card "${effect.card}", which does not exist.`, effect.card);
     if (effect.to !== undefined && !party.has(effect.to)) add('error', `A "Give a card" effect gives a card to "${effect.to}", who is not in the party.`, effect.to);
   });
+}
+
+/** A "Join the party" effect naming a companion the project has not got; a companion nothing asks along. */
+function checkCompanionsJoining(
+  project: ProjectDoc,
+  add: (severity: ProblemSeverity, message: string, entity?: string) => void,
+): void {
+  const companions = new Set(project.companions.map((sheet) => sheet.id));
+  const asked = new Set<string>();
+  walkProjectEffects(project, (effect) => {
+    if (effect.kind !== 'joinParty') return;
+    asked.add(effect.companion);
+    if (!companions.has(effect.companion)) add('error', `A "Join the party" effect names companion "${effect.companion}", who is not one of the project's companions.`, effect.companion);
+  });
+  for (const sheet of project.companions) {
+    if (!asked.has(sheet.id)) add('warning', `Companion "${sheet.id}" can never join: no "Join the party" effect names them.`, sheet.id);
+  }
 }
 
 /** A plan taught that the project has not got; a plan nothing teaches (`content/projects.ts`). */

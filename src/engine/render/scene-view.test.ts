@@ -176,6 +176,22 @@ describe('SceneView', () => {
     expect(big.position.z - one.position.z).toBeCloseTo(2 * tile, 5);
   });
 
+  it('draws nothing of a thing a script took away, and draws it again when it is not', () => {
+    const { view } = setup();
+    const talk = { kind: 'interaction' as const, dialogue: 'd' };
+    view.setDecos([
+      { id: 'violet-figure', model: 'husk', position: { x: 0, y: 0 }, rotation: 0, function: talk },
+      { id: 'quim-figure', model: 'husk', position: { x: 2, y: 0 }, rotation: 0, function: talk },
+      { model: 'husk', position: { x: 4, y: 0 }, rotation: 0 },
+    ]);
+    const drawn = (name: string) => view.root.children.find((child) => child.name === name)!;
+    view.setGone(new Set(['violet-figure']));
+    expect([drawn('object:violet-figure').visible, drawn('object:quim-figure').visible]).toEqual([false, true]);
+    expect(view.root.children.filter((child) => child.name === 'model:husk').every((child) => child.visible)).toBe(true);
+    view.setGone(new Set());
+    expect(drawn('object:violet-figure').visible).toBe(true);
+  });
+
   it('draws an even block centred where its tiles meet, not on a tile', () => {
     const { view } = setup();
     view.setDecos([

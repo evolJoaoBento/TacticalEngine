@@ -475,6 +475,11 @@ export class SceneState {
     return this.interactables.get(id)?.open === true;
   }
 
+  /** Whether a script took it away, read without making a record for it: as `isOpen`, for the view. */
+  isRemoved(id: string): boolean {
+    return this.interactables.get(id)?.removed === true;
+  }
+
   /** The tile an interactable stands on, or `NO_TILE`. */
   interactableTile(id: string): number {
     return this.interactableTiles.get(id) ?? NO_TILE;

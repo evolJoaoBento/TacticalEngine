@@ -196,6 +196,7 @@ export function importLegacyCampaign(
       name,
       // A legacy campaign has no party: the game falls back on its own sheets.
       party: [],
+      companions: [],
       abilities: [],
       code: [],
       conditionDefs: [],

@@ -356,6 +356,15 @@ cards (`game/cards.rs`: in the vault if the loadout is full, swapped in on a res
 the card from the project's and the packs' cards and the receiver from the party; validation errs on a card there
 is not and on a receiver who is not in the party.
 
+**A companion taken along** is an effect too (`joinParty`, "Join the party", 19 October 2026): one of the project's
+companions (`project.companions`, sheets written as the party's are) joins the party - the project's party, the
+board beside the party, the log ("Violet joins the party.") - and the figure that stood for them, if the effect
+names one, is taken away (`game/party_join.rs`). Four is a party: one asked fifth stays, the log saying why. A save
+keeps them. A thing a script takes away (`remove`) is no longer drawn. New Game's camp is where this is used: its
+company are six SRD characters, each asked along at their figure by the fire (`game/camp-company.ts`). The effect
+editor picks the companion; validation errs on one the project has not got and warns of one nothing asks along.
+Companions are written in the project file: the Party panel does not list them yet.
+
 The editor has a quest list and a form — name, summary, steps — because a quest is a list and a
 list is edited as a list; the graph was the right call for conversations, not for this. The
 effect editor offers the four quest effects with the quest picked from a dropdown and the

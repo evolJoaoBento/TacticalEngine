@@ -545,6 +545,12 @@ export const projectSchema = z
      */
     party: z.array(characterSheetSchema).default([]),
     /**
+     * Who may join the party during play (`joinParty`, `game/party_join.rs`): sheets written as the party's
+     * are, waiting to be asked - the company round a New Game's camp fire. Not in the party until one joins,
+     * and then in both: a companion already in the party cannot join it again.
+     */
+    companions: z.array(characterSheetSchema).default([]),
+    /**
      * The house rule for height: what a step is, who jumps how far, the roll it asks, what a
      * fall costs. Optional rather than defaulted, like `terrainPalette`: a project that says
      * nothing plays by `DEFAULT_JUMP_RULES`, and saving it does not write them down.
@@ -624,6 +630,13 @@ export const projectSchema = z
         ctx.addIssue({ code: 'custom', path: ['party', i, 'id'], message: `duplicate character id "${sheet.id}"` });
       }
       partyIds.add(sheet.id);
+    });
+    const companionIds = new Set<string>();
+    project.companions.forEach((sheet, i) => {
+      if (companionIds.has(sheet.id)) {
+        ctx.addIssue({ code: 'custom', path: ['companions', i, 'id'], message: `duplicate companion id "${sheet.id}"` });
+      }
+      companionIds.add(sheet.id);
     });
     project.abilities.forEach((ability, i) => {
       if (abilityIds.has(ability.id)) {

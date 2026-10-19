@@ -40,6 +40,8 @@ export function blank(kind: Addable, props: EffectListProps): Effect {
     case 'learnPlan': return { kind: 'learnPlan', plan: props.planIds?.[0] ?? '' };
     case 'grantCard':
       return { kind: 'grantCard', card: props.cardIds?.[0] ?? '' };
+    case 'joinParty':
+      return { kind: 'joinParty', companion: props.companionIds?.[0] ?? '' };
     case 'completeObjective':
     case 'revealObjective':
       return {

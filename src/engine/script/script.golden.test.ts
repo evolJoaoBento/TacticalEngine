@@ -77,6 +77,7 @@ const WRITTEN: Record<string, unknown[]> = {
     { kind: 'gainBad', amount: 2 }, { kind: 'loseBad' }, { kind: 'gainGood', amount: 1, target: t }, { kind: 'spendGood', amount: 'spent' }, { kind: 'loseGood', target: t },
     { kind: 'applyCondition', condition: 'vulnerable', duration: 'scene', target: t }, { kind: 'clearCondition', condition: 'hidden', target: t },
     { kind: 'revive', target: t }, { kind: 'slay' }, { kind: 'openShop', of: 'smith' }, { kind: 'setAttitude', attitude: 'hostile', target: t },
+    { kind: 'joinParty', companion: 'violet', figure: 'violet-figure' }, { kind: 'joinParty', companion: 'quim' },
     { kind: 'attack', weapon: 'secondary', by: 'target', target: t, advantage: -1, damageBonus: 2, damageDice: 'd8', damage: '2d6+2', range: 'far', direct: true, joinedBy: { kind: 'allies' }, onHit: [log], onMiss: [] },
     { kind: 'addToken', ability: 'ward', amount: { trait: 'knowledge' }, target: t }, { kind: 'spendToken', ability: 'ward', amount: 1, all: true, target: t },
     { kind: 'push', to: 'close', target: t }, { kind: 'summon', adversary: 'rat', count: 'd4', perPc: true, range: 'close', spotlight: true },

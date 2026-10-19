@@ -7,6 +7,7 @@
  * those are taken.
  */
 
+import { characterSheetSchema } from '../engine/character/sheet-schema';
 import { EncounterRunner } from '../engine/combat/encounter';
 import type { DualityRoll } from '../engine/rules/duality';
 import { restoreScenario } from '../engine/script/world';
@@ -117,7 +118,12 @@ export function shownFrom(demo: DemoScene, projected: Projected): Pending {
 export function restoreFromBoard(demo: DemoScene, board: BoardSnapshot): void {
   const { replica } = board;
   restoreScenario(demo.scenario, replica.scenario);
-  for (const sheet of replica.sheets) setSheet(demo, sheet);
+  // A companion the board's game took along (`joinParty`) is in its party and not yet in the page's project: written
+  // into it, or the next time the page builds the game again from its project they would be gone.
+  for (const sheet of replica.sheets) {
+    if (!demo.project.party.some((member) => member.id === sheet.id)) demo.project.party.push(characterSheetSchema.parse(sheet));
+    setSheet(demo, sheet);
+  }
   // The same room: its state put back in place, on the ground the page holds - which the editor may have
   // changed under it (`takeGround`) and no snapshot carries. Another room: entered as the board's game left it.
   if (demo.scene.id === replica.sceneId) demo.state.restore(replica.state);

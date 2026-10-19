@@ -515,6 +515,7 @@ impl Session {
     /// creatures turned, the pools, and what the party's rolls answer.
     fn react(&mut self, journal: &[Value]) -> Result<(), String> {
         self.react_to_cards(journal)?;
+        self.react_to_joining(journal)?;
         self.react_to_things(journal);
         self.react_to_fights(journal);
         self.sync_pools();

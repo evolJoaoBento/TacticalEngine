@@ -23,6 +23,9 @@ import { shippedContent } from './shipped';
 import { WasmEngine } from './wasm-engine';
 import { WasmGame } from './wasm-game';
 import { barWorkshop } from '../../tests/fixtures/bar-workshop';
+import { campProject } from './camp';
+import { withListedPacks } from './listed-packs';
+import { sheetFor } from './new-character';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const WASM = resolve(here, '../../public/wasm/engine.wasm');
@@ -135,6 +138,20 @@ describe('a board filled into the page\'s game', () => {
     expect(demo.scene.id).toBe(other);
     expect(demo.grid).not.toBe(ground);
     expect(firstDifference(boardOf(demo), boardOf(elsewhere), 'board')).toBeNull();
+  });
+
+  it.skipIf(!built)('writes a companion the board\'s game took along into the page\'s project, so a game built again from it keeps them', async () => {
+    const camp = campProject(sheetFor({ name: 'Wren', ancestryId: 'elf', model: 'violet', communityId: 'wildborne', classId: 'ranger', subclassId: 'wayfinder', domainCards: ['gifted-tracker', 'natures-tongue'] }), 0);
+    const demo = buildProjectScene(withListedPacks(camp), 'camp-page');
+    // The board's game, which has taken Quim along: the camp with Quim in its party.
+    const quim = camp.companions.find((sheet) => sheet.id === 'quim')!;
+    const joined = buildProjectScene(withListedPacks({ ...camp, party: [...camp.party, quim] }), 'camp-board');
+    restoreFromBoard(demo, JSON.parse(JSON.stringify(boardOf(joined))));
+    expect(demo.project.party.map((sheet) => sheet.id)).toEqual(['wren', 'quim']);
+    // Built again from the page's project - an edit, a reload of the engine - Quim is still there.
+    const engine = await WasmEngine.load(readFileSync(WASM));
+    new WasmGame(demo, engine, shippedContent());
+    expect((engine.board() as BoardSnapshot).replica.sheets.map((sheet) => sheet.id)).toEqual(['wren', 'quim']);
   });
 
   it('takes the pools as the board has them, not derived again', () => {

@@ -134,8 +134,11 @@ after adding files. Without them every card is its words, as on a fresh clone.
 Traits and starting gear are filled in for the class - a spread of +2 +1 +1 0 0 −1 on the traits it
 leans on, and a weapon and armour from the equipment - and can be changed in Edit Game. The camp is a
 clearing with a fire: the character just made is the party, and the rest of the company stands round
-the fire - only figures for now, not yet to be talked to or taken along; the one whose model you took
-stays away. The game is kept in this browser, and its saves are its own.
+the fire - Quim the guardian, Violet the rogue, Scarlet the wizard, Arty the ranger, Pint the seraph and
+Ganja the warrior, each made as your character was, with their class's cards and gear; the one whose
+model you took stays away. Walk up to one and talk: **Come with us** and they join the party and leave
+the fire; **What can you do?** has them say. Four is a party - asked fifth, one stays where they are. The
+game is kept in this browser, and its saves are its own, the company you took along with them.
 
 **Peer to Peer** plays a game with friends browser to browser, with no server between you
 (`docs/PEER.md`). Give your name, then either **Join** a game or host one of your games (or a save)

@@ -269,6 +269,8 @@ pub fn effect() -> &'static Schema {
                 ("learnPlan", object(vec![kind("learnPlan"), req("plan", content_id())])),
                 // A card given a character to hold (`game/cards.rs`): the actor's, or the one named.
                 ("grantCard", object(vec![kind("grantCard"), req("card", content_id()), opt("to", content_id())])),
+                // A companion taken into the party (`game/party_join.rs`), and the figure that stood for them away.
+                ("joinParty", object(vec![kind("joinParty"), req("companion", content_id()), opt("figure", words())])),
                 objective("completeObjective"),
                 quest("completeQuest"),
                 objective("revealObjective"),

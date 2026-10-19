@@ -233,12 +233,13 @@ const SAMPLE: Raw = {
       model: 'kara',
     },
   ],
+  companions: [{ id: 'violet', name: 'Violet', level: 1, classId: 'rogue', subclassId: 'nightwalker', ancestryId: 'elf', communityId: 'slyborne', traits: { agility: 1, strength: -1, finesse: 2, instinct: 0, presence: 1, knowledge: 0 }, domainCards: ['b'], model: 'violet' }],
   jump: { enabled: true, difficulty: 10, reachTrait: 'agility', stepHeight: 0.5 },
   startScene: 'room',
 };
 
 /** How deep each part of the project is broken: a scene furthest, since it is what this port adds. */
-const DEPTH: Record<string, number> = { scenes: 6, party: 5, structureTypes: 4, propPresets: 5, assets: 3, surfaces: 3, terrainPalette: 3, jump: 2, adversaryModels: 2 };
+const DEPTH: Record<string, number> = { scenes: 6, party: 5, companions: 3, structureTypes: 4, propPresets: 5, assets: 3, surfaces: 3, terrainPalette: 3, jump: 2, adversaryModels: 2 };
 
 function placesIn(value: unknown, left: number, at: Path): Path[] {
   if (left <= 0 || value === null || typeof value !== 'object') return [];
@@ -308,6 +309,7 @@ function corners(): { name: string; value: unknown }[] {
         assets: [{ id: 'a', url: 'a' }, { id: 'a', url: 'b' }],
         quests: [...first('quests'), ...first('quests')],
         party: [...(SAMPLE['party'] as unknown[]), ...(SAMPLE['party'] as unknown[])],
+        companions: [...(SAMPLE['companions'] as unknown[]), ...(SAMPLE['companions'] as unknown[])],
         abilities: [...first('abilities'), ...first('abilities')],
         lootTables: [...first('lootTables'), ...first('lootTables')],
         startScene: 'elsewhere',
