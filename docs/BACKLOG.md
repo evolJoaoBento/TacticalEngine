@@ -21,7 +21,24 @@ own; the fight's spotlight, the GM's turn and the questions go as at a server's 
 the real engine (`src/game/peer/*.test.ts`), and `tests/e2e/peer.spec.ts` in two browsers. Next: an evening across
 two real networks.
 
-## The Ashwell: the hub and Level 1 — done; Levels 2 to 5 next
+## The Ashwell, Level 2: the Ossuary Market — done; Level 3 next
+
+Three scenes (`docs/ASHWELL.md`): the Market, with no fight - Factor Dunmere's shop, Usher Grale's errand, the
+Guild's door that opens to his mark; the Charnel Pit, its fight and the bell-rope; the Counting House, where Sela
+Marrow and hers stand on nobody's side (`interaction: friendly`, her dialogue) until she is refused, and then all
+turn at once (`setAttitude hostile` over `entities`), a fight begun by an answer (`startsOnTrigger: false`). Her
+price is a name - three ways to pay, each giving the Bone Door's key and a flag the story reads later
+(`gave-ketchs-name`, which Ketch notices); the key is in her ledger-box if she is fought. The Sump's stair is now the
+way into the Market (the first time, Level 1's end). Two stat blocks of its own: the Pit Ghoul and the Bone-Broker.
+
+- **A dialogue choice is answered by its place among all the node's choices**, those not offered too; the driver's
+  `dialogueOptions` lists only the words of those offered. `tests/e2e/ashwell.spec.ts` clicks the panel's buttons.
+- **A conversation's last node needs a reply** for a test's drain to close it (a node with no choices waits on
+  **Continue**); every node in the Ashwell has one.
+- Next: Level 3, the Drowned Library. Tests: `ashwell.test.ts` (the Market's three rooms and the three prices),
+  `tests/e2e/ashwell.spec.ts` (Level 2 paid for, and fought for).
+
+## The Ashwell: the hub and Level 1 — done
 
 `docs/ASHWELL.md`: a grim megadungeon of the engine's own in five levels, all designed there. Built in code as a
 project (`src/game/adventures/ashwell.ts`, `ashwellProject`) and begun from the main menu's Load Game (**The Ashwell

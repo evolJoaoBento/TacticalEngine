@@ -35,7 +35,7 @@ two thirds.
 | Interaction | Use a thing: keys, locked text, an action roll, effects and prose per outcome |
 | Editor | Terrain/height/props/objects/enemies/triggers/spawns, creatures of the project's own (copied from one, stat block edited; features not yet), undo, validation, JSON save+load |
 | UI | Narrative log with tone, the conversation panel, and the roll prompt a script raises |
-| Campaign | Two scenes, travel between them, and state that outlives a room; **The Ashwell** (`docs/ASHWELL.md`), the engine's own adventure, its hub and Level 1 built (four scenes, three fights, a quest, a boss) and levels 2 to 5 designed |
+| Campaign | Two scenes, travel between them, and state that outlives a room; **The Ashwell** (`docs/ASHWELL.md`), the engine's own adventure, its hub, Level 1 and Level 2 built (seven scenes, five fights, two quests, two bosses, a shop, a price paid or fought for) and levels 3 to 5 designed |
 | Saving | A campaign put down and picked up: rooms, pack, flags, and the dice position |
 | Quests | Start, tick, finish; a journal; a demo quest across two rooms |
 | Accounts & store | Sign in on the dev server, each player's games and saves their own; a store of published art where creators show their work - How I Made It and Process Proof - and are marked AI until they do, with a Human-Crafted Authenticity vote on work shown; for sale only with the work shown and never AI generated (no payments yet; dev server only); every engine model listed, and Get puts a model into the player's own models, which every project they open has and which a project they open adds to on the fly |

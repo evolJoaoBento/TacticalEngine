@@ -61,7 +61,14 @@ Throat itself, with the Wellrats' camp at the end of its flooded gallery; the Ke
 passage from the shaft; and the Sump, down the passage from the camp, where the Cistern Warden keeps
 the key to the gate over the stair down. Each room holds one fight, begun by walking into it. A chest
 that belongs to a fight's side will not open while that side is standing. The stair down ends the
-level for now: you climb back to the Lantern a level higher, and Ketch has something to say.
+level and takes you on, through a door of bone, into **Level 2, the Ossuary Market**: a market of the
+dead, kept by the polite Quiet Guild. Nobody fights in the Market. Usher Grale, at the Guild's door,
+sets you an errand in the Charnel Pit below; done, he marks you, and the Counting House opens. There
+Sela Marrow, the Bone-Broker, sells the way down for a name - Mother Ketch's, one of your own (it
+costs every one of you Stress), or the dead Warden's if you can talk her into it - and you may refuse
+and take the key from her instead. Factor Dunmere's stall sells potions and gear for gold. The wet
+stair past the Bone Door ends Level 2 for now: back to the Lantern, a level higher, where Ketch has
+heard of the Guild - and, if it was her name you sold, has lost something she cannot place.
 
 **New Game** is played at a wooden table, one choice at a time. Each choice is a **deck** dealt face
 up, and only its top card shows. **Drag** cards off the top and put them down anywhere on the table to

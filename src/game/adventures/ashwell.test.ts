@@ -11,7 +11,7 @@ import { walkEffects, type Effect } from '../../engine/script/schema';
 import { itemsFor } from '../../engine/content/equipment/catalogue';
 import { STARTER_ADVERSARIES } from '../../engine/content/pack/starter';
 import { buildingKey } from '../../engine/scene/building';
-import { ASHWELL_ID, HUB_ID, KENNEL_ID, QUEST_ID, SUMP_ID, SUMP_KEY, THROAT_ID, WARDEN_ID, ashwellProject, sceneFromRows } from './ashwell';
+import { ASHWELL_ID, BONE_KEY, BROKER_ID, COUNTING_ID, GUILD_MARK, HUB_ID, KENNEL_ID, MARKET_ID, MARKET_QUEST, PIT_ID, QUEST_ID, SELA_DIALOGUE, SUMP_ID, SUMP_KEY, THROAT_ID, WARDEN_ID, ashwellProject, sceneFromRows } from './ashwell';
 
 /** Every effect the project can run: on its props, in its dialogues, in each branch of either. */
 function effectsOf(project: ProjectDoc): Effect[] {
@@ -66,8 +66,12 @@ describe('the Ashwell, as a project', () => {
     expect(leads.get(HUB_ID)).toEqual(new Set([THROAT_ID]));
     expect(leads.get(THROAT_ID)).toEqual(new Set([HUB_ID, KENNEL_ID, SUMP_ID]));
     expect(leads.get(KENNEL_ID)).toEqual(new Set([THROAT_ID]));
-    // The Sump's stair down ends the level, and climbs back to the Lantern.
-    expect(leads.get(SUMP_ID)).toEqual(new Set([THROAT_ID, HUB_ID]));
+    // The Sump's stair down ends Level 1 and goes on into the Market; the Market's bone stair climbs back to it.
+    expect(leads.get(SUMP_ID)).toEqual(new Set([THROAT_ID, MARKET_ID]));
+    expect(leads.get(MARKET_ID)).toEqual(new Set([SUMP_ID, PIT_ID, COUNTING_ID]));
+    expect(leads.get(PIT_ID)).toEqual(new Set([MARKET_ID]));
+    // The Counting House's wet stair ends Level 2, and climbs back to the Lantern.
+    expect(leads.get(COUNTING_ID)).toEqual(new Set([MARKET_ID, HUB_ID]));
   });
 
   it('hands out only things that exist, and fields only stat blocks it has or the engine ships', () => {
@@ -103,6 +107,51 @@ describe('the Ashwell, as a project', () => {
     // And the quest: every objective is completed somewhere.
     const done = new Set(effectsOf(project).flatMap((effect) => (effect.kind === 'completeObjective' && effect.quest === QUEST_ID ? [effect.objective] : [])));
     expect([...done].sort()).toEqual(project.quests[0]!.objectives.map((o) => o.id).sort());
+  });
+});
+
+describe('Level 2, the Ossuary Market', () => {
+  const project = ashwellProject();
+  const scene = (id: string) => project.scenes.find((s) => s.id === id)!;
+  const deco = (id: string, name: string) => scene(id).decos.find((d) => d.id === name)!;
+
+  it('is a peaceful market, a pit with a fight, and a counting house whose fight only the Broker’s answer begins', () => {
+    expect(scene(MARKET_ID).encounters).toEqual([]);
+    expect(scene(PIT_ID).encounters.map((e) => e.id)).toEqual(['the-pit']);
+    const broker = scene(COUNTING_ID).encounters[0]!;
+    expect([broker.id, broker.startsOnTrigger, broker.triggerCells]).toEqual(['the-broker', false, []]);
+    expect(broker.adversaries.map((a) => a.adversary)).toContain(BROKER_ID);
+    // All of hers talk until she answers otherwise, and all of them turn when she does.
+    expect(broker.adversaries.every((a) => a.interaction?.kind === 'friendly' && a.interaction.dialogue === SELA_DIALOGUE)).toBe(true);
+    const turned: Effect[] = [];
+    walkEffects(project.dialogues.find((d) => d.id === SELA_DIALOGUE)!.nodes.find((n) => n.id === 'fight')!.onEnter!, (effect) => void turned.push(effect));
+    expect(turned.find((effect) => effect.kind === 'setAttitude')).toMatchObject({ attitude: 'hostile', target: { kind: 'entities', ids: broker.adversaries.map((a) => a.id) } });
+  });
+
+  it('opens the Counting House to the Guild’s mark, and the stair down to the Broker’s key, however it was paid for', () => {
+    const door = deco(MARKET_ID, 'guild-door').function!;
+    expect(door.kind === 'script' && door.requiresKey).toBe(GUILD_MARK);
+    const bone = deco(COUNTING_ID, 'bone-door').function!;
+    expect(bone.kind === 'script' && bone.requiresKey).toBe(BONE_KEY);
+    // Every way of paying her - Ketch's name, one of the party's, Annick's - gives the key.
+    const sela = project.dialogues.find((d) => d.id === SELA_DIALOGUE)!;
+    for (const node of ['ketch', 'ours', 'annick']) {
+      const given: Effect[] = [];
+      walkEffects(sela.nodes.find((n) => n.id === node)!.onEnter!, (effect) => void given.push(effect));
+      expect(given.some((effect) => effect.kind === 'giveKey' && effect.key === BONE_KEY), node).toBe(true);
+    }
+    // And fighting her for it: her ledger-box gives it, once her fight is over.
+    const box: Effect[] = [];
+    const ledger = deco(COUNTING_ID, 'brokers-ledger-box').function!;
+    if (ledger.kind === 'script') walkEffects(ledger.effects, (effect) => void box.push(effect));
+    expect(box.some((effect) => effect.kind === 'giveKey' && effect.key === BONE_KEY)).toBe(true);
+    expect(box.some((effect) => effect.kind === 'branch' && effect.when.kind === 'encounter' && effect.when.id === 'the-broker' && effect.when.state === 'ended')).toBe(true);
+  });
+
+  it('completes every objective of its quest somewhere, and begins it where Level 1 ends', () => {
+    const done = new Set(effectsOf(project).flatMap((effect) => (effect.kind === 'completeObjective' && effect.quest === MARKET_QUEST ? [effect.objective] : [])));
+    expect([...done].sort()).toEqual(project.quests.find((q) => q.id === MARKET_QUEST)!.objectives.map((o) => o.id).sort());
+    expect(effectsOf(project).some((effect) => effect.kind === 'startQuest' && effect.quest === MARKET_QUEST)).toBe(true);
   });
 });
 

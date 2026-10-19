@@ -28,6 +28,11 @@ async function fight(page: Page, at: { x: number; y: number }): Promise<void> {
     a.arrive();
   }, at);
   await expect.poll(() => page.evaluate(() => window.__engine!.inCombat()), { timeout: 15_000 }).toBe(true);
+  await win(page);
+}
+
+/** The fight going on, won: every adversary wounded to a blow from down, then struck by whoever can reach. */
+async function win(page: Page): Promise<void> {
   for (let round = 0; round < 40 && (await page.evaluate(() => window.__engine!.inCombat())); round++) {
     await page.evaluate(() => {
       const a = window.__engine!;
@@ -56,11 +61,33 @@ async function use(page: Page, id: string): Promise<string> {
   return said;
 }
 
-const quest = (page: Page) => page.evaluate(() => window.__engine!.journal().find((q) => q.id === 'down-the-ashwell') ?? null);
+const questOf = (page: Page, id: string) => page.evaluate((wanted) => window.__engine!.journal().find((q) => q.id === wanted) ?? null, id);
+const quest = (page: Page) => questOf(page, 'down-the-ashwell');
+const market = (page: Page) => questOf(page, 'the-ossuary-market');
+const scene = (page: Page) => page.evaluate(() => window.__engine!.sceneId());
+
+/**
+ * A choice in the conversation open, by its words, clicked as a player clicks it: the panel's button answers with the
+ * choice's place among all the node's choices, the ones not offered too, which the words alone do not say.
+ */
+async function choose(page: Page, text: string): Promise<void> {
+  await expect.poll(() => page.evaluate(() => window.__engine!.dialogueOptions())).toContain(text);
+  await page.getByTestId('dialogue').locator('.panel-option', { hasText: text }).first().click();
+}
+
+/** A creature spoken to: walked up to, and the conversation it opens. */
+async function talkTo(page: Page, id: string): Promise<void> {
+  await page.evaluate((who) => {
+    const a = window.__engine!;
+    a.attack(who);
+    a.arrive();
+  }, id);
+  await expect.poll(() => page.evaluate(() => window.__engine!.hasDialogue())).toBe(true);
+}
 const lastLine = (page: Page) => page.evaluate(() => window.__engine!.log().at(-1)?.text ?? '');
 
-test('the Ashwell, Level 1: begun from the menu, Ketch heard, the Throat cleared, the gate opened and the stair taken', async ({ page }) => {
-  test.setTimeout(240_000);
+/** Level 1, from the menu to the Market: Ketch heard, the Throat cleared, the gate opened and the stair taken. */
+async function levelOne(page: Page): Promise<void> {
   await page.goto('/?menu');
   await page.getByTestId('menu-load').click();
   await page.getByTestId('menu-play-ashwell').click();
@@ -125,15 +152,122 @@ test('the Ashwell, Level 1: begun from the menu, Ketch heard, the Throat cleared
   expect(await page.evaluate(() => window.__engine!.objectState('sump-gate').removed)).toBe(true);
   await page.screenshot({ path: 'test-results/ashwell-sump.png' });
 
-  // The stair down: Vane's second page, a level, and the climb back up to the Lantern.
+  // The stair down: Vane's second page, a level, the Level done - and through the bone door into the Market.
   await use(page, 'stair-down');
   await drain(page);
   expect((await page.evaluate(() => window.__engine!.log().map((line) => line.text))).some((text) => text.startsWith('Entry 4,113'))).toBe(true);
-  await expect.poll(() => page.evaluate(() => window.__engine!.sceneId())).toBe('lantern-and-lye');
+  await expect.poll(() => scene(page)).toBe('ossuary-market');
   expect(await quest(page)).toMatchObject({ status: 'completed' });
+  expect(await market(page)).toMatchObject({ status: 'active', done: ['reach-the-market'] });
+}
 
-  // Ketch, after.
+/** Level 2 as far as the Broker: Grale's errand, the Charnel Pit's fight and its bell-rope, the mark and the Guild's door. */
+async function toTheBroker(page: Page): Promise<void> {
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: 'test-results/ashwell-market.png' });
+  // The Guild's door is shut to the unmarked.
+  await use(page, 'guild-door');
+  await drain(page);
+  expect(await page.evaluate(() => window.__engine!.objectState('guild-door').removed)).toBe(false);
+  await use(page, 'usher-grale');
+  await choose(page, 'We want to go further down.');
+  await choose(page, '[Go to the pit.]');
+  await drain(page);
+  expect((await market(page))?.done).toContain('speak-to-the-guild');
+  // The Charnel Pit: the rope is out of reach while the dead stand.
+  await use(page, 'down-to-the-pit');
+  await drain(page);
+  await expect.poll(() => scene(page)).toBe('charnel-pit');
+  await fight(page, { x: 7, y: 3 });
+  await use(page, 'bell-rope');
+  await drain(page);
+  expect((await market(page))?.done).toContain('clear-the-pit');
+  await use(page, 'up-from-the-pit');
+  await drain(page);
+  await expect.poll(() => scene(page)).toBe('ossuary-market');
+  // Marked, and through.
+  await use(page, 'usher-grale');
+  await choose(page, 'The rope is cut. The bell will not ring again.');
+  await choose(page, '[Go to the door.]');
+  await drain(page);
+  await use(page, 'guild-door');
+  await drain(page);
+  expect(await page.evaluate(() => window.__engine!.objectState('guild-door').removed)).toBe(true);
+  await use(page, 'down-to-the-counting-house');
+  await drain(page);
+  await expect.poll(() => scene(page)).toBe('counting-house');
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: 'test-results/ashwell-counting-house.png' });
+}
+
+/** The Bone Door opened with the Broker's key, and the wet stair taken: the Level done, and the climb back to the Lantern. */
+async function downTheWetStair(page: Page): Promise<void> {
+  await use(page, 'bone-door');
+  await drain(page);
+  expect(await page.evaluate(() => window.__engine!.objectState('bone-door').removed)).toBe(true);
+  await use(page, 'library-stair');
+  await drain(page);
+  expect((await page.evaluate(() => window.__engine!.log().map((line) => line.text))).some((text) => text.startsWith('Entry 4,120'))).toBe(true);
+  await expect.poll(() => scene(page)).toBe('lantern-and-lye');
+  expect(await market(page)).toMatchObject({ status: 'completed' });
+}
+
+test('the Ashwell, Level 1: begun from the menu, Ketch heard, the Throat cleared, the gate opened and the stair taken into the Market', async ({ page }) => {
+  test.setTimeout(240_000);
+  await levelOne(page);
+  // The bone stair climbs back to the Sump, and the Sump's stair comes straight down again, the page read once.
+  await use(page, 'bone-stair-up');
+  await drain(page);
+  await expect.poll(() => scene(page)).toBe('the-sump');
+  const pages = await page.evaluate(() => window.__engine!.log().filter((line) => line.text.startsWith('Entry 4,113')).length);
+  await use(page, 'stair-down');
+  await drain(page);
+  await expect.poll(() => scene(page)).toBe('ossuary-market');
+  expect(await page.evaluate(() => window.__engine!.log().filter((line) => line.text.startsWith('Entry 4,113')).length)).toBe(pages);
+  expect(await page.evaluate(() => window.__engine!.errors)).toEqual([]);
+});
+
+test('the Ashwell, Level 2 paid for: the errand in the pit, the Guild\u2019s mark, a name of the party\u2019s own for the key, and back to Ketch', async ({ page }) => {
+  test.setTimeout(300_000);
+  await levelOne(page);
+  await toTheBroker(page);
+  // The Broker's box is not to be touched by a customer.
+  await use(page, 'brokers-ledger-box');
+  await drain(page);
+  expect(await lastLine(page)).toBe('A Guild clerk looks at your hand on the box until you take it off.');
+  const before = await page.evaluate(() => window.__engine!.party().map((id) => window.__engine!.stressOf(id).marked));
+  await talkTo(page, 'sela-marrow');
+  await choose(page, 'Take one of ours.');
+  await choose(page, '[Take the key.]');
+  await drain(page);
+  expect(await page.evaluate(() => window.__engine!.inCombat())).toBe(false);
+  expect((await market(page))?.done).toContain('the-broker');
+  // It cost them: every one of them is the worse for it.
+  const after = await page.evaluate(() => window.__engine!.party().map((id) => window.__engine!.stressOf(id).marked));
+  after.forEach((marked, i) => expect(marked).toBeGreaterThan(before[i]!));
+  await downTheWetStair(page);
+  // Ketch, after the Market - her own name still hers.
   await use(page, 'mother-ketch');
-  await expect.poll(() => page.evaluate(() => window.__engine!.dialogueOptions())).toContain('We came back up. There is a stair, past the Sump, and it goes on.');
+  await choose(page, 'We have been to the Market under the Sump.');
+  await expect.poll(() => page.evaluate(() => window.__engine!.dialogueOptions())).toEqual(['[Sit down by the fire.]']);
+  expect(await page.evaluate(() => window.__engine!.errors)).toEqual([]);
+});
+
+test('the Ashwell, Level 2 fought for: the Broker refused, she and hers turned on the party, and her ledger-box opened over them', async ({ page }) => {
+  test.setTimeout(300_000);
+  await levelOne(page);
+  await toTheBroker(page);
+  await talkTo(page, 'sela-marrow');
+  await choose(page, 'We will take the key instead.');
+  await choose(page, '[Draw steel.]');
+  await drain(page);
+  // Her answer is the fight: all four of hers, at once.
+  await expect.poll(() => page.evaluate(() => window.__engine!.inCombat()), { timeout: 15_000 }).toBe(true);
+  expect((await page.evaluate(() => window.__engine!.adversaries())).sort()).toEqual(['guild-bonecutter-1', 'guild-bonecutter-2', 'guild-tallyman', 'sela-marrow']);
+  await win(page);
+  await use(page, 'brokers-ledger-box');
+  await drain(page);
+  expect((await market(page))?.done).toContain('the-broker');
+  await downTheWetStair(page);
   expect(await page.evaluate(() => window.__engine!.errors)).toEqual([]);
 });

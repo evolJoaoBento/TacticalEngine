@@ -4,7 +4,7 @@ An adventure of the engine's own: every place, person and beat in it is written 
 (`src/game/adventures/ashwell.ts`) as a project document, and begun from the main menu (**The Ashwell → Begin**),
 which keeps it as a game of its own in the browser, as New Game keeps a camp.
 
-**Status:** the hub and Level 1 are built and playable. Levels 2 to 5 are designed here and are the next slices, one a
+**Status:** the hub, Level 1 and Level 2 are built and playable. Levels 3 to 5 are designed here and are the next slices, one a
 level.
 
 ## The premise
@@ -58,7 +58,25 @@ well-keeper, now the Wellrats' chief, armoured in rusted well-chain.
 **Vane's page:** *"They came down in good order. They checked the rope twice. The tall one was afraid of the water
 and did not say so. Entry 4,112."*
 
-## Level 2 — The Ossuary Market
+## Level 2 — The Ossuary Market (built)
+
+Three scenes: the Market, where nobody fights; the Charnel Pit, down a passage east; and the Counting House, behind
+the Guild's door. The Sump's stair comes down into the Market the first time with Vane's page (the end of Level 1),
+and every time after without it; the Market's bone stair climbs back to the Sump.
+
+- **The Market** — stalls of stacked bone; **Factor Osk Dunmere**, who sells potions and gear and buys at two-fifths;
+  **Usher Grale** at the Guild's door, who sets the errand; Vane's page pinned to a stall with a finger bone.
+- **The Charnel Pit** — three Pit Ghouls (a stat block of the adventure's own, tier 2) and the Bone-Rats. The bell-rope
+  cannot be cut while they stand; cut, Grale marks the party, and the Guild's door opens to the mark.
+- **The Counting House** — **Sela Marrow, the Bone-Broker**, her two Bonecutters and her Tallyman, all talking, none
+  fighting. Her price for the Bone Door's key is a name: **Mother Ketch's** (and Ketch, back at the Lantern, cannot
+  remember her own); **one of the party's** (two Stress each, and none of them can say whose); or **Hob Annick's**,
+  a Presence 14 roll - the dead are cheap, and a failed roll insults her. **Refuse**, and she and all of hers turn at
+  once; her ledger-box gives the key over their bodies.
+- **The wet stair** — past the Bone Door, down into the flooded Library; for now Vane's page sends the party back up,
+  a level higher, and Ketch has something to say about the Guild.
+
+The design, as it was set down:
 
 A market cut into an old charnel pit, where the **Quiet Guild** trades in bones, teeth and names: who died, where,
 and what they carried. They are polite, and they buy everything. **Threat:** ghouls that come up through the floor
