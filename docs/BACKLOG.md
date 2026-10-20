@@ -78,9 +78,14 @@ from a file, and are a kind of listing in the Store, published and got there.
    The Demo Vault is offered so, built from the code (`DEMO_VAULT_ID`). Tests: `adventure-portal.test.ts`,
    `party-edits.test.ts`, `golden_scene.rs`, `adventures.spec.ts`, `editor-panels.spec.ts`.
 
-   Still open: a guest's own adventures are not offered at a shared portal - the host's are; and the leader's pack
-   is laid over an adventure written in other content, so an ancestry both define (the SRD's Human, the Demo Vault's)
-   gives its features from both to whoever has it.
+   **Since: a guest's own adventures at a shared portal** (20 October 2026): each offered to the host (`offer`,
+   `offered` - `play.rs`, `host-table.ts` - `Wire.offer`), listed on the host's window saying who offered it, begun
+   there as an imported one is, let go once one is begun. Tests: `play_routes.rs`, `host-table.test.ts`,
+   `adventure-portal.test.ts`, `portal-shared.spec.ts`.
+
+   Still open: the leader's pack is laid over an adventure written in other content, so an ancestry both define
+   (the SRD's Human, the Demo Vault's) gives its features from both to whoever has it; and a guest cannot take an
+   offer back.
 
 ## Peer to peer: a shared game with no server — slice 1 done
 

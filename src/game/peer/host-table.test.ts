@@ -186,7 +186,7 @@ describe('a peer game kept by its host\'s page', () => {
     expect(tileOf(begun.ok?.['board'], mine)).toBe(from);
     expect(begun.ok?.['seq']).toBe((walked.ok?.['seq'] as number) + 1);
     // The guest: the board with their own selection on it, and the project to play on over.
-    const pushed = pushes(gus).at(-1) as { push: { board: { replica: { party: { selected: unknown } } }; seq: number; by: string }; begun: { project: { id: string } } };
+    const pushed = pushes(gus).filter((told) => told['begun'] !== undefined).at(-1) as { push: { board: { replica: { party: { selected: unknown } } }; seq: number; by: string }; begun: { project: { id: string } } };
     expect(pushed.begun.project.id).toBe('elsewhere');
     expect([pushed.push.seq, pushed.push.by]).toEqual([begun.ok?.['seq'], 'h']);
     expect(pushed.push.board.replica.party.selected).toBe(theirs);
@@ -207,6 +207,32 @@ describe('a peer game kept by its host\'s page', () => {
     expect(host.ask({ ...begin, project: { ...elsewhere, id: 'mid-fight' } }).error).toMatch(/fight/);
     expect(pushes(gus).length).toBe(quiet + 1);
     expect(gus.ask({ op: 'resume' }).ok?.['project']).toBe('elsewhere');
+  });
+
+  it.skipIf(!built)('keeps the adventures a player offers for the host to begin, and lets them go once one is', async () => {
+    const { table, host } = await opened();
+    const gus = guest(table);
+    gus.ask({ op: 'join' });
+    host.ask({ op: 'start' });
+    expect(gus.ask({ op: 'offer', project: { id: 'notes', what: 'a shopping list' } }).error).toBe('that is not a project the engine can play');
+    expect(gus.ask({ op: 'offer', project: 'the-lichgate' }).error).toBe('no adventure offered');
+    const lichgate = JSON.parse(readFileSync(resolve(here, '../../../tests/fixtures/adventure-lichgate.json'), 'utf8')) as Record<string, unknown>;
+    const offered = gus.ask({ op: 'offer', project: lichgate, blurb: 'a'.repeat(400) });
+    const said = [{ id: 'the-lichgate', name: 'The Lichgate', blurb: 'a'.repeat(300), by: { id: 'g', name: 'Gus' } }];
+    expect((offered.ok?.['table'] as { offers: unknown }).offers).toEqual(said);
+    expect(pushes(host).at(-1)).toMatchObject({ table: { offers: said } });
+    // Offered again, in its own place; one that keeps its party says who.
+    gus.ask({ op: 'offer', project: lichgate, blurb: 'A churchyard.' });
+    const kept = gus.ask({ op: 'offer', project: { ...project, id: 'kept', fixedParty: true }, blurb: '' });
+    const offers = (kept.ok?.['table'] as { offers: { id: string; blurb: string; ownParty?: unknown }[] }).offers;
+    expect(offers.map((offer) => [offer.id, offer.blurb])).toEqual([['the-lichgate', 'A churchyard.'], ['kept', '']]);
+    expect(offers[1]!.ownParty).toEqual(project.party.map(({ id, name }) => ({ id, name })));
+    // Read whole by the host's page; begun, let go, everybody told.
+    expect(host.ask({ op: 'offered', adventure: 'the-lichgate' }).ok?.['project']).toEqual(lichgate);
+    expect(host.ask({ op: 'offered', adventure: 'nope' }).error).toBe('no such adventure offered');
+    host.ask({ op: 'begin', project: { ...project, id: 'elsewhere' }, shipped: shippedContent(), table: { animated: false, askDefender: true } });
+    expect(pushes(host).at(-1)).toMatchObject({ table: { offers: [] } });
+    expect(pushes(gus).at(-1)).toMatchObject({ table: { offers: [] } });
   });
 
   it.skipIf(!built)('says what is said at the table to the others, kept for whoever comes after', async () => {

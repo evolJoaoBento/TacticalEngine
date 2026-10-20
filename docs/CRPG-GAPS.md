@@ -378,7 +378,8 @@ same library, remembering the listing it came from (`getAdventure`, `store.ts`).
 it and the whole table goes in (`begin`, `play.rs` and `host-table.ts`): the game built again over the adventure, the
 table and its seats kept, every page playing on over it without opening again (`Wire.begin`). **One that keeps its
 party** (`fixedParty`, the Party panel's **Keep this party**) is played by that party with the camp's leader among
-them, four at most (`partyFor`) - the Demo Vault, offered so, among them.
+them, four at most (`partyFor`) - the Demo Vault, offered so, among them. At a shared portal the others **offer**
+their own (`offer`): the host's window lists them, saying who, and begins one as it does its own.
 
 The editor has a quest list and a form — name, summary, steps — because a quest is a list and a
 list is edited as a list; the graph was the right call for conversations, not for this. The

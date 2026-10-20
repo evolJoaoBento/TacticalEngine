@@ -48,8 +48,8 @@ import { inspection } from './inspect';
 import { abilitiesOf, abilityList, abilityTargets, loadoutView, pointTiles, shapeAt, type RestCallResult, type RestPlan, type RestResult, type SwapResult } from './demo-abilities';
 import { saveBlockedBy, serialiseSave, type LoadResult } from './save';
 import { openContainer, withinReach } from './prop-use';
-import { ADVENTURE_PORTAL, adventureChoices, beginAdventure } from './adventure-portal';
-import { AdventureLibrary } from './adventure-library';
+import { ADVENTURE_PORTAL, adventureChoices, beginAdventure, forParty, withOffers, type AdventureChoice } from './adventure-portal';
+import { AdventureLibrary, blurbOf } from './adventure-library';
 import { GameProjects } from './game-projects';
 import { withListedPacks } from './listed-packs';
 import { browserStore } from './save-slots';
@@ -473,30 +473,56 @@ export abstract class GameTable implements GameClient, LocalPowers {
         this.closeContainer();
         refresh();
       };
-      // At a shared game the host chooses, from their own adventures, and everybody goes through: the others wait.
-      const seating = this.wire?.seating() ?? null;
-      if (seating !== null && seating.you !== seating.host) {
-        const host = this.wire?.table?.members.find((member) => member.id === seating.host)?.name ?? 'The host';
-        return portalView(this.demo, open, [], { begin: () => {}, close }, host);
-      }
       // This build's adventures, and those the player imported (`adventure-library.ts`).
-      const choices = adventureChoices(new AdventureLibrary(browserStore()));
+      const library = new AdventureLibrary(browserStore());
+      const wire = this.wire;
+      const seating = wire?.seating() ?? null;
+      const offers = seating === null ? [] : (wire?.table?.offers ?? []);
+      // At a shared game the host chooses, and everybody goes through. The others offer their own - those they
+      // imported; this build's own the host has too - for the host to choose.
+      if (seating !== null && seating.you !== seating.host) {
+        const host = wire?.table?.members.find((member) => member.id === seating.host)?.name ?? 'The host';
+        const own = adventureChoices(library).filter((choice) => choice.imported === true);
+        const offered = offers.filter((offer) => offer.by.id === seating.you).map((offer) => offer.id);
+        return portalView(this.demo, open, own, {
+          begin: (adventure) => {
+            const project = library.read(adventure);
+            if (project === null || wire === null) return;
+            void wire.offer(project, blurbOf(project)).then((why) => {
+              if (why !== null) this.note(`The adventure could not be offered: ${why.replace(/\.$/, '')}.`, 'bad');
+              refresh();
+            });
+          },
+          close,
+        }, host, offered);
+      }
+      // The host's own, then what the others offered, read whole from the table once it is begun (`Wire.offered`).
+      const choices = withOffers(adventureChoices(library), offers);
       return portalView(this.demo, open, choices, {
         begin: (adventure) => {
           const games = new GameProjects(browserStore());
-          const begun = beginAdventure(games, adventure, this.demo.project.party, choices);
           const said = (why: string): void => {
             this.note(`The adventure could not be begun: ${why.replace(/\.$/, '')}.`, 'bad');
             refresh();
           };
-          if (begun === null) return said('it no longer reads, or this browser has no room left to keep another game');
-          // Alone, the page opens again on the game begun; at a table, the table's game is built again over it, and
-          // everybody at it plays on there - the address the game's, which a reload comes back to.
-          const wire = this.wire;
-          if (wire === null || seating === null) return openPage(`play&project=${encodeURIComponent(begun)}`);
-          // Sent as a table is opened: the packs it lists laid in it, so the server's game is made of what every page's is.
-          const project = projectSchema.parse(migrateDocument(JSON.parse(games.read(begun) ?? 'null')));
-          void wire.begin(withListedPacks(project)).then((why) => (why === null ? nowPlaying(begun) : said(why)));
+          const go = (from: readonly AdventureChoice[]): void => {
+            const begun = beginAdventure(games, adventure, this.demo.project.party, from);
+            if (begun === null) return said('it no longer reads, or this browser has no room left to keep another game');
+            // Alone, the page opens again on the game begun; at a table, the table's game is built again over it, and
+            // everybody at it plays on there - the address the game's, which a reload comes back to.
+            if (wire === null || seating === null) return openPage(`play&project=${encodeURIComponent(begun)}`);
+            // Sent as a table is opened: the packs it lists laid in it, so the server's game is made of what every page's is.
+            const project = projectSchema.parse(migrateDocument(JSON.parse(games.read(begun) ?? 'null')));
+            void wire.begin(withListedPacks(project)).then((why) => (why === null ? nowPlaying(begun) : said(why)));
+          };
+          const choice = choices.find((one) => one.id === adventure);
+          if (choice?.offeredBy === undefined || wire === null) return go(choices);
+          // Offered by another: their project, as the table keeps it, begun as one imported is.
+          void wire.offered(adventure).then((project) => {
+            const read = project === null ? null : projectSchema.safeParse(migrateDocument(project));
+            if (read === null || !read.success) return said('it is no longer offered');
+            go([{ ...choice, build: (party) => forParty(read.data, party) }]);
+          });
         },
         close,
       });

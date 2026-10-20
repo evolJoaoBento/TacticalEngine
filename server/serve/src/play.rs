@@ -42,7 +42,14 @@
 //!   camp's portal begins, the party it took along in it - the host's alone, and not while a save would be refused:
 //!   `{ id, ok: { board, seq } }`. It is the same game still: its id, invitation, players, seats and chat kept, the
 //!   project a guest's page opens over and a save keeps beside it the new one. The others are pushed the board with
-//!   the project, `{ push: { board, views, by, seq }, begun: { project } }`, and their pages play on over it;
+//!   the project, `{ push: { board, views, by, seq }, begun: { project } }`, and their pages play on over it; the
+//!   adventures offered (below) let go, every page told the table;
+//! - `{ id, op: "offer", project, blurb }` - an adventure of a player's own offered for the host to begin: a project
+//!   the engine would open (as the store judges one, `store.rs`), kept for the game - one of its id offered again in
+//!   its place, `OFFERS_MOST` at most - `{ id, ok: { table } }`, every other page told the table, which lists them
+//!   (`offers: [{ id, name, blurb, by: { id, name }, ownParty? }]`, `ownParty` the names of one that keeps its party);
+//! - `{ id, op: "offered", adventure }` - an adventure offered, whole, for the host's page to begin it with:
+//!   `{ id, ok: { project } }`;
 //!
 //! and `{ id, error }` for anything refused. Without an `id`, what the server **pushes** to every other page at
 //! the game: `{ push: { board, views, by, seq } }` after an intent that changed the board or gave something to draw,
@@ -110,6 +117,8 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use axum::{Json, Router};
 use engine::game::face;
+use engine::scene::document::project as project_schema;
+use engine::scene::migrate::migrate_document;
 use engine::game::session::{HooksFor, Session};
 use engine::script::hooks::{CodeSource, Hooks, NoHooks};
 use hooks::QuickJsHooks;
@@ -154,6 +163,9 @@ const TICK: Duration = Duration::from_millis(500);
 /// The most a line said at the table may be, in characters; and how many lines a game keeps for a page that comes.
 const CHAT_LONGEST: usize = 500;
 const CHAT_KEPT: usize = 100;
+/// How many adventures a game keeps offered at once (`offer`), and how long a line said of one is.
+const OFFERS_MOST: usize = 20;
+const BLURB_LONGEST: usize = 300;
 
 /// Who may find a game in the list of games to join: everybody, the host's friends, or nobody (its invitation alone).
 const VISIBILITIES: [&str; 3] = ["public", "friends", "invite"];
@@ -249,6 +261,8 @@ struct Shared {
     hand_on_after: Duration,
     /// The last lines said at the table, oldest first.
     chat: Vec<Value>,
+    /// The adventures offered for the host to begin (`offer`): what the table says of each, and the project.
+    offers: Vec<(Value, Value)>,
 }
 
 /// A socket's connection as the tables know it: its queue, whose it is, and the game it is at, if any.
@@ -358,6 +372,11 @@ fn table_of(shared: &Shared, root: &Path) -> Value {
         "visibility": shared.visibility,
         "kept": shared.kept.iter().map(|(character, id)| (character.clone(), json!({ "id": id, "name": name(id) }))).collect::<serde_json::Map<_, _>>(),
         "here": here(shared),
+        "offers": shared.offers.iter().map(|(said, _)| {
+            let mut said = said.clone();
+            said["by"] = json!({ "id": said["by"], "name": name(said["by"].as_str().unwrap_or("")) });
+            said
+        }).collect::<Vec<_>>(),
     })
 }
 
@@ -430,7 +449,7 @@ fn play_thread(shared: Arc<Mutex<Shared>>, root: PathBuf) -> mpsc::Sender<Job> {
                 }
             };
             let op = job.message["op"].as_str().unwrap_or("").to_string();
-            if !matches!(op.as_str(), "open" | "seat" | "start" | "visibility" | "say") {
+            if !matches!(op.as_str(), "open" | "seat" | "start" | "visibility" | "say" | "offer" | "offered") {
                 play_for(&mut slot, &shared, &job.account, &hooks);
             }
             let mut said = match op.as_str() {
@@ -438,6 +457,8 @@ fn play_thread(shared: Arc<Mutex<Shared>>, root: PathBuf) -> mpsc::Sender<Job> {
                 "start" => start(&shared, &job.account, &root),
                 "visibility" => visibility(&shared, &job.account, &job.message, &root),
                 "say" => say(&shared, &job.account, &job.message, &root),
+                "offer" => offer(&shared, &job.account, &job.message, &root),
+                "offered" => offered(&shared, &job.message),
                 // A page that joined, or came back: where the game is, as for one resumed.
                 "join" => respond(&mut slot, &json!({ "op": "resume" }), &hooks),
                 _ => respond(&mut slot, &job.message, &hooks),
@@ -453,6 +474,7 @@ fn play_thread(shared: Arc<Mutex<Shared>>, root: PathBuf) -> mpsc::Sender<Job> {
                     let mut held = shared.lock().expect("the game");
                     held.project = job.message["project"]["id"].clone();
                     held.document = job.message["project"].clone();
+                    held.offers.clear();
                 }
                 reselect(&mut slot, &shared, &hooks);
                 play_for(&mut slot, &shared, &job.account, &hooks);
@@ -533,8 +555,10 @@ fn play_thread(shared: Arc<Mutex<Shared>>, root: PathBuf) -> mpsc::Sender<Job> {
                 "begin" if said["ok"].is_object() => {
                     held.seen = unselected(&said["ok"]["board"]);
                     push(&held, from, &json!({ "push": { "board": said["ok"]["board"], "views": {}, "by": job.account, "seq": played }, "begun": { "project": held.document } }));
+                    // The adventures offered let go: everybody told the table, the one who began it too.
+                    push(&held, None, &json!({ "table": table_of(&held, &root) }));
                 }
-                "join" | "seat" | "start" | "visibility" if said["ok"].is_object() => push(&held, from, &json!({ "table": table_of(&held, &root) })),
+                "join" | "seat" | "start" | "visibility" | "offer" if said["ok"].is_object() => push(&held, from, &json!({ "table": table_of(&held, &root) })),
                 "say" if said["ok"].is_object() => push(&held, from, &json!({ "chat": said["ok"]["line"] })),
                 _ => {}
             }
@@ -720,6 +744,39 @@ fn say(shared: &Arc<Mutex<Shared>>, account: &str, message: &Value, root: &Path)
     let over = held.chat.len().saturating_sub(CHAT_KEPT);
     held.chat.drain(..over);
     json!({ "ok": { "line": line } })
+}
+
+/// An adventure of a player's own offered for the host to begin: a project the engine would open, migrated as one
+/// opened by hand is, kept in place of one of its id offered before - and what the table says of it.
+fn offer(shared: &Arc<Mutex<Shared>>, account: &str, message: &Value, root: &Path) -> Value {
+    let project = &message["project"];
+    let Some(id) = project["id"].as_str().filter(|id| !id.is_empty()).map(str::to_string) else { return json!({ "error": "no adventure offered" }) };
+    if !project.is_object() || project_schema().parse(&migrate_document(project)).is_err() {
+        return json!({ "error": "that is not a project the engine can play" });
+    }
+    let name = project["name"].as_str().filter(|name| !name.trim().is_empty()).unwrap_or(&id).to_string();
+    let blurb: String = message["blurb"].as_str().unwrap_or("").chars().take(BLURB_LONGEST).collect();
+    let mut said = json!({ "id": id, "name": name, "blurb": blurb, "by": account });
+    if project["fixedParty"] == true {
+        let party = project["party"].as_array().map_or(&[][..], Vec::as_slice);
+        said["ownParty"] = json!(party.iter().map(|sheet| json!({ "id": sheet["id"], "name": sheet["name"] })).collect::<Vec<_>>());
+    }
+    let mut held = shared.lock().expect("the game");
+    held.offers.retain(|(kept, _)| kept["id"] != id.as_str());
+    if held.offers.len() >= OFFERS_MOST {
+        return json!({ "error": format!("the table keeps {OFFERS_MOST} adventures offered at most") });
+    }
+    held.offers.push((said, project.clone()));
+    json!({ "ok": { "table": table_of(&held, root) } })
+}
+
+/// An adventure offered, whole: for the host's page to begin it with.
+fn offered(shared: &Arc<Mutex<Shared>>, message: &Value) -> Value {
+    let held = shared.lock().expect("the game");
+    match held.offers.iter().find(|(said, _)| said["id"] == message["adventure"]) {
+        Some((_, project)) => json!({ "ok": { "project": project } }),
+        None => json!({ "error": "no such adventure offered" }),
+    }
 }
 
 /// The running of a game handed on, when its host has been gone longer than they may be: to the first member whose
@@ -990,6 +1047,7 @@ impl Tables {
                     host_gone: None,
                     hand_on_after: self.hand_on_after,
                     chat: Vec::new(),
+                    offers: Vec::new(),
                 }));
                 let door = play_thread(Arc::clone(&shared), self.root.clone());
                 inner.games.insert(game.clone(), Game { door, shared });

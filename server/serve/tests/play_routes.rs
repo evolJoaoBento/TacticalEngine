@@ -602,6 +602,7 @@ async fn the_host_begins_another_project_and_everybody_at_the_game_goes_with_it(
     tables.ask_on(host, "kara", asked);
     let begun = told(&mut to_host).await;
     assert_eq!(begun["id"], 5);
+    assert!(told(&mut to_host).await["table"].is_object(), "and the table, nothing offered now");
     assert_eq!(begun["ok"]["board"]["replica"]["state"]["entities"][member.as_str()]["tile"], json!(tile), "the game begun afresh");
     assert_eq!(begun["ok"]["board"]["replica"]["party"]["selected"], third.as_str(), "the host's selection kept");
     let seq = begun["ok"]["seq"].clone();
@@ -616,6 +617,7 @@ async fn the_host_begins_another_project_and_everybody_at_the_game_goes_with_it(
     let mut theirs = pushed["push"]["board"].clone();
     theirs["replica"]["party"]["selected"] = json!(third);
     assert_eq!(theirs, begun["ok"]["board"]);
+    assert!(told(&mut to_guest).await["table"].is_object(), "and the table, nothing offered now");
 
     // The same game: who plays whom kept, the guest acting with their own, and the project the new one.
     tables.ask_on(guest, "finn", json!({ "id": 6, "op": "call", "call": "selectNext", "args": [] }));
@@ -642,6 +644,65 @@ async fn the_host_begins_another_project_and_everybody_at_the_game_goes_with_it(
     assert!(told(&mut to_host).await["error"].as_str().is_some_and(|why| why.contains("fight")), "refused mid-fight");
     assert!(nothing_more(&mut to_guest).await, "nothing pushed mid-fight");
     assert_eq!(tables.ask("kara", json!({ "id": 12, "op": "resume" })).await["ok"]["project"], "elsewhere");
+}
+
+#[tokio::test]
+async fn a_player_offers_an_adventure_of_their_own_and_the_host_begins_it() {
+    let fixture = fixture();
+    let root = root("offer");
+    let tables = Tables::new(root.clone()).for_tests();
+    let (host, mut to_host) = tables.connect("kara");
+    let (guest, mut to_guest) = tables.connect("finn");
+    tables.ask_on(host, "kara", json!({ "id": 1, "op": "open", "project": fixture["projects"][0], "shipped": fixture["shipped"], "table": {} }));
+    let opened = told(&mut to_host).await;
+    assert_eq!(opened["ok"]["table"]["offers"], json!([]), "nothing offered yet");
+    tables.ask_on(guest, "finn", json!({ "id": 1, "op": "join", "invite": opened["ok"]["invite"] }));
+    told(&mut to_guest).await;
+    told(&mut to_host).await;
+
+    // What is no project is no adventure.
+    tables.ask_on(guest, "finn", json!({ "id": 2, "op": "offer", "project": { "id": "notes", "what": "a shopping list" } }));
+    assert_eq!(told(&mut to_guest).await["error"], "that is not a project the engine can play");
+    tables.ask_on(guest, "finn", json!({ "id": 3, "op": "offer", "project": "the-lichgate" }));
+    assert_eq!(told(&mut to_guest).await["error"], "no adventure offered");
+    assert!(nothing_more(&mut to_host).await, "nothing told for a refusal");
+
+    // The guest's own: kept, and the table says so to everybody.
+    let lichgate: Value = serde_json::from_str(&std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../../tests/fixtures/adventure-lichgate.json")).unwrap()).unwrap();
+    let long = "a".repeat(400);
+    tables.ask_on(guest, "finn", json!({ "id": 4, "op": "offer", "project": lichgate, "blurb": long }));
+    let offered = told(&mut to_guest).await;
+    let said = json!([{ "id": "the-lichgate", "name": "The Lichgate", "blurb": "a".repeat(300), "by": { "id": "finn", "name": "finn" } }]);
+    assert_eq!(offered["ok"]["table"]["offers"], said);
+    assert_eq!(told(&mut to_host).await["table"]["offers"], said);
+    // Offered again: in its own place, not beside itself.
+    tables.ask_on(guest, "finn", json!({ "id": 5, "op": "offer", "project": lichgate, "blurb": "A churchyard." }));
+    assert_eq!(told(&mut to_guest).await["ok"]["table"]["offers"][0]["blurb"], "A churchyard.");
+    assert_eq!(told(&mut to_host).await["table"]["offers"].as_array().unwrap().len(), 1);
+    // One that keeps its party says who they are.
+    let mut kept = fixture["projects"][0].clone();
+    kept["id"] = json!("kept");
+    kept["fixedParty"] = json!(true);
+    tables.ask_on(guest, "finn", json!({ "id": 6, "op": "offer", "project": kept, "blurb": "" }));
+    let names = told(&mut to_guest).await["ok"]["table"]["offers"][1]["ownParty"].clone();
+    assert_eq!(names, json!(fixture["projects"][0]["party"].as_array().unwrap().iter().map(|sheet| json!({ "id": sheet["id"], "name": sheet["name"] })).collect::<Vec<_>>()));
+    told(&mut to_host).await;
+
+    // The host's page reads one whole, to begin it with.
+    tables.ask_on(host, "kara", json!({ "id": 7, "op": "offered", "adventure": "the-lichgate" }));
+    assert_eq!(told(&mut to_host).await["ok"]["project"], lichgate);
+    tables.ask_on(host, "kara", json!({ "id": 8, "op": "offered", "adventure": "nope" }));
+    assert_eq!(told(&mut to_host).await["error"], "no such adventure offered");
+
+    // Begun - whichever it is - the offers are let go, and everybody told, the host too.
+    let mut elsewhere = fixture["projects"][0].clone();
+    elsewhere["id"] = json!("elsewhere");
+    tables.ask_on(host, "kara", json!({ "id": 9, "op": "begin", "project": elsewhere, "shipped": fixture["shipped"], "table": {} }));
+    assert!(told(&mut to_host).await["ok"].is_object());
+    assert_eq!(told(&mut to_host).await["table"]["offers"], json!([]));
+    assert!(told(&mut to_guest).await["begun"].is_object());
+    assert_eq!(told(&mut to_guest).await["table"]["offers"], json!([]));
+    let _ = std::fs::remove_dir_all(&root);
 }
 
 #[tokio::test]

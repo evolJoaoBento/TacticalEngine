@@ -19,6 +19,7 @@ import { buildDemoScene } from './demo-scene';
 import { hollowVaultMap } from './demo-map';
 import { PARTY_SHEETS } from './demo-rules';
 import type { AdventureLibrary } from './adventure-library';
+import type { Offer } from './wire';
 import { GameProjects } from './game-projects';
 
 /** The id of the prop whose window is the chooser. */
@@ -44,6 +45,8 @@ export interface AdventureChoice {
   imported?: true;
   /** Its own party, when it keeps it (`fixedParty`): who of them go is `partyFor`'s to say. */
   ownParty?: readonly { id: string; name: string }[];
+  /** At a shared game, who of the others offered it (`Wire.offer`): its project is the table's until it is begun. */
+  offeredBy?: string;
   build(party: readonly CharacterSheet[]): ProjectDoc | null;
 }
 
@@ -104,6 +107,17 @@ export function adventureChoices(library?: AdventureLibrary): readonly Adventure
 /** An imported adventure's own party, said in the chooser, when it keeps it. */
 function ownPartyOf(project: ProjectDoc | null): Pick<AdventureChoice, 'ownParty'> {
   return project?.fixedParty === true ? { ownParty: project.party.map(({ id, name }) => ({ id, name })) } : {};
+}
+
+/**
+ * At a shared game, the host's own adventures and then those the others offered (`Wire.offer`) - one of an id the host
+ * has already is the host's own. An offered one's project is the table's, read once it is begun (`Wire.offered`).
+ */
+export function withOffers(mine: readonly AdventureChoice[], offers: readonly Offer[]): AdventureChoice[] {
+  const theirs = offers
+    .filter((offer) => !mine.some((choice) => choice.id === offer.id))
+    .map((offer): AdventureChoice => ({ id: offer.id, name: offer.name, blurb: offer.blurb, offeredBy: offer.by.name, ...(offer.ownParty === undefined ? {} : { ownParty: offer.ownParty }), build: () => null }));
+  return [...mine, ...theirs];
 }
 
 /**

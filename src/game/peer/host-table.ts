@@ -13,7 +13,10 @@
  * - `join` - the game joined (its invitation is not asked: a link is only ever to this table);
  * - `call`, `ask`, `resume`, `seat`, `start`, `visibility`, `say` - as the server's (`play.rs`), the same refusals;
  * - `begin` - the host's alone: the game built again over another project - an adventure a camp's portal begins -
- *   the table, its seats and its chat kept, the others pushed the board with the project (`begun`) to play on over;
+ *   the table, its seats and its chat kept, the others pushed the board with the project (`begun`) to play on over,
+ *   the adventures offered let go;
+ * - `offer`, `offered` - an adventure of a player's own offered for the host to begin, a project the engine would
+ *   open, the table saying it (`offers`); and one offered, whole, for the host's page to begin it with;
  * - `load` - the host's alone: the save read from the host's browser (`readSave`), loaded as `loadGameText`, who
  *   played whom in it seated again; `save` is refused - the host's page saves its own game, the guests' nothing,
  *   and what it keeps with the save of who played whom is the table's (`seating`).
@@ -33,7 +36,13 @@
  * back to but the game itself while the host plays on (a guest connects again with a fresh invitation, and joins).
  */
 
-import type { ChatLine, SharedTable } from '../wire';
+import type { ChatLine, Offer, SharedTable } from '../wire';
+import { migrateDocument } from '../../engine/scene/migrate';
+import { projectSchema } from '../../engine/scene/schema';
+
+/** How many adventures a table keeps offered at once (`offer`), and how long a line said of one is, as `play.rs`'s. */
+const OFFERS_MOST = 20;
+const BLURB_LONGEST = 300;
 import type { Link } from './link';
 
 /** What the table asks of the game it keeps: the engine's face, as the server asks it (`WasmEngine.respond`). */
@@ -130,6 +139,8 @@ export class HostTable {
   private seen = '';
   private visibility = 'invite';
   private chat: ChatLine[] = [];
+  /** The adventures offered for the host to begin (`offer`): what the table says of each, by whom, and the project. */
+  private offers: { said: Omit<Offer, 'by'> & { by: string }; project: unknown }[] = [];
   /** How many intents the game has played (`seq`). */
   private played = 0;
   private next = 0;
@@ -210,6 +221,7 @@ export class HostTable {
       visibility: this.visibility as SharedTable['visibility'] & string,
       kept: Object.fromEntries(Object.entries(this.kept).map(([character, id]) => [character, { id, name: name(id) }])),
       here: this.here(),
+      offers: this.offers.map(({ said }) => ({ ...said, by: { id: said.by, name: name(said.by) } })),
     };
   }
 
@@ -306,7 +318,7 @@ export class HostTable {
     const effective = typeof message.op === 'string' ? message.op : '';
     this.watch(watcher, effective === 'open' || effective === 'join');
     const account = watcher.account;
-    if (!['open', 'seat', 'start', 'visibility', 'say'].includes(effective)) this.playFor(account);
+    if (!['open', 'seat', 'start', 'visibility', 'say', 'offer', 'offered'].includes(effective)) this.playFor(account);
     let said: Answer;
     switch (effective) {
       case 'seat':
@@ -320,6 +332,12 @@ export class HostTable {
         break;
       case 'say':
         said = this.say(account, message);
+        break;
+      case 'offer':
+        said = this.offer(account, message);
+        break;
+      case 'offered':
+        said = this.offered(message);
         break;
       case 'join':
       case 'resume':
@@ -347,6 +365,7 @@ export class HostTable {
       this.played += 1;
       this.project = isObject(message['project']) ? (message['project']['id'] ?? null) : null;
       this.document = message['project'] ?? null;
+      this.offers = [];
       this.reselect();
       this.playFor(account);
       ok['board'] = this.board();
@@ -387,8 +406,10 @@ export class HostTable {
     if (effective === 'begin' && ok !== null) {
       this.seen = unselected(ok['board']);
       this.push(watcher, { push: { board: ok['board'], views: {}, by: account, seq: this.played }, begun: { project: this.document } });
+      // The adventures offered let go: everybody told the table, the one who began it too.
+      this.push(null, { table: this.table() });
     }
-    if (['join', 'seat', 'start', 'visibility'].includes(effective) && ok !== null) this.push(watcher, { table: this.table() });
+    if (['join', 'seat', 'start', 'visibility', 'offer'].includes(effective) && ok !== null) this.push(watcher, { table: this.table() });
     if (effective === 'say' && ok !== null) this.push(watcher, { chat: ok['line'] });
     if (reseated) this.push(null, { table: this.table() });
   }
@@ -412,6 +433,7 @@ export class HostTable {
     this.visibility = typeof message['visibility'] === 'string' && VISIBILITIES.includes(message['visibility']) ? message['visibility'] : 'invite';
     this.seen = '';
     this.chat = [];
+    this.offers = [];
     this.played = 0;
   }
 
@@ -529,6 +551,28 @@ export class HostTable {
     if (typeof visibility !== 'string' || !VISIBILITIES.includes(visibility)) return { error: 'public, friends or invite' };
     this.visibility = visibility;
     return { ok: { table: this.table() } };
+  }
+
+  /** An adventure of a player's own offered for the host to begin, as the server keeps one (`play.rs`, `offer`). */
+  private offer(account: string, message: Message): Answer {
+    const project = message['project'];
+    const id = isObject(project) && typeof project['id'] === 'string' && project['id'] !== '' ? project['id'] : null;
+    if (id === null || !isObject(project)) return { error: 'no adventure offered' };
+    if (!projectSchema.safeParse(migrateDocument(project)).success) return { error: 'that is not a project the engine can play' };
+    const name = typeof project['name'] === 'string' && project['name'].trim() !== '' ? project['name'] : id;
+    const blurb = [...(typeof message['blurb'] === 'string' ? message['blurb'] : '')].slice(0, BLURB_LONGEST).join('');
+    const party = Array.isArray(project['party']) ? (project['party'] as { id?: unknown; name?: unknown }[]) : [];
+    const said: Omit<Offer, 'by'> & { by: string } = { id, name, blurb, by: account, ...(project['fixedParty'] === true ? { ownParty: party.map((sheet) => ({ id: String(sheet.id), name: String(sheet.name) })) } : {}) };
+    this.offers = this.offers.filter((kept) => kept.said.id !== id);
+    if (this.offers.length >= OFFERS_MOST) return { error: `the table keeps ${OFFERS_MOST} adventures offered at most` };
+    this.offers.push({ said, project });
+    return { ok: { table: this.table() } };
+  }
+
+  /** An adventure offered, whole: for the host's page to begin it with. */
+  private offered(message: Message): Answer {
+    const kept = this.offers.find((offer) => offer.said.id === message['adventure']);
+    return kept === undefined ? { error: 'no such adventure offered' } : { ok: { project: kept.project } };
   }
 
   private say(account: string, message: Message): Answer {

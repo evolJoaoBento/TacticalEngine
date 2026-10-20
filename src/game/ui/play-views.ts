@@ -132,7 +132,14 @@ export function containerView(demo: DemoScene, acts: ContainerActs): OpenContain
  * The camp portal's window (`adventure-portal.ts`): the adventures it offers, each begun by `begin`, and nothing to
  * take. Read off nothing of the room's - the portal holds nothing - so drawing it changes no state anywhere.
  */
-export function portalView(demo: Pick<DemoScene, 'scene' | 'project'>, id: string, choices: readonly AdventureChoice[], acts: { begin(adventure: string): void; close(): void }, chooser?: string): OpenContainer {
+export function portalView(
+  demo: Pick<DemoScene, 'scene' | 'project'>,
+  id: string,
+  choices: readonly AdventureChoice[],
+  acts: { begin(adventure: string): void; close(): void },
+  chooser?: string,
+  offered: readonly string[] = [],
+): OpenContainer {
   const prop = demo.scene.decos.find((deco) => deco.id === id);
   const lead = demo.project.party[0];
   // One that keeps its party says who plays it: its own, with whoever leads the party here (`partyFor`).
@@ -144,7 +151,15 @@ export function portalView(demo: Pick<DemoScene, 'scene' | 'project'>, id: strin
     id,
     name: prop?.function?.kind === 'script' && prop.function.name !== undefined ? prop.function.name : 'The portal',
     lines: [],
-    adventures: choices.map(({ id: adventure, name, blurb, ownParty }) => ({ id: adventure, name, blurb, ...(ownParty === undefined ? {} : { party: keeps(ownParty) }) })),
+    adventures: choices.map(({ id: adventure, name, blurb, ownParty, offeredBy }) => ({
+      id: adventure,
+      name,
+      blurb,
+      ...(ownParty === undefined ? {} : { party: keeps(ownParty) }),
+      ...(offeredBy === undefined ? {} : { offeredBy }),
+      // On a page that does not choose, its own adventures, each offered to whoever does or not yet.
+      ...(chooser === undefined ? {} : { offered: offered.includes(adventure) }),
+    })),
     ...(chooser === undefined ? {} : { chooser }),
     onBegin: acts.begin,
     onTake: () => {},

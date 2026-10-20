@@ -2023,4 +2023,12 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     shut the host's portal at once. Tests: `play_routes.rs` (begun, refused to a guest, mid-fight and for a project
     that will not build, the table kept), `wire.test.ts`, `portal-shared.spec.ts` (two browsers, the guest seated
     in a companion the host asked along, walking them in the Ashwell after).
+  - **A guest's own adventures at the portal** (20 October 2026). Only the host's adventures were offered at a
+    shared portal. A guest's window now lists those they imported, each with Offer: `offer` (`play.rs`, and
+    `host-table.ts`) keeps a project the engine would open - checked as the store checks one - for the game, one of
+    its id in its own place, `OFFERS_MOST` at most, and the table says them (`offers`: who offered each, and the names
+    of one that keeps its party); the host's window lists them after the host's own, and Begin reads one whole
+    (`offered`) and begins it as an imported one is (`forParty`). Begun, the offers are let go, everybody told.
+    Tests: `play_routes.rs`, `host-table.test.ts`, `adventure-portal.test.ts`, `portal-shared.spec.ts` (the guest
+    imports the Lichgate, offers it, and the host begins it for both).
   - **Next**: an evening through the tunnel.

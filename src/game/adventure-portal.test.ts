@@ -22,7 +22,7 @@ import { WasmGame } from './wasm-game';
 import { campProject, crewPlaces, PORTAL_AT } from './camp';
 import { withListedPacks } from './listed-packs';
 import { sheetFor } from './new-character';
-import { ADVENTURES, ADVENTURE_PORTAL, BUILT_IN, DEMO_VAULT_ID, PARTY_MOST, adventureChoices, beginAdventure, begunBy, partyFor } from './adventure-portal';
+import { ADVENTURES, ADVENTURE_PORTAL, BUILT_IN, DEMO_VAULT_ID, PARTY_MOST, adventureChoices, beginAdventure, begunBy, partyFor, withOffers } from './adventure-portal';
 import { buildDemoScene } from './demo-scene';
 import { hollowVaultMap } from './demo-map';
 import { characterContentFor } from './room';
@@ -89,6 +89,20 @@ describe('the portal at a shared game', () => {
     const ours = portalView({ scene, project }, ADVENTURE_PORTAL, adventureChoices(), acts);
     expect(ours.chooser).toBeUndefined();
     expect(ours.adventures!.map((adventure) => adventure.id)).toContain(ASHWELL_ID);
+    expect(ours.adventures!.every((adventure) => adventure.offered === undefined)).toBe(true);
+    // A guest's own, each offered to the host or not yet; and on the host's, one a guest offered, saying who.
+    const own = [{ id: 'the-lichgate', name: 'The Lichgate', blurb: 'A churchyard.', imported: true as const, build: () => null }, { id: 'the-mire', name: 'The Mire', blurb: 'Wet.', imported: true as const, build: () => null }];
+    const offering = portalView({ scene, project }, ADVENTURE_PORTAL, own, acts, 'Hana', ['the-mire']);
+    expect(offering.adventures!.map((adventure) => [adventure.id, adventure.offered])).toEqual([['the-lichgate', false], ['the-mire', true]]);
+    // What the others offered comes after the host's own; one of an id the host has already is the host's.
+    const gus = { id: 'g', name: 'Gus' };
+    const offers = [{ id: 'the-lichgate', name: 'The Lichgate', blurb: 'A churchyard.', by: gus }, { id: ASHWELL_ID, name: 'Not the Ashwell', blurb: '', by: gus }, { id: 'kept', name: 'Kept', blurb: '', by: gus, ownParty: [{ id: 'kara', name: 'Quim' }] }];
+    const merged = withOffers(adventureChoices(), offers);
+    expect(merged.map((choice) => [choice.id, choice.offeredBy])).toEqual([[ASHWELL_ID, undefined], [DEMO_VAULT_ID, undefined], ['the-lichgate', 'Gus'], ['kept', 'Gus']]);
+    expect(merged[3]!.ownParty).toEqual([{ id: 'kara', name: 'Quim' }]);
+    expect(merged[2]!.build([WREN])).toBeNull();
+    const offeredToUs = portalView({ scene, project }, ADVENTURE_PORTAL, [{ ...own[0]!, offeredBy: 'Gus' }], acts);
+    expect(offeredToUs.adventures).toEqual([{ id: 'the-lichgate', name: 'The Lichgate', blurb: 'A churchyard.', offeredBy: 'Gus' }]);
   });
 });
 

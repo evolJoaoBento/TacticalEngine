@@ -162,7 +162,10 @@ begun from the menu by an older build is still listed, its saves with it.
 
 **At a shared game** - a camp hosted for friends, on the server or peer to peer - the portal takes
 **everybody** through. Its window opens on every page; the host's lists the host's adventures and
-**Begin**, and the others' say who chooses. Once the host begins one, every page at the table is in it
+**Begin**, and the others' say who chooses - and list their own adventures, those they imported, each
+with **Offer**: offered, it is on the host's window too, after the host's own, saying who offered it
+("Offered by Gus"), and the host may begin it as one of their own. What is offered is let go once an
+adventure is begun. Once the host begins one, every page at the table is in it
 together: the same game, the same invitation, who plays whom and what was said kept, the party that went
 through - the companions anybody asked along among them. Nobody's page opens again. The host's keeps
 the adventure among its games, and a save of it is everybody's, as any shared game's is. While the

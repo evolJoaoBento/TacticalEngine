@@ -97,9 +97,12 @@ export interface OpenContainer {
   onTake: (item: string) => void;
   onClose: () => void;
   /** At the camp's portal: the adventures it offers, each begun with Begin (`adventure-portal.ts`). */
-  adventures?: readonly { id: string; name: string; blurb: string; party?: string }[];
+  adventures?: readonly { id: string; name: string; blurb: string; party?: string; offeredBy?: string; offered?: boolean }[];
   onBegin?: (adventure: string) => void;
-  /** At a shared game, on a page not the host's: who chooses the adventure, which takes everybody through. */
+  /**
+   * At a shared game, on a page not the host's: who chooses the adventure, which takes everybody through - the
+   * adventures listed the page's own, each offered to them (`onBegin`) or already.
+   */
   chooser?: string;
 }
 
@@ -403,14 +406,18 @@ function ContainerWindow({ container }: { container: OpenContainer }): preact.JS
       )}
       {container.adventures !== undefined ? (
         // The portal: an adventure chosen is a game of its own, begun with the party as it stands.
-        container.chooser !== undefined ? (
-          <div className="panel-prose" data-testid="adventure-chooser">
-            {container.chooser} chooses where it opens. Everybody at the table goes through together, the party as it stands.
-          </div>
-        ) : (
         <>
-          <div className="panel-prose">Choose where it opens. The party goes through as it stands; the camp stays where it is.</div>
-          {container.adventures.length === 0 ? <div className="panel-prose" data-testid="adventures-none">No adventures yet.</div> : null}
+          {container.chooser !== undefined ? (
+            <div className="panel-prose" data-testid="adventure-chooser">
+              {container.chooser} chooses where it opens. Everybody at the table goes through together, the party as it stands.
+              {container.adventures.length === 0 ? null : ` Offer ${container.chooser} one of your own, and they may choose it.`}
+            </div>
+          ) : (
+            <>
+              <div className="panel-prose">Choose where it opens. The party goes through as it stands; the camp stays where it is.</div>
+              {container.adventures.length === 0 ? <div className="panel-prose" data-testid="adventures-none">No adventures yet.</div> : null}
+            </>
+          )}
           {container.adventures.map((adventure) => (
             <div key={adventure.id} className="panel-row" data-adventure={adventure.id}>
               <span>
@@ -423,14 +430,27 @@ function ContainerWindow({ container }: { container: OpenContainer }): preact.JS
                     <span className="panel-detail" data-testid="adventure-party">{adventure.party}</span>
                   </>
                 )}
+                {adventure.offeredBy === undefined ? null : (
+                  <>
+                    <br />
+                    <span className="panel-detail" data-testid="adventure-offered-by">Offered by {adventure.offeredBy}.</span>
+                  </>
+                )}
               </span>
-              <button className="play-btn is-primary" data-testid="adventure-begin" onClick={() => container.onBegin?.(adventure.id)}>
-                Begin
-              </button>
+              {container.chooser === undefined ? (
+                <button className="play-btn is-primary" data-testid="adventure-begin" onClick={() => container.onBegin?.(adventure.id)}>
+                  Begin
+                </button>
+              ) : adventure.offered === true ? (
+                <span className="panel-detail" data-testid="adventure-offered">Offered</span>
+              ) : (
+                <button className="play-btn" data-testid="adventure-offer" title={`Offer it to ${container.chooser}`} onClick={() => container.onBegin?.(adventure.id)}>
+                  Offer
+                </button>
+              )}
             </div>
           ))}
         </>
-        )
       ) : container.lines.length === 0 ? (
         <div className="panel-prose" data-testid="container-empty">{shop ? 'Sold out.' : 'Nothing left in it.'}</div>
       ) : shop ? (

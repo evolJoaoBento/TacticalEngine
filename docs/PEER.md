@@ -105,7 +105,8 @@ name as well (below).
 - The test driver's hands (`TEST_HANDS`) are taken from the host's page alone, and only in development.
 - Only the host opens the game, starts it, says who plays whom once it has started, loads a save into it, and begins
   another project in it (`begin`: a camp's portal taking everybody into an adventure, the table kept, the guests
-  pushed the project with the board, as `play.rs` does).
+  pushed the project with the board, as `play.rs` does). Anybody offers an adventure of their own for the host to
+  begin (`offer`), a project the engine would open, as the server's table keeps one.
 - A guest takes a seat nobody has, or leaves their own, before the start.
 - The host's dice are the game's: the host is trusted, since the game is in their browser anyway.
 

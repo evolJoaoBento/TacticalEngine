@@ -89,6 +89,17 @@ export interface SharedTable {
   visibility?: Visibility;
   /** Who is at it now, by id: a member not here has left, for now. */
   here?: string[];
+  /** The adventures its players offered for the host to begin (`offer`): who offered each, and its own party, if it keeps it. */
+  offers?: Offer[];
+}
+
+/** An adventure offered at a table, as the table says it. */
+export interface Offer {
+  id: string;
+  name: string;
+  blurb: string;
+  by: { id: string; name: string };
+  ownParty?: { id: string; name: string }[];
 }
 
 /** A line said at the table (`play.rs`, `say`): who said it, by id and by name, what, and when. */
@@ -434,6 +445,23 @@ export class Wire {
   attach(retell: () => void, seated: () => void = () => undefined): void {
     this.retell = retell;
     this.seated = seated;
+  }
+
+  /** An adventure of the player's own offered for the host to begin (`offer`): `null` once the table has it, or why not. */
+  async offer(project: unknown, blurb: string): Promise<string | null> {
+    if (this.state !== 'in' && this.state !== 'parted' && this.state !== 'asked') return 'not at a game';
+    const said = await this.send({ op: 'offer', project, blurb });
+    const table = (said.ok as { table?: SharedTable } | undefined)?.table;
+    if (table === undefined) return said.error ?? 'it was not offered';
+    this.setTable(table);
+    return null;
+  }
+
+  /** An adventure offered at the table, whole, for the host to begin it with: `null` when it is not offered. */
+  async offered(adventure: string): Promise<unknown> {
+    if (this.state !== 'in' && this.state !== 'parted' && this.state !== 'asked') return null;
+    const said = await this.send({ op: 'offered', adventure });
+    return (said.ok as { project?: unknown } | undefined)?.project ?? null;
   }
 
   /** How the page's game is built again over a project the host begins, for the wire to stand it where it is. */
