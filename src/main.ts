@@ -73,6 +73,7 @@ import type { EquipResult, GearSlot } from './game/equip';
 import { CameraFocus } from './game/camera-focus';
 import { gameFor, gameReady, onBegun, resumed, savesFor, type GameClient, type LocalPowers } from './game/wasm-game';
 import { codeQuestion } from './game/code-question';
+import { waitingOn } from './game/shared-game';
 import { STARTER_ABILITIES } from './engine/content/pack/starter';
 import { PROP_FUNCTIONS } from './engine/scene/prop-functions';
 import type { PropFunction } from './engine/scene/prop-function-schema';
@@ -134,6 +135,8 @@ declare global {
       /** Forget the rolls still waiting to be shown. */
       clearDice: () => void;
       pendingKind: () => string | null;
+      /** Whom the question open waits on, as the page's panel says it (`waitingOn`) - read from the game, not the page drawn. */
+      waitingOn: () => string | null;
       objects: () => string[];
       /** The container whose window is open, and what is left in it. */
       container: () => { id: string; lines: { item: string; count: number }[] } | null;
@@ -2027,6 +2030,7 @@ const state = {
     if (talking !== null) return talking.prompt?.kind ?? 'dialogue';
     return pending.prompt.kind;
   },
+  waitingOn: (): string | null => waitingOn(game.board.pending as { for?: string | null } | null, (id) => game.nameOf(id)),
   objects: (): string[] => interactablesOf(game.board.scene).map((i) => i.id),
   container: (): { id: string; lines: { item: string; count: number }[] } | null => ((open) => open === null ? null : { id: open.id, lines: open.lines.map((l) => ({ item: l.item, count: l.count })) })(game.containerView(() => true, () => {})),
   take: (item: string): boolean => ((open) => open !== null && game.takeFromContainer(open.id, item) && (refreshPlay(), true))(game.containerView(() => true, () => {})),

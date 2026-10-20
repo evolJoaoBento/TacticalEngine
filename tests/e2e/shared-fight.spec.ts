@@ -84,15 +84,18 @@ async function settle(at: Sharing, asked: Asked, byHand = false): Promise<void> 
       continue;
     }
     quiet = 0;
-    const waits = await Promise.all([host, guest].map((each) => each.getByTestId('waiting-on').count()));
-    const i = [0, 1].find((i) => kinds[i] !== null && waits[i] === 0);
+    // Whose question it is, as each page's game says - not as it is drawn: a page in the background has not drawn the
+    // banner for a question the server just pushed it, and would be taken for the one to answer it.
+    const waits = await Promise.all([host, guest].map((each) => each.evaluate(() => window.__engine!.waitingOn())));
+    const i = [0, 1].find((i) => kinds[i] !== null && waits[i] === null);
     if (i === undefined) {
       await host.waitForTimeout(200);
       continue;
     }
     const whose = i === 0 ? 'host' : 'guest';
     const [answering, other] = i === 0 ? [host, guest] : [guest, host];
-    // The other page shows it too, held: whom it waits on, by name, nothing to answer.
+    // The other page shows it too, held: whom it waits on, by name, nothing to answer - looked at, as its player would.
+    await other.bringToFront();
     await expect(other.getByTestId('waiting-on')).toContainText(`Waiting for ${at.names[whose]} to answer for`, { timeout: 15_000 });
     await expect(other.getByTestId('choice-prompt')).toHaveCount(0);
     // A question holding the GM's turn: nobody hands the spotlight over meanwhile, on either page.

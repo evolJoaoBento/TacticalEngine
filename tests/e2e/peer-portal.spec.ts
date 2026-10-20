@@ -17,6 +17,9 @@ test('a peer game at a camp: the host begins an adventure at the portal, and the
   test.setTimeout(180_000);
   // The camp among the host's browser's games, as New Game keeps one (`game-projects.ts`), for the peer game to be of.
   await page.goto('/?menu');
+  // The menu up - or, where nobody is signed in, the card asking them to: by then the page has said who is signed in,
+  // whose games the camp is kept among.
+  await expect(page.getByTestId('main-menu').or(page.getByTestId('sign-in'))).toBeVisible();
   const camp = await page.evaluate((text) => {
     const id = (JSON.parse(text) as { id: string }).id;
     const user = localStorage.getItem('tactical:current-user');

@@ -60,6 +60,7 @@ declare global {
       dice: () => { good: number; bad: number; total: number }[];
       clearDice: () => void;
       pendingKind: () => string | null;
+      waitingOn: () => string | null;
       objects: () => string[];
       /** The container whose window is open, and what is left in it. */
       container: () => { id: string; lines: { item: string; count: number }[] } | null;
@@ -357,7 +358,6 @@ test('walks up to a tile that is out of reach, and no further', async ({ page })
   expect(result.landed).toBe(true);
   expect(result.after).not.toBe(result.before);
 });
-
 
 test('edits the map, and undoes exactly what it did', async ({ page }) => {
   const consoleErrors = await boot(page);
