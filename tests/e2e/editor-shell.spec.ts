@@ -328,3 +328,23 @@ test('Encounters: a creature copied as a new one is the project\u2019s own, chan
   await expect(strip.locator(`[data-item="${original}-copy"]`)).toBeVisible();
   expect(errors).toEqual([]);
 });
+
+test("a room's light is set from the scene menu: dimmed, its fires and torches light it; daylight again, none do", async ({ page }) => {
+  const errors = await editing(page);
+  const light = () => page.evaluate(() => (JSON.parse(window.__engine!.exportProject()) as { scenes: { id: string; light?: number }[] }).scenes.find((scene) => scene.id === window.__engine!.editScene())?.light);
+  expect(await page.evaluate(() => window.__engine!.lamps())).toBe(0);
+  const answers = ['40', ''];
+  page.on('dialog', (dialog) => void dialog.accept(answers.shift()));
+  const lamp = (): Promise<string> => page.locator('[data-testid="scene-menu"] [data-testid="scene-light"]').first().innerText();
+  await page.locator('[data-testid="open-scenes"]').click();
+  await expect.poll(lamp).toBe('\u2600');
+  await page.locator('[data-testid="scene-menu"] [data-testid="scene-light"]').first().click();
+  await expect.poll(light).toBe(0.4);
+  await expect.poll(lamp).toBe('\u263e');
+  await expect.poll(() => page.evaluate(() => window.__engine!.lamps())).toBeGreaterThan(0);
+  await page.screenshot({ path: 'test-results/editor-room-light.png' });
+  await page.locator('[data-testid="scene-menu"] [data-testid="scene-light"]').first().click();
+  await expect.poll(light).toBeUndefined();
+  await expect.poll(() => page.evaluate(() => window.__engine!.lamps())).toBe(0);
+  expect(errors).toEqual([]);
+});

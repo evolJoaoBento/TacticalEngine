@@ -38,6 +38,7 @@ import { NO_TILE, type Spot, type TileGrid } from '../grid/grid';
 import type { SurfaceLibrary } from './surface-library';
 import { paintGround, paintedGround } from './ground-surfaces';
 import { addLightRig, fitSun, setEnvironment, type LightRig } from './light-rig';
+import { RoomLight } from './room-light';
 import { advanceGlide, planGlide, type Glide } from './glide';
 import { TrajectoryLine, type AimedArc } from './trajectory-line';
 import { ReachRing } from './reach-ring';
@@ -274,6 +275,8 @@ export class SceneView {
   /** The sun, kept so its shadow map can be let go with the rest. */
   private sun: DirectionalLight | null = null;
   private rig: LightRig | null = null;
+  /** The room's own light: the rig turned down, and what burns in it lit (`room-light.ts`). */
+  readonly roomLight = new RoomLight(this.root, this.scene, () => this.rig);
   /** The imported materials kinds of ground may be drawn in (`setSurfaces`). */
   private surfaces: SurfaceLibrary | null = null;
   private unsubscribeSurfaces: () => void = () => undefined;
@@ -393,7 +396,7 @@ export class SceneView {
    * where they were drawn, so the next `syncTokens` puts them down outright
    * rather than gliding them in from the other room's coordinates.
    */
-  rebind(grid: TileGrid, options: { tints?: readonly string[]; decos?: readonly Deco[]; objects?: readonly Interactable[] } = {}): void {
+  rebind(grid: TileGrid, options: { tints?: readonly string[]; decos?: readonly Deco[]; objects?: readonly Interactable[]; light?: number } = {}): void {
     this.settle();
     this.ripples.clear();
     this._grid = grid;
@@ -433,6 +436,7 @@ export class SceneView {
     this.tokenStanding.clear();
     this.setDecos(options.decos ?? []);
     this.setObjects(options.objects ?? []);
+    this.roomLight.light(options.light, this.lastDecos.map((deco, n) => ({ model: deco.model, at: this.decos[n]! })));
   }
 
   /** The light rig (`light-rig.ts`): a sky, a little ambient, and a sun that casts, fitted to the room. */
@@ -445,6 +449,7 @@ export class SceneView {
   /** The light the room gives back (`roomEnvironment`), or none: the rig as it always was. */
   setEnvironment(environment: Texture | null): void {
     if (this.rig !== null) setEnvironment(this.scene, this.rig, environment);
+    this.roomLight.dim();
   }
 
   /** Put the sun where this room wants it, with its shadow camera round the whole room. */
@@ -858,6 +863,7 @@ export class SceneView {
 
   /** Advance every playing clip and every moving token. `dt` in seconds. */
   tick(dt: number): void {
+    this.roomLight.tick(dt);
     this.advanceGlides(dt);
     this.reactions.advance(dt);
     this.ripples.tick(dt);

@@ -814,7 +814,7 @@ the room the party is in; browsing scenes never moves the party or abandons thei
 | **Project ▾** | Save JSON · Load… · Import pack… · Export pack · Check (lists what the validator finds; a red badge counts errors) |
 | **Content ▾** | Party · Cards · Items & loot · Quests · Code · Models — each opens as a workspace under the bar; the back arrow before its title, or `Esc`, returns to the board |
 | **Inspector · Terrain · Encounters · Interaction** | The four modes, also on keys `1`–`4` |
-| **The scene button** (shows the room's name and size) ▾ | Every scene with its size; **▸** marks the one the project opens on and **●** the one the party is in. Click to edit it; **✎** renames, **▸** makes it the opening scene, **✕** deletes (refused for the opening scene or the last one); **+ New scene** adds a blank 12×10 room |
+| **The scene button** (shows the room's name and size) ▾ | Every scene with its size; **▸** marks the one the project opens on and **●** the one the party is in. Click to edit it; **✎** renames, **☀** sets how much light the room has (10 to 100% of daylight; empty is daylight, and the button turns to **☾** in a dim room, where its fires, braziers and torches light it, flickering), **▸** makes it the opening scene, **✕** deletes (refused for the opening scene or the last one); **+ New scene** adds a blank 12×10 room |
 | **Undo / Redo** | The same history as `Ctrl+Z` / `Ctrl+Shift+Z`; hover for what it would undo |
 | **▶ Play here / ▶ Play** | Play in this room from its spawns (Shift-click a tile to play from there), or go back to where the party is |
 

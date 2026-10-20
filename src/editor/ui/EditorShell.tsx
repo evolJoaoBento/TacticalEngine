@@ -124,6 +124,7 @@ export interface EditorShellProps {
   onSwitchScene: (id: string) => void;
   onAddScene: (name: string) => void;
   onRenameScene: (id: string, name: string) => void;
+  onSceneLight: (id: string, light: number | undefined) => void;
   onRemoveScene: (id: string) => void;
   onSetStartScene: (id: string) => void;
 }
@@ -478,6 +479,7 @@ export function EditorShell(props: EditorShellProps): preact.JSX.Element {
             onSwitch={props.onSwitchScene}
             onAdd={props.onAddScene}
             onRename={props.onRenameScene}
+            onLight={props.onSceneLight}
             onRemove={props.onRemoveScene}
             onSetStart={props.onSetStartScene}
             onClose={() => setMenu(null)}

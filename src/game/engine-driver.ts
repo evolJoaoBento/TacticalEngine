@@ -62,6 +62,8 @@ export interface EngineDriver {
   pendingKind: () => string | null;
   /** Whom the question open waits on, as the page's panel says it (`waitingOn`) - read from the game, not the page drawn. */
   waitingOn: () => string | null;
+  /** How many lamps the room's fires and torches light (`render/room-light.ts`): none in daylight. */
+  lamps: () => number;
   objects: () => string[];
   /** The container whose window is open, and what is left in it. */
   container: () => { id: string; lines: { item: string; count: number }[] } | null;

@@ -42,6 +42,8 @@ export interface LightRig {
 /** The ambient and the sky light, without the room's light and with it; and how strongly the room lights. */
 export const RIG_LEVELS = { ambient: [0.42, 0.22], sky: [0.6, 0.3] } as const;
 export const ENVIRONMENT_INTENSITY = 0.55;
+/** How bright the sun is, in a room as lit as daylight (`room-light.ts` turns it down). */
+export const SUN_INTENSITY = 1.5;
 
 /** The rig's colours: the sky, the floor's bounce, and the sun. */
 const SKY = '#ffe6c4';
@@ -55,7 +57,7 @@ export function addLightRig(scene: Scene): LightRig {
   const ambient = new AmbientLight(new Color('#fff1e0'), RIG_LEVELS.ambient[0]);
   const sky = new HemisphereLight(new Color(SKY), new Color(FLOOR), RIG_LEVELS.sky[0]);
   scene.add(ambient, sky);
-  const sun = new DirectionalLight(new Color(SUN), 1.5);
+  const sun = new DirectionalLight(new Color(SUN), SUN_INTENSITY);
   sun.castShadow = true;
   // 1024 is soft enough on a 22-tile room, and half the cost of the next
   // size up on the software GL the browser suite runs on.

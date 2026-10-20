@@ -330,6 +330,7 @@ pub fn scene() -> &'static Schema {
             def("decos", array(deco()), empty_list),
             opt("buildingTiles", building_tiles()),
             opt("fogBand", int().positive()),
+            opt("light", number().min(0.1).max(1.0)),
             opt("origin", object(vec![req("x", int()), req("y", int())])),
         ])
         .refine(scene_holds_together)

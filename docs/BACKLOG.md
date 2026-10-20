@@ -97,6 +97,16 @@ from a file, and are a kind of listing in the Store, published and got there.
    `content/pack.rs` alike); one the project only adds a feature to keeps the base's. The character golden lost the
    one card. Tests: `import.test.ts`, `pack.rs`'s own, `keep-own.test.ts`.
 
+## Lit rooms (20 October 2026)
+
+A scene says how much light it has of its own (`light`, 0.1 to 1, optional; in the TS schema and `document.rs`):
+absent is the painted daylight every room had. Less turns the rig's sky, sun, ambient and reflections down that much
+(`render/room-light.ts`), and what burns in the room - `camp-fire-prop`, `standing-torch-prop`, `wall-torch-prop`
+(`BURNING`) - lights it, up to eight lamps a room (`LAMPS`), made the first time a dim room needs them and kept, so a
+room's shaders are not made again; each flame flickers its own way. Presentation only. The editor sets it from the
+scene menu (**☀**/**☾**, `editor/scene-edits.ts`); the driver counts the lamps lit (`lamps()`). Tests:
+`room-light.test.ts`, `scene-light.test.ts`, `scene.golden.test.ts` (`golden_scene.rs`), `editor-shell.spec.ts`.
+
 ## Peer to peer: a shared game with no server — slice 1 done
 
 `docs/PEER.md`. The host's page keeps the game (`src/game/peer/host-table.ts`, `play.rs`'s shared game in the

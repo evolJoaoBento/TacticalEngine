@@ -74,6 +74,7 @@ import { CameraFocus } from './game/camera-focus';
 import { gameFor, gameReady, onBegun, resumed, savesFor, type GameClient, type LocalPowers } from './game/wasm-game';
 import { codeQuestion } from './game/code-question';
 import { waitingOn } from './game/shared-game';
+import { newSceneId, setSceneLight } from './editor/scene-edits';
 import { STARTER_ABILITIES } from './engine/content/pack/starter';
 import { PROP_FUNCTIONS } from './engine/scene/prop-functions';
 import type { PropFunction } from './engine/scene/prop-function-schema';
@@ -266,20 +267,6 @@ function syncEditorContent(): void {
   }, session.project.party.map((sheet) => ({ model: sheet.model, definition: sheet.classId })));
 }
 
-/** A kebab-case id from a name, made unique against the scenes already there. */
-function newSceneId(name: string): string {
-  const base =
-    name
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '') || 'scene';
-  const taken = new Set(session.project.scenes.map((scene) => scene.id));
-  if (!taken.has(base)) return base;
-  let n = 2;
-  while (taken.has(`${base}-${n}`)) n++;
-  return `${base}-${n}`;
-}
-
 /**
  * The scene on screen.
  *
@@ -460,7 +447,7 @@ function renderPanel(): void {
         refreshEditor();
       },
       onAddScene: (name: string) => {
-        const id = newSceneId(name);
+        const id = newSceneId(session.project, name);
         session.run(addScene(blankScene(id, 12, 10)));
         session.run(renameScene(id, name));
         editor.switchScene(id);
@@ -469,6 +456,14 @@ function renderPanel(): void {
       },
       onRenameScene: (id: string, name: string) => {
         session.run(renameScene(id, name));
+        renderPanel();
+      },
+      // The room drawn again, in its new light.
+      onSceneLight: (id: string, light: number | undefined) => {
+        if (session.run(setSceneLight(id, light))) {
+          boundScene = '';
+          rebindScene();
+        }
         renderPanel();
       },
       onRemoveScene: (id: string) => {
@@ -987,7 +982,7 @@ function rebindScene(grown?: TileGrid): void {
 
   // The same view, pointed at the other room: its caches, its lights and the
   // party's own tokens carry over; the ground and the scenery do not.
-  view.rebind(activeGrid, { tints: scene.tints, decos: scene.decos, objects: scene.interactables });
+  view.rebind(activeGrid, { tints: scene.tints, decos: scene.decos, objects: scene.interactables, light: scene.light });
   surfaces.setAll(session.project.surfaces ?? []); buildings.sync(scene, activeGrid.palette);
   // The same room, grown: the camera slides as far as the ground did, and nothing seems to move.
   if (grown === undefined) frameCamera();
@@ -1845,6 +1840,7 @@ const state = {
     if (talking !== null) return talking.prompt?.kind ?? 'dialogue';
     return pending.prompt.kind;
   },
+  lamps: (): number => view.roomLight.lit(),
   waitingOn: (): string | null => waitingOn(game.board.pending as { for?: string | null } | null, (id) => game.nameOf(id)),
   objects: (): string[] => interactablesOf(game.board.scene).map((i) => i.id),
   container: (): { id: string; lines: { item: string; count: number }[] } | null => ((open) => open === null ? null : { id: open.id, lines: open.lines.map((l) => ({ item: l.item, count: l.count })) })(game.containerView(() => true, () => {})),
@@ -1963,7 +1959,7 @@ const state = {
     refreshEditor();
   },
   addScene: (name: string): string => {
-    const id = newSceneId(name);
+    const id = newSceneId(session.project, name);
     session.run(addScene(blankScene(id, 12, 10)));
     session.run(renameScene(id, name));
     editor.switchScene(id);

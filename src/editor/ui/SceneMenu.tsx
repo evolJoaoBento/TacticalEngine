@@ -5,6 +5,7 @@
  */
 
 import type { EditorSession } from '../session';
+import { lightFromText } from '../scene-edits';
 
 /** What the scene menu needs to draw the list and report a pick. */
 export interface SceneMenuProps {
@@ -16,6 +17,8 @@ export interface SceneMenuProps {
   onSwitch: (id: string) => void;
   onAdd: (name: string) => void;
   onRename: (id: string, name: string) => void;
+  /** A room's own light set (`SceneDoc.light`): a level, or daylight. */
+  onLight: (id: string, light: number | undefined) => void;
   onRemove: (id: string) => void;
   onSetStart: (id: string) => void;
   onClose: () => void;
@@ -54,6 +57,19 @@ export function SceneMenu(props: SceneMenuProps): preact.JSX.Element {
               }}
             >
               ✎
+            </button>
+            <button
+              class="ph-mini"
+              data-testid="scene-light"
+              title={scene.light === undefined ? 'Light: daylight' : `Light: ${Math.round(scene.light * 100)}% of daylight`}
+              onClick={() => {
+                const typed = prompt('How much light the room has, 10 to 100% (empty for daylight). Its fires and torches light a dim one.', scene.light === undefined ? '100' : String(Math.round(scene.light * 100)));
+                if (typed === null) return;
+                const light = lightFromText(typed);
+                if (light !== null) props.onLight(scene.id, light);
+              }}
+            >
+              {scene.light === undefined ? '☀' : '☾'}
             </button>
             <button
               class="ph-mini"

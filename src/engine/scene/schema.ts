@@ -247,6 +247,12 @@ export const sceneSchema = z
     /** Visual fog wall inset from the edges, in tiles. */
     fogBand: z.number().int().positive().optional(),
     /**
+     * How much light the room has of its own (`render/room-light.ts`), from 0.1 to 1: absent, or 1, is the painted
+     * daylight every room has; less turns the sky, the sun and the ambient down that much, and what burns in the room -
+     * its fires and torches - lights it. Presentation only: the rules never read it.
+     */
+    light: z.number().min(0.1).max(1).optional(),
+    /**
      * How far the room has grown west and north since it was made, in tiles: where the cell
      * that was `0,0` is now. Nothing in the room reads it - every coordinate was moved when the
      * corner was - but a game already being played here holds tiles counted from the old corner,
