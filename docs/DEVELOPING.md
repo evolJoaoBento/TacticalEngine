@@ -1017,6 +1017,12 @@ when the source changes; browser tests cover broken directory art, corrupt impor
 
 ## 11. Gotchas
 
+- **A project kept in the browser has no pack entries in it.** `GameProjects` (and a saved project file) stores a
+  project without what its listed packs lay (`withoutPackEntries`); a page lays them again as it opens one
+  (`withListedPacks`). Anything handed to a game played elsewhere - the server's, a peer host's table - is handed laid,
+  as `Wire.opening` and the portal's `begin` hand it, or that game's characters are made of less content than the
+  pages' are, and every board parts on a Hit Point maximum.
+
 - **An imported material keeps nothing in alpha.** A 2D canvas stores premultiplied alpha, so a texel made
   transparent loses its colour on export. The height rides in the normal map's blue channel and the normal's Z is
   rebuilt in the shader (`tile-surface.ts`); every packed alpha is 255.
