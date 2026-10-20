@@ -27,13 +27,14 @@
  */
 
 import { deriveCharacter } from '../engine/character/sheet';
-import type { SceneDoc } from '../engine/scene/schema';
+import { projectSchema, type SceneDoc } from '../engine/scene/schema';
+import { migrateDocument } from '../engine/scene/migrate';
 import type { TileGrid } from '../engine/grid/grid';
 import type { LogTone } from '../engine/script/schema';
 import type { Spot } from '../engine/grid/grid';
 import type { LevelUpPlan } from '../engine/character/progression';
 import type { Response } from '../engine/script/runner';
-import { gatherParty, reachableInteractable, refreshWorld, setSheet, syncPools, syncRoster, type DemoScene, type UseOutcome } from './demo-scene';
+import { DEMO_REACH, gatherParty, reachableInteractable, refreshWorld, setSheet, syncPools, syncRoster, type DemoScene, type UseOutcome } from './demo-scene';
 import { inCombat, scriptPending } from './moment';
 import { aimedArc, jumpAim, jumpOffered, jumpReaches, previewWalk, reachableTiles, underPressureTiles, type MoveResult } from './movement';
 import { characterContentFor, syncAuthoredEncounters, takeGround } from './room';
@@ -50,8 +51,9 @@ import { openContainer, withinReach } from './prop-use';
 import { ADVENTURE_PORTAL, adventureChoices, beginAdventure } from './adventure-portal';
 import { AdventureLibrary } from './adventure-library';
 import { GameProjects } from './game-projects';
+import { withListedPacks } from './listed-packs';
 import { browserStore } from './save-slots';
-import { openPage } from './open-page';
+import { nowPlaying, openPage } from './open-page';
 import { hoverLine } from './hover';
 import { steerStep } from './steer';
 import type { Walking } from './land';
@@ -267,14 +269,21 @@ export abstract class GameTable implements GameClient, LocalPowers {
    */
   wireWith(wire: Wire): void {
     this.wire = wire;
-    wire.attach(() => {
-      this.edited(false);
-      this.behind = true;
-    });
-    wire.onTable(() => {
+    wire.attach(
+      () => {
+        this.edited(false);
+        this.behind = true;
+      },
+      () => {
+        this.seated();
+        this.behind = true;
+      },
+    );
+    // Told at once of a table already heard, as a listener is.
+    if (wire.table !== null) {
       this.seated();
       this.behind = true;
-    });
+    }
   }
 
   /** No longer held to a shared game - a peer game's guest the host removed: played alone, for everybody. */
@@ -450,25 +459,46 @@ export abstract class GameTable implements GameClient, LocalPowers {
     // game played elsewhere is told it; the view itself is the page's own.
     const open = openContainer(this.demo);
     if (open === null) return null;
-    if (!reach(open)) {
+    // At a table others are at the window is everybody's: shut when nobody of the party can reach it, not when this
+    // page's own selection is away from it - another player's character may be standing at it.
+    const shared = this.wire?.seating() != null && (this.wire.table?.members.length ?? 0) > 1;
+    const near = shared ? this.demo.party.members().some((member) => withinReach(this.demo, open, DEMO_REACH, member)) : reach(open);
+    if (!near) {
       this.closeContainer();
       return null;
     }
     // The camp's portal: a chooser, holding nothing, so nothing is read - here or by the engine.
     if (open === ADVENTURE_PORTAL) {
+      const close = (): void => {
+        this.closeContainer();
+        refresh();
+      };
+      // At a shared game the host chooses, from their own adventures, and everybody goes through: the others wait.
+      const seating = this.wire?.seating() ?? null;
+      if (seating !== null && seating.you !== seating.host) {
+        const host = this.wire?.table?.members.find((member) => member.id === seating.host)?.name ?? 'The host';
+        return portalView(this.demo, open, [], { begin: () => {}, close }, host);
+      }
       // This build's adventures, and those the player imported (`adventure-library.ts`).
       const choices = adventureChoices(new AdventureLibrary(browserStore()));
       return portalView(this.demo, open, choices, {
         begin: (adventure) => {
-          const begun = beginAdventure(new GameProjects(browserStore()), adventure, this.demo.project.party, choices);
-          if (begun !== null) return openPage(`play&project=${encodeURIComponent(begun)}`);
-          this.note('The adventure could not be begun: it no longer reads, or this browser has no room left to keep another game.', 'bad');
-          refresh();
+          const games = new GameProjects(browserStore());
+          const begun = beginAdventure(games, adventure, this.demo.project.party, choices);
+          const said = (why: string): void => {
+            this.note(`The adventure could not be begun: ${why.replace(/\.$/, '')}.`, 'bad');
+            refresh();
+          };
+          if (begun === null) return said('it no longer reads, or this browser has no room left to keep another game');
+          // Alone, the page opens again on the game begun; at a table, the table's game is built again over it, and
+          // everybody at it plays on there - the address the game's, which a reload comes back to.
+          const wire = this.wire;
+          if (wire === null || seating === null) return openPage(`play&project=${encodeURIComponent(begun)}`);
+          // Sent as a table is opened: the packs it lists laid in it, so the server's game is made of what every page's is.
+          const project = projectSchema.parse(migrateDocument(JSON.parse(games.read(begun) ?? 'null')));
+          void wire.begin(withListedPacks(project)).then((why) => (why === null ? nowPlaying(begun) : said(why)));
         },
-        close: () => {
-          this.closeContainer();
-          refresh();
-        },
+        close,
       });
     }
     // Drawing the window read what is in it, which makes a seller's state: the engine reads it too.

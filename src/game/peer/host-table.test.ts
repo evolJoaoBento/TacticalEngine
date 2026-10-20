@@ -160,6 +160,55 @@ describe('a peer game kept by its host\'s page', () => {
     expect(pushes(host).length).toBe(before);
   });
 
+  it.skipIf(!built)('begins another project at the host\'s word: the table kept, the others pushed the board and the project', async () => {
+    // The tests' hands, for a fight to begin in.
+    const { table, host, open, party } = await opened({ testHands: true });
+    const gus = guest(table);
+    gus.ask({ op: 'join' });
+    const [mine, theirs] = party as [string, string];
+    host.ask({ op: 'seat', character: theirs, account: 'g' });
+    host.ask({ op: 'start' });
+    gus.ask({ op: 'say', text: 'Through the portal?' });
+    // The host walks: the game is somewhere the one begun will not be.
+    const tileOf = (board: unknown, id: string): unknown => (board as { replica: { state: { entities: Record<string, { tile: number }> } } }).replica.state.entities[id]?.tile;
+    const from = tileOf(open.ok?.['board'], mine) as number;
+    const walked = host.ask({ op: 'call', call: 'moveSelectedTo', args: [from + 2] });
+    expect(tileOf(walked.ok?.['board'], mine)).not.toBe(from);
+    const elsewhere = { ...project, id: 'elsewhere' };
+    const begin = { op: 'begin', project: elsewhere, shipped: shippedContent(), table: { animated: false, askDefender: true } };
+    // Not the guest's.
+    const told = pushes(host).length;
+    expect(gus.ask(begin).error).toBe('only the host takes the party into an adventure');
+    expect(pushes(host).length).toBe(told);
+    // The host's: begun afresh, numbered as an intent, the host's own selection theirs.
+    const begun = host.ask(begin);
+    expect(begun.error).toBeUndefined();
+    expect(tileOf(begun.ok?.['board'], mine)).toBe(from);
+    expect(begun.ok?.['seq']).toBe((walked.ok?.['seq'] as number) + 1);
+    // The guest: the board with their own selection on it, and the project to play on over.
+    const pushed = pushes(gus).at(-1) as { push: { board: { replica: { party: { selected: unknown } } }; seq: number; by: string }; begun: { project: { id: string } } };
+    expect(pushed.begun.project.id).toBe('elsewhere');
+    expect([pushed.push.seq, pushed.push.by]).toEqual([begun.ok?.['seq'], 'h']);
+    expect(pushed.push.board.replica.party.selected).toBe(theirs);
+    // The same table: who plays whom and what was said kept, the project a guest's page boots with the new one.
+    const resumed = gus.ask({ op: 'resume' });
+    expect(resumed.ok).toMatchObject({ project: 'elsewhere', table: { seats: { [theirs]: 'g' }, started: true } });
+    expect((gus.ask({ op: 'project' }).ok as { project: { id: string } }).project.id).toBe('elsewhere');
+    expect((resumed.ok?.['chat'] as { text: string }[]).map((line) => line.text)).toEqual(['Through the portal?']);
+    expect(gus.ask({ op: 'call', call: 'select', args: [theirs] }).ok?.['answer']).toBe(true);
+    expect(gus.ask({ op: 'call', call: 'select', args: [mine] }).ok?.['answer']).toBe(false);
+    // A project that will not build leaves the game as it was, nobody pushed anything.
+    const quiet = pushes(gus).length;
+    expect(host.ask({ ...begin, project: { id: 'broken' } }).error).toBeDefined();
+    expect(pushes(gus).length).toBe(quiet);
+    expect(gus.ask({ op: 'resume' }).ok?.['project']).toBe('elsewhere');
+    // Nor mid-fight, when a save could not be made either.
+    expect(host.ask({ op: 'call', call: 'startEncounter', args: ['group-1'] }).error).toBeUndefined();
+    expect(host.ask({ ...begin, project: { ...elsewhere, id: 'mid-fight' } }).error).toMatch(/fight/);
+    expect(pushes(gus).length).toBe(quiet + 1);
+    expect(gus.ask({ op: 'resume' }).ok?.['project']).toBe('elsewhere');
+  });
+
   it.skipIf(!built)('says what is said at the table to the others, kept for whoever comes after', async () => {
     const { table, host } = await opened();
     const gus = guest(table);

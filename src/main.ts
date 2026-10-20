@@ -71,7 +71,8 @@ import { DEMO_ADVERSARY_ID, DEMO_MODELS, DEMO_CHARACTERS } from './game/demo-rul
 import { characterContentFor, adversaryDefsFor } from './game/room';
 import type { EquipResult, GearSlot } from './game/equip';
 import { CameraFocus } from './game/camera-focus';
-import { gameFor, gameReady, resumed, savesFor, type GameClient, type LocalPowers } from './game/wasm-game';
+import { gameFor, gameReady, onBegun, resumed, savesFor, type GameClient, type LocalPowers } from './game/wasm-game';
+import { codeQuestion } from './game/code-question';
 import { STARTER_ABILITIES } from './engine/content/pack/starter';
 import { PROP_FUNCTIONS } from './engine/scene/prop-functions';
 import type { PropFunction } from './engine/scene/prop-function-schema';
@@ -743,6 +744,12 @@ function loadProjectText(text: string, label = 'the project'): string {
     renderPanel();
     return reason;
   }
+  playOn(fresh);
+  return '';
+}
+
+/** A game the page plays from now: a project loaded, or an adventure the host of the page's table began (`onBegun`). */
+function playOn(fresh: GameClient & LocalPowers): void {
   game = fresh;
   savesDefault = false; // somebody else's file now: it saves where they choose, not over the default
   project = game.board.project;
@@ -760,8 +767,8 @@ function loadProjectText(text: string, label = 'the project'): string {
   view.setScenery(editor.scene);
   refreshPlay();
   renderPanel();
-  return '';
 }
+onBegun(playOn);
 
 /** The files picked under Project > Import pack, one after another. */
 async function importPacks(files: readonly File[]): Promise<void> {
@@ -770,16 +777,6 @@ async function importPacks(files: readonly File[]): Promise<void> {
   // The picker is the one place a person is waiting on an answer, so they are told it. The
   // driver's handle hands back the same sentence instead.
   if (said.length > 0) alert(said.join('\n\n'));
-}
-
-/** What Import pack and Load ask before new code comes in: which scripts, and what code can do. */
-function codeQuestion(label: string, code: readonly { id: string; name: string }[], verb: 'Import' | 'Load'): string {
-  const named = code.map((entry) => (entry.name === '' ? entry.id : `${entry.name} (${entry.id})`));
-  return [
-    `${label} carries code: ${code.length === 1 ? 'one script' : `${code.length} scripts`} -- ${named.join(', ')}.`,
-    'Code in a pack runs inside the game with everything the game can reach. It is not sandboxed.',
-    `${verb} it only if you trust whoever made it. ${verb} it, code and all?`,
-  ].join('\n\n');
 }
 
 /**

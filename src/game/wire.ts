@@ -192,6 +192,12 @@ export class Wire {
   private known = 0;
   private logs = { ours: 0, theirs: 0 };
   private retell: () => void = () => undefined;
+  /** The game it is the wire of, told whenever who plays whom changes (`attach`). */
+  private seated: () => void = () => undefined;
+  /** The page's game built again over a project the host began (`begin`): its scene, or `null` if it will not play. */
+  private beginWith: (project: unknown) => DemoScene | null = () => null;
+  /** The page taking a game begun (`take`): what it redraws then is not the editor's. */
+  private taking = false;
   private transport: Transport;
   /** Which connection a message went by: a drop is the drop of the one it is. */
   private connection = 0;
@@ -219,7 +225,11 @@ export class Wire {
   /** The server's game opened, and the page stood where it is - or the page come back to the game kept. */
   readonly ready: Promise<void>;
 
-  constructor(private readonly connect: () => Transport, private readonly demo: DemoScene, private readonly shipped: unknown, private readonly options: WireOptions = {}) {
+  /** The page's game's scene: another once the host begins an adventure (`begin`), the wire the same. */
+  private demo: DemoScene;
+
+  constructor(private readonly connect: () => Transport, demo: DemoScene, private readonly shipped: unknown, private readonly options: WireOptions = {}) {
+    this.demo = demo;
     this.transport = connect();
     this.hear();
     this.ready = this.start();
@@ -277,6 +287,7 @@ export class Wire {
 
   private setTable(table: SharedTable): void {
     this.table = table;
+    this.seated();
     for (const heard of this.tableHeard) heard(table);
   }
 
@@ -375,6 +386,12 @@ export class Wire {
     if (typeof friend === 'string') for (const heard of this.friendsHeard) heard(friend);
     const pushed = message['push'] as { board: BoardSnapshot; views: Views; seq?: number } | undefined;
     if (pushed === undefined || this.state === 'opening' || this.state === 'closed' || this.state === 'lost') return;
+    // The host began another project: the page plays on over it, whatever of its own was on its way up let go.
+    const begun = message['begun'] as { project: unknown } | undefined;
+    if (begun !== undefined) {
+      this.moveTo(begun.project, pushed.board, pushed.seq);
+      return;
+    }
     if (this.inFlight > 0) {
       this.waiting.push(pushed.views);
       this.state = 'parted';
@@ -410,9 +427,58 @@ export class Wire {
     return true;
   }
 
-  /** The game it is the wire of, told when the page's game was stood somewhere under it. */
-  attach(retell: () => void): void {
+  /**
+   * The game it is the wire of, told when the page's game was stood somewhere under it, and when who plays whom
+   * changed. One game at a time: another attached - the game built again over a project begun - takes its place.
+   */
+  attach(retell: () => void, seated: () => void = () => undefined): void {
     this.retell = retell;
+    this.seated = seated;
+  }
+
+  /** How the page's game is built again over a project the host begins, for the wire to stand it where it is. */
+  onBegun(build: (project: unknown) => DemoScene | null): void {
+    this.beginWith = build;
+  }
+
+  /**
+   * The host's: the game built again over another project - an adventure a camp's portal begins - everybody at it
+   * going too, and the page playing on over it. `null` once it has, or why not.
+   */
+  async begin(project: unknown): Promise<string | null> {
+    if (this.state !== 'in' && this.state !== 'parted' && this.state !== 'asked') return 'not at a game';
+    const said = await this.send({ ...this.opening(), op: 'begin', project, rng: undefined, lobby: undefined, visibility: undefined });
+    const begun = said.ok as { board: BoardSnapshot; seq?: number } | undefined;
+    if (begun === undefined) return said.error ?? 'it was not begun';
+    return this.moveTo(project, begun.board, begun.seq) ? null : 'this page could not play it';
+  }
+
+  /**
+   * The page's game built again over the project begun, and stood where the server's game is in it. Whatever was on
+   * its way up was predicted on the game before, and its answers are held to nothing - but the server's game plays
+   * it in the new one, so the page is stood where the server's game is once it has. A page that cannot play the
+   * project begun leaves the game.
+   */
+  private moveTo(project: unknown, board: BoardSnapshot, seq: number | undefined): boolean {
+    const behind = this.inFlight > 0;
+    this.release();
+    this.nextEpoch();
+    const demo = this.beginWith(project);
+    if (demo === null) {
+      recordParting('server: begin', null, null, { failed: 'the page could not play the project begun' });
+      this.close();
+      return false;
+    }
+    this.demo = demo;
+    this.waiting = [];
+    this.elsewhere = [];
+    this.standAt(board);
+    this.known = seq ?? this.known;
+    if (behind) {
+      this.state = 'parted';
+      this.standWhereTheServerIs();
+    }
+    return true;
   }
 
   status(): WireState {
@@ -469,8 +535,21 @@ export class Wire {
    * page that opens it builds its ground over the project the opening carries, which changes nothing.
    */
   outOfStep(): void {
-    if (this.state === 'opening') return;
+    if (this.state === 'opening' || this.taking) return;
     this.close();
+  }
+
+  /**
+   * The page taking the game built again over a project begun (`begin`): the ground it draws again, and the party, are
+   * the game's as the server's stands, no edit - and let go of nothing.
+   */
+  take(run: () => void): void {
+    this.taking = true;
+    try {
+      run();
+    } finally {
+      this.taking = false;
+    }
   }
 
   /** The page let go of a question the server's game held, which it cannot answer itself. */

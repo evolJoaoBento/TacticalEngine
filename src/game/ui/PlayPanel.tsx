@@ -99,6 +99,8 @@ export interface OpenContainer {
   /** At the camp's portal: the adventures it offers, each begun with Begin (`adventure-portal.ts`). */
   adventures?: readonly { id: string; name: string; blurb: string }[];
   onBegin?: (adventure: string) => void;
+  /** At a shared game, on a page not the host's: who chooses the adventure, which takes everybody through. */
+  chooser?: string;
 }
 
 export interface PlayPanelProps {
@@ -401,6 +403,11 @@ function ContainerWindow({ container }: { container: OpenContainer }): preact.JS
       )}
       {container.adventures !== undefined ? (
         // The portal: an adventure chosen is a game of its own, begun with the party as it stands.
+        container.chooser !== undefined ? (
+          <div className="panel-prose" data-testid="adventure-chooser">
+            {container.chooser} chooses where it opens. Everybody at the table goes through together, the party as it stands.
+          </div>
+        ) : (
         <>
           <div className="panel-prose">Choose where it opens. The party goes through as it stands; the camp stays where it is.</div>
           {container.adventures.length === 0 ? <div className="panel-prose" data-testid="adventures-none">No adventures yet.</div> : null}
@@ -417,6 +424,7 @@ function ContainerWindow({ container }: { container: OpenContainer }): preact.JS
             </div>
           ))}
         </>
+        )
       ) : container.lines.length === 0 ? (
         <div className="panel-prose" data-testid="container-empty">{shop ? 'Sold out.' : 'Nothing left in it.'}</div>
       ) : shop ? (

@@ -8,7 +8,11 @@
  * each message numbered (`id`) and its answer found by it, what the table says unasked given to whoever listens, and
  * whatever still waits failed when the link closes.
  *
- * A port says nothing when its other end goes, so whichever end closes first says so (`BYE`) before it does.
+ * A port says nothing when its other end goes, so whichever end closes first says so (`BYE`) before it does. A data
+ * channel takes a message only so long (a browser's `max-message-size`, a quarter of a megabyte or less), and a project
+ * a guest boots with or goes into with the host is longer - a camp with the SRD's characters laid in it, an adventure -
+ * so a long text is sent in pieces (`pieces`) and put together again as they come (`Joiner`), in order, as the channel
+ * keeps them.
  */
 
 import type { Said, Transport } from '../wire';
@@ -60,7 +64,38 @@ export function portLink(port: MessagePort): Link {
   };
 }
 
-/** A WebRTC data channel as a link. */
+/** What a piece of a long text begins with: no message does - each is JSON. */
+const PIECE = String.fromCharCode(0);
+
+/** How long a text a channel is given at once, in characters: three bytes each at most, well under any browser's limit. */
+export const PIECE_LONGEST = 16_000;
+
+/** A text as a channel is given it: whole, or in pieces, each saying how many are still to come after it. */
+export function pieces(text: string, longest = PIECE_LONGEST): string[] {
+  if (text.length <= longest && !text.startsWith(PIECE)) return [text];
+  const parts: string[] = [];
+  for (let at = 0; at < text.length; at += longest) parts.push(text.slice(at, at + longest));
+  return parts.map((part, index) => `${PIECE}${parts.length - 1 - index}${PIECE}${part}`);
+}
+
+/** The texts a channel was given, put together again from their pieces as they come, in order. */
+export class Joiner {
+  private held: string[] = [];
+
+  /** A message as it came: the text it completes, or `null` while more pieces are to come. */
+  take(message: string): string | null {
+    if (!message.startsWith(PIECE)) return message;
+    const split = message.indexOf(PIECE, 1);
+    const left = Number(message.slice(1, split));
+    this.held.push(message.slice(split + 1));
+    if (left > 0) return null;
+    const whole = this.held.join('');
+    this.held = [];
+    return whole;
+  }
+}
+
+/** A WebRTC data channel as a link: a long text sent in pieces and put together again (`pieces`, `Joiner`). */
 export function channelLink(channel: RTCDataChannel): Link {
   let heard: (text: string) => void = () => undefined;
   const shut: (() => void)[] = [];
@@ -70,14 +105,18 @@ export function channelLink(channel: RTCDataChannel): Link {
     gone = true;
     for (const s of shut) s();
   };
+  const joiner = new Joiner();
   channel.addEventListener('message', (event: MessageEvent) => {
-    if (!gone) heard(String(event.data));
+    if (gone) return;
+    const text = joiner.take(String(event.data));
+    if (text !== null) heard(text);
   });
   channel.addEventListener('close', end);
   channel.addEventListener('error', end);
   return {
     send: (text) => {
-      if (!gone && channel.readyState === 'open') channel.send(text);
+      if (gone || channel.readyState !== 'open') return;
+      for (const piece of pieces(text)) channel.send(piece);
     },
     onText: (h) => {
       heard = h;

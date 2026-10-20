@@ -103,9 +103,19 @@ name as well (below).
 
 - No page tells the game how its own stands (`NEVER_TOLD`).
 - The test driver's hands (`TEST_HANDS`) are taken from the host's page alone, and only in development.
-- Only the host opens the game, starts it, says who plays whom once it has started, and loads a save into it.
+- Only the host opens the game, starts it, says who plays whom once it has started, loads a save into it, and begins
+  another project in it (`begin`: a camp's portal taking everybody into an adventure, the table kept, the guests
+  pushed the project with the board, as `play.rs` does).
 - A guest takes a seat nobody has, or leaves their own, before the start.
 - The host's dice are the game's: the host is trusted, since the game is in their browser anyway.
+
+## Long messages
+
+A data channel takes a message only so long - a browser's `max-message-size`, a quarter of a megabyte or less - and a
+project is often longer: a New Game camp with the SRD's characters laid in it is about 370 KB, the Ashwell over a
+megabyte. A guest could not join a peer game at a camp at all until a channel sent a long text in pieces (`pieces`,
+`PIECE_LONGEST` characters each) and put them together again as they came (`Joiner`, `link.ts`) - in order, as the
+channel keeps them. A port takes any length, and is not cut.
 
 ## Saves
 
@@ -146,7 +156,7 @@ without them. What is done instead:
 - **The game ends with the host's page.** Nothing is handed on, as the server hands on a game whose host has
   gone.
 - **A different project, opened by the host after boot,** is played alone. Only the game the page boots with is
-  the peer game.
+  the peer game - and an adventure the host begins at a camp's portal, which the table goes into together (`begin`).
 - No friends, no invitation links, no list of games to join: those are the server's.
 
 ## Running it
@@ -176,7 +186,7 @@ without them. What is done instead:
 | File | What |
 | --- | --- |
 | `src/game/peer/host-table.ts` | the host's table: `play.rs`'s shared game, in the host's page |
-| `src/game/peer/link.ts` | a link (port or data channel) and the page's transport over one |
+| `src/game/peer/link.ts` | a link (port or data channel) and the page's transport over one; a long text sent over a channel in pieces |
 | `src/game/peer/connect.ts` | WebRTC: the invitation, the reply, the codes |
 | `src/game/peer/peer-play.ts` | the page's peer mode: who it is, the table, the wire's way in, inviting |
 | `src/game/ui/PeerJoin.tsx` | the guest's screen before boot |

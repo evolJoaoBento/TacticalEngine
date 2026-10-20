@@ -374,7 +374,9 @@ the browser's games, and opens it. The Ashwell is the one adventure there is; it
 `ui/Adventures.tsx`) are offered beside it, played by the party that goes through, the SRD character pack listed for
 them; one may not take a built-in adventure's id. **From the Store** too: an adventure is a kind of listing, a
 project file the server checks with the engine's schema (`store.rs`, `is_project`), and Get downloads it into the
-same library, remembering the listing it came from (`getAdventure`, `store.ts`).
+same library, remembering the listing it came from (`getAdventure`, `store.ts`). **At a shared game** the host begins
+it and the whole table goes in (`begin`, `play.rs` and `host-table.ts`): the game built again over the adventure, the
+table and its seats kept, every page playing on over it without opening again (`Wire.begin`).
 
 The editor has a quest list and a form — name, summary, steps — because a quest is a list and a
 list is edited as a list; the graph was the right call for conversations, not for this. The

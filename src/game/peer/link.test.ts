@@ -3,7 +3,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { LinkTransport, linkedPorts } from './link';
+import { Joiner, LinkTransport, PIECE_LONGEST, channelLink, linkedPorts, pieces } from './link';
 import { decode, encode, iceFrom, ICE } from './connect';
 import { nameFrom, peerMode, LONGEST_NAME } from './peer-play';
 
@@ -42,6 +42,49 @@ describe('a link between a page and the table', () => {
     table.close();
     await expect(waiting).rejects.toThrow('the connection closed');
     expect(transport.closed).toBe(true);
+  });
+});
+
+describe('a long text on a data channel', () => {
+  /** A channel's two ends, as an ordered, reliable data channel keeps what is sent: what one sends, the other hears. */
+  function channels(): [RTCDataChannel, RTCDataChannel, string[]] {
+    const sent: string[] = [];
+    const end = (): RTCDataChannel & { far?: EventTarget } => Object.assign(new EventTarget(), { readyState: 'open' }) as unknown as RTCDataChannel;
+    const [one, two] = [end(), end()];
+    const wire = (from: RTCDataChannel, to: RTCDataChannel) =>
+      Object.assign(from, {
+        send: (data: string) => {
+          if (data.length > PIECE_LONGEST + 20) throw new Error('Trying to send message larger than max-message-size');
+          sent.push(data);
+          to.dispatchEvent(new MessageEvent('message', { data }));
+        },
+      });
+    wire(one, two);
+    wire(two, one);
+    return [one, two, sent];
+  }
+
+  it('is sent in pieces no longer than a channel takes, and heard whole', () => {
+    const [one, two, sent] = channels();
+    const heard: string[] = [];
+    channelLink(two).onText((text) => heard.push(text));
+    const long = JSON.stringify({ project: 'é'.repeat(PIECE_LONGEST * 2 + 5) });
+    channelLink(one).send(long);
+    channelLink(one).send('{"op":"short"}');
+    expect(sent.length).toBe(4);
+    expect(heard).toEqual([long, '{"op":"short"}']);
+  });
+
+  it('keeps a text whole that fits, and puts pieces together only once the last has come', () => {
+    expect(pieces('{"a":1}')).toEqual(['{"a":1}']);
+    const parts = pieces('abcdefg', 3);
+    expect(parts.length).toBe(3);
+    const joiner = new Joiner();
+    expect(parts.map((part) => joiner.take(part))).toEqual([null, null, 'abcdefg']);
+    expect(joiner.take('{"b":2}')).toBe('{"b":2}');
+    // A text that happens to begin as a piece does is sent as one, so it is never taken for part of another.
+    const odd = `${String.fromCharCode(0)}0${String.fromCharCode(0)}x`;
+    expect(pieces(odd).map((part) => joiner.take(part))).toEqual([odd]);
   });
 });
 

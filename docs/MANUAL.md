@@ -154,6 +154,14 @@ own, kept in this browser beside the camp and named for whoever leads the party 
 party)"); the camp stays as it was, and you can go back to it from Load Game and begin again. An Ashwell
 begun from the menu by an older build is still listed, its saves with it.
 
+**At a shared game** - a camp hosted for friends, on the server or peer to peer - the portal takes
+**everybody** through. Its window opens on every page; the host's lists the host's adventures and
+**Begin**, and the others' say who chooses. Once the host begins one, every page at the table is in it
+together: the same game, the same invitation, who plays whom and what was said kept, the party that went
+through - the companions anybody asked along among them. Nobody's page opens again. The host's keeps
+the adventure among its games, and a save of it is everybody's, as any shared game's is. While the
+party is at the portal's window, it stays open as long as anybody's character is beside the portal.
+
 **Peer to Peer** plays a game with friends browser to browser, with no server between you
 (`docs/PEER.md`). Give your name, then either **Join** a game or host one of your games (or a save)
 from the list. Hosting opens the game as a lobby. Press **Invite a player** and send the code it writes

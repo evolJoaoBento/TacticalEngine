@@ -38,6 +38,11 @@
 //!   slot keeps who plays whom (`seats`), the seats kept for players not back yet among them;
 //! - `{ id, op: "resume" }` - the game the account is at, kept since its socket last closed:
 //!   `{ id, ok: { board, project, table } }`;
+//! - `{ id, op: "begin", project, shipped, table }` - the game built again over another project - an adventure a
+//!   camp's portal begins, the party it took along in it - the host's alone, and not while a save would be refused:
+//!   `{ id, ok: { board, seq } }`. It is the same game still: its id, invitation, players, seats and chat kept, the
+//!   project a guest's page opens over and a save keeps beside it the new one. The others are pushed the board with
+//!   the project, `{ push: { board, views, by, seq }, begun: { project } }`, and their pages play on over it;
 //!
 //! and `{ id, error }` for anything refused. Without an `id`, what the server **pushes** to every other page at
 //! the game: `{ push: { board, views, by, seq } }` after an intent that changed the board or gave something to draw,
@@ -417,12 +422,7 @@ fn play_thread(shared: Arc<Mutex<Shared>>, root: PathBuf) -> mpsc::Sender<Job> {
                 Err(mpsc::RecvTimeoutError::Timeout) => {
                     if hand_on(&shared) {
                         played += 1;
-                        let members = shared.lock().expect("the game").members.clone();
-                        for member in members {
-                            play_for(&mut slot, &shared, &member, &hooks);
-                            let chosen = slot.as_ref().map_or(Value::Null, |session| json!(session.party.selected()));
-                            shared.lock().expect("the game").selected.insert(member, chosen);
-                        }
+                        reselect(&mut slot, &shared, &hooks);
                         let held = shared.lock().expect("the game");
                         push(&held, None, &json!({ "table": table_of(&held, &root) }));
                     }
@@ -445,12 +445,25 @@ fn play_thread(shared: Arc<Mutex<Shared>>, root: PathBuf) -> mpsc::Sender<Job> {
             if op == "call" && said["ok"].is_object() {
                 played += 1;
             }
+            // Another project begun: the game is the new one's, everybody's selection kept if they went through and
+            // made again among their own in it if not, and the board the one who began it is answered is their own.
+            if op == "begin" && said["ok"].is_object() {
+                played += 1;
+                {
+                    let mut held = shared.lock().expect("the game");
+                    held.project = job.message["project"]["id"].clone();
+                    held.document = job.message["project"].clone();
+                }
+                reselect(&mut slot, &shared, &hooks);
+                play_for(&mut slot, &shared, &job.account, &hooks);
+                said["ok"]["board"] = slot.as_mut().map_or(Value::Null, |session| session.board());
+            }
             // Opened, the game told whom it plays for at once: in a lobby, nobody yet.
             if op == "open" && said["ok"].is_object() {
                 play_for(&mut slot, &shared, &job.account, &hooks);
                 said["ok"]["board"] = slot.as_mut().map_or(Value::Null, |session| session.board());
             }
-            if matches!(op.as_str(), "call" | "open" | "join" | "resume") && said["ok"].is_object() {
+            if matches!(op.as_str(), "call" | "open" | "join" | "resume" | "begin") && said["ok"].is_object() {
                 said["ok"]["seq"] = json!(played);
                 // Whom the account has selected now, kept for its next intent and the boards it is pushed.
                 let chosen = said["ok"]["board"]["replica"]["party"]["selected"].clone();
@@ -500,12 +513,7 @@ fn play_thread(shared: Arc<Mutex<Shared>>, root: PathBuf) -> mpsc::Sender<Job> {
                 // Numbered as an intent is: what any account's game answers from here may differ from what a page
                 // predicted before it heard, which is no parting (`seq`).
                 played += 1;
-                let members = shared.lock().expect("the game").members.clone();
-                for member in members {
-                    play_for(&mut slot, &shared, &member, &hooks);
-                    let chosen = slot.as_ref().map_or(Value::Null, |session| json!(session.party.selected()));
-                    shared.lock().expect("the game").selected.insert(member, chosen);
-                }
+                reselect(&mut slot, &shared, &hooks);
             }
             // What the others are told: the board an intent left and what it gave them to draw; who is at the game.
             let mut held = shared.lock().expect("the game");
@@ -521,6 +529,11 @@ fn play_thread(shared: Arc<Mutex<Shared>>, root: PathBuf) -> mpsc::Sender<Job> {
                         }
                     }
                 }
+                // The others moved to the project begun with the board it stands at, each with their own selection.
+                "begin" if said["ok"].is_object() => {
+                    held.seen = unselected(&said["ok"]["board"]);
+                    push(&held, from, &json!({ "push": { "board": said["ok"]["board"], "views": {}, "by": job.account, "seq": played }, "begun": { "project": held.document } }));
+                }
                 "join" | "seat" | "start" | "visibility" if said["ok"].is_object() => push(&held, from, &json!({ "table": table_of(&held, &root) })),
                 "say" if said["ok"].is_object() => push(&held, from, &json!({ "chat": said["ok"]["line"] })),
                 _ => {}
@@ -532,6 +545,16 @@ fn play_thread(shared: Arc<Mutex<Shared>>, root: PathBuf) -> mpsc::Sender<Job> {
         }
     });
     door
+}
+
+/// Each member's selection made again among their own, after who plays whom, or the game, changed.
+fn reselect(slot: &mut Option<Session>, shared: &Arc<Mutex<Shared>>, hooks: &HooksFor) {
+    let members = shared.lock().expect("the game").members.clone();
+    for member in members {
+        play_for(slot, shared, &member, hooks);
+        let chosen = slot.as_ref().map_or(Value::Null, |session| json!(session.party.selected()));
+        shared.lock().expect("the game").selected.insert(member, chosen);
+    }
 }
 
 /// One message, answered by the game in `slot`, as `{ ok }` or `{ error }`.
@@ -554,6 +577,19 @@ fn answer(slot: &mut Option<Session>, message: &Value, hooks: &HooksFor) -> Resu
             if message["rng"].is_number() {
                 face::respond(slot, &json!({ "op": "call", "call": "restoreRng", "args": [message["rng"]] }), Rc::clone(hooks))?;
             }
+            Ok(json!({ "seed": seed, "board": board(slot) }))
+        }
+        // Built again over the project begun, from a moment a save could be made in: not mid-fight or mid-conversation.
+        // A project that will not build leaves the game as it was.
+        Some("begin") => {
+            let session = slot.as_ref().ok_or("no game: open one")?;
+            if let Some(why) = session.save_blocked_by() {
+                return Err(why.into());
+            }
+            let seed = fresh_hex(8);
+            let table = &message["table"];
+            let build = json!({ "op": "build", "project": message["project"], "shipped": message["shipped"], "seed": seed, "animated": table["animated"], "askDefender": table["askDefender"] });
+            face::respond(slot, &build, Rc::clone(hooks))?;
             Ok(json!({ "seed": seed, "board": board(slot) }))
         }
         Some("call") => {
@@ -983,6 +1019,9 @@ impl Tables {
         }
         if message["op"] == "save" && !hosting {
             return refuse(reply, "the host keeps this game's saves");
+        }
+        if message["op"] == "begin" && !hosting {
+            return refuse(reply, "only the host takes the party into an adventure");
         }
         inner.at.insert(account.to_string(), game.clone());
         let before = presence_in(&inner, account, self.online_for);

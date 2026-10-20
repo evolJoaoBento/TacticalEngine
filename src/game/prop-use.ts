@@ -98,9 +98,8 @@ export function nearestCovered(demo: Pick<DemoScene, 'grid' | 'state'>, id: stri
   return best;
 }
 
-/** Whether the selected member can still reach a thing: a container's window shuts once they cannot. */
-export function withinReach(demo: Pick<DemoScene, 'grid' | 'state' | 'party'>, id: string, reach: number): boolean {
-  const who = demo.party.selected;
+/** Whether the selected member - or another, named - can still reach a thing: a container's window shuts once they cannot. */
+export function withinReach(demo: Pick<DemoScene, 'grid' | 'state' | 'party'>, id: string, reach: number, who: string | null = demo.party.selected): boolean {
   const here = who === null ? NO_TILE : (demo.state.entity(who)?.tile ?? NO_TILE);
   if (here === NO_TILE) return false;
   const there = nearestCovered(demo, id, here);

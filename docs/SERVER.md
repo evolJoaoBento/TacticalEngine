@@ -2009,4 +2009,18 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     guest> to answer for <their character>", its GM's Turn key shut; answered, the GM's turn plays on to its end on
     both pages. Every wait said in either test now names the player it waits on. It found nothing to mend; a page
     that answered every question, or said every wait was the host's, fails it.
+  - **The camp's portal takes the whole table** (20 October 2026). A camp hosted for friends had the portal begin
+    the adventure on the page that used it alone: it opened a solo game of its own, and the others stayed at the
+    camp. Now `begin` (`play.rs`) builds the table's game again over the project the host's page sends - its packs
+    laid in it, as an opening's are, or the server's characters are made of less than the pages' - host only,
+    and not while a save would be refused - keeping the game's id, invitation, players, seats and chat; the project
+    a guest's page joins with and a save keeps beside it is the new one. The others are pushed the board with the
+    project (`{ push, begun: { project } }`), and every page plays on over it on the wire it has
+    (`Wire.begin`, `moveTo`; `wasm-game.ts` builds the page's game again, `main.ts` takes it, `playOn`) - nobody's
+    page opens again, the host's address made the game begun (`nowPlaying`). A page not the host's shows who
+    chooses (`portalView`'s `chooser`); and at a table others are at, a container's window shuts when nobody of the
+    party can reach it rather than when the page's own selection is away (`containerView`) - the guest's page had
+    shut the host's portal at once. Tests: `play_routes.rs` (begun, refused to a guest, mid-fight and for a project
+    that will not build, the table kept), `wire.test.ts`, `portal-shared.spec.ts` (two browsers, the guest seated
+    in a companion the host asked along, walking them in the Ashwell after).
   - **Next**: an evening through the tunnel.

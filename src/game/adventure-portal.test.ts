@@ -27,6 +27,7 @@ import { AdventureLibrary, adventureFromText } from './adventure-library';
 import { ASHWELL_ID, ASHWELL_PARTY } from './adventures/ashwell';
 import { GameProjects } from './game-projects';
 import { memoryStore } from './save-slots';
+import { portalView } from './ui/play-views';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const WASM = resolve(here, '../../public/wasm/engine.wasm');
@@ -66,6 +67,19 @@ describe('the portal at the camp', () => {
     expect(firstDifference(boardOf(demo), engine.board() as BoardSnapshot, 'board')).toBeNull();
     open!.onClose();
     expect((engine.board() as BoardSnapshot).opened).toBeNull();
+  });
+});
+
+describe('the portal at a shared game', () => {
+  it('shows a page not the host’s who chooses, and no adventure of its own to begin', () => {
+    const scene = campProject(WREN, 0).scenes[0]!;
+    const acts = { begin: () => {}, close: () => {} };
+    const theirs = portalView({ scene }, ADVENTURE_PORTAL, [], acts, 'Hana');
+    expect(theirs).toMatchObject({ id: ADVENTURE_PORTAL, name: 'The portal', lines: [], adventures: [], chooser: 'Hana' });
+    // The host's, and a page alone: the adventures to choose from, nobody else choosing.
+    const ours = portalView({ scene }, ADVENTURE_PORTAL, adventureChoices(), acts);
+    expect(ours.chooser).toBeUndefined();
+    expect(ours.adventures!.map((adventure) => adventure.id)).toContain(ASHWELL_ID);
   });
 });
 

@@ -86,6 +86,11 @@ export function tableOf(wire: Wire | null, members: () => Seatable[] = () => [])
   wire?.onTable(told);
 }
 
+/** The party who may be seated, from the game the page plays now: another, at the same table, once an adventure is begun. */
+export function seatableFrom(members: () => Seatable[]): void {
+  party = members;
+}
+
 /** Who is at a game, as its lobby and its panel list them: the host said, and a member whose page has gone, away. */
 export function membersLine(table: SharedTable): string {
   const away = (id: string): boolean => table.here !== undefined && !table.here.includes(id);

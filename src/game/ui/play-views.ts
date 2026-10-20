@@ -132,13 +132,14 @@ export function containerView(demo: DemoScene, acts: ContainerActs): OpenContain
  * The camp portal's window (`adventure-portal.ts`): the adventures it offers, each begun by `begin`, and nothing to
  * take. Read off nothing of the room's - the portal holds nothing - so drawing it changes no state anywhere.
  */
-export function portalView(demo: Pick<DemoScene, 'scene'>, id: string, choices: readonly AdventureChoice[], acts: { begin(adventure: string): void; close(): void }): OpenContainer {
+export function portalView(demo: Pick<DemoScene, 'scene'>, id: string, choices: readonly AdventureChoice[], acts: { begin(adventure: string): void; close(): void }, chooser?: string): OpenContainer {
   const prop = demo.scene.decos.find((deco) => deco.id === id);
   return {
     id,
     name: prop?.function?.kind === 'script' && prop.function.name !== undefined ? prop.function.name : 'The portal',
     lines: [],
     adventures: choices.map(({ id: adventure, name, blurb }) => ({ id: adventure, name, blurb })),
+    ...(chooser === undefined ? {} : { chooser }),
     onBegin: acts.begin,
     onTake: () => {},
     onClose: acts.close,

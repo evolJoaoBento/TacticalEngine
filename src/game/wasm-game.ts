@@ -19,7 +19,10 @@
 import { BOOT } from 'virtual:boot-project';
 import { restoreFromBoard, rollsOf, type BoardSnapshot } from './board';
 import { GameTable, type GameClient, type LocalPowers } from './client';
-import type { DemoScene } from './demo-scene';
+import { buildProjectScene, type DemoScene } from './demo-scene';
+import { projectSchema } from '../engine/scene/schema';
+import { migrateDocument } from '../engine/scene/migrate';
+import { withListedPacks } from './listed-packs';
 import { openContainer } from './prop-use';
 import { replicaOf } from './replica';
 import { engineModule, firstDifference, publishCount, recordAsked, recordParting } from './shadow';
@@ -27,7 +30,7 @@ import { shippedContent } from './shipped';
 import { WasmEngine } from './wasm-engine';
 import { PlaySocket, serverAccount } from './play-socket';
 import { Wire } from './wire';
-import { invitationOf, lobbyAsked, tableOf, visibilityAsked } from './shared-game';
+import { invitationOf, lobbyAsked, seatableFrom, tableOf, visibilityAsked } from './shared-game';
 import { nameOf } from './log';
 import { loadAccountSaves } from './account-saves';
 import { SaveSlots, browserStore, type SaveShelf } from './save-slots';
@@ -179,6 +182,7 @@ function wireUp(game: GameTable, demo: DemoScene, resume: boolean): void {
   wire.onFriends(friendDid);
   wired = wire;
   tableOf(wire, () => demo.party.members().map((id) => ({ id, name: nameOf(demo, id) })));
+  wire.onBegun((project) => playOver(project, wire));
   // A peer game's guest the host removed: at no table now, the game theirs alone to play on.
   if (peer !== null && peerMode() === 'join') {
     onPeerRemoved(() => {
@@ -192,6 +196,43 @@ function wireUp(game: GameTable, demo: DemoScene, resume: boolean): void {
   publishCount(undefined, () => wire.status());
 }
 
+
+/** Who is told of the game the page plays now, built again over a project the host began (`onBegun`). */
+const begun = new Set<(game: GameClient & LocalPowers) => void>();
+
+/** Told of each game the page is given when the host of its table begins another project - an adventure from a camp. */
+export function onBegun(told: (game: GameClient & LocalPowers) => void): void {
+  begun.add(told);
+}
+
+/**
+ * The page's game built again over a project the host of its table began (`Wire.begin`): an engine kept ready, the
+ * same wire, the table's seats told it. Whoever plays the page takes it once the wire has stood it where the
+ * server's game is. `null` - the page leaving the table - when it will not build, or there is no engine ready.
+ */
+function playOver(project: unknown, wire: Wire): DemoScene | null {
+  if (spare === null) return null;
+  let demo: DemoScene;
+  try {
+    const parsed = projectSchema.parse(migrateDocument(project));
+    demo = buildProjectScene(withListedPacks(parsed), parsed.id);
+  } catch {
+    return null;
+  }
+  const engine = spare;
+  spare = null;
+  void refill();
+  const game = new WasmGame(demo, engine, shippedContent());
+  game.wireWith(wire);
+  seatableFrom(() => demo.party.members().map((id) => ({ id, name: nameOf(demo, id) })));
+  // Once the wire has stood it where the server's game is: taken before, it would be played on where it was built.
+  queueMicrotask(() =>
+    wire.take(() => {
+      for (const told of begun) told(game);
+    }),
+  );
+  return demo;
+}
 
 /** The game the page plays, now: the engine's, from one kept ready - or, where the engine was never built, none. */
 export function gameFor(demo: DemoScene): GameClient & LocalPowers {

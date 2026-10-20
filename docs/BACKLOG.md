@@ -63,10 +63,16 @@ from a file, and are a kind of listing in the Store, published and got there.
    `party-edits.test.ts`, `camp.test.ts` (the company draw no word from the check), `editor-panels.spec.ts` (a
    companion renamed in the panel joins under that name).
 
-   Still open: an adventure's own party is replaced whole, so
-   one written for a fixed party (the Demo Vault's) is not offered at the portal; and a game hosted for friends
-   from a camp has the portal begin the adventure for whoever used it, in their browser alone - the others stay
-   at the camp.
+   **Since: the portal takes the whole table** (20 October 2026). At a camp hosted for friends - on the server or
+   peer to peer - the host begins the adventure and every page goes into it together on the wire it has: `begin`
+   (`play.rs`, `host-table.ts`), `Wire.begin` / `moveTo`, the page's game built again (`wasm-game.ts`, `playOn` in
+   `main.ts`). The others' window says who chooses; a shared window shuts when nobody can reach it. A peer guest
+   could not join a camp at all - its project is longer than a data channel takes - so a channel sends long texts in
+   pieces (`link.ts`). Tests: `play_routes.rs`, `wire.test.ts`, `host-table.test.ts`, `link.test.ts`,
+   `portal-shared.spec.ts` (server), `peer-portal.spec.ts` (peer, and from a static build).
+
+   Still open: an adventure's own party is replaced whole, so one written for a fixed party (the Demo Vault's) is
+   not offered at the portal; and a guest's own adventures are not offered at a shared portal - the host's are.
 
 ## Peer to peer: a shared game with no server — slice 1 done
 

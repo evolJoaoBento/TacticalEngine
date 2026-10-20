@@ -12,6 +12,8 @@
  * - `project` - the project the game is played over, for a guest's page to boot with before it joins;
  * - `join` - the game joined (its invitation is not asked: a link is only ever to this table);
  * - `call`, `ask`, `resume`, `seat`, `start`, `visibility`, `say` - as the server's (`play.rs`), the same refusals;
+ * - `begin` - the host's alone: the game built again over another project - an adventure a camp's portal begins -
+ *   the table, its seats and its chat kept, the others pushed the board with the project (`begun`) to play on over;
  * - `load` - the host's alone: the save read from the host's browser (`readSave`), loaded as `loadGameText`, who
  *   played whom in it seated again; `save` is refused - the host's page saves its own game, the guests' nothing,
  *   and what it keeps with the save of who played whom is the table's (`seating`).
@@ -21,7 +23,8 @@
  * known by the name they give as well: a seat kept for an id nobody at the table has is theirs who goes by that id's
  * name (`sameName`), the host among them. The host already takes a guest at their word for who they are.
  *
- * What the server pushes, this pushes: `{ push: { board, views, by, seq } }`, `{ table }`, `{ chat }`. Before
+ * What the server pushes, this pushes: `{ push: { board, views, by, seq } }` - with `begun` once another project is -
+ * `{ table }`, `{ chat }`. Before
  * anything of an account's is asked of the game, the game is told whom it plays for (`restoreSeating`) and refuses
  * what that account does not play (`engine::game::seats`). Nobody's page tells the game how theirs stands
  * (`NEVER_TOLD`); the test driver's hands (`TEST_HANDS`) are the host's alone, and only when `testHands`.
@@ -235,7 +238,8 @@ export class HostTable {
       if (isObject(pushed) && isObject(pushed['board']) && this.selected.has(watcher.account)) {
         const board = JSON.parse(JSON.stringify(pushed['board'])) as { replica?: { party?: { selected?: unknown } } };
         if (board.replica?.party !== undefined) board.replica.party.selected = this.selected.get(watcher.account);
-        told = { push: { ...pushed, board } };
+        // The rest of the message as it is: the project begun, with its board.
+        told = { ...message, push: { ...pushed, board } };
       }
       watcher.link.send(JSON.stringify(told));
     }
@@ -259,6 +263,7 @@ export class HostTable {
     if (op === 'join') return null;
     if (!this.members.includes(watcher.account)) return 'no game: open one';
     if (op === 'load' && watcher.account !== this.host) return 'only the host loads a save into a game others are at';
+    if (op === 'begin' && watcher.account !== this.host) return 'only the host takes the party into an adventure';
     if (op === 'save') return "the host's page keeps this game's saves";
     return null;
   }
@@ -326,6 +331,9 @@ export class HostTable {
       case 'call':
         said = this.call(message);
         break;
+      case 'begin':
+        said = this.begin(message);
+        break;
       case 'ask':
         said = this.engine.respond(message) as Answer;
         break;
@@ -334,11 +342,20 @@ export class HostTable {
     }
     const ok = isObject(said.ok) ? said.ok : null;
     if (effective === 'call' && ok !== null) this.played += 1;
+    // Another project begun: everybody's selection kept if they went through, else made again among their own in it.
+    if (effective === 'begin' && ok !== null) {
+      this.played += 1;
+      this.project = isObject(message['project']) ? (message['project']['id'] ?? null) : null;
+      this.document = message['project'] ?? null;
+      this.reselect();
+      this.playFor(account);
+      ok['board'] = this.board();
+    }
     if (effective === 'open' && ok !== null) {
       this.playFor(account);
       ok['board'] = this.board();
     }
-    if (['call', 'open', 'join', 'resume'].includes(effective) && ok !== null) {
+    if (['call', 'open', 'join', 'resume', 'begin'].includes(effective) && ok !== null) {
       ok['seq'] = this.played;
       this.selected.set(account, selectionOf(ok['board']));
     }
@@ -366,6 +383,10 @@ export class HostTable {
         this.seen = board;
         if (effective === 'call') this.push(watcher, { push: { board: ok['board'], views, by: account, seq: this.played } });
       }
+    }
+    if (effective === 'begin' && ok !== null) {
+      this.seen = unselected(ok['board']);
+      this.push(watcher, { push: { board: ok['board'], views: {}, by: account, seq: this.played }, begun: { project: this.document } });
     }
     if (['join', 'seat', 'start', 'visibility'].includes(effective) && ok !== null) this.push(watcher, { table: this.table() });
     if (effective === 'say' && ok !== null) this.push(watcher, { chat: ok['line'] });
@@ -407,6 +428,17 @@ export class HostTable {
       const restored = this.engine.respond({ op: 'call', call: 'restoreRng', args: [message['rng']] });
       if (restored.error !== undefined) return { error: restored.error };
     }
+    return { ok: { seed, board: this.board() } };
+  }
+
+  /** Built again over the project begun, from a moment a save could be made in; one that will not build leaves the game. */
+  private begin(message: Message): Answer {
+    const blocked = this.engine.respond({ op: 'call', call: 'saveBlockedBy', args: [] });
+    if (typeof blocked.ok === 'string') return { error: blocked.ok };
+    const seed = this.fresh(8);
+    const table = isObject(message['table']) ? message['table'] : {};
+    const built = this.engine.respond({ op: 'build', project: message['project'], shipped: message['shipped'], seed, animated: table['animated'], askDefender: table['askDefender'] });
+    if (built.error !== undefined) return { error: built.error };
     return { ok: { seed, board: this.board() } };
   }
 

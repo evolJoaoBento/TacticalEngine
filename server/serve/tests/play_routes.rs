@@ -557,6 +557,94 @@ async fn a_game_is_shared_its_invitation_joins_it_and_each_intent_is_pushed_to_t
 }
 
 #[tokio::test]
+async fn the_host_begins_another_project_and_everybody_at_the_game_goes_with_it() {
+    let fixture = fixture();
+    let root = root("begin");
+    let tables = Tables::new(root.clone()).for_tests();
+    let (host, mut to_host) = tables.connect("kara");
+    let (guest, mut to_guest) = tables.connect("finn");
+    tables.ask_on(host, "kara", json!({ "id": 1, "op": "open", "project": fixture["projects"][0], "shipped": fixture["shipped"], "table": {} }));
+    let opened = told(&mut to_host).await;
+    let invite = opened["ok"]["invite"].as_str().unwrap().to_string();
+    tables.ask_on(guest, "finn", json!({ "id": 1, "op": "join", "invite": invite }));
+    told(&mut to_guest).await;
+    told(&mut to_host).await;
+    let member = opened["ok"]["board"]["replica"]["party"]["selected"].as_str().unwrap().to_string();
+    let other = opened["ok"]["board"]["replica"]["state"]["entities"].as_object().unwrap().iter().find(|(id, e)| e["faction"] == "party" && **id != member).map(|(id, _)| id.clone()).expect("another in the party");
+    tables.ask_on(host, "kara", json!({ "id": 2, "op": "seat", "character": other, "account": "finn" }));
+    told(&mut to_host).await;
+    told(&mut to_guest).await;
+    // The host walks: the game is somewhere the one begun will not be.
+    let tile = opened["ok"]["board"]["replica"]["state"]["entities"][member.as_str()]["tile"].as_i64().unwrap();
+    tables.ask_on(host, "kara", json!({ "id": 3, "op": "call", "call": "moveSelectedTo", "args": [tile + 2] }));
+    let walked = told(&mut to_host).await;
+    assert_ne!(walked["ok"]["board"]["replica"]["state"]["entities"][member.as_str()]["tile"], json!(tile));
+    told(&mut to_guest).await;
+
+    // The host picks up another of their own, whom they keep once the party has gone through.
+    let third = opened["ok"]["board"]["replica"]["state"]["entities"].as_object().unwrap().iter().find(|(id, e)| e["faction"] == "party" && **id != member && **id != other).map(|(id, _)| id.clone()).expect("a third in the party");
+    tables.ask_on(host, "kara", json!({ "id": 3, "op": "call", "call": "select", "args": [third] }));
+    told(&mut to_host).await;
+
+    // Another project: the same one under another id, which a fresh game stands in as it was opened.
+    let mut elsewhere = fixture["projects"][0].clone();
+    elsewhere["id"] = json!("elsewhere");
+    let begin = json!({ "op": "begin", "project": elsewhere, "shipped": fixture["shipped"], "table": {} });
+    // Not the guest's to begin.
+    let mut asked = begin.clone();
+    asked["id"] = json!(4);
+    tables.ask_on(guest, "finn", asked);
+    assert_eq!(told(&mut to_guest).await["error"], "only the host takes the party into an adventure");
+    assert!(nothing_more(&mut to_host).await, "nothing pushed for a refusal");
+    // The host's: answered with where the new game stands, numbered as an intent is.
+    let mut asked = begin.clone();
+    asked["id"] = json!(5);
+    tables.ask_on(host, "kara", asked);
+    let begun = told(&mut to_host).await;
+    assert_eq!(begun["id"], 5);
+    assert_eq!(begun["ok"]["board"]["replica"]["state"]["entities"][member.as_str()]["tile"], json!(tile), "the game begun afresh");
+    assert_eq!(begun["ok"]["board"]["replica"]["party"]["selected"], third.as_str(), "the host's selection kept");
+    let seq = begun["ok"]["seq"].clone();
+    assert_eq!(seq, json!(walked["ok"]["seq"].as_u64().unwrap() + 2));
+    // The guest: pushed the board, with their own selection on it, and the project, to play on over.
+    let pushed = told(&mut to_guest).await;
+    assert!(pushed["id"].is_null(), "{pushed}");
+    assert_eq!(pushed["begun"]["project"], elsewhere);
+    assert_eq!(pushed["push"]["seq"], seq);
+    assert_eq!(pushed["push"]["by"], "kara");
+    assert_eq!(pushed["push"]["board"]["replica"]["party"]["selected"], other.as_str(), "the guest's own selection");
+    let mut theirs = pushed["push"]["board"].clone();
+    theirs["replica"]["party"]["selected"] = json!(third);
+    assert_eq!(theirs, begun["ok"]["board"]);
+
+    // The same game: who plays whom kept, the guest acting with their own, and the project the new one.
+    tables.ask_on(guest, "finn", json!({ "id": 6, "op": "call", "call": "selectNext", "args": [] }));
+    assert_eq!(told(&mut to_guest).await["ok"]["board"]["replica"]["party"]["selected"], other.as_str(), "only their own to select");
+    let resumed = tables.ask("finn", json!({ "id": 7, "op": "resume" })).await;
+    assert_eq!((resumed["ok"]["project"].clone(), resumed["ok"]["table"]["game"].clone()), (json!("elsewhere"), opened["ok"]["table"]["game"].clone()));
+    assert_eq!(resumed["ok"]["table"]["seats"], json!({ other.as_str(): "finn" }));
+    // A page joining with the invitation now opens over the project begun.
+    assert_eq!(tables.project_of(&invite), Some(elsewhere.clone()));
+
+    // A project that will not build leaves the game as it was.
+    tables.ask_on(host, "kara", json!({ "id": 8, "op": "begin", "project": { "id": "broken" }, "shipped": fixture["shipped"], "table": {} }));
+    assert!(told(&mut to_host).await["error"].is_string());
+    assert!(nothing_more(&mut to_guest).await, "nothing pushed when nothing was begun");
+    assert_eq!(tables.ask("kara", json!({ "id": 9, "op": "resume" })).await["ok"]["project"], "elsewhere");
+    // Nor is one begun mid-fight, when a save could not be made either.
+    tables.ask_on(host, "kara", json!({ "id": 10, "op": "call", "call": "startEncounter", "args": ["group-1"] }));
+    told(&mut to_host).await;
+    told(&mut to_guest).await;
+    let mut asked = begin.clone();
+    asked["id"] = json!(11);
+    asked["project"]["id"] = json!("mid-fight");
+    tables.ask_on(host, "kara", asked);
+    assert!(told(&mut to_host).await["error"].as_str().is_some_and(|why| why.contains("fight")), "refused mid-fight");
+    assert!(nothing_more(&mut to_guest).await, "nothing pushed mid-fight");
+    assert_eq!(tables.ask("kara", json!({ "id": 12, "op": "resume" })).await["ok"]["project"], "elsewhere");
+}
+
+#[tokio::test]
 async fn a_shared_game_is_kept_while_anybody_is_at_it() {
     let fixture = fixture();
     let tables = Tables::keeping(root("kept-shared"), std::time::Duration::ZERO);
