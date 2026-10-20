@@ -77,8 +77,12 @@ describe('the company at the fire', () => {
     const classes = new Set(COMPANIONS.map((companion) => companion.creation.classId));
     expect(classes.size).toBe(COMPANIONS.length);
     const project = withListedPacks(campProject(sheetFor(WREN), 0));
-    const problems = validateProject(project, { characterContent: characterContentFor(project) }).filter((problem) => problem.severity === 'error');
-    expect(problems).toEqual([]);
+    const problems = validateProject(project, { characterContent: characterContentFor(project) });
+    expect(problems.filter((problem) => problem.severity === 'error')).toEqual([]);
+    // The company's sheets are checked as the party's are, and not a word is said of any of them.
+    const company = new Set(project.companions.map((sheet) => sheet.id));
+    expect(company.size).toBeGreaterThan(0);
+    expect(problems.filter((problem) => problem.entity !== undefined && company.has(problem.entity))).toEqual([]);
   });
 
   it('leaves out one who would share the character\'s id', () => {

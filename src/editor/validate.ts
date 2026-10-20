@@ -246,8 +246,10 @@ function checkParty(
 ): void {
   const content = options.characterContent;
   if (content === undefined) return;
-  for (const sheet of project.party) {
-    const who = sheet.name || sheet.id;
+  // The companions too: each plays at the table once asked along, as the sheet written here.
+  const sheets = [...project.party.map((sheet) => ({ sheet, companion: false })), ...project.companions.map((sheet) => ({ sheet, companion: true }))];
+  for (const { sheet, companion } of sheets) {
+    const who = companion ? `Companion ${sheet.name || sheet.id}` : sheet.name || sheet.id;
     for (const issue of deriveCharacter(sheet, content, project.abilities).issues) {
       add('error', `${who}: ${issue.field} — ${issue.message}`, sheet.id);
     }
@@ -1314,7 +1316,7 @@ function checkAdversaryModels(
   // A character picked out on the sheet, by the same rule: a party member drawn with
   // something nothing can supply stands as the magenta placeholder, which is the library's
   // honest answer and not one anybody means to ship.
-  for (const sheet of project.party) {
+  for (const sheet of [...project.party, ...project.companions]) {
     if (sheet.model === undefined || resolvable(sheet.model)) continue;
     add('warning', `"${sheet.name || sheet.id}" is drawn with "${sheet.model}", which nothing can supply.`, sheet.id);
   }

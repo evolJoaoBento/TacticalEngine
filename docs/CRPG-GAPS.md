@@ -363,7 +363,8 @@ names one, is taken away (`game/party_join.rs`). Four is a party: one asked fift
 keeps them. A thing a script takes away (`remove`) is no longer drawn. New Game's camp is where this is used: its
 company are six SRD characters, each asked along at their figure by the fire (`game/camp-company.ts`). The effect
 editor picks the companion; validation errs on one the project has not got and warns of one nothing asks along.
-Companions are written in the project file: the Party panel does not list them yet.
+The editor's Party panel lists the companions under the party and writes them in the party's form; the check
+reads their sheets as it reads the party's.
 
 **An adventure begun** from the camp's portal (20 October 2026): the portal is a prop whose script opens it
 (`openContainer`), and its window is a chooser because of its id (`adventure-portal`, `game/adventure-portal.ts`) -

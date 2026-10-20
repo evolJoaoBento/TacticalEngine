@@ -11,12 +11,11 @@ import {
   addInteractable,
   addItem,
   addLootTable,
-  addSheet,
   setSpawns,
   toggleTriggerCell,
   updateInteractable,
-  updateSheet,
 } from './session';
+import { addSheet, updateSheet } from './party-edits';
 import { validateProject } from './validate';
 import { FIXTURE_ADVERSARIES } from '../../tests/fixtures/adversaries';
 import { FIXTURE_CONDITIONS } from '../../tests/fixtures/conditions';

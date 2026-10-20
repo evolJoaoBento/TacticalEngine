@@ -4,7 +4,8 @@ import { STARTER_CHARACTERS } from '../engine/content/pack/starter';
 import { blankScene } from '../engine/scene/grid-from-scene';
 import { projectSchema, sceneSchema, type ProjectDoc } from '../engine/scene/schema';
 import { MODELS } from '../engine/render/procedural/registry';
-import { EditorSession, addSheet, removeSheet, updateSheet, type PartySheet } from './session';
+import { EditorSession } from './session';
+import { addSheet, removeSheet, updateSheet, type PartySheet } from './party-edits';
 import { validateProject } from './validate';
 
 /**
@@ -50,6 +51,15 @@ describe('the party in the project', () => {
     expect(s.project.party.map((p) => p.id)).toEqual(['finn']);
     s.undo();
     expect(s.project.party.map((p) => p.id)).toEqual(['kara', 'finn']);
+  });
+
+  it('undoes an add after the newcomer was edited', () => {
+    const s = session();
+    s.run(addSheet(blankSheet('finn', 'cutpurse', { name: 'Violet' }) as PartySheet));
+    s.run(updateSheet('finn', { name: 'Violet Ash' }));
+    s.undo();
+    s.undo();
+    expect(s.project.party.map((p) => p.id)).toEqual(['kara']);
   });
 
   it('removing somebody who is not there is a no-op, not an undo step', () => {
@@ -121,6 +131,46 @@ describe('the party in the project', () => {
   });
 });
 
+describe('the companions in the project', () => {
+  const withCompanion = (): EditorSession => new EditorSession(projectSchema.parse({ ...project(), companions: [{ ...KARA, name: 'Quim at the fire' }] }));
+  const companion = (s: EditorSession) => s.project.companions[0]!;
+
+  it('are added, edited and removed as the party is, in a list of their own', () => {
+    const s = session();
+    s.run(addSheet(blankSheet('finn', 'cutpurse', { name: 'Violet' }) as PartySheet, 'companions'));
+    expect([s.project.party.map((p) => p.id), s.project.companions.map((p) => p.id)]).toEqual([['kara'], ['finn']]);
+    s.run(updateSheet('finn', { name: 'Violet Ash' }, 'companions'));
+    expect(companion(s).name).toBe('Violet Ash');
+    expect(s.run(removeSheet('finn', 'companions'))).toBe(true);
+    expect(s.project.companions).toEqual([]);
+    s.undo();
+    s.undo();
+    expect(companion(s).name).toBe('Violet');
+    s.undo();
+    expect(s.project.companions).toEqual([]);
+    expect(s.project.party.map((p) => p.id)).toEqual(['kara']);
+  });
+
+  it('may share an id with one who has joined the party, and each is edited and undone alone', () => {
+    const s = withCompanion();
+    s.run(updateSheet('kara', { name: 'Quim the joined' }));
+    s.run(updateSheet('kara', { name: 'Quim still waiting' }, 'companions'));
+    expect([kara(s).name, companion(s).name]).toEqual(['Quim the joined', 'Quim still waiting']);
+    // Two steps, not one coalesced: the second undo takes back the party's name, the companion's already back.
+    s.undo();
+    expect([kara(s).name, companion(s).name]).toEqual(['Quim the joined', 'Quim at the fire']);
+    s.undo();
+    expect([kara(s).name, companion(s).name]).toEqual(['Quim', 'Quim at the fire']);
+  });
+
+  it('removing a companion leaves the party member of their id where they are', () => {
+    const s = withCompanion();
+    expect(s.run(removeSheet('kara', 'companions'))).toBe(true);
+    expect([s.project.party.map((p) => p.id), s.project.companions]).toEqual([['kara'], []]);
+    expect(s.run(removeSheet('kara', 'companions'))).toBe(false);
+  });
+});
+
 describe('checking a party', () => {
   const check = (sheet: Partial<PartySheet>): string[] =>
     validateProject(projectSchema.parse({ ...project(), party: [{ ...KARA, ...sheet }] }), {
@@ -171,6 +221,20 @@ describe('checking a party', () => {
         levels: [{ level: 2, advancements: [{ kind: 'traits', traits: ['strength', 'instinct'] }], domainCard: 'rallying-cry' }],
       }),
     ).toEqual([]);
+  });
+
+  it('checks the companions as it does the party, and says which they are', () => {
+    const companions = (sheet: Partial<PartySheet>): string[] =>
+      validateProject(projectSchema.parse({ ...project(), companions: [{ ...KARA, id: 'violet', name: 'Violet', ...sheet }] }), { characterContent: content })
+        .filter((p) => p.entity === 'violet' && !p.message.includes('can never join'))
+        .map((p) => p.message);
+    expect(companions({})).toEqual([]);
+    expect(companions({ primaryWeaponId: 'vorpal-nonsense' }).join(' ')).toMatch(/^Companion Violet: .*vorpal-nonsense/);
+    expect(companions({ loadout: ['shield-wall'] })).toEqual(['Companion Violet has "shield-wall" in their loadout but does not hold it.']);
+    const drawn = validateProject(projectSchema.parse({ ...project(), companions: [{ ...KARA, id: 'violet', name: 'Violet', model: 'no-such-model' }] }), {
+      knownModels: new Set(MODELS.map((m) => m.id)),
+    }).filter((p) => p.message.includes('drawn with'));
+    expect(drawn.map((p) => p.entity)).toEqual(['violet']);
   });
 
   it('says nothing at all when no content was handed to it', () => {

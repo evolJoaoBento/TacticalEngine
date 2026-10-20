@@ -1325,6 +1325,14 @@ and their pools refitted. Adding or removing a character changes the document bu
 already running: somebody standing in a fight is not something an edit should pull out from
 under it, so a new character joins when the project is next loaded.
 
+**Companions** are listed under the party: sheets written in the same form, waiting to be asked
+along by a **Join the party** effect - the company round a New Game's camp fire. **+ Companion**
+writes one and **✕** takes one out, the party untouched. A companion is not at the table when you
+press Play; they come when the effect asks them, as the panel last wrote them. One who has joined
+is in both lists under one id, and the two sheets are edited apart - the party's is the one
+playing. **Check** reads a companion's sheet as it reads the party's, its messages beginning
+*Companion*.
+
 ### Cards
 
 **Write a card…** opens the Cards panel: the project's own cards, one at a time, beside a count

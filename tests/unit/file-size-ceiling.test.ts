@@ -31,7 +31,7 @@ const PINNED: Record<string, number> = {
   'src/engine/script/world.ts': 2532,
   'src/main.ts': 2426,
   'src/engine/script/runner.ts': 1953,
-  'src/editor/session.ts': 1631,
+  'src/editor/session.ts': 1542,
   'tests/fixtures/cards.ts': 1652,
   'src/editor/validate.test.ts': 1526,
 };

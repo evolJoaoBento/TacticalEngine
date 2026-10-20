@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { test, expect, type Page } from './fixtures';
 
 /**
@@ -497,4 +499,48 @@ test('+ Model to the engine sends the file to be written into public/models, and
   await page.unroute('**/__models/add**');
   await page.locator('[data-testid="add-engine-model"] input[type="file"]').setInputFiles('tests/fixtures/models/Fox.glb');
   await expect(page.getByTestId('engine-model-note')).toContainText('Not added');
+});
+
+test('the company at a camp is in the Party panel, and a companion renamed there joins under that name', async ({ page }) => {
+  const errors = await editing(page);
+  page.on('dialog', (d) => void (d.type() === 'prompt' ? d.accept('Newcomer') : d.accept()));
+  // A camp New Game made for Wren (`tests/fixtures/camp-wren.json`, kept in step by `adventure-portal.test.ts`).
+  expect(await page.evaluate((text) => window.__engine!.loadProjectText(text), readFileSync(resolve('tests/fixtures/camp-wren.json'), 'utf8'))).toBe('');
+  await page.waitForFunction(() => window.__engine?.sceneId() === 'camp', null, { timeout: 60_000 });
+  await page.evaluate(() => window.__engine!.setMode('edit'));
+
+  await page.locator('[data-testid="open-content"]').click();
+  await page.locator('[data-testid="open-party"]').click();
+  const panel = page.getByTestId('party-panel');
+  await expect(panel.locator('[data-character]')).toHaveText(['Wren']);
+  await expect(panel.locator('[data-companion]')).toHaveText(['Quim', 'Scarlet', 'Arty', 'Pint', 'Ganja']);
+  await expect(panel).toContainText('A companion waits to be asked along');
+
+  // Quim's sheet, written in the same form as the party's: renamed, and a companion added and taken out again.
+  await panel.locator('[data-companion="quim"]').click();
+  await expect(panel.getByTestId('character-name')).toHaveValue('Quim');
+  await panel.getByTestId('character-name').fill('Quim Ironside');
+  await expect(panel.locator('[data-companion="quim"]')).toHaveText('Quim Ironside');
+  await panel.getByTestId('add-companion').click();
+  await expect(panel.locator('[data-companion]')).toHaveText(['Quim Ironside', 'Scarlet', 'Arty', 'Pint', 'Ganja', 'Newcomer']);
+  await expect(panel.getByTestId('character-name')).toHaveValue('Newcomer');
+  await panel.locator('[data-companion="newcomer"] + button').click();
+  await expect(panel.locator('[data-companion]')).toHaveCount(5);
+  await expect(panel.locator('[data-character]')).toHaveText(['Wren']);
+  await page.screenshot({ path: 'test-results/editor-companions.png' });
+  await page.getByTestId('close-party').click();
+
+  // Not at the table on Play - a companion waits to be asked - and asked, joins as the panel wrote them.
+  await page.evaluate(() => window.__engine!.setMode('play'));
+  expect(await page.evaluate(() => window.__engine!.party())).toEqual(['wren']);
+  await page.evaluate(() => {
+    const a = window.__engine!;
+    a.approach('quim-figure');
+    a.arrive();
+  });
+  await expect.poll(() => page.evaluate(() => window.__engine!.dialogueOptions())).toContain('Come with us.');
+  await page.evaluate(() => window.__engine!.answer({ kind: 'choose', index: 0 }));
+  await expect.poll(() => page.evaluate(() => window.__engine!.party())).toEqual(['wren', 'quim']);
+  expect((await page.evaluate(() => window.__engine!.log())).map((line) => line.text)).toContain('Quim Ironside joins the party.');
+  expect(errors, `console errors: ${errors.join(' | ')}`).toEqual([]);
 });

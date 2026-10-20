@@ -9,8 +9,8 @@
  * the way the rules do: subclasses to the class, cards to the character's domains and level.
  */
 
-import type { EditorSession, PartySheet } from '../session';
-import { updateSheet } from '../session';
+import type { EditorSession } from '../session';
+import { updateSheet, type PartySheet, type SheetList } from '../party-edits';
 import { deriveCharacter, type DerivedCharacter } from '../../engine/character/sheet';
 import { domainsOf, heldCards } from '../../engine/character/progression';
 import { LOADOUT_LIMIT } from '../../engine/content/abilities';
@@ -58,18 +58,21 @@ export interface SheetEditorProps {
   content: ContentPack;
   /** Every model a character can be drawn with. */
   models: readonly string[];
-  /** Whose sheet. Nothing is drawn for an id the party does not have. */
+  /** Whose sheet. Nothing is drawn for an id the list does not have. */
   sheetId: string;
+  /** The party's sheets, or the companions' (`project.companions`). The party, unless it says. */
+  list?: SheetList;
   onChange: () => void;
 }
 
 export function SheetEditor(props: SheetEditorProps): preact.JSX.Element | null {
   const { session, content } = props;
-  const open = session.project.party.find((s) => s.id === props.sheetId) ?? null;
+  const list = props.list ?? 'party';
+  const open = session.project[list].find((s) => s.id === props.sheetId) ?? null;
   if (open === null) return null;
 
   const edit = (changes: Partial<PartySheet>): void => {
-    session.run(updateSheet(open.id, changes));
+    session.run(updateSheet(open.id, changes, list));
     props.onChange();
   };
 

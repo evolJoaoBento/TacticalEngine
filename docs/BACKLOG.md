@@ -56,7 +56,14 @@ from a file, and are a kind of listing in the Store, published and got there.
    one), `store_routes.rs` (published, listed, downloaded as sent, not got), `store.test.ts`,
    `accounts-store.spec.ts`.
 
-   Still open: the companions are not in the editor's Party panel; an adventure's own party is replaced whole, so
+   **Since: the companions are in the editor's Party panel** (20 October 2026), under the party, written in its form
+   (`SheetEditor`'s `list`; `addSheet` / `removeSheet` / `updateSheet`, moved out of `session.ts` into `party-edits.ts`, take `'party' | 'companions'`, the undo key
+   too, since one id may be in both), and checked as the party is (`checkParty`, the model check). An add's undo
+   now finds the sheet by id - an edit since had replaced the object, and the newcomer stayed. Tests:
+   `party-edits.test.ts`, `camp.test.ts` (the company draw no word from the check), `editor-panels.spec.ts` (a
+   companion renamed in the panel joins under that name).
+
+   Still open: an adventure's own party is replaced whole, so
    one written for a fixed party (the Demo Vault's) is not offered at the portal; and a game hosted for friends
    from a camp has the portal begin the adventure for whoever used it, in their browser alone - the others stay
    at the camp.
