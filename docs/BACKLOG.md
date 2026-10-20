@@ -3802,12 +3802,12 @@ grep settles which, and guessing cost real time twice.
 To prove a new test fails without its fix, copy the file aside and copy it back. A `checkout` of a
 dirty file throws away work that is not recoverable.
 
-### The e2e suite hand-mirrors the driver type
+### The driver type is declared once
 
-`src/main.ts` declares `window.__engine` in a `declare global` block, and
-`tests/e2e/demo.spec.ts` **declares its own copy of that type near the top.** Adding a handle to
-`main.ts` without adding it to the spec is a `tsc` failure in the test, not in the app, which reads
-as unrelated. Update both in the same patch.
+`window.__engine`'s type is `EngineDriver`, in `src/game/engine-driver.ts`, which declares the global for the app and
+the e2e suite alike (20 October 2026). `tests/e2e/demo.spec.ts` once declared its own copy, and a handle added to
+`main.ts` alone was a `tsc` failure in the test; there is no copy now - a handle is added to `main.ts`'s object and to
+the interface, and nowhere else.
 
 ### Driving a fight headless
 

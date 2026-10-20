@@ -10,7 +10,7 @@ the repo has moved between machines, so never hardcode a path or a home director
 
 1. `docs/CONTEXT.md` — the goal, the hard constraints, the stack, the SRD sourcing.
 2. **`docs/BACKLOG.md`** — what to build next, and the working rules that are not written elsewhere
-   (the patch-script protocol, the driver-type mirror, what to run before claiming done).
+   (the patch-script protocol, the driver type, what to run before claiming done).
 3. `docs/DEVELOPING.md` — extending the engine. **§11 Gotchas** repays reading twice.
 4. `docs/CRPG-GAPS.md` — the honest audit. Read the relevant section before claiming a system
    exists or is missing.
