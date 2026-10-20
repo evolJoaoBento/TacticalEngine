@@ -369,7 +369,9 @@ Companions are written in the project file: the Party panel does not list them y
 (`openContainer`), and its window is a chooser because of its id (`adventure-portal`, `game/adventure-portal.ts`) -
 nothing in the rules knows. Begin writes the adventure as a game of its own, played by the party as it stands, into
 the browser's games, and opens it. The Ashwell is the one adventure there is; it is built for the party that comes
-(`ashwellProject(party)`). Importing adventures, and getting them from the Store, are next.
+(`ashwellProject(party)`). **Adventures imported** from a project file on the main menu (`game/adventure-library.ts`,
+`ui/Adventures.tsx`) are offered beside it, played by the party that goes through, the SRD character pack listed for
+them; one may not take a built-in adventure's id. Getting them from the Store is next.
 
 The editor has a quest list and a form — name, summary, steps — because a quest is a list and a
 list is edited as a list; the graph was the right call for conversations, not for this. The

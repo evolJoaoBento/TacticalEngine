@@ -12,7 +12,7 @@ friends-only or invite-only - friends both ways, chat at the table and between f
 between friends) are done: the phase is, and who is around after it. Next, what an evening played through the
 tunnel shows.
 
-## Adventures begun from the camp — slices 1 and 2 of 4 done: the company joins, and the portal begins the Ashwell
+## Adventures begun from the camp — slices 1 to 3 of 4 done: the company joins, the portal begins one, adventures are imported
 
 The user's plan (19 October 2026): New Game makes a character and begins at the camp; the company round the fire
 are companions who join the party when asked; a **portal** at the camp opens a chooser of the adventures this
@@ -38,9 +38,16 @@ from a file, and are a kind of listing in the Store, published and got there.
    `adventure-portal.test.ts` (the window in the engine's game and the page's, the boards the same; begun, kept,
    refused), `ashwell.test.ts`, `ashwell.spec.ts` (every Ashwell run begins at a camp - `tests/fixtures/camp-wren.json`,
    kept in step by the unit test - three asked along, through the portal).
-3. Next: the Adventures list on the main menu: import from a file, remove; the portal offers what is imported
-   (`adventureChoices`).
-4. Adventures in the Store: an `Adventure` listing, published and got.
+3. **Done: the Adventures list.** The main menu's **Adventures** (`ui/Adventures.tsx`): the built-in ones, and those
+   imported from a project file (`game/adventure-library.ts`: one key each and an index holding name and blurb, so
+   neither the menu nor the portal parses a project to list it; pack entries left out), each with Remove. An import is
+   migrated and checked as a project opened by hand, refused in words when it is not one, takes a built-in's id, or
+   will not fit. The portal offers them after this build's own (`adventureChoices(library)`); one begun is
+   `forParty`: the party swapped in, `srd-characters` listed. Tests: `adventure-library.test.ts`,
+   `adventure-portal.test.ts`, `adventures.spec.ts` (`tests/fixtures/adventure-lichgate.json`, an adventure of a room,
+   imported, begun at the portal, removed).
+4. Next: adventures in the Store: an `Adventure` listing kind (`server/serve/src/store.rs`: `AssetKind`, `sniff` a
+   project, validate it with the engine's document schema), published and got - Get installs it in the library.
 
 ## Peer to peer: a shared game with no server — slice 1 done
 

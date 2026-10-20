@@ -47,7 +47,8 @@ import { inspection } from './inspect';
 import { abilitiesOf, abilityList, abilityTargets, loadoutView, pointTiles, shapeAt, type RestCallResult, type RestPlan, type RestResult, type SwapResult } from './demo-abilities';
 import { saveBlockedBy, serialiseSave, type LoadResult } from './save';
 import { openContainer, withinReach } from './prop-use';
-import { ADVENTURE_PORTAL, beginAdventure } from './adventure-portal';
+import { ADVENTURE_PORTAL, adventureChoices, beginAdventure } from './adventure-portal';
+import { AdventureLibrary } from './adventure-library';
 import { GameProjects } from './game-projects';
 import { browserStore } from './save-slots';
 import { openPage } from './open-page';
@@ -455,11 +456,13 @@ export abstract class GameTable implements GameClient, LocalPowers {
     }
     // The camp's portal: a chooser, holding nothing, so nothing is read - here or by the engine.
     if (open === ADVENTURE_PORTAL) {
-      return portalView(this.demo, open, {
+      // This build's adventures, and those the player imported (`adventure-library.ts`).
+      const choices = adventureChoices(new AdventureLibrary(browserStore()));
+      return portalView(this.demo, open, choices, {
         begin: (adventure) => {
-          const begun = beginAdventure(new GameProjects(browserStore()), adventure, this.demo.project.party);
+          const begun = beginAdventure(new GameProjects(browserStore()), adventure, this.demo.project.party, choices);
           if (begun !== null) return openPage(`play&project=${encodeURIComponent(begun)}`);
-          this.note('The adventure could not be begun: this browser has no room left to keep another game.', 'bad');
+          this.note('The adventure could not be begun: it no longer reads, or this browser has no room left to keep another game.', 'bad');
           refresh();
         },
         close: () => {

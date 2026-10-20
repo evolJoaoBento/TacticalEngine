@@ -43,7 +43,12 @@ The page opens on the **main menu**:
 - **New Game** makes a character, card by card, and begins a camp of their own (below).
 - **Load Game** plays on: the Demo Vault from the start or from any save of it, and every game you
   began - a camp, or an adventure begun through a camp's portal - from where it was left
-  (**Continue**) or from any save of it. Each game's saves are listed under it. A game is **played
+  (**Continue**) or from any save of it. Each game's saves are listed under it.
+- **Adventures** is what a camp's portal offers: the Ashwell, which is built in, and any adventure you
+  bring in. **Import from a file** takes a project file - one saved from Edit Game, or somebody else's -
+  checked as the editor checks a project it opens; a file that is not one is refused, and the menu says
+  why. An imported adventure is kept in this browser, with **Remove** beside it; games begun from it
+  stay when it goes. A game is **played
   only** here: there is no editor, and `Ctrl+E` does nothing.
 - **Edit Game** is the app as it always was: the project with the editor, opening in edit mode.
   `Ctrl+E` (or `Cmd+E`) switches between play and edit at any time.
@@ -143,7 +148,8 @@ the fire; **What can you do?** has them say. Four is a party - asked fifth, one 
 game is kept in this browser, and its saves are its own, the company you took along with them.
 
 At the clearing's west edge stands a **portal**. Use it and it opens a window of the adventures there
-are - the Ashwell, for now - and **Begin** starts one with the party as it stands. It is a game of its
+are - the Ashwell, and any you imported from the main menu's **Adventures** - and **Begin** starts one
+with the party as it stands, in place of whatever party the adventure was written with. It is a game of its
 own, kept in this browser beside the camp and named for whoever leads the party ("The Ashwell (Wren's
 party)"); the camp stays as it was, and you can go back to it from Load Game and begin again. An Ashwell
 begun from the menu by an older build is still listed, its saves with it.

@@ -25,6 +25,8 @@
 .menu-back{background:linear-gradient(#fdfaf1,#e4dbc8);border-color:#b2a68d;box-shadow:inset 0 1px 0 #fffefb,0 2px 0 #b2a68d}
 .menu-go:disabled{opacity:.45;cursor:default}
 .menu-go.is-big{padding:9px 26px;font-size:15px}
+/* Adventures' Import from a file: a label round a hidden file input, drawn as the button it is. */
+.menu-import{display:block;text-align:center}
 
 /* Load Game: each game a section, its saves under it. */
 .menu-load{display:flex;flex-direction:column;gap:14px;text-align:left;max-height:min(62vh,560px);overflow-y:auto;padding:4px 2px}

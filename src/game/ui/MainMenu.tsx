@@ -4,6 +4,8 @@
  *   New Game    make a character, card by card, and begin a camp of your own (`NewGame.tsx`)
  *   Load Game   the game, played: the demo from the start or from a save, or a game you began - a camp, or an
  *               adventure begun through a camp's portal (`adventure-portal.ts`) - and any save of it; never the editor
+ *   Adventures  what a camp's portal offers: the Ashwell, and adventures imported from a project file, each
+ *               removable (`Adventures.tsx`, `adventure-library.ts`)
  *   Edit Game   the project with the editor, as the app has always opened
  *   (Change password, beside Sign out, for whoever is signed in: `ChangePassword.tsx`.)
  *   (Invite, beside them: the player's own invitation for somebody new, and admin's players: `Invitations.tsx`.)
@@ -29,6 +31,7 @@ import { GameProjects } from '../game-projects';
 import { ASHWELL_ID } from '../adventures/ashwell';
 import { DEFAULT_SAVE_PROJECT, SaveSlots, browserStore, projectOfSlot, type SaveSlot } from '../save-slots';
 import { NewGame } from './NewGame';
+import { Adventures } from './Adventures';
 import type { SignedIn } from '../accounts';
 import { Store } from './Store';
 import { ChangePassword } from './ChangePassword';
@@ -65,7 +68,7 @@ function Saves({ saves, open }: { saves: SaveSlot[]; open: (slot: string) => voi
 }
 
 export function MainMenu(props: { account?: SignedIn | null; onSignOut?: () => void }): preact.JSX.Element {
-  const [view, setView] = useState<'main' | 'load' | 'new' | 'store' | 'together' | 'password' | 'invite' | 'friends' | 'peer'>('main');
+  const [view, setView] = useState<'main' | 'load' | 'new' | 'store' | 'together' | 'password' | 'invite' | 'friends' | 'peer' | 'adventures'>('main');
   // The name a player goes by at a peer game, which has no accounts (`docs/PEER.md`).
   const [peerName, setPeerName] = useState(lastName() ?? props.account?.name ?? '');
   const [joining, setJoining] = useState('');
@@ -173,6 +176,8 @@ export function MainMenu(props: { account?: SignedIn | null; onSignOut?: () => v
             <Friends you={account} onBack={() => setView('main')} onChange={waiting} />
           ) : view === 'invite' && account !== null ? (
             <Invitations account={account} onBack={() => setView('main')} />
+          ) : view === 'adventures' ? (
+            <Adventures onBack={() => setView('main')} />
           ) : view === 'main' ? (
             <>
               <p className="menu-sub">A party, a table, and whatever waits in the dark.</p>
@@ -182,6 +187,9 @@ export function MainMenu(props: { account?: SignedIn | null; onSignOut?: () => v
                 </button>
                 <button type="button" className="menu-choice" data-testid="menu-load" onClick={() => setView('load')}>
                   Load Game<small>Play on from where you left off</small>
+                </button>
+                <button type="button" className="menu-choice" data-testid="menu-adventures" onClick={() => setView('adventures')}>
+                  Adventures<small>What your camp's portal opens on, and adventures brought in from a file</small>
                 </button>
                 <button type="button" className="menu-choice" data-testid="menu-edit" onClick={() => openPage('edit')}>
                   Edit Game<small>The editor: rooms, creatures, cards and all</small>
