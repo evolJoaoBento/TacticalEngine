@@ -25,7 +25,7 @@
 
 import { useState } from 'preact/hooks';
 import type { EditorSession } from '../session';
-import { addSheet, removeSheet, type SheetList } from '../party-edits';
+import { addSheet, removeSheet, setFixedParty, type SheetList } from '../party-edits';
 import { blankSheet } from '../../engine/character/sheet';
 import { characterSheetSchema } from '../../engine/character/sheet-schema';
 import type { ContentPack } from '../../engine/content/pack/import';
@@ -130,6 +130,18 @@ export function PartyPanel(props: PartyPanelProps): preact.JSX.Element {
         <div style={{ marginTop: '8px', color: 'var(--ph-muted)', fontSize: '11px' }}>
           A party edited here reaches the table when you press Play.
         </div>
+        <label style={{ display: 'flex', gap: '6px', alignItems: 'flex-start', marginTop: '8px', fontSize: '11px' }} title="Begun at a camp's portal, this party plays it, with whoever leads the party there - four at most - and the companions wait at the camp">
+          <input
+            type="checkbox"
+            data-testid="fixed-party"
+            checked={session.project.fixedParty === true}
+            onChange={(e) => {
+              session.run(setFixedParty((e.target as HTMLInputElement).checked));
+              props.onChange();
+            }}
+          />
+          <span>Keep this party: begun at a camp's portal, they play it with whoever leads the party there.</span>
+        </label>
         <div style={{ fontWeight: 600, marginTop: '12px' }} data-testid="party-companions">
           Companions
         </div>

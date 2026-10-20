@@ -96,3 +96,26 @@ export function updateSheet(characterId: string, changes: Partial<PartySheet>, l
   (edit as Edit & { __sheet: Partial<PartySheet> }).__sheet = current;
   return edit;
 }
+
+/**
+ * Say whether the party is the adventure's own (`fixedParty`): begun at a camp's portal, played by it and whoever leads
+ * the party there, rather than by the camp's party in its place. Off, the project says nothing, as one written before.
+ */
+export function setFixedParty(on: boolean): Edit {
+  let before: boolean | undefined;
+  return {
+    label: on ? 'Keep the party' : 'Let the party that comes play',
+    apply(project) {
+      before = project.fixedParty;
+      if (on) project.fixedParty = true;
+      else delete project.fixedParty;
+    },
+    undo(project) {
+      if (before === undefined) delete project.fixedParty;
+      else project.fixedParty = before;
+    },
+    isNoop() {
+      return (before === true) === on;
+    },
+  };
+}

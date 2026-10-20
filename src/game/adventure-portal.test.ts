@@ -22,7 +22,13 @@ import { WasmGame } from './wasm-game';
 import { campProject, crewPlaces, PORTAL_AT } from './camp';
 import { withListedPacks } from './listed-packs';
 import { sheetFor } from './new-character';
-import { ADVENTURES, ADVENTURE_PORTAL, BUILT_IN, adventureChoices, beginAdventure, begunBy } from './adventure-portal';
+import { ADVENTURES, ADVENTURE_PORTAL, BUILT_IN, DEMO_VAULT_ID, PARTY_MOST, adventureChoices, beginAdventure, begunBy, partyFor } from './adventure-portal';
+import { buildDemoScene } from './demo-scene';
+import { hollowVaultMap } from './demo-map';
+import { characterContentFor } from './room';
+import { deriveCharacter } from '../engine/character/sheet';
+import { COMPANIONS } from './camp-company';
+import { characterSheetSchema } from '../engine/character/sheet-schema';
 import { AdventureLibrary, adventureFromText } from './adventure-library';
 import { ASHWELL_ID, ASHWELL_PARTY } from './adventures/ashwell';
 import { GameProjects } from './game-projects';
@@ -61,8 +67,10 @@ describe('the portal at the camp', () => {
     expect((engine.board() as BoardSnapshot).opened).toBe(ADVENTURE_PORTAL);
     const open = game.containerView(() => true, () => {});
     expect(open).toMatchObject({ id: ADVENTURE_PORTAL, name: 'The portal', lines: [] });
-    expect(open!.adventures).toEqual(adventureChoices().map(({ id, name, blurb }) => ({ id, name, blurb })));
-    expect(open!.adventures!.map((adventure) => adventure.id)).toContain(ASHWELL_ID);
+    expect(open!.adventures!.map(({ id, name, blurb }) => ({ id, name, blurb }))).toEqual(adventureChoices().map(({ id, name, blurb }) => ({ id, name, blurb })));
+    expect(open!.adventures!.map((adventure) => adventure.id)).toEqual([ASHWELL_ID, DEMO_VAULT_ID]);
+    // The Ashwell is the party's to play; the Demo Vault keeps its own, and says who goes.
+    expect(open!.adventures!.map((adventure) => adventure.party)).toEqual([undefined, 'Played by its own party: Wren, Quim, Violet, Scarlet. The companions wait at the camp.']);
     // Drawing the chooser read nothing that either game would keep: the boards are the same.
     expect(firstDifference(boardOf(demo), engine.board() as BoardSnapshot, 'board')).toBeNull();
     open!.onClose();
@@ -72,12 +80,13 @@ describe('the portal at the camp', () => {
 
 describe('the portal at a shared game', () => {
   it('shows a page not the host’s who chooses, and no adventure of its own to begin', () => {
-    const scene = campProject(WREN, 0).scenes[0]!;
+    const camp = campProject(WREN, 0);
+    const [scene, project] = [camp.scenes[0]!, camp];
     const acts = { begin: () => {}, close: () => {} };
-    const theirs = portalView({ scene }, ADVENTURE_PORTAL, [], acts, 'Hana');
+    const theirs = portalView({ scene, project }, ADVENTURE_PORTAL, [], acts, 'Hana');
     expect(theirs).toMatchObject({ id: ADVENTURE_PORTAL, name: 'The portal', lines: [], adventures: [], chooser: 'Hana' });
     // The host's, and a page alone: the adventures to choose from, nobody else choosing.
-    const ours = portalView({ scene }, ADVENTURE_PORTAL, adventureChoices(), acts);
+    const ours = portalView({ scene, project }, ADVENTURE_PORTAL, adventureChoices(), acts);
     expect(ours.chooser).toBeUndefined();
     expect(ours.adventures!.map((adventure) => adventure.id)).toContain(ASHWELL_ID);
   });
@@ -124,8 +133,9 @@ describe('an adventure begun', () => {
     if (typeof lichgate === 'string') throw new Error(lichgate);
     expect(library.install(lichgate)).toBe(true);
     const choices = adventureChoices(library);
-    expect(choices.map((adventure) => [adventure.id, adventure.imported ?? false])).toEqual([[ASHWELL_ID, false], ['the-lichgate', true]]);
-    expect(choices[1]!.blurb).toMatch(/^A churchyard gone to moss/);
+    expect(choices.map((adventure) => [adventure.id, adventure.imported ?? false])).toEqual([[ASHWELL_ID, false], [DEMO_VAULT_ID, false], ['the-lichgate', true]]);
+    expect(choices[2]!.blurb).toMatch(/^A churchyard gone to moss/);
+    expect(choices[2]!.ownParty).toBeUndefined();
     const games = new GameProjects(memoryStore());
     const id = beginAdventure(games, 'the-lichgate', [WREN, ASHWELL_PARTY[0]!], choices, 9000);
     expect(id).toBe(`the-lichgate-${(9000).toString(36)}`);
@@ -158,8 +168,64 @@ describe('an adventure begun', () => {
   });
 
   it('is not begun when there is no such adventure, or no room to keep it', () => {
+    expect(beginAdventure(new GameProjects(memoryStore()), DEMO_VAULT_ID, [WREN], [])).toBeNull();
     expect(beginAdventure(new GameProjects(memoryStore()), 'no-such-adventure', [WREN])).toBeNull();
     const full = new GameProjects({ ...memoryStore(), set: () => { throw new Error('QuotaExceededError'); } });
     expect(beginAdventure(full, ASHWELL_ID, [WREN])).toBeNull();
+  });
+});
+
+describe('an adventure that keeps its party', () => {
+  const quim = sheetFor(COMPANIONS[0]!.creation);
+  const sheets = (ids: string[]) => ids.map((id) => ({ id }));
+
+  it('is played by its own party and whoever leads the party that comes - four at most - the rest waiting', () => {
+    const own = sheets(['kara', 'finn', 'mira', 'arty', 'pint']);
+    expect(partyFor(false, own, sheets(['wren', 'quim']))).toEqual(sheets(['wren', 'quim']));
+    expect(partyFor(true, own, sheets(['wren', 'quim']))).toEqual(sheets(['wren', 'kara', 'finn', 'mira']));
+    expect(partyFor(true, own, sheets(['wren']))).toHaveLength(PARTY_MOST);
+    // One of its own with the leader's id stays behind, the leader in their place; a party too small goes whole.
+    expect(partyFor(true, own, sheets(['finn']))).toEqual(sheets(['finn', 'kara', 'mira', 'arty']));
+    expect(partyFor(true, sheets(['kara']), sheets(['wren']))).toEqual(sheets(['wren', 'kara']));
+    expect(partyFor(true, own, [])).toEqual(sheets(['kara', 'finn', 'mira', 'arty']));
+  });
+
+  it('is the Demo Vault: begun by Wren and a companion, it is Wren and the vault\u2019s own, each as they were written', () => {
+    const vault = adventureChoices().find((adventure) => adventure.id === DEMO_VAULT_ID)!;
+    expect(vault.ownParty!.map((member) => member.name).slice(0, 3)).toEqual(['Quim', 'Violet', 'Scarlet']);
+    const games = new GameProjects(memoryStore());
+    const id = beginAdventure(games, DEMO_VAULT_ID, [WREN, quim], ADVENTURES, 6000);
+    expect(id).toBe(`${DEMO_VAULT_ID}-${(6000).toString(36)}`);
+    const kept = projectSchema.parse(JSON.parse(games.read(id!)!));
+    expect(kept.name).toBe("Demo Vault (Wren's party)");
+    expect(kept.fixedParty).toBe(true);
+    expect(kept.party.map((sheet) => sheet.id)).toEqual(['wren', 'kara', 'finn', 'mira']);
+    const problems: string[] = [];
+    const demo = buildProjectScene(withListedPacks(kept, problems), kept.id);
+    expect(problems).toEqual([]);
+    expect(demo.party.members()).toEqual(['wren', 'kara', 'finn', 'mira']);
+    // On the board, every one of them, Wren beside the vault's own.
+    for (const member of demo.party.members()) expect(demo.state.entity(member)?.tile ?? -1).toBeGreaterThanOrEqual(0);
+    // Each made whole of the content there is - Wren of the SRD's pack, the vault's own as the vault makes them alone -
+    // but for what the pack gives an ancestry they share: Scarlet is human, and the SRD's Human has features of its own.
+    const content = characterContentFor(demo.project);
+    for (const sheet of demo.project.party) expect(deriveCharacter(sheet, content, demo.project.abilities).issues).toEqual([]);
+    const alone = buildDemoScene(hollowVaultMap()).project;
+    const aloneContent = characterContentFor(alone);
+    const theirs = (id: string, project: typeof alone, from: typeof content) => deriveCharacter(project.party.find((sheet) => sheet.id === id)!, from, project.abilities).character!;
+    for (const id of ['kara', 'finn']) expect(theirs(id, demo.project, content)).toEqual(theirs(id, alone, aloneContent));
+    const [scarlet, written] = [theirs('mira', demo.project, content), theirs('mira', alone, aloneContent)];
+    expect(scarlet.granted.map((card) => card.id)).toEqual([...written.granted.map((card) => card.id), 'human-high-stamina', 'human-adaptability']);
+    expect({ ...scarlet, granted: written.granted }).toEqual(written);
+  });
+
+  it('may be one imported, said so in its project: its own party offered, and played', () => {
+    const library = new AdventureLibrary(memoryStore(), () => 7);
+    const lichgate = adventureFromText(readFileSync(LICHGATE, 'utf8'), BUILT_IN);
+    if (typeof lichgate === 'string') throw new Error(lichgate);
+    library.install({ ...lichgate, fixedParty: true, party: [characterSheetSchema.parse(quim)] });
+    const choice = adventureChoices(library).find((adventure) => adventure.id === 'the-lichgate')!;
+    expect(choice.ownParty).toEqual([{ id: 'quim', name: 'Quim' }]);
+    expect(choice.build([WREN, ASHWELL_PARTY[1]!])!.party.map((sheet) => sheet.id)).toEqual(['wren', 'quim']);
   });
 });

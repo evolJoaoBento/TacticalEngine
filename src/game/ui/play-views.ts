@@ -24,7 +24,7 @@ import type { Spot } from '../../engine/grid/grid';
 import type { TalkingView } from './Conversation';
 import { itemOf, itemsFor } from '../../engine/content/equipment/catalogue';
 import { gearCard } from '../gear';
-import type { AdventureChoice } from '../adventure-portal';
+import { partyFor, type AdventureChoice } from '../adventure-portal';
 
 /** The journal: every quest the party has been given, joined to its words - and every project plan learned. */
 export function journalEntries(demo: DemoScene): JournalQuest[] {
@@ -132,13 +132,19 @@ export function containerView(demo: DemoScene, acts: ContainerActs): OpenContain
  * The camp portal's window (`adventure-portal.ts`): the adventures it offers, each begun by `begin`, and nothing to
  * take. Read off nothing of the room's - the portal holds nothing - so drawing it changes no state anywhere.
  */
-export function portalView(demo: Pick<DemoScene, 'scene'>, id: string, choices: readonly AdventureChoice[], acts: { begin(adventure: string): void; close(): void }, chooser?: string): OpenContainer {
+export function portalView(demo: Pick<DemoScene, 'scene' | 'project'>, id: string, choices: readonly AdventureChoice[], acts: { begin(adventure: string): void; close(): void }, chooser?: string): OpenContainer {
   const prop = demo.scene.decos.find((deco) => deco.id === id);
+  const lead = demo.project.party[0];
+  // One that keeps its party says who plays it: its own, with whoever leads the party here (`partyFor`).
+  const keeps = (own: readonly { id: string; name: string }[]): string => {
+    const going = partyFor(true, own, lead === undefined ? [] : [lead]).map((sheet) => sheet.name);
+    return `Played by its own party: ${going.join(', ')}. The companions wait at the camp.`;
+  };
   return {
     id,
     name: prop?.function?.kind === 'script' && prop.function.name !== undefined ? prop.function.name : 'The portal',
     lines: [],
-    adventures: choices.map(({ id: adventure, name, blurb }) => ({ id: adventure, name, blurb })),
+    adventures: choices.map(({ id: adventure, name, blurb, ownParty }) => ({ id: adventure, name, blurb, ...(ownParty === undefined ? {} : { party: keeps(ownParty) }) })),
     ...(chooser === undefined ? {} : { chooser }),
     onBegin: acts.begin,
     onTake: () => {},

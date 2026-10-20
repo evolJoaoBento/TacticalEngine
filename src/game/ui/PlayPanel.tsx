@@ -97,7 +97,7 @@ export interface OpenContainer {
   onTake: (item: string) => void;
   onClose: () => void;
   /** At the camp's portal: the adventures it offers, each begun with Begin (`adventure-portal.ts`). */
-  adventures?: readonly { id: string; name: string; blurb: string }[];
+  adventures?: readonly { id: string; name: string; blurb: string; party?: string }[];
   onBegin?: (adventure: string) => void;
   /** At a shared game, on a page not the host's: who chooses the adventure, which takes everybody through. */
   chooser?: string;
@@ -417,6 +417,12 @@ function ContainerWindow({ container }: { container: OpenContainer }): preact.JS
                 <b>{adventure.name}</b>
                 <br />
                 <span className="panel-detail">{adventure.blurb}</span>
+                {adventure.party === undefined ? null : (
+                  <>
+                    <br />
+                    <span className="panel-detail" data-testid="adventure-party">{adventure.party}</span>
+                  </>
+                )}
               </span>
               <button className="play-btn is-primary" data-testid="adventure-begin" onClick={() => container.onBegin?.(adventure.id)}>
                 Begin

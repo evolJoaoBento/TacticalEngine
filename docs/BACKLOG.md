@@ -71,8 +71,16 @@ from a file, and are a kind of listing in the Store, published and got there.
    pieces (`link.ts`). Tests: `play_routes.rs`, `wire.test.ts`, `host-table.test.ts`, `link.test.ts`,
    `portal-shared.spec.ts` (server), `peer-portal.spec.ts` (peer, and from a static build).
 
-   Still open: an adventure's own party is replaced whole, so one written for a fixed party (the Demo Vault's) is
-   not offered at the portal; and a guest's own adventures are not offered at a shared portal - the host's are.
+   **Since: adventures that keep their party** (20 October 2026). A project says it keeps its party (`fixedParty`,
+   optional - TS schema and `document.rs` - ticked as **Keep this party** in the Party panel, `setFixedParty`,
+   warned of with no party); begun at the portal it is played by its own party with the camp's leader first, four at
+   most, one of its own of the leader's id staying behind (`partyFor`, `adventure-portal.ts`), the chooser saying who.
+   The Demo Vault is offered so, built from the code (`DEMO_VAULT_ID`). Tests: `adventure-portal.test.ts`,
+   `party-edits.test.ts`, `golden_scene.rs`, `adventures.spec.ts`, `editor-panels.spec.ts`.
+
+   Still open: a guest's own adventures are not offered at a shared portal - the host's are; and the leader's pack
+   is laid over an adventure written in other content, so an ancestry both define (the SRD's Human, the Demo Vault's)
+   gives its features from both to whoever has it.
 
 ## Peer to peer: a shared game with no server — slice 1 done
 

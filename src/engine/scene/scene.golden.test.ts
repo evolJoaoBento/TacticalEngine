@@ -234,6 +234,7 @@ const SAMPLE: Raw = {
     },
   ],
   companions: [{ id: 'violet', name: 'Violet', level: 1, classId: 'rogue', subclassId: 'nightwalker', ancestryId: 'elf', communityId: 'slyborne', traits: { agility: 1, strength: -1, finesse: 2, instinct: 0, presence: 1, knowledge: 0 }, domainCards: ['b'], model: 'violet' }],
+  fixedParty: true,
   jump: { enabled: true, difficulty: 10, reachTrait: 'agility', stepHeight: 0.5 },
   startScene: 'room',
 };
@@ -325,6 +326,7 @@ function corners(): { name: string; value: unknown }[] {
     { name: 'a sheet worth reading', value: { ...SAMPLE, party: [{ id: '', name: 3, level: 11, classId: '', traits: { agility: 1.5 }, proficiency: 0, levels: [{ level: 1, advancements: [{ kind: 'traits', traits: ['agility'] }, { kind: 'experiences', names: ['a', 'b', 'c'] }, { kind: 'nope' }, { kind: 'evasion', fromTier: 5 }], domainCard: 3 }], scars: -1 }] } },
     { name: 'jump rules out of bounds', value: { ...SAMPLE, jump: { stepHeight: 17, difficulty: 0, fallDie: 101, reachTrait: 'luck', harderEvery: -1 } } },
     { name: 'jump rules all defaulted', value: { ...SAMPLE, jump: {} } },
+    { name: 'a fixed party said in words', value: { ...SAMPLE, fixedParty: 'yes' } },
     { name: 'pairs too short and wrong', value: { ...SAMPLE, party: [{ ...(SAMPLE['party'] as Raw[])[0]!, levels: [{ level: 2, advancements: [{ kind: 'traits', traits: [7] }, { kind: 'experiences', names: [false] }], domainCard: 'x' }] }], structureTypes: [{ id: 'x', atoms: [{ shape: 'wall', at: ['a', 2] }] }] } },
     { name: 'a structure made of nothing', value: { ...SAMPLE, structureTypes: [{ id: '', atoms: [] }, { id: 'x', atoms: [{ shape: 'wall', at: [0, 0] }, { shape: 'wall', at: [0, 0, 0, 0] }, { shape: '', at: 'here' }] }] } },
     { name: 'a material with its maps and a link both, and one with neither', value: { ...SAMPLE, surfaces: [{ id: 'both', name: '', maps: { color: 'c', normalHeight: 'n', orm: 'o' }, polyHaven: { id: 'x', pixels: 100 }, parallax: true }, { id: 'neither', name: '', parallax: false }] } },

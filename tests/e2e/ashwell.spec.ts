@@ -164,7 +164,7 @@ async function begin(page: Page): Promise<void> {
   await use(page, 'adventure-portal');
   const portal = page.getByTestId('container');
   await expect(portal).toHaveAttribute('data-container', 'adventure-portal');
-  await expect(portal.locator('[data-adventure]')).toHaveCount(1);
+  await expect(portal.locator('[data-adventure]')).toHaveCount(2);
   await page.screenshot({ path: 'test-results/ashwell-portal.png' });
   await portal.locator('[data-adventure="the-ashwell"] [data-testid="adventure-begin"]').click();
   await expect(page).toHaveURL(/[?&]play&project=the-ashwell-[a-z0-9]+$/);

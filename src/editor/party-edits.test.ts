@@ -5,7 +5,7 @@ import { blankScene } from '../engine/scene/grid-from-scene';
 import { projectSchema, sceneSchema, type ProjectDoc } from '../engine/scene/schema';
 import { MODELS } from '../engine/render/procedural/registry';
 import { EditorSession } from './session';
-import { addSheet, removeSheet, updateSheet, type PartySheet } from './party-edits';
+import { addSheet, removeSheet, setFixedParty, updateSheet, type PartySheet } from './party-edits';
 import { validateProject } from './validate';
 
 /**
@@ -241,5 +241,30 @@ describe('checking a party', () => {
     expect(
       validateProject(projectSchema.parse({ ...project(), party: [{ ...KARA, classId: 'nonsense' }] })),
     ).toEqual([]);
+  });
+});
+
+describe('a party the project keeps', () => {
+  it('is said by the project, and unsaid as one written before it says nothing; undone either way', () => {
+    const s = session();
+    expect(s.project.fixedParty).toBeUndefined();
+    expect(s.run(setFixedParty(false))).toBe(false);
+    expect(s.run(setFixedParty(true))).toBe(true);
+    expect(projectSchema.parse(JSON.parse(JSON.stringify(s.project))).fixedParty).toBe(true);
+    expect(s.run(setFixedParty(true))).toBe(false);
+    expect(s.run(setFixedParty(false))).toBe(true);
+    expect('fixedParty' in s.project).toBe(false);
+    s.undo();
+    expect(s.project.fixedParty).toBe(true);
+    s.undo();
+    expect(s.project.fixedParty).toBeUndefined();
+  });
+
+  it('is warned of when there is none to keep', () => {
+    const kept = (party: PartySheet[]) => validateProject(projectSchema.parse({ ...project(), party, fixedParty: true })).map((p) => p.message).filter((m) => m.includes('keeps its party'));
+    expect(kept([])).toEqual(["The project keeps its party, but has none: begun at a camp's portal, whoever leads the party there goes in alone."]);
+    expect(kept([KARA])).toEqual([]);
+    // A project that does not keep its party has none of its own to keep: nothing said.
+    expect(validateProject(projectSchema.parse({ ...project(), party: [] })).map((p) => p.message).filter((m) => m.includes('keeps its party'))).toEqual([]);
   });
 });

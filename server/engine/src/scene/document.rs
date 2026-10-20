@@ -543,6 +543,7 @@ pub fn project() -> &'static Schema {
             def("packs", array(string()), empty_list),
             def("party", array(lazy(crate::character::schema::sheet_schema)), empty_list),
             def("companions", array(lazy(crate::character::schema::sheet_schema)), empty_list),
+            opt("fixedParty", boolean()),
             opt("jump", jump_rules()),
             req("startScene", content_id()),
         ])

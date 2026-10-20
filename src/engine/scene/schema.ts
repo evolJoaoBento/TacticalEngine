@@ -551,6 +551,12 @@ export const projectSchema = z
      */
     companions: z.array(characterSheetSchema).default([]),
     /**
+     * Whether the party is the adventure's own (`game/adventure-portal.ts`): begun at a camp's portal, it is played by
+     * this party and whoever leads the party there - four at most - not by the camp's party in its place. Optional: a
+     * project that says nothing is played by whichever party comes.
+     */
+    fixedParty: z.boolean().optional(),
+    /**
      * The house rule for height: what a step is, who jumps how far, the roll it asks, what a
      * fall costs. Optional rather than defaulted, like `terrainPalette`: a project that says
      * nothing plays by `DEFAULT_JUMP_RULES`, and saving it does not write them down.

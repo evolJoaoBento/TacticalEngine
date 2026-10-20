@@ -544,3 +544,20 @@ test('the company at a camp is in the Party panel, and a companion renamed there
   expect((await page.evaluate(() => window.__engine!.log())).map((line) => line.text)).toContain('Quim Ironside joins the party.');
   expect(errors, `console errors: ${errors.join(' | ')}`).toEqual([]);
 });
+
+test('a project keeps its party at the Party panel\u2019s word, and one undo lets the party that comes play it', async ({ page }) => {
+  const errors = await editing(page);
+  await page.locator('[data-testid="open-content"]').click();
+  await page.locator('[data-testid="open-party"]').click();
+  const kept = page.getByTestId('party-panel').getByTestId('fixed-party');
+  await expect(kept).not.toBeChecked();
+  const fixed = () => page.evaluate(() => (JSON.parse(window.__engine!.exportProject()) as { fixedParty?: boolean }).fixedParty);
+  expect(await fixed()).toBeUndefined();
+  await kept.check();
+  expect(await fixed()).toBe(true);
+  await page.screenshot({ path: 'test-results/editor-fixed-party.png' });
+  await page.locator('[data-testid="undo"]').click();
+  await expect(kept).not.toBeChecked();
+  expect(await fixed()).toBeUndefined();
+  expect(errors, `console errors: ${errors.join(' | ')}`).toEqual([]);
+});

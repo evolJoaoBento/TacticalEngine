@@ -111,6 +111,7 @@ export function validateProject(
   checkCardsGiven(project, options, (severity, message, entity) => {
     problems.push({ severity, message, ...(entity === undefined ? {} : { entity }) });
   });
+  checkFixedParty(project, (severity, message) => problems.push({ severity, message }));
   checkCompanionsJoining(project, (severity, message, entity) => {
     problems.push({ severity, message, ...(entity === undefined ? {} : { entity }) });
   });
@@ -825,6 +826,13 @@ function checkCardsGiven(
     if (cards !== null && !cards.has(effect.card)) add('error', `A "Give a card" effect gives card "${effect.card}", which does not exist.`, effect.card);
     if (effect.to !== undefined && !party.has(effect.to)) add('error', `A "Give a card" effect gives a card to "${effect.to}", who is not in the party.`, effect.to);
   });
+}
+
+/** A project that keeps its party (`fixedParty`) with no party to keep: the portal's leader would go in alone. */
+function checkFixedParty(project: ProjectDoc, add: (severity: ProblemSeverity, message: string) => void): void {
+  if (project.fixedParty === true && project.party.length === 0) {
+    add('warning', 'The project keeps its party, but has none: begun at a camp\'s portal, whoever leads the party there goes in alone.');
+  }
 }
 
 /** A "Join the party" effect naming a companion the project has not got; a companion nothing asks along. */

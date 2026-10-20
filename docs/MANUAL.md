@@ -148,8 +148,14 @@ the fire; **What can you do?** has them say. Four is a party - asked fifth, one 
 game is kept in this browser, and its saves are its own, the company you took along with them.
 
 At the clearing's west edge stands a **portal**. Use it and it opens a window of the adventures there
-are - the Ashwell, and any you imported from the main menu's **Adventures** - and **Begin** starts one
-with the party as it stands, in place of whatever party the adventure was written with. It is a game of its
+are - the Ashwell, the Demo Vault, and any you imported from the main menu's **Adventures** - and
+**Begin** starts one with the party as it stands, in place of whatever party the adventure was written with.
+An adventure written for a party of its own - the **Demo Vault**, whose cards and doors are its party's, or
+any project whose Party panel says **Keep this party** - is played by that party instead, with whoever
+leads yours going in with them, four in all at most; the window says who ("Played by its own party:
+Wren, Quim, Violet, Scarlet"), and the companions you asked along wait at the camp. Where your
+character and one of theirs share an ancestry the two define differently - the SRD's Human beside the
+Demo Vault's - both have both its features. It is a game of its
 own, kept in this browser beside the camp and named for whoever leads the party ("The Ashwell (Wren's
 party)"); the camp stays as it was, and you can go back to it from Load Game and begin again. An Ashwell
 begun from the menu by an older build is still listed, its saves with it.
@@ -1340,6 +1346,11 @@ press Play; they come when the effect asks them, as the panel last wrote them. O
 is in both lists under one id, and the two sheets are edited apart - the party's is the one
 playing. **Check** reads a companion's sheet as it reads the party's, its messages beginning
 *Companion*.
+
+**Keep this party**, under the party list, says the project is an adventure written for this party
+(`fixedParty`): begun at a camp's portal, these play it, with whoever leads the party there going in
+with them - four at most, the first of the list first - rather than the camp's party in their place.
+**Check** warns when it is ticked with nobody in the party.
 
 ### Cards
 
