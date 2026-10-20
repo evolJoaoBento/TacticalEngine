@@ -168,6 +168,18 @@ export function mergePack(
     for (const def of over) merged.set(def.id, def);
     return merged;
   };
+  // A class, subclass, ancestry or community the project defines anew and gives features of its own is its own
+  // whole: the base's features for it are not added to them - the SRD's Human laid over this build's brings its own,
+  // and the starter's Adaptable is not a Human's of the SRD. One the project only adds a feature to keeps the base's.
+  const defined = new Set([
+    ...(own.classes ?? []).map((def) => `class:${def.id}`),
+    ...(own.subclasses ?? []).map((def) => `subclass:${def.id}`),
+    ...(own.ancestries ?? []).map((def) => `ancestry:${def.id}`),
+    ...(own.communities ?? []).map((def) => `community:${def.id}`),
+  ]);
+  const featured = new Set((own.cards ?? []).map((card) => grantTarget(card.grant)).filter((target) => target !== null && defined.has(target)));
+  const ownCards = new Set((own.cards ?? []).map((card) => card.id));
+  const cards = featured.size === 0 ? base.cards : new Map([...base.cards].filter(([id, card]) => ownCards.has(id) || !featured.has(grantTarget(card.grant) ?? '')));
   return {
     weapons: lay(base.weapons, own.weapons),
     armors: lay(base.armors, own.armors),
@@ -175,7 +187,23 @@ export function mergePack(
     ancestries: lay(base.ancestries, own.ancestries),
     communities: lay(base.communities, own.communities),
     subclasses: lay(base.subclasses, own.subclasses),
-    cards: lay(base.cards, own.cards),
+    cards: lay(cards, own.cards),
   };
+}
+
+/** What a card's grant gives it to, as `kind:id` - a class, subclass, ancestry or community - or `null`. */
+function grantTarget(grant: CardGrant): string | null {
+  switch (grant.kind) {
+    case 'class':
+      return `class:${grant.classId}`;
+    case 'subclass':
+      return `subclass:${grant.subclassId}`;
+    case 'ancestry':
+      return `ancestry:${grant.ancestryId}`;
+    case 'community':
+      return `community:${grant.communityId}`;
+    default:
+      return null;
+  }
 }
 

@@ -1521,6 +1521,11 @@ What was imported is the project's own from then on: the Party panel offers its 
 the Encounters strip its creatures, and the **Cards** workspace lists its abilities to edit. Save the
 project to keep it.
 
+A pack that defines a class, subclass, ancestry or community this build already has - the SRD's Human
+beside the starter's - and gives it features of its own replaces it whole: its characters have the pack's
+features for it and none of the starter's. A project that only adds a feature to one of the starter's
+(the Demo Vault's *Hold Fast* for the Sentinel) keeps the starter's beside it.
+
 **A pack to try it with.** The build carries one at `/packs/ember-spells.json` (in the repository,
 `public/packs/ember-spells.json`): open it, save it, and import it. Two ember spells, level 1, so an
 Emberwright can take them from the Party panel. **Biting Circle** marks a Stress to burn a circle

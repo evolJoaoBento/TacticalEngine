@@ -30,7 +30,7 @@ describe('an adventure that keeps its party, and a newcomer of another pack', ()
     const kept = projectSchema.parse(JSON.parse(games.read(id!)!));
     const laid = withListedPacks(structuredClone(kept));
     // The newcomer: the SRD's Human under an id of its own, and every feature the SRD gives it - as in a camp of the
-    // SRD, but for the Human this build gives every project (its Adaptable), which is the vault's now, not theirs.
+    // SRD, where the starter's Human gives an SRD Human nothing of its own (`mergePack`), Adaptable never among them.
     const ash = laid.party.find((sheet) => sheet.id === 'ash')!;
     expect(ash.ancestryId).toBe(ownId('human', 'srd-characters'));
     const theirs = derived(ash, laid);
@@ -39,7 +39,8 @@ describe('an adventure that keeps its party, and a newcomer of another pack', ()
     const asMade = derived(camp.party[0]!, camp);
     const names = (from: typeof theirs) => from.character!.granted.map((card) => card.name);
     expect(names(theirs)).toEqual(expect.arrayContaining(['High Stamina', 'Adaptability']));
-    expect(names(theirs).sort()).toEqual(names(asMade).filter((name) => name !== 'Adaptable').sort());
+    expect(names(asMade)).not.toContain('Adaptable');
+    expect(names(theirs).sort()).toEqual(names(asMade).sort());
     expect({ ...theirs.character!, granted: [], sheet: null }).toEqual({ ...asMade.character!, granted: [], sheet: null });
     // The vault's own, exactly as the vault makes them alone: Scarlet's Human is the vault's.
     const alone = buildDemoScene(hollowVaultMap()).project;

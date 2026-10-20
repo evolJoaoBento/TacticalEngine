@@ -1017,6 +1017,11 @@ when the source changes; browser tests cover broken directory art, corrupt impor
 
 ## 11. Gotchas
 
+- **A thing defined anew with features of its own takes none of the base's.** `mergePack` (and `merge_pack`, which
+  must agree) drops the base's cards granted to a class, subclass, ancestry or community the project both defines
+  and grants a card to - so a project that rewrites the starter's Human gives its humans only its own features. To
+  add one feature to the starter's, grant it without defining the thing again.
+
 - **A project kept in the browser has no pack entries in it.** `GameProjects` (and a saved project file) stores a
   project without what its listed packs lay (`withoutPackEntries`); a page lays them again as it opens one
   (`withListedPacks`). Anything handed to a game played elsewhere - the server's, a peer host's table - is handed laid,

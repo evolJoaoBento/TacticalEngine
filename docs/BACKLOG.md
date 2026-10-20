@@ -90,9 +90,12 @@ from a file, and are a kind of listing in the Store, published and got there.
    there (`keep-own.ts`, called by `forParty`); the pack is still listed for the rest. Tests: `keep-own.test.ts`
    (the Demo Vault's Human and the SRD's; a class, its subclasses and a multiclass level; kept twice, one of each).
 
-   Still open: every project is made over this build's starter content (`DEMO_CHARACTERS`), so a character of the
-   SRD's Human anywhere - at a camp too - also has the starter's Human feature (*Adaptable*); a pack's ancestry of an
-   id the starter has should hide the starter's cards for it, which is a rule for `mergePack` to take.
+   **Since: the starter's features do not leak** (20 October 2026). Every project is made over this build's starter
+   content (`DEMO_CHARACTERS`), and a character of the SRD's Human anywhere - at a camp too - had the starter's Human
+   feature (*Adaptable*) as well. Now a class, subclass, ancestry or community a project defines anew and gives
+   features of its own is its own whole: the base's features for it are not added (`mergePack`, and `merge_pack` in
+   `content/pack.rs` alike); one the project only adds a feature to keeps the base's. The character golden lost the
+   one card. Tests: `import.test.ts`, `pack.rs`'s own, `keep-own.test.ts`.
 
 ## Peer to peer: a shared game with no server — slice 1 done
 

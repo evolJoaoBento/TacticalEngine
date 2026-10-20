@@ -290,7 +290,20 @@ pub struct PackLists {
     pub cards: Vec<CardDef>,
 }
 
-/// `mergePack`: a project's definitions laid over the content it builds on, id for id.
+/// What a card's grant gives it to - a class, subclass, ancestry or community - as `mergePack`'s `grantTarget` says it.
+fn grant_target(grant: &CardGrant) -> Option<String> {
+    match grant {
+        CardGrant::Class { class_id } => Some(format!("class:{class_id}")),
+        CardGrant::Subclass { subclass_id, .. } => Some(format!("subclass:{subclass_id}")),
+        CardGrant::Ancestry { ancestry_id } => Some(format!("ancestry:{ancestry_id}")),
+        CardGrant::Community { community_id } => Some(format!("community:{community_id}")),
+        _ => None,
+    }
+}
+
+/// `mergePack`: a project's definitions laid over the content it builds on, id for id. A class, subclass, ancestry or
+/// community the project defines anew and gives features of its own is its own whole: the base's features for it are
+/// not added to them; one the project only adds a feature to keeps the base's.
 pub fn merge_pack(base: &ContentPack, own: PackLists) -> ContentPack {
     fn lay<T: Identified + Clone>(into: &Table<T>, over: Vec<T>) -> Table<T> {
         let mut merged = into.clone();
@@ -299,6 +312,21 @@ pub fn merge_pack(base: &ContentPack, own: PackLists) -> ContentPack {
         }
         merged
     }
+    let defined: std::collections::HashSet<String> = own
+        .classes
+        .iter()
+        .map(|def| format!("class:{}", def.id))
+        .chain(own.subclasses.iter().map(|def| format!("subclass:{}", def.id)))
+        .chain(own.ancestries.iter().map(|def| format!("ancestry:{}", def.id)))
+        .chain(own.communities.iter().map(|def| format!("community:{}", def.id)))
+        .collect();
+    let featured: std::collections::HashSet<String> = own.cards.iter().filter_map(|card| grant_target(&card.grant)).filter(|target| defined.contains(target)).collect();
+    let own_cards: std::collections::HashSet<&str> = own.cards.iter().map(|card| card.id.as_str()).collect();
+    let cards = if featured.is_empty() {
+        base.cards.clone()
+    } else {
+        Table::new(base.cards.iter().filter(|card| own_cards.contains(card.id.as_str()) || !grant_target(&card.grant).is_some_and(|target| featured.contains(&target))).cloned())
+    };
     ContentPack {
         weapons: lay(&base.weapons, own.weapons),
         armors: lay(&base.armors, own.armors),
@@ -306,7 +334,7 @@ pub fn merge_pack(base: &ContentPack, own: PackLists) -> ContentPack {
         ancestries: lay(&base.ancestries, own.ancestries),
         communities: lay(&base.communities, own.communities),
         subclasses: lay(&base.subclasses, own.subclasses),
-        cards: lay(&base.cards, own.cards),
+        cards: lay(&cards, own.cards),
     }
 }
 
@@ -327,6 +355,32 @@ mod tests {
         assert_eq!(names, ["A2", "B", "C"]);
         assert_eq!(merged.ancestries.get("a").map(|a| a.name.as_str()), Some("A2"));
         assert_eq!(base.ancestries.get("a").map(|a| a.name.as_str()), Some("A"));
+    }
+
+    fn feature(id: &str, grant: CardGrant) -> CardDef {
+        serde_json::from_value(serde_json::json!({ "id": id, "name": id, "grant": grant })).unwrap()
+    }
+
+    #[test]
+    fn a_thing_defined_anew_with_features_of_its_own_takes_none_of_the_bases() {
+        let human = || CardGrant::Ancestry { ancestry_id: "human".into() };
+        let base = ContentPack {
+            ancestries: Table::new([ancestry("human", "Human")]),
+            cards: Table::new([feature("starter-adaptable", human()), feature("elf-sight", CardGrant::Ancestry { ancestry_id: "elf".into() })]),
+            ..ContentPack::default()
+        };
+        let ids = |pack: &ContentPack| pack.cards.iter().map(|card| card.id.clone()).collect::<Vec<_>>();
+        // Defined anew, with a feature of its own: the base's for it gone, the rest as they were.
+        let merged = merge_pack(&base, PackLists { ancestries: vec![ancestry("human", "Human")], cards: vec![feature("srd-stamina", human())], ..PackLists::default() });
+        assert_eq!(ids(&merged), ["elf-sight", "srd-stamina"]);
+        // A feature added to one not defined anew; or one defined anew with nothing of its own: the base's kept.
+        let added = merge_pack(&base, PackLists { cards: vec![feature("more", human())], ..PackLists::default() });
+        assert_eq!(ids(&added), ["starter-adaptable", "elf-sight", "more"]);
+        let renamed = merge_pack(&base, PackLists { ancestries: vec![ancestry("human", "Folk")], ..PackLists::default() });
+        assert_eq!(ids(&renamed), ["starter-adaptable", "elf-sight"]);
+        // One of the base's own features rewritten by the project: in its place.
+        let rewritten = merge_pack(&base, PackLists { ancestries: vec![ancestry("human", "Human")], cards: vec![feature("starter-adaptable", human())], ..PackLists::default() });
+        assert_eq!(ids(&rewritten), ["starter-adaptable", "elf-sight"]);
     }
 
     #[test]
