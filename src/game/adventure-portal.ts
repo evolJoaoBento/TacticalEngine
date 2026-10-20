@@ -18,6 +18,7 @@ import { ASHWELL_ID, ashwellProject } from './adventures/ashwell';
 import { buildDemoScene } from './demo-scene';
 import { hollowVaultMap } from './demo-map';
 import { PARTY_SHEETS } from './demo-rules';
+import { keepEachOwn } from './keep-own';
 import type { AdventureLibrary } from './adventure-library';
 import type { Offer } from './wire';
 import { GameProjects } from './game-projects';
@@ -82,8 +83,13 @@ export function partyFor<S extends { id: string }>(fixed: boolean, own: readonly
 
 /** An adventure, for a party: who goes in it in place of the one it was written with (`partyFor`), their pack listed. */
 export function forParty(project: ProjectDoc, party: readonly CharacterSheet[]): ProjectDoc {
-  const going = partyFor(project.fixedParty === true, project.party, party);
-  return { ...project, party: going.map((sheet) => characterSheetSchema.parse(sheet)), packs: project.packs.includes(PARTY_PACK) ? project.packs : [...project.packs, PARTY_PACK] };
+  const fixed = project.fixedParty === true;
+  // Going in among a party of its own, the leader keeps what they were made of, and its own theirs (`keep-own.ts`).
+  const lead = party[0];
+  const kept = fixed && lead !== undefined ? keepEachOwn(project, lead, PARTY_PACK) : { project, sheet: lead };
+  const going = partyFor(fixed, kept.project.party, kept.sheet === undefined ? party : [kept.sheet, ...party.slice(1)]);
+  const packs = kept.project.packs.includes(PARTY_PACK) ? kept.project.packs : [...kept.project.packs, PARTY_PACK];
+  return { ...kept.project, party: going.map((sheet) => characterSheetSchema.parse(sheet)), packs };
 }
 
 /** Every adventure the portal offers: this build's, then those imported, newest first. */

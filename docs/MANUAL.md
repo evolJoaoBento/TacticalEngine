@@ -154,8 +154,9 @@ An adventure written for a party of its own - the **Demo Vault**, whose cards an
 any project whose Party panel says **Keep this party** - is played by that party instead, with whoever
 leads yours going in with them, four in all at most; the window says who ("Played by its own party:
 Wren, Quim, Violet, Scarlet"), and the companions you asked along wait at the camp. Where your
-character and one of theirs share an ancestry the two define differently - the SRD's Human beside the
-Demo Vault's - both have both its features. It is a game of its
+character's content and the adventure's define one thing by one id - the SRD's Human and the Demo
+Vault's - each keeps their own: yours goes in under an id of its own, so Scarlet is the vault's Human
+and you the SRD's, neither given the other's features. It is a game of its
 own, kept in this browser beside the camp and named for whoever leads the party ("The Ashwell (Wren's
 party)"); the camp stays as it was, and you can go back to it from Load Game and begin again. An Ashwell
 begun from the menu by an older build is still listed, its saves with it.
@@ -164,8 +165,8 @@ begun from the menu by an older build is still listed, its saves with it.
 **everybody** through. Its window opens on every page; the host's lists the host's adventures and
 **Begin**, and the others' say who chooses - and list their own adventures, those they imported, each
 with **Offer**: offered, it is on the host's window too, after the host's own, saying who offered it
-("Offered by Gus"), and the host may begin it as one of their own. What is offered is let go once an
-adventure is begun. Once the host begins one, every page at the table is in it
+("Offered by Gus"), and the host may begin it as one of their own. **Take back** withdraws an offer -
+the host may take any back too. What is offered is let go once an adventure is begun. Once the host begins one, every page at the table is in it
 together: the same game, the same invitation, who plays whom and what was said kept, the party that went
 through - the companions anybody asked along among them. Nobody's page opens again. The host's keeps
 the adventure among its games, and a save of it is everybody's, as any shared game's is. While the

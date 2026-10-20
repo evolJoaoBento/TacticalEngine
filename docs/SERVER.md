@@ -2030,5 +2030,12 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     of one that keeps its party); the host's window lists them after the host's own, and Begin reads one whole
     (`offered`) and begins it as an imported one is (`forParty`). Begun, the offers are let go, everybody told.
     Tests: `play_routes.rs`, `host-table.test.ts`, `adventure-portal.test.ts`, `portal-shared.spec.ts` (the guest
-    imports the Lichgate, offers it, and the host begins it for both).
+    imports the Lichgate, offers it, and the host begins it for both). And taken back (`withdraw`), by whoever
+    offered it or the host, everybody told - the guest's window says Take back beside Offered.
+  - **The shared fight's race found** (20 October 2026). `shared-fight.spec.ts` failed one run in a few dozen under
+    load, waiting for a "Waiting for ..." that never came. A trace showed both pages holding the guest's question, the
+    host's page not yet having drawn its banner - it was in the background, where a page draws nothing - so the test
+    took the host for the one to answer. It now asks each page's game whose question it is (`waitingOn`, a driver
+    handle reading what the banner says) and looks at the other page before reading its banner: 37 runs under three
+    workers, none failed, where 25 had one.
   - **Next**: an evening through the tunnel.

@@ -83,9 +83,16 @@ from a file, and are a kind of listing in the Store, published and got there.
    there as an imported one is, let go once one is begun. Tests: `play_routes.rs`, `host-table.test.ts`,
    `adventure-portal.test.ts`, `portal-shared.spec.ts`.
 
-   Still open: the leader's pack is laid over an adventure written in other content, so an ancestry both define
-   (the SRD's Human, the Demo Vault's) gives its features from both to whoever has it; and a guest cannot take an
-   offer back.
+   An offer is taken back (`withdraw`, by whoever offered it or the host; Take back on the guest's window) since 20
+   October 2026. **Each keeps their own** (20 October 2026, the user's rule): where the leader's pack and an adventure
+   that keeps its party define a class, subclass, ancestry or community by one id, the adventure's is pinned in the
+   project and the pack's goes in beside it as `<id>-<pack>`, its cards and subclasses and the leader's sheet pointed
+   there (`keep-own.ts`, called by `forParty`); the pack is still listed for the rest. Tests: `keep-own.test.ts`
+   (the Demo Vault's Human and the SRD's; a class, its subclasses and a multiclass level; kept twice, one of each).
+
+   Still open: every project is made over this build's starter content (`DEMO_CHARACTERS`), so a character of the
+   SRD's Human anywhere - at a camp too - also has the starter's Human feature (*Adaptable*); a pack's ancestry of an
+   id the starter has should hide the starter's cards for it, which is a rule for `mergePack` to take.
 
 ## Peer to peer: a shared game with no server — slice 1 done
 

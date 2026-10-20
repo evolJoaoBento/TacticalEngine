@@ -220,17 +220,14 @@ describe('an adventure that keeps its party', () => {
     expect(demo.party.members()).toEqual(['wren', 'kara', 'finn', 'mira']);
     // On the board, every one of them, Wren beside the vault's own.
     for (const member of demo.party.members()) expect(demo.state.entity(member)?.tile ?? -1).toBeGreaterThanOrEqual(0);
-    // Each made whole of the content there is - Wren of the SRD's pack, the vault's own as the vault makes them alone -
-    // but for what the pack gives an ancestry they share: Scarlet is human, and the SRD's Human has features of its own.
+    // Each made whole of the content there is - Wren of the SRD's pack, the vault's own as the vault makes them alone:
+    // Scarlet is human, and the SRD's Human, kept the newcomer's (`keep-own.ts`), gives her nothing of its own.
     const content = characterContentFor(demo.project);
     for (const sheet of demo.project.party) expect(deriveCharacter(sheet, content, demo.project.abilities).issues).toEqual([]);
     const alone = buildDemoScene(hollowVaultMap()).project;
     const aloneContent = characterContentFor(alone);
     const theirs = (id: string, project: typeof alone, from: typeof content) => deriveCharacter(project.party.find((sheet) => sheet.id === id)!, from, project.abilities).character!;
-    for (const id of ['kara', 'finn']) expect(theirs(id, demo.project, content)).toEqual(theirs(id, alone, aloneContent));
-    const [scarlet, written] = [theirs('mira', demo.project, content), theirs('mira', alone, aloneContent)];
-    expect(scarlet.granted.map((card) => card.id)).toEqual([...written.granted.map((card) => card.id), 'human-high-stamina', 'human-adaptability']);
-    expect({ ...scarlet, granted: written.granted }).toEqual(written);
+    for (const id of ['kara', 'finn', 'mira']) expect(theirs(id, demo.project, content)).toEqual(theirs(id, alone, aloneContent));
   });
 
   it('may be one imported, said so in its project: its own party offered, and played', () => {
