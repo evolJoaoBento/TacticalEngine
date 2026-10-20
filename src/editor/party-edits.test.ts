@@ -234,7 +234,7 @@ describe('checking a party', () => {
     const drawn = validateProject(projectSchema.parse({ ...project(), companions: [{ ...KARA, id: 'violet', name: 'Violet', model: 'no-such-model' }] }), {
       knownModels: new Set(MODELS.map((m) => m.id)),
     }).filter((p) => p.message.includes('drawn with'));
-    expect(drawn.map((p) => p.entity)).toEqual(['violet']);
+    expect(drawn.map((p) => [p.entity, p.message])).toEqual([['violet', 'Companion "Violet" is drawn with "no-such-model", which nothing can supply.']]);
   });
 
   it('says nothing at all when no content was handed to it', () => {

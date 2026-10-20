@@ -1316,9 +1316,10 @@ function checkAdversaryModels(
   // A character picked out on the sheet, by the same rule: a party member drawn with
   // something nothing can supply stands as the magenta placeholder, which is the library's
   // honest answer and not one anybody means to ship.
-  for (const sheet of [...project.party, ...project.companions]) {
+  const sheets = [...project.party.map((sheet) => ({ sheet, who: '' })), ...project.companions.map((sheet) => ({ sheet, who: 'Companion ' }))];
+  for (const { sheet, who } of sheets) {
     if (sheet.model === undefined || resolvable(sheet.model)) continue;
-    add('warning', `"${sheet.name || sheet.id}" is drawn with "${sheet.model}", which nothing can supply.`, sheet.id);
+    add('warning', `${who}"${sheet.name || sheet.id}" is drawn with "${sheet.model}", which nothing can supply.`, sheet.id);
   }
 }
 
