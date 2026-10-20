@@ -1,6 +1,7 @@
 /**
  * The main menu's Adventures (`MainMenu.tsx`): what a camp's portal offers (`adventure-portal.ts`) - the ones this build
- * writes, and the ones brought in from a project file (`adventure-library.ts`), each of those removable. Importing
+ * writes, and the ones brought in from a project file or got from the Store (`adventure-library.ts`), each of those
+ * removable. Importing
  * checks the file as a project opened by hand is checked, and says why when it will not take it.
  */
 

@@ -1,12 +1,13 @@
 //! The Store: `tools/store.ts`, answered by the Rust server.
 //!
-//! Art creators publish - a model or a picture - and **show their work**, and everybody signed in says
+//! Art creators publish - a model, a picture, or an adventure (a project file, checked as the engine checks one it
+//! opens) - and **show their work**, and everybody signed in says
 //! whether they believe it. A listing says how it was made (`claim`) and whether it is free or for sale;
 //! its evidence is **How I Made It** and up to six **Process Proof** pictures. Without evidence it is
 //! marked AI, whatever it claims, and there is nothing to vote on; for sale needs the evidence and is
 //! never AI generated; there are no payments yet, so one for sale is its creator's alone to get. Every
 //! `.glb` in `public/models` is a free listing by The engine. **Get** puts a model into the player's own
-//! models (`your_models.rs`).
+//! models (`your_models.rs`); an adventure is downloaded, and the page keeps it in the browser's Adventures.
 //!
 //! Kept in `data/store/listings.json` and the files beside it - the same files the dev plugin kept, so
 //! a store published before the move is this store. Held to `server/fixtures/store.json` by
@@ -19,6 +20,8 @@ use crate::accounts::{account_of, from_the_page, now_ms, read_accounts, read_ses
 use crate::files::{read_json, write_json};
 use crate::js::{js_number, js_number_of, js_trim, node_base64, utf16_len};
 use crate::your_models::{import_file, read_your_models, tidy_id};
+use engine::scene::document::project;
+use engine::scene::migrate::migrate_document;
 use axum::body::{to_bytes, Body};
 use axum::extract::State;
 use axum::http::{header, HeaderMap, HeaderValue, Method, Response, StatusCode, Uri};
@@ -72,6 +75,8 @@ pub enum Vote {
 pub enum AssetKind {
     Model,
     Image,
+    /// A project file: an adventure a camp's portal offers once it is got.
+    Adventure,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -243,7 +248,18 @@ fn read_provenance(root: &Path) -> Map<String, Value> {
     read_json(&root.join("projects/art-provenance.json"), Map::new())
 }
 
-/// What a file is, from its first bytes: a binary glTF, a PNG, a JPEG, a WebP - or nothing the store takes.
+/// Whether a file is a project the engine would open: JSON, an object, past a byte-order mark and white space, that
+/// the project's schema takes once it is migrated - as a project opened by hand is.
+fn is_project(bytes: &[u8]) -> bool {
+    let text = bytes.strip_prefix(&[0xef, 0xbb, 0xbf]).unwrap_or(bytes);
+    if text.iter().find(|b| !matches!(b, b' ' | b'\t' | b'\r' | b'\n')) != Some(&b'{') {
+        return false;
+    }
+    let Ok(value) = serde_json::from_slice::<Value>(text) else { return false };
+    project().parse(&migrate_document(&value)).is_ok()
+}
+
+/// What a file is, from its first bytes: a binary glTF, a PNG, a JPEG, a WebP, a project - or nothing the store takes.
 pub fn sniff(bytes: &[u8]) -> Option<(AssetKind, &'static str, &'static str)> {
     let at = |i: usize, values: &[u8]| bytes.get(i..i + values.len()) == Some(values);
     if at(0, &[0x67, 0x6c, 0x54, 0x46]) {
@@ -257,6 +273,9 @@ pub fn sniff(bytes: &[u8]) -> Option<(AssetKind, &'static str, &'static str)> {
     }
     if at(0, &[0x52, 0x49, 0x46, 0x46]) && at(8, &[0x57, 0x45, 0x42, 0x50]) {
         return Some((AssetKind::Image, "webp", "image/webp"));
+    }
+    if is_project(bytes) {
+        return Some((AssetKind::Adventure, "json", "application/json"));
     }
     None
 }
@@ -337,7 +356,7 @@ pub fn judge_publish(body: &str) -> Result<PublishDraft, String> {
     let asset = field(&parsed, "asset").and_then(Value::as_object);
     let bytes = decode(asset.and_then(|asset| asset.get("data")));
     let Some((bytes, (kind, ext, _))) = bytes.and_then(|bytes| sniff(&bytes).map(|sniffed| (bytes, sniffed))) else {
-        return Err("the asset is a .glb model or a PNG, JPEG or WebP picture".into());
+        return Err("the asset is a .glb model, a PNG, JPEG or WebP picture, or an adventure's project file".into());
     };
     let name = match asset.and_then(|asset| asset.get("name")).and_then(Value::as_str) {
         Some(name) => {
@@ -487,6 +506,7 @@ fn content_type(name: &str) -> &'static str {
         Some("png") => "image/png",
         Some("jpg") => "image/jpeg",
         Some("webp") => "image/webp",
+        Some("json") => "application/json",
         _ => "application/octet-stream",
     }
 }
@@ -658,8 +678,10 @@ fn respond(shop: &Shop, asked: Asked) -> Answer {
                 Err(reason) => return refuse(422, reason),
             };
             let Some(listing) = listings.iter().find(|entry| entry.id == id) else { return refuse(404, "no such listing") };
-            if listing.kind != AssetKind::Model {
-                return refuse(422, "a picture is downloaded, not put into your models");
+            match listing.kind {
+                AssetKind::Model => {}
+                AssetKind::Image => return refuse(422, "a picture is downloaded, not put into your models"),
+                AssetKind::Adventure => return refuse(422, "an adventure is downloaded, and kept in your browser's Adventures"),
             }
             if !may_get(listing, Some(&account)) {
                 return refuse(402, "it is for sale, and payments are not open yet");

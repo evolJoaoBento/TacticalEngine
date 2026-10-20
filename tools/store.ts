@@ -7,8 +7,8 @@ import { keepsAccounts, type Account } from './accounts.ts';
 import { tidyId } from './your-models.ts';
 
 /**
- * The store: art creators publish - a model or a picture - and **show their work**, and everybody signed
- * in says whether they believe it (`src/game/ui/Store.tsx`).
+ * The store: art creators publish - a model, a picture, or an adventure (a project file) - and **show their
+ * work**, and everybody signed in says whether they believe it (`src/game/ui/Store.tsx`).
  *
  * A listing says how it was made - **Human made**, **AI Assisted** or **AI Generated** (`claim`) - and
  * whether it is **free** or **for sale**. Its **evidence** is **How I Made It** (a paragraph about the
@@ -50,7 +50,27 @@ export const PUBLISH_LIMIT = 128 * 1024 * 1024;
 /** How many pictures of the work a listing may show. */
 export const MOST_PROOFS = 6;
 
-export type AssetKind = 'model' | 'image';
+export type AssetKind = 'model' | 'image' | 'adventure';
+
+/**
+ * Whether a parsed file is a project the engine would open. The tools never import the game, so whoever asks says:
+ * the store's reference test (`tests/unit/store.golden.test.ts`) with the project's own schema, as the Rust server
+ * judges with the engine's (`is_project`). Asked of nothing, nothing is.
+ */
+export type ProjectJudge = (parsed: unknown) => boolean;
+const NO_PROJECTS: ProjectJudge = () => false;
+
+/** A file's text as a project, if it is one: UTF-8 JSON, an object, past a byte-order mark and white space. */
+function isProject(bytes: Uint8Array, judge: ProjectJudge): boolean {
+  try {
+    // Fatal, as the Rust reads it: text that is not UTF-8 is no project.
+    const text = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+    if (text.replace(/^[ \t\r\n]+/, '')[0] !== '{') return false;
+    return judge(JSON.parse(text));
+  } catch {
+    return false;
+  }
+}
 export type Vote = 'like' | 'dislike';
 export type Claim = 'human-made' | 'ai-assisted' | 'ai-generated';
 const CLAIMS: readonly Claim[] = ['human-made', 'ai-assisted', 'ai-generated'];
@@ -176,13 +196,14 @@ export function engineListings(
   return { listings: kept, changed };
 }
 
-/** What a file is, from its first bytes: a binary glTF, a PNG, a JPEG, a WebP - or nothing the store takes. */
-export function sniff(bytes: Uint8Array): { kind: AssetKind; ext: string; type: string } | null {
+/** What a file is, from its first bytes: a binary glTF, a PNG, a JPEG, a WebP, a project - or nothing the store takes. */
+export function sniff(bytes: Uint8Array, judge: ProjectJudge = NO_PROJECTS): { kind: AssetKind; ext: string; type: string } | null {
   const at = (i: number, ...values: number[]): boolean => values.every((value, j) => bytes[i + j] === value);
   if (at(0, 0x67, 0x6c, 0x54, 0x46)) return { kind: 'model', ext: 'glb', type: 'model/gltf-binary' };
   if (at(0, 0x89, 0x50, 0x4e, 0x47)) return { kind: 'image', ext: 'png', type: 'image/png' };
   if (at(0, 0xff, 0xd8, 0xff)) return { kind: 'image', ext: 'jpg', type: 'image/jpeg' };
   if (at(0, 0x52, 0x49, 0x46, 0x46) && at(8, 0x57, 0x45, 0x42, 0x50)) return { kind: 'image', ext: 'webp', type: 'image/webp' };
+  if (isProject(bytes, judge)) return { kind: 'adventure', ext: 'json', type: 'application/json' };
   return null;
 }
 
@@ -228,7 +249,7 @@ export interface PublishDraft {
  * pictures of the work if any - or why not. Nothing but the title and the asset is needed: a listing
  * without evidence is marked AI until its work is shown. For sale needs the evidence now.
  */
-export function judgePublish(body: string): { ok: true; draft: PublishDraft } | { ok: false; reason: string } {
+export function judgePublish(body: string, judge: ProjectJudge = NO_PROJECTS): { ok: true; draft: PublishDraft } | { ok: false; reason: string } {
   let parsed: Record<string, unknown>;
   try {
     parsed = JSON.parse(body) as Record<string, unknown>;
@@ -245,8 +266,8 @@ export function judgePublish(body: string): { ok: true; draft: PublishDraft } | 
   const forSale = parsed['forSale'] === true;
   const asset = parsed['asset'] as { name?: unknown; data?: unknown } | undefined;
   const assetBytes = decode(asset?.data);
-  const assetKind = assetBytes === null ? null : sniff(assetBytes);
-  if (assetBytes === null || assetKind === null) return { ok: false, reason: 'the asset is a .glb model or a PNG, JPEG or WebP picture' };
+  const assetKind = assetBytes === null ? null : sniff(assetBytes, judge);
+  if (assetBytes === null || assetKind === null) return { ok: false, reason: "the asset is a .glb model, a PNG, JPEG or WebP picture, or an adventure's project file" };
   const name = typeof asset?.name === 'string' ? asset.name.replace(/[^\w .-]/g, '').slice(0, 80) || `asset.${assetKind.ext}` : `asset.${assetKind.ext}`;
   const proofs = judgeProofs(parsed['proofs'], MOST_PROOFS);
   if (!proofs.ok) return proofs;

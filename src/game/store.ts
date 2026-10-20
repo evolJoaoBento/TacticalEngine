@@ -1,7 +1,11 @@
 /**
  * The store, as the page talks to it (`tools/store.ts`): the listings, publishing one, showing its work
- * later, a vote, getting a model into your own, taking one down, and where a listing's files are. The screens are `ui/Store.tsx`.
+ * later, a vote, getting a model into your own or an adventure into the browser's Adventures, taking one down, and
+ * where a listing's files are. The screens are `ui/Store.tsx`.
  */
+
+import { importAdventure, type AdventureLibrary } from './adventure-library';
+import { BUILT_IN } from './adventure-portal';
 
 export type Vote = 'like' | 'dislike';
 /** How a listing says it was made. */
@@ -31,7 +35,7 @@ export interface ListingView {
   /** How I Made It. */
   how: string;
   proofCount: number;
-  kind: 'model' | 'image';
+  kind: 'model' | 'image' | 'adventure';
   fileName: string;
   creator: string;
   creatorName: string;
@@ -133,6 +137,24 @@ export async function updateListing(
 export async function getListing(id: string, send: Send = fetch): Promise<ListingView | { refused: string }> {
   const answer = await post(send, 'get', { id });
   return 'refused' in answer ? answer : (answer.value as { listing: ListingView }).listing;
+}
+
+/**
+ * Get an adventure listing: its project file fetched, as a download is, and kept in the browser's Adventures
+ * (`adventure-library.ts`) with the listing it came from. Its name, or why not.
+ */
+export async function getAdventure(
+  id: string,
+  library: AdventureLibrary,
+  send: (url: string, init?: RequestInit) => Promise<{ ok: boolean; json: () => Promise<unknown>; text: () => Promise<string> }> = fetch,
+): Promise<{ imported: string } | { refused: string }> {
+  try {
+    const response = await send(assetUrl(id, true), { credentials: 'same-origin' });
+    if (!response.ok) return { refused: ((await response.json()) as { reason?: string }).reason ?? 'the store would not hand it over' };
+    return importAdventure(library, await response.text(), BUILT_IN, id);
+  } catch {
+    return { refused: 'the store could not be reached' };
+  }
 }
 
 /** Like or dislike a listing, or take a vote back (`null`). The listing as it now stands, or why not. */

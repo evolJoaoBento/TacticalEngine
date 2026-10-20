@@ -16,6 +16,8 @@ import {
   markOf, readListings, sniff, supported, titleOf, viewOf, type Listing,
 } from '../../tools/store';
 import { freeModelId, tidyId, type YourModel } from '../../tools/your-models';
+import { projectSchema } from '../../src/engine/scene/schema';
+import { migrateDocument } from '../../src/engine/scene/migrate';
 
 const FIXTURE = resolve(dirname(fileURLToPath(import.meta.url)), '../../server/fixtures/store.json');
 
@@ -25,6 +27,17 @@ const GLB = [0x67, 0x6c, 0x54, 0x46, 2, 0, 0, 0, 9];
 const PNG = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
 const JPG = [0xff, 0xd8, 0xff, 0xe0, 1];
 const WEBP = [0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x45, 0x42, 0x50, 1];
+/** An adventure: a project file, as the engine would open it. */
+const ADVENTURE = [...readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '../fixtures/adventure-lichgate.json'))];
+const bytesOf = (text: string): number[] => [...Buffer.from(text, 'utf8')];
+/** What the Rust server asks of a project file: the engine's schema, after migration. */
+const isProject = (parsed: unknown): boolean => {
+  try {
+    return projectSchema.safeParse(migrateDocument(parsed)).success;
+  } catch {
+    return false;
+  }
+};
 
 /** The drafts a judgement hands back, bytes as hex, so they compare as JSON. */
 function plain(value: unknown): unknown {
@@ -49,6 +62,9 @@ const DECODES = [
 
 const T = (length: number): string => 'x'.repeat(length);
 const PUBLISHES: unknown[] = [
+  { title: 'The Lichgate', description: 'A churchyard, and a gate.', claim: 'human-made', asset: { name: 'lichgate.json', data: `data:application/json;base64,${b64(ADVENTURE)}` } },
+  { title: 'Notes', asset: { name: 'notes.json', data: b64(bytesOf('{"not":"a project"}')) } },
+  { title: 'Bad', asset: { name: 'bad.json', data: b64([0x7b, 0xff, 0x7d]) } },
   { title: ' Stone Golem ', description: 'A golem.', claim: 'ai-assisted', forSale: true, how: 'Blender; AI drafted the texture.', asset: { name: 'golem.glb', data: `data:model/gltf-binary;base64,${b64(GLB)}` }, proofs: [{ name: 'a.png', data: b64(PNG) }, { data: b64(JPG) }, { data: b64(WEBP) }] },
   { title: 'Golem', asset: { name: 'golem.glb', data: b64(GLB) } },
   { title: 'Golem', claim: 'human-made', asset: { name: 'Gö lem!!(1).GLB', data: b64(GLB) } },
@@ -166,9 +182,15 @@ function golden() {
   return {
     about: 'tools/store.ts and the import tools/your-models.ts does for Get, run for the Rust port; written by tests/unit/store.golden.test.ts',
     mostProofs: MOST_PROOFS,
-    sniff: [GLB, PNG, JPG, WEBP, [0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x41, 0x56, 0x45], [0x67, 0x6c, 0x54], [], [0x4d, 0x5a]].map((bytes) => ({ bytes, sniffed: sniff(new Uint8Array(bytes)) })),
+    sniff: [
+      GLB, PNG, JPG, WEBP, [0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x41, 0x56, 0x45], [0x67, 0x6c, 0x54], [], [0x4d, 0x5a],
+      ADVENTURE, [0xef, 0xbb, 0xbf, ...bytesOf(' \r\n\t'), ...ADVENTURE], bytesOf('{"not":"a project"}'), bytesOf('{"id": "x", "scenes": [], "startScene": 7}'), bytesOf('{'),
+      bytesOf('[1, 2]'), bytesOf('"a string"'), bytesOf('x{"id":"x"}'), ADVENTURE.slice(0, -40),
+      // A project but for one byte in its words that is not UTF-8: no project, as the Rust reads it.
+      ((at) => [...ADVENTURE.slice(0, at), 0xff, ...ADVENTURE.slice(at)])(Buffer.from(ADVENTURE).indexOf('churchyard')),
+    ].map((bytes) => ({ bytes, sniffed: sniff(new Uint8Array(bytes), isProject) })),
     decode: DECODES.map((value) => ({ value, bytes: hex(decode(value)) })),
-    publish: PUBLISH_TEXTS.map((body) => ({ body, verdict: plain(judgePublish(body)) })),
+    publish: PUBLISH_TEXTS.map((body) => ({ body, verdict: plain(judgePublish(body, isProject)) })),
     has: HAS,
     update: UPDATE_TEXTS.map((body) => ({ body, verdict: plain(judgeUpdate(body, (id) => HAS[id] ?? null)) })),
     vote: VOTE_TEXTS.map((body) => ({ body, verdict: judgeVote(body) })),

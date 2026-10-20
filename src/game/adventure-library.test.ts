@@ -48,6 +48,16 @@ describe('the library', () => {
     expect(library.read('nothing')).toBeNull();
   });
 
+  it('remembers the Store listing one was got from', () => {
+    let at = 1;
+    const library = new AdventureLibrary(memoryStore(), () => at++);
+    library.install(lichgate(), '0123456789abcdef');
+    library.install({ ...lichgate(), id: 'other' });
+    expect(library.list().map((adventure) => adventure.listing)).toEqual([undefined, '0123456789abcdef']);
+    expect(library.hasListing('0123456789abcdef')).toBe(true);
+    expect(library.hasListing('other')).toBe(false);
+  });
+
   it('keeps one again in place of the last of its id', () => {
     const library = new AdventureLibrary(memoryStore());
     library.install(lichgate());

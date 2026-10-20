@@ -12,7 +12,7 @@ friends-only or invite-only - friends both ways, chat at the table and between f
 between friends) are done: the phase is, and who is around after it. Next, what an evening played through the
 tunnel shows.
 
-## Adventures begun from the camp — slices 1 to 3 of 4 done: the company joins, the portal begins one, adventures are imported
+## Adventures begun from the camp — done: the company joins, the portal begins one, adventures are imported and got from the Store
 
 The user's plan (19 October 2026): New Game makes a character and begins at the camp; the company round the fire
 are companions who join the party when asked; a **portal** at the camp opens a chooser of the adventures this
@@ -46,8 +46,20 @@ from a file, and are a kind of listing in the Store, published and got there.
    `forParty`: the party swapped in, `srd-characters` listed. Tests: `adventure-library.test.ts`,
    `adventure-portal.test.ts`, `adventures.spec.ts` (`tests/fixtures/adventure-lichgate.json`, an adventure of a room,
    imported, begun at the portal, removed).
-4. Next: adventures in the Store: an `Adventure` listing kind (`server/serve/src/store.rs`: `AssetKind`, `sniff` a
-   project, validate it with the engine's document schema), published and got - Get installs it in the library.
+4. **Done: adventures in the Store.** `AssetKind::Adventure` (`server/serve/src/store.rs`): `sniff` takes a file as
+   one when it is UTF-8 JSON, an object past a byte-order mark and white space, that the engine's project schema
+   takes once migrated (`is_project`); served as `application/json`; `get` refuses it - the page downloads it and
+   keeps it in the browser's library with the listing it came from (`getAdventure` in `store.ts`, `hasListing`), and
+   the Store reads *In your adventures*. `tools/store.ts` mirrors it with a `ProjectJudge` its caller passes, since
+   the tools never import the game; the golden (`store.golden.test.ts`) passes the project schema. Tests:
+   `golden_store.rs` (sniff and publish cases: a project, one behind a BOM, JSON that is none, a byte not UTF-8 in
+   one), `store_routes.rs` (published, listed, downloaded as sent, not got), `store.test.ts`,
+   `accounts-store.spec.ts`.
+
+   Still open: the companions are not in the editor's Party panel; an adventure's own party is replaced whole, so
+   one written for a fixed party (the Demo Vault's) is not offered at the portal; and a game hosted for friends
+   from a camp has the portal begin the adventure for whoever used it, in their browser alone - the others stay
+   at the camp.
 
 ## Peer to peer: a shared game with no server — slice 1 done
 

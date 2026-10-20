@@ -350,7 +350,10 @@ The toolchain is `rustup`'s stable MSVC (Visual Studio 2022's C++ tools provide 
     (Node would compare two empty buffers and say yes).
   - **The Store is the Rust server's** (`server/serve/src/store.rs`): listings, publishing, showing the
     work later, votes, pictures, Get into a player's own models (`your_models.rs`, the import alone - the
-    your-models routes are still the dev plugin's, over the same index), engine models listed, take-down.
+    your-models routes are still the dev plugin's, over the same index), engine models listed, take-down -
+    and adventures: a project file is an asset when the engine's own project schema takes it, migrated
+    (`is_project`; `tools/store.ts` is told by its caller, which never imports the game), and is downloaded,
+    not got - the page keeps it in the browser's Adventures.
     `tests/unit/store.golden.test.ts` writes `server/fixtures/store.json` - uploads (Node's lenient
     base64), about 36 publishes and 22 updates at every edge (JavaScript's `trim` and UTF-16 lengths, nulls,
     non-objects), votes, views, engine listings, old listings migrated, and a listings file with

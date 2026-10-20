@@ -45,7 +45,7 @@ The page opens on the **main menu**:
   began - a camp, or an adventure begun through a camp's portal - from where it was left
   (**Continue**) or from any save of it. Each game's saves are listed under it.
 - **Adventures** is what a camp's portal offers: the Ashwell, which is built in, and any adventure you
-  bring in. **Import from a file** takes a project file - one saved from Edit Game, or somebody else's -
+  bring in - got from the **Store**, or imported. **Import from a file** takes a project file - one saved from Edit Game, or somebody else's -
   checked as the editor checks a project it opens; a file that is not one is refused, and the menu says
   why. An imported adventure is kept in this browser, with **Remove** beside it; games begun from it
   stay when it goes. A game is **played
@@ -199,8 +199,9 @@ sessions and everything below live in `data/`, which git ignores - passwords are
 hashes. A built copy of the game, or the tests' server, keeps no accounts: its menu plays as nobody, as
 it always did.
 
-**Store** (on the menu, when signed in) is where art creators publish - a `.glb` model or a PNG, JPEG or
-WebP picture - and **show their work**. **Publish** takes a title, a description, the file, **how it was
+**Store** (on the menu, when signed in) is where art creators publish - a `.glb` model, a PNG, JPEG or
+WebP picture, or an **adventure** (a project file, which the server checks as the engine checks a project
+it opens) - and **show their work**. **Publish** takes a title, a description, the file, **how it was
 made** (Human made, AI Assisted or AI Generated), **Free** or **For sale**, and the work: **How I Made
 It** (a quick paragraph about the process - for AI Assisted, how the AI was used) and **Process Proof**
 (up to six pictures of the workspace, or drafts).
@@ -224,7 +225,9 @@ one, anybody can. The creator, or admin, can **Take down** a listing.
 until admin shows its work. It comes and goes with its file and cannot be taken down from the Store.
 **Get** on a model puts it into **your models** - your own folder on the server,
 `data/users/<you>/models/imported/` - and the listing then reads *In your models*; **Download** still
-saves the file. **Get** on a picture downloads it, as before.
+saves the file. **Get** on a picture downloads it, as before. **Get** on an adventure keeps it in this
+browser's **Adventures** (the main menu's, beside those imported from a file), and every camp's portal
+offers it; the listing then reads *In your adventures*. **Download** saves its project file.
 
 **Your models** are under every project you open in the editor, as the engine's own models are, and
 the Models page lists them under *Your models* (*from the Store* when got there). A project you open -

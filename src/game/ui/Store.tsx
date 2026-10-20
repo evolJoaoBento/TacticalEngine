@@ -1,6 +1,6 @@
 /**
- * The store, from the main menu (`MainMenu.tsx`), for whoever is signed in: art creators publish - a model
- * or a picture - and **show their work**, and everybody else says whether they believe it.
+ * The store, from the main menu (`MainMenu.tsx`), for whoever is signed in: art creators publish - a model,
+ * a picture, or an adventure - and **show their work**, and everybody else says whether they believe it.
  *
  * Every listing wears its mark (`MarkTag`): how it was made, as its creator claims - Human made, AI
  * Assisted, AI Generated - once it shows its work, and **AI Generated** until it does. Its work is **How I
@@ -12,17 +12,21 @@
  * A listing is **free** or **for sale**, which needs its work shown and is never AI generated; payments are
  * not open yet, so one for sale can be got only by its creator. **Get** puts a model into the player's own
  * models (`your-models.ts`), which the editor offers under every project they open - every model the
- * engine has is listed, by *The engine* - and downloads a picture; a model can be downloaded too. Its creator can
+ * engine has is listed, by *The engine* - downloads a picture, and keeps an adventure in the browser's Adventures,
+ * where every camp's portal offers it (`adventure-library.ts`); a model or an adventure can be downloaded too. Its creator can
  * **Show your work** at any time - How I Made It, more pictures, the claim, free or for sale - and, with
  * admin, **Take down** a listing. **Publish** opens the form for a new one.
  */
 
 import { useEffect, useState } from 'preact/hooks';
 import type { SignedIn } from '../accounts';
+import { AdventureLibrary } from '../adventure-library';
+import { browserStore } from '../save-slots';
 import {
   CLAIM_LABEL,
   assetUrl,
   authenticityLine,
+  getAdventure,
   getListing,
   listListings,
   proofUrl,
@@ -121,9 +125,21 @@ function Listing(props: { listing: ListingView; account: SignedIn; onChanged: (l
     }
   };
   const cover = listing.kind === 'image' ? assetUrl(listing.id) : listing.proofCount > 0 ? proofUrl(listing.id, 0) : null;
+  // An adventure got is kept in this browser, not on the server: whether it is, the browser says.
+  const [library] = useState(() => new AdventureLibrary(browserStore()));
+  const [adventureIn, setAdventureIn] = useState(() => listing.kind === 'adventure' && library.hasListing(listing.id));
   const judged = listing.own ? 'Your own listing is not yours to vote on' : !listing.supported ? 'Nothing to judge until the work is shown' : null;
   const gettable = !listing.forSale || listing.own;
   const get = async (): Promise<void> => {
+    if (listing.kind === 'adventure') {
+      const got = await getAdventure(listing.id, library);
+      if ('refused' in got) setRefused(got.refused);
+      else {
+        setRefused(null);
+        setAdventureIn(true);
+      }
+      return;
+    }
     const answer = await getListing(listing.id);
     if ('refused' in answer) setRefused(answer.refused);
     else {
@@ -134,8 +150,8 @@ function Listing(props: { listing: ListingView; account: SignedIn; onChanged: (l
   return (
     <article className="store-listing" data-testid="store-listing" data-listing={listing.id}>
       <div className="store-cover">
-        {cover === null ? <span className="store-glyph">3D model</span> : <img src={cover} alt="" />}
-        <span className="store-kind">{listing.engine ? 'Engine model' : listing.kind === 'model' ? 'Model' : 'Picture'}</span>
+        {cover === null ? <span className="store-glyph">{listing.kind === 'adventure' ? 'Adventure' : '3D model'}</span> : <img src={cover} alt="" />}
+        <span className="store-kind">{listing.engine ? 'Engine model' : listing.kind === 'model' ? 'Model' : listing.kind === 'adventure' ? 'Adventure' : 'Picture'}</span>
       </div>
       <div className="store-body">
         <h3 className="store-title">{listing.title}</h3>
@@ -179,12 +195,16 @@ function Listing(props: { listing: ListingView; account: SignedIn; onChanged: (l
           </button>
           {!gettable ? null : listing.kind === 'image' ? (
             <a className="menu-go" data-testid="store-get" href={assetUrl(listing.id, true)} download={listing.fileName}>Get</a>
+          ) : listing.kind === 'adventure' && adventureIn ? (
+            <span className="store-in-yours" data-testid="store-in-yours" title="Every camp's portal offers it">In your adventures</span>
+          ) : listing.kind === 'adventure' ? (
+            <button type="button" className="menu-go" data-testid="store-get" title="Into your adventures: every camp's portal offers it" onClick={() => void get()}>Get</button>
           ) : listing.inYours ? (
             <span className="store-in-yours" data-testid="store-in-yours" title="In the editor, under every project you open">In your models</span>
           ) : (
             <button type="button" className="menu-go" data-testid="store-get" title="Into your models: the editor offers it under every project you open" onClick={() => void get()}>Get</button>
           )}
-          {gettable && listing.kind === 'model' ? (
+          {gettable && listing.kind !== 'image' ? (
             <a className="menu-back" data-testid="store-download" href={assetUrl(listing.id, true)} download={listing.fileName}>Download</a>
           ) : null}
           {gettable ? null : (
@@ -247,8 +267,8 @@ function Publish(props: { onDone: (listing: ListingView | null) => void }): prea
       <h2>Publish</h2>
       <label className="menu-field">Title<input data-testid="publish-title" value={title} maxLength={80} onInput={(e) => setTitle(e.currentTarget.value)} /></label>
       <label className="menu-field">Description<textarea data-testid="publish-description" rows={3} maxLength={2000} value={description} onInput={(e) => setDescription(e.currentTarget.value)} /></label>
-      <label className="menu-field">The asset - a .glb model, or a PNG, JPEG or WebP picture
-        <input data-testid="publish-asset" type="file" accept=".glb,model/gltf-binary,image/png,image/jpeg,image/webp" onChange={(e) => setAsset(e.currentTarget.files?.[0] ?? null)} />
+      <label className="menu-field">The asset - a .glb model, a PNG, JPEG or WebP picture, or an adventure: a project file
+        <input data-testid="publish-asset" type="file" accept=".glb,model/gltf-binary,image/png,image/jpeg,image/webp,.json,application/json" onChange={(e) => setAsset(e.currentTarget.files?.[0] ?? null)} />
       </label>
       <ClaimChoice value={claim} onChange={setClaim} testId="publish-claim" />
       <div className="store-publish-proof">

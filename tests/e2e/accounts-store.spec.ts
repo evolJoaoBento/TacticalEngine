@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { test, expect, type Page } from './fixtures';
 import { ON_SERVER } from './server-mode';
 
@@ -168,6 +170,39 @@ test('the store shows the mark, the authenticity, How I Made It and the proofs; 
   expect(published).toHaveLength(1);
   expect(published[0]).toMatchObject({ title: 'Ember Shrine', claim: 'ai-assisted', forSale: true, asset: { name: 'shrine.png' }, proofs: [{ name: 'desk.png' }, { name: 'draft.png' }] });
   expect(String((published[0]!['proofs'] as { data: string }[])[0]!.data)).toMatch(/^data:image\/png;base64,/);
+});
+
+/** An adventure on the store: a project file, got into the browser's Adventures rather than the server. */
+const LICHGATE = {
+  ...GOLEM, id: '1111222233334444', title: 'The Lichgate', description: 'A churchyard gone to moss.', kind: 'adventure', fileName: 'lichgate.json', proofCount: 0,
+  how: '', supported: false, mark: 'ai-generated', likes: 0, dislikes: 0, authenticity: null,
+};
+
+test('an adventure got from the store is kept among the browser\u2019s Adventures, and the store says so', async ({ page }) => {
+  await accounts(page, true);
+  const project = readFileSync(resolve('tests/fixtures/adventure-lichgate.json'), 'utf8');
+  await page.route('**/__store/list', (route) => route.fulfill({ json: [LICHGATE] }));
+  const fetched: string[] = [];
+  await page.route('**/__store/file/**', (route) => {
+    fetched.push(new URL(route.request().url()).pathname + new URL(route.request().url()).search);
+    return route.fulfill({ contentType: 'application/json', body: project });
+  });
+  await page.goto('/?menu');
+  await page.getByTestId('menu-store').click();
+  const lichgate = page.locator('[data-testid="store-listing"][data-listing="1111222233334444"]');
+  await expect(lichgate.locator('.store-kind')).toHaveText('Adventure');
+  await expect(lichgate.getByTestId('store-download')).toHaveAttribute('href', '/__store/file/1111222233334444/asset?download');
+  await lichgate.getByTestId('store-get').click();
+  await expect(lichgate.getByTestId('store-in-yours')).toHaveText('In your adventures');
+  expect(fetched).toEqual(['/__store/file/1111222233334444/asset?download']);
+  await page.screenshot({ path: 'test-results/store-adventure.png' });
+  // The menu's Adventures has it now, and every camp's portal offers it; opened again, the store still knows.
+  await page.getByTestId('store-back').click();
+  await page.getByTestId('menu-adventures').click();
+  await expect(page.locator('[data-testid="menu-adventures-list"] [data-adventure="the-lichgate"]')).toContainText('The Lichgate');
+  await page.getByTestId('menu-back').click();
+  await page.getByTestId('menu-store').click();
+  await expect(lichgate.getByTestId('store-in-yours')).toHaveText('In your adventures');
 });
 
 test('a listing with no work shown is marked AI and not judged, until its creator shows it; one for sale is not got', async ({ page }) => {

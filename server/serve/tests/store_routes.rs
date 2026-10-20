@@ -1,7 +1,7 @@
 //! The `/__store` routes end to end, over a folder of their own: a listing published with nothing shown
 //! and marked AI, its work shown later, sold only when shown and got only by its creator, voted on, its
-//! pictures served; an engine model listed, got into a player's own models, never taken down; and every
-//! refusal in the order the TypeScript gives it.
+//! pictures served; an engine model listed, got into a player's own models, never taken down; an adventure published
+//! and downloaded, not got; and every refusal in the order the TypeScript gives it.
 
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
@@ -191,6 +191,32 @@ async fn the_engines_models_are_listed_got_and_never_taken_down() {
     let picture = post(&root, "publish", json!({ "title": "Shrine", "asset": { "name": "s.png", "data": encode(PNG) } }), &bramble).await.json();
     let refused = post(&root, "get", json!({ "id": picture["id"] }), &bramble).await;
     assert_eq!(refused.json()["reason"], "a picture is downloaded, not put into your models");
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[tokio::test]
+async fn an_adventure_is_published_and_downloaded_as_it_was_sent() {
+    let root = folder("adventure");
+    let ash = player(&root, "Ash").await;
+    let lichgate = std::fs::read(concat!(env!("CARGO_MANIFEST_DIR"), "/../../tests/fixtures/adventure-lichgate.json")).unwrap();
+    let made = post(&root, "publish", json!({ "title": "The Lichgate", "claim": "human-made", "asset": { "name": "lichgate.json", "data": format!("data:application/json;base64,{}", encode(&lichgate)) } }), &ash).await;
+    assert_eq!(made.status, StatusCode::OK);
+    let made = made.json();
+    assert_eq!((made["kind"].clone(), made["fileName"].clone()), (json!("adventure"), json!("lichgate.json")));
+    let id = made["id"].as_str().unwrap().to_string();
+    let listed = send(&root, "GET", "/__store/list", "", Some(&ash)).await.json();
+    assert_eq!(listed.as_array().unwrap().iter().find(|listing| listing["id"] == id.as_str()).unwrap()["kind"], "adventure");
+
+    // Downloaded as it was sent, a project file; Get is the page's, which keeps it in the browser.
+    let file = send(&root, "GET", &format!("/__store/file/{id}/asset?download"), "", Some(&ash)).await;
+    assert_eq!((file.status, file.kind.as_str(), file.disposition.as_deref()), (StatusCode::OK, "application/json", Some("attachment; filename=\"lichgate.json\"")));
+    assert_eq!(file.body, lichgate);
+    let got = post(&root, "get", json!({ "id": id }), &ash).await;
+    assert_eq!((got.status, got.json()["reason"].clone()), (StatusCode::UNPROCESSABLE_ENTITY, json!("an adventure is downloaded, and kept in your browser's Adventures")));
+
+    // JSON that is no project is no asset.
+    let notes = post(&root, "publish", json!({ "title": "Notes", "asset": { "name": "notes.json", "data": encode(br#"{"not":"a project"}"#) } }), &ash).await;
+    assert_eq!((notes.status, notes.json()["reason"].clone()), (StatusCode::UNPROCESSABLE_ENTITY, json!("the asset is a .glb model, a PNG, JPEG or WebP picture, or an adventure's project file")));
     let _ = std::fs::remove_dir_all(&root);
 }
 

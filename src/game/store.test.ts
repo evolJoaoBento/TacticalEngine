@@ -4,7 +4,44 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { assetUrl, authenticityLine, getListing, proofUrl, publishListing, updateListing, voteOn } from './store';
+import { assetUrl, authenticityLine, getAdventure, getListing, proofUrl, publishListing, updateListing, voteOn } from './store';
+import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { AdventureLibrary } from './adventure-library';
+import { memoryStore } from './save-slots';
+
+const LICHGATE = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '../../tests/fixtures/adventure-lichgate.json'), 'utf8');
+
+describe('an adventure got from the store', () => {
+  const answering = (status: number, body: string) => {
+    const asked: string[] = [];
+    const send = async (url: string) => {
+      asked.push(url);
+      return { ok: status === 200, json: async () => JSON.parse(body) as unknown, text: async () => body };
+    };
+    return { asked, send };
+  };
+
+  it('is its file downloaded and kept in the browser\u2019s Adventures, with the listing it came from', async () => {
+    const library = new AdventureLibrary(memoryStore());
+    const { asked, send } = answering(200, LICHGATE);
+    expect(library.hasListing('0123456789abcdef')).toBe(false);
+    expect(await getAdventure('0123456789abcdef', library, send)).toEqual({ imported: 'The Lichgate' });
+    expect(asked).toEqual([assetUrl('0123456789abcdef', true)]);
+    expect(library.list().map((adventure) => [adventure.id, adventure.listing])).toEqual([['the-lichgate', '0123456789abcdef']]);
+    expect(library.hasListing('0123456789abcdef')).toBe(true);
+    expect(library.hasListing('fedcba9876543210')).toBe(false);
+  });
+
+  it('is refused as the store refuses it, or as an import would be', async () => {
+    const library = new AdventureLibrary(memoryStore());
+    expect(await getAdventure('0123456789abcdef', library, answering(402, '{"reason":"it is for sale, and payments are not open yet"}').send)).toEqual({ refused: 'it is for sale, and payments are not open yet' });
+    expect(await getAdventure('0123456789abcdef', library, answering(200, '{"not":"a project"}').send)).toEqual({ refused: expect.stringMatching(/^That file is not a project the engine can play/) });
+    expect(await getAdventure('0123456789abcdef', library, async () => { throw new Error('offline'); })).toEqual({ refused: 'the store could not be reached' });
+    expect(library.list()).toEqual([]);
+  });
+});
 
 describe('the line the storefront reads', () => {
   it('is the ratio with its likes and dislikes', () => {
