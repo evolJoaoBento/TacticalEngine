@@ -12,7 +12,7 @@ friends-only or invite-only - friends both ways, chat at the table and between f
 between friends) are done: the phase is, and who is around after it. Next, what an evening played through the
 tunnel shows.
 
-## Adventures begun from the camp — slice 1 of 4 done: the company at the fire joins the party
+## Adventures begun from the camp — slices 1 and 2 of 4 done: the company joins, and the portal begins the Ashwell
 
 The user's plan (19 October 2026): New Game makes a character and begins at the camp; the company round the fire
 are companions who join the party when asked; a **portal** at the camp opens a chooser of the adventures this
@@ -28,9 +28,18 @@ from a file, and are a kind of listing in the Store, published and got there.
    (`SceneView.setGone`), and the effect in the editor and in Check. Tests: `server/hooks/tests/party_join.rs`,
    `camp.test.ts`, `board.test.ts`, `companions.test.ts`, `scene-view.test.ts`, `main-menu.spec.ts` (three asked
    along, a fourth refused, kept through a save).
-2. Next: the portal and the chooser; the Ashwell rebuilt for the party that comes (`packs: ['srd-characters']`, the
-   Furnace's names from the party's sheets), begun only through the camp.
-3. The Adventures list on the main menu: import from a file, remove.
+2. **Done: the portal.** A prop at the camp (`adventure-portal`) whose script opens it; its window is a chooser of the
+   adventures (`game/adventure-portal.ts`, `portalView` in `play-views.ts`, drawn by `ContainerWindow`), read of nothing
+   in the room, so neither game keeps anything for it. Begin writes the adventure for the party as it stands
+   (`demo.project.party`) under an id of its own (`<adventure>-<time>`), named for its lead, and opens it; a browser out
+   of room says so in the log. The Ashwell is `ashwellProject(party)`: SRD characters, `packs: ['srd-characters']`,
+   none of the demo's party, cards, code or arms, the Furnace's names from the party (four of the camp's company when
+   none is brought). Load Game lost "The Ashwell → From the start"; a stored `the-ashwell` lists as any game. Tests:
+   `adventure-portal.test.ts` (the window in the engine's game and the page's, the boards the same; begun, kept,
+   refused), `ashwell.test.ts`, `ashwell.spec.ts` (every Ashwell run begins at a camp - `tests/fixtures/camp-wren.json`,
+   kept in step by the unit test - three asked along, through the portal).
+3. Next: the Adventures list on the main menu: import from a file, remove; the portal offers what is imported
+   (`adventureChoices`).
 4. Adventures in the Store: an `Adventure` listing, published and got.
 
 ## Peer to peer: a shared game with no server — slice 1 done

@@ -2,8 +2,11 @@
 
 An adventure of the engine's own: every place, person and beat in it is written for this project. It is built in code
 (`src/game/adventures/ashwell.ts`, with what the levels share in `ashwell-kit.ts` and each level in a file of its own,
-`ashwell-level1.ts` to `ashwell-level5.ts`) as a project document, and begun from the main menu (**The Ashwell → Begin**),
-which keeps it as a game of its own in the browser, as New Game keeps a camp.
+`ashwell-level1.ts` to `ashwell-level5.ts`) as a project document for whichever party comes - SRD characters, made at
+New Game and asked along at the camp, their cards from the SRD character pack the project lists - and begun through
+the camp's portal (`src/game/adventure-portal.ts`), which keeps each beginning as a game of its own in the browser.
+The Furnace's names are the party's (`hall(party)`); with no party brought, it is written with four of the camp's
+company.
 
 **Status:** the hub and all five levels are built and playable, end to end, with three endings. Each was a slice, as
 level.

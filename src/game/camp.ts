@@ -5,7 +5,8 @@
  * The party is the new character alone at first. Each of the company is a figure at the fire to talk
  * to, and a companion of the project's (`camp-company.ts`): asked along, they join the party and
  * their figure leaves the fire, four to a party (`joinParty`). The one whose model the character took
- * is not there, nor anyone who would share the character's id.
+ * is not there, nor anyone who would share the character's id. At the clearing's west edge stands the
+ * portal an adventure is begun through, with the party as it stands (`adventure-portal.ts`).
  *
  * Built in code rather than read from a file, so the camp is always whole and always this build's;
  * the project it makes lists the SRD character pack (`listed-packs.ts`), which is what the
@@ -15,8 +16,10 @@
 import type { CharacterSheet } from '../engine/character/sheet';
 import { blankScene } from '../engine/scene/grid-from-scene';
 import { projectSchema, sceneSchema, type ProjectDoc } from '../engine/scene/schema';
+import { propFunctionSchema } from '../engine/scene/prop-function-schema';
 import { idFromName } from './new-character';
 import { companionConversation, companionDialogue, companyFor, figureOf } from './camp-company';
+import { ADVENTURE_PORTAL } from './adventure-portal';
 
 /** The company, by the model each is drawn with. */
 export const CAMP_CREW = ['quim', 'violet', 'scarlet', 'arty', 'pint', 'ganja'] as const;
@@ -25,6 +28,8 @@ const WIDTH = 18;
 const HEIGHT = 14;
 /** The fire, in the middle of the clearing. */
 const FIRE = { x: 9, y: 6 };
+/** The portal, at the clearing's west edge, facing the fire. */
+export const PORTAL_AT = { x: 3, y: 8 };
 
 /** The ground the camp is laid on: the grass, dirt and trodden grass the demo's own camp uses. */
 const PALETTE = [
@@ -88,6 +93,21 @@ export function campProject(sheet: CharacterSheet, now: number = Date.now()): Pr
   const asked = new Map(company.map(({ sheet: theirs, companion }) => [companion.creation.model, theirs.id]));
   scene.decos = [
     { id: 'camp-fire', model: 'camp-fire-prop', position: { ...FIRE }, rotation: 0, solid: true },
+    {
+      id: ADVENTURE_PORTAL,
+      model: 'portal-prop',
+      position: { ...PORTAL_AT },
+      rotation: Math.atan2(FIRE.x - PORTAL_AT.x, FIRE.y - PORTAL_AT.y),
+      solid: true,
+      function: propFunctionSchema.parse({
+        kind: 'script',
+        object: 'portal',
+        name: 'The portal',
+        flavor: 'A ring of old stone, humming. Through it, wherever the party means to go.',
+        repeatable: true,
+        effects: [{ kind: 'openContainer' }],
+      }),
+    },
     ...crewPlaces()
       .filter((figure) => asked.has(figure.model))
       .map((figure) => ({

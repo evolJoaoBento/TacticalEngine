@@ -24,6 +24,7 @@ import type { Spot } from '../../engine/grid/grid';
 import type { TalkingView } from './Conversation';
 import { itemOf, itemsFor } from '../../engine/content/equipment/catalogue';
 import { gearCard } from '../gear';
+import { adventureChoices } from '../adventure-portal';
 
 /** The journal: every quest the party has been given, joined to its words - and every project plan learned. */
 export function journalEntries(demo: DemoScene): JournalQuest[] {
@@ -123,6 +124,23 @@ export function containerView(demo: DemoScene, acts: ContainerActs): OpenContain
       onSell: acts.sell,
     }),
     onTake: acts.take,
+    onClose: acts.close,
+  };
+}
+
+/**
+ * The camp portal's window (`adventure-portal.ts`): the adventures it offers, each begun by `begin`, and nothing to
+ * take. Read off nothing of the room's - the portal holds nothing - so drawing it changes no state anywhere.
+ */
+export function portalView(demo: Pick<DemoScene, 'scene'>, id: string, acts: { begin(adventure: string): void; close(): void }): OpenContainer {
+  const prop = demo.scene.decos.find((deco) => deco.id === id);
+  return {
+    id,
+    name: prop?.function?.kind === 'script' && prop.function.name !== undefined ? prop.function.name : 'The portal',
+    lines: [],
+    adventures: adventureChoices().map(({ id: adventure, name, blurb }) => ({ id: adventure, name, blurb })),
+    onBegin: acts.begin,
+    onTake: () => {},
     onClose: acts.close,
   };
 }

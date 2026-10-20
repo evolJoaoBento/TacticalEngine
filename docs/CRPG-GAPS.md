@@ -365,6 +365,12 @@ company are six SRD characters, each asked along at their figure by the fire (`g
 editor picks the companion; validation errs on one the project has not got and warns of one nothing asks along.
 Companions are written in the project file: the Party panel does not list them yet.
 
+**An adventure begun** from the camp's portal (20 October 2026): the portal is a prop whose script opens it
+(`openContainer`), and its window is a chooser because of its id (`adventure-portal`, `game/adventure-portal.ts`) -
+nothing in the rules knows. Begin writes the adventure as a game of its own, played by the party as it stands, into
+the browser's games, and opens it. The Ashwell is the one adventure there is; it is built for the party that comes
+(`ashwellProject(party)`). Importing adventures, and getting them from the Store, are next.
+
 The editor has a quest list and a form — name, summary, steps — because a quest is a list and a
 list is edited as a list; the graph was the right call for conversations, not for this. The
 effect editor offers the four quest effects with the quest picked from a dropdown and the

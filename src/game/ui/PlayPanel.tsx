@@ -96,6 +96,9 @@ export interface OpenContainer {
   onSell?: (item: string) => void;
   onTake: (item: string) => void;
   onClose: () => void;
+  /** At the camp's portal: the adventures it offers, each begun with Begin (`adventure-portal.ts`). */
+  adventures?: readonly { id: string; name: string; blurb: string }[];
+  onBegin?: (adventure: string) => void;
 }
 
 export interface PlayPanelProps {
@@ -396,7 +399,25 @@ function ContainerWindow({ container }: { container: OpenContainer }): preact.JS
           You have {container.paidIn.held} {paid}.
         </div>
       )}
-      {container.lines.length === 0 ? (
+      {container.adventures !== undefined ? (
+        // The portal: an adventure chosen is a game of its own, begun with the party as it stands.
+        <>
+          <div className="panel-prose">Choose where it opens. The party goes through as it stands; the camp stays where it is.</div>
+          {container.adventures.length === 0 ? <div className="panel-prose" data-testid="adventures-none">No adventures yet.</div> : null}
+          {container.adventures.map((adventure) => (
+            <div key={adventure.id} className="panel-row" data-adventure={adventure.id}>
+              <span>
+                <b>{adventure.name}</b>
+                <br />
+                <span className="panel-detail">{adventure.blurb}</span>
+              </span>
+              <button className="play-btn is-primary" data-testid="adventure-begin" onClick={() => container.onBegin?.(adventure.id)}>
+                Begin
+              </button>
+            </div>
+          ))}
+        </>
+      ) : container.lines.length === 0 ? (
         <div className="panel-prose" data-testid="container-empty">{shop ? 'Sold out.' : 'Nothing left in it.'}</div>
       ) : shop ? (
         // A merchant's wares are cards on his table: each with its price, and how many are left.

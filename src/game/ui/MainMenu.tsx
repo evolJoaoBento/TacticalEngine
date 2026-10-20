@@ -2,8 +2,8 @@
  * The main menu: what the page opens on (`game/start.ts`).
  *
  *   New Game    make a character, card by card, and begin a camp of your own (`NewGame.tsx`)
- *   Load Game   the game, played: the demo from the start or from a save, or a game you began and
- *               any save of it - never the editor
+ *   Load Game   the game, played: the demo from the start or from a save, or a game you began - a camp, or an
+ *               adventure begun through a camp's portal (`adventure-portal.ts`) - and any save of it; never the editor
  *   Edit Game   the project with the editor, as the app has always opened
  *   (Change password, beside Sign out, for whoever is signed in: `ChangePassword.tsx`.)
  *   (Invite, beside them: the player's own invitation for somebody new, and admin's players: `Invitations.tsx`.)
@@ -26,7 +26,7 @@
 
 import { useEffect, useState } from 'preact/hooks';
 import { GameProjects } from '../game-projects';
-import { ASHWELL_ID, ashwellProject } from '../adventures/ashwell';
+import { ASHWELL_ID } from '../adventures/ashwell';
 import { DEFAULT_SAVE_PROJECT, SaveSlots, browserStore, projectOfSlot, type SaveSlot } from '../save-slots';
 import { NewGame } from './NewGame';
 import type { SignedIn } from '../accounts';
@@ -41,12 +41,10 @@ import { inviteFrom } from '../shared-game';
 import { joinableLine, joinableSummary, listJoinable, type JoinableGame } from '../joinable-games';
 import type { Visibility } from '../wire';
 import { lastName, nameFrom, LONGEST_NAME } from '../peer/peer-play';
+import { openPage } from '../open-page';
 import './menu.css';
 
-/** Open the page again, on what was chosen. */
-export function openPage(query: string): void {
-  window.location.assign(`${window.location.pathname}?${query}`);
-}
+export { openPage };
 
 const when = (at: number): string => new Date(at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 
@@ -108,12 +106,13 @@ export function MainMenu(props: { account?: SignedIn | null; onSignOut?: () => v
   // Who may find a game hosted from here.
   const [findable, setFindable] = useState<Visibility>('friends');
   const savesOf = (project: string, from: SaveSlot[] = saves): SaveSlot[] => from.filter((slot) => projectOfSlot(slot) === project);
-  // A shared game's saves of games this browser has not got: opened over the project kept with them.
+  // A shared game's saves of games this browser has not got: opened over the project kept with them. The Ashwell's
+  // own id is a game an older build began from the menu, whose saves stay with it.
   const known = new Set([DEFAULT_SAVE_PROJECT, ASHWELL_ID, ...games.list().map((game) => game.id)]);
   const elsewhere = saves.filter((slot) => slot.players !== undefined && !known.has(projectOfSlot(slot)));
   // Every game, and the saves of each, opened as chosen - hosted for friends too (`?host`) from Play Together.
   const gameList = (also: string, from: SaveSlot[] = saves): preact.JSX.Element[] => [
-    ...games.list().filter((game) => game.id !== ASHWELL_ID).map((game) => (
+    ...games.list().map((game) => (
       <section key={game.id} className="menu-game" data-game={game.id}>
         <header>
           <h2>{game.name}</h2>
@@ -124,16 +123,6 @@ export function MainMenu(props: { account?: SignedIn | null; onSignOut?: () => v
         <Saves saves={savesOf(game.id, from)} open={(slot) => openPage(`play&project=${encodeURIComponent(game.id)}&load=${encodeURIComponent(slot)}${also}`)} />
       </section>
     )),
-    // The Ashwell (`docs/ASHWELL.md`): kept as a game of its own, written afresh from this build each time it is opened.
-    <section key={ASHWELL_ID} className="menu-game" data-game={ASHWELL_ID}>
-      <header>
-        <h2>The Ashwell</h2>
-        <button type="button" className="menu-go" data-testid="menu-play-ashwell" onClick={() => games.write(ashwellProject()) && openPage(`play&project=${ASHWELL_ID}${also}`)}>
-          From the start
-        </button>
-      </header>
-      <Saves saves={savesOf(ASHWELL_ID, from)} open={(slot) => games.write(ashwellProject()) && openPage(`play&project=${ASHWELL_ID}&load=${encodeURIComponent(slot)}${also}`)} />
-    </section>,
     <section key={DEFAULT_SAVE_PROJECT} className="menu-game" data-game={DEFAULT_SAVE_PROJECT}>
       <header>
         <h2>The Demo Vault</h2>

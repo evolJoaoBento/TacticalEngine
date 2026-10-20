@@ -12,7 +12,12 @@ import { itemsFor } from '../../engine/content/equipment/catalogue';
 import { STARTER_ADVERSARIES } from '../../engine/content/pack/starter';
 import { POLY_HAVEN_STARTERS } from '../../engine/content/poly-haven';
 import { buildingKey } from '../../engine/scene/building';
-import { ASHWELL_ID, AUD_DIALOGUE, BONE_KEY, BROKER_ID, COUNTING_ID, FURNACE_QUEST, GALLERY_ID, GUILD_MARK, HALL_ID, HUB_ID, INDEX_BOSS_ID, INDEX_ID, KENNEL_ID, KINDLING, LIBRARY_QUEST, MARKET_ID, MARKET_QUEST, NAVE_ID, PIT_ID, QUEST_ID, READING_ID, SAINT_ID, SELA_DIALOGUE, STACKS_ID, SUMP_ID, SUMP_KEY, THRONE_ID, THRONE_QUEST, THROAT_ID, VANE_DIALOGUE, VANE_ID, WARDEN_ID, YOUR_PAGE, ashwellProject, sceneFromRows } from './ashwell';
+import { deriveCharacter } from '../../engine/character/sheet';
+import { buildProjectScene } from '../demo-scene';
+import { withListedPacks } from '../listed-packs';
+import { characterContentFor } from '../room';
+import { sheetFor } from '../new-character';
+import { ASHWELL_ID, ASHWELL_PARTY, AUD_DIALOGUE, BONE_KEY, BROKER_ID, COUNTING_ID, FURNACE_QUEST, GALLERY_ID, GUILD_MARK, HALL_ID, HUB_ID, INDEX_BOSS_ID, INDEX_ID, KENNEL_ID, KINDLING, LIBRARY_QUEST, MARKET_ID, MARKET_QUEST, NAVE_ID, PIT_ID, QUEST_ID, READING_ID, SAINT_ID, SELA_DIALOGUE, STACKS_ID, SUMP_ID, SUMP_KEY, THRONE_ID, THRONE_QUEST, THROAT_ID, VANE_DIALOGUE, VANE_ID, WARDEN_ID, YOUR_PAGE, ashwellProject, sceneFromRows } from './ashwell';
 
 /** Every effect the project can run: on its props, in its dialogues, in each branch of either. */
 function effectsOf(project: ProjectDoc): Effect[] {
@@ -37,6 +42,31 @@ describe('the Ashwell, as a project', () => {
     expect(projectSchema.parse(project)).toEqual(project);
     expect(project.id).toBe(ASHWELL_ID);
     expect(validateProject(project)).toEqual([]);
+    const laid = withListedPacks(project);
+    expect(validateProject(laid, { characterContent: characterContentFor(laid) })).toEqual([]);
+  });
+
+  it('is played by SRD characters, made of the pack it lists - four of the camp\u2019s company when nobody is brought', () => {
+    expect(project.packs).toEqual(['srd-characters']);
+    expect(project.party.map((sheet) => sheet.name)).toEqual(['Quim', 'Violet', 'Scarlet', 'Arty']);
+    // None of the demo's own: its party's cards are the vault's.
+    expect(project.cards.map((card) => card.id)).not.toContain('sentinel-hold-fast');
+    const problems: string[] = [];
+    const demo = buildProjectScene(withListedPacks(project, problems), project.id);
+    expect(problems).toEqual([]);
+    const content = characterContentFor(demo.project);
+    for (const sheet of ASHWELL_PARTY) {
+      for (const card of sheet.domainCards ?? []) expect(content.cards.has(card), card).toBe(true);
+      expect(deriveCharacter(sheet, content, demo.project.abilities).issues, sheet.id).toEqual([]);
+    }
+  });
+
+  it('goes down with whoever it is begun with', () => {
+    const wren = sheetFor({ name: 'Wren', model: 'violet', ancestryId: 'elf', communityId: 'wildborne', classId: 'ranger', subclassId: 'wayfinder', domainCards: ['gifted-tracker', 'natures-tongue'] });
+    const theirs = ashwellProject([wren, ASHWELL_PARTY[0]!]);
+    expect(theirs.party.map((sheet) => sheet.id)).toEqual(['wren', 'quim']);
+    const demo = buildProjectScene(withListedPacks(theirs), theirs.id);
+    expect(demo.party.members()).toEqual(['wren', 'quim']);
   });
 
   it('opens at the Lantern & Lye, and every room is reached from it, by a goto or a stair paired with one below', () => {
@@ -235,6 +265,15 @@ describe('Level 4, the Furnace of Names', () => {
       expect(option.effects).toContainEqual({ kind: 'setFlag', flag: 'name-burnt' });
       expect(option.effects).toContainEqual({ kind: 'markStress', amount: 3, target: { kind: 'entity', id: ids[at] } });
     });
+    // The party it was begun with, whoever they are: two, here, and each named.
+    const two = ashwellProject([ASHWELL_PARTY[3]!, ASHWELL_PARTY[1]!]).scenes.find((s) => s.id === HALL_ID)!.decos.find((d) => d.id === 'name-furnace')!.function!;
+    const offered: Effect[] = [];
+    if (two.kind === 'script') walkEffects(two.effects, (effect) => void offered.push(effect));
+    const theirs = offered.find((effect) => effect.kind === 'choice');
+    expect(theirs?.kind === 'choice' && theirs.options.map((option) => option.label)).toEqual(['Arty writes their name.', 'Violet writes their name.']);
+    expect(theirs?.kind === 'choice' && theirs.options[1]!.effects).toContainEqual({ kind: 'setFlag', flag: 'burnt-violet' });
+    // Each loses a thing of their own: the second of the party, the second thing the fire takes.
+    expect(theirs?.kind === 'choice' && theirs.options[1]!.effects).toContainEqual(expect.objectContaining({ kind: 'log', text: expect.stringContaining('Violet cannot remember the house they grew up in') }));
     const stair = fn(HALL_ID, 'throne-stair');
     expect(stair.kind === 'script' && stair.effects[0]).toMatchObject({ kind: 'branch', when: { kind: 'flag', flag: 'name-burnt' } });
   });

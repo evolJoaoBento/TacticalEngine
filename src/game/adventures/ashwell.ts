@@ -5,17 +5,19 @@
  * What every level shares - the ids, the maps drawn as rows of characters (`sceneFromRows`), the stair paired across
  * two rooms, the chest that waits for a fight - is in `ashwell-kit.ts`; each level's rooms, people and quest are in a
  * file of their own, `ashwell-level1.ts` to `ashwell-level5.ts`. Here is what they pay out, and the project they make:
- * played with the demo's party and everything their cards need, begun from the main menu (**The Ashwell**), which keeps
- * it as a game of its own.
+ * played by whichever party comes to it - SRD characters, made at New Game and asked along at the camp, their cards
+ * from the SRD character pack the project lists - begun through the camp's portal (`adventure-portal.ts`), which keeps
+ * each beginning as a game of its own.
  */
 
 import { projectSchema, type ProjectDoc } from '../../engine/scene/schema';
 import { SRD_CONDITIONS } from '../../engine/content/conditions';
 import { STARTER_ABILITIES, STARTER_CONDITIONS } from '../../engine/content/pack/starter';
+import type { CharacterSheet } from '../../engine/character/sheet';
 import { DEMO_ITEMS, GOLD } from '../demo-items';
-import { DEMO_CODE, DEMO_PROJECT_ABILITIES, DEMO_PROJECT_CARDS } from '../demo-code';
-import { DEMO_WEAPONS, PARTY_SHEETS } from '../demo-rules';
 import { SHIPPED_MODELS } from '../project-open';
+import { COMPANIONS } from '../camp-company';
+import { sheetFor } from '../new-character';
 import { ASHWELL_ID, HUB_ID, SUMP_KEY, GUILD_MARK, BONE_KEY, KINDLING, YOUR_PAGE, PALETTE, LINKED_SURFACES } from './ashwell-kit';
 import { hub, throat, kennel, sump, CISTERN_WARDEN, KETCH, QUEST } from './ashwell-level1';
 import { market, pit, countingHouse, PIT_GHOUL, BONE_BROKER, GRALE, SELA, MARKET_QUEST_DEF } from './ashwell-level2';
@@ -74,32 +76,36 @@ const LOOT: ProjectDoc['lootTables'] = [
   },
 ] as ProjectDoc['lootTables'];
 
-/** What it keeps of the demo's things: its gold, its draught and the arms its party carry - none of the vault's story. */
-const KEPT_ITEMS = new Set([GOLD, 'healing-draught', 'longsword', 'round-shield']);
+/** What it keeps of the demo's things: its gold and its draught - none of the vault's story, nor its party's arms. */
+const KEPT_ITEMS = new Set([GOLD, 'healing-draught']);
 
-/** The party that goes down: four of the demo's company. */
-const PARTY = PARTY_SHEETS.slice(0, 4);
+/**
+ * The party it is written with when none is brought: four of the camp's company - Quim, Violet, Scarlet and Arty - as
+ * New Game makes them. Whoever comes through the portal goes down instead.
+ */
+export const ASHWELL_PARTY: readonly CharacterSheet[] = COMPANIONS.slice(0, 4).map((companion) => sheetFor(companion.creation));
 
-/** The Ashwell, as a project: the hub and its five levels, the demo's party, and everything their cards need. */
-export function ashwellProject(): ProjectDoc {
+/**
+ * The Ashwell, as a project: the hub and its five levels, played by the party given - the Furnace takes one of their
+ * names - with the SRD character pack their classes and cards come from.
+ */
+export function ashwellProject(party: readonly CharacterSheet[] = ASHWELL_PARTY): ProjectDoc {
   return projectSchema.parse({
     id: ASHWELL_ID,
     name: 'The Ashwell',
     terrainPalette: PALETTE,
     surfaces: LINKED_SURFACES,
-    scenes: [hub(), throat(), kennel(), sump(), market(), pit(), countingHouse(), readingRoom(), stacks(), index(), nave(), gallery(), hall(), throne()],
+    scenes: [hub(), throat(), kennel(), sump(), market(), pit(), countingHouse(), readingRoom(), stacks(), index(), nave(), gallery(), hall(party), throne()],
     dialogues: [KETCH, GRALE, SELA, AUD, ILSE, VANE],
     items: [...DEMO_ITEMS.filter((item) => KEPT_ITEMS.has(item.id)), ...ITEMS],
     lootTables: LOOT,
     quests: [QUEST, MARKET_QUEST_DEF, LIBRARY_QUEST_DEF, FURNACE_QUEST_DEF, THRONE_QUEST_DEF],
     adversaries: [CISTERN_WARDEN, PIT_GHOUL, BONE_BROKER, INK_WRAITH, UNDERTOW_INDEX, IRON_STOKER, BELLOWS_SAINT, ORSOLDE_VANE],
-    cards: [...DEMO_PROJECT_CARDS],
-    abilities: [...STARTER_ABILITIES, ...DEMO_PROJECT_ABILITIES],
-    code: [...DEMO_CODE],
+    abilities: [...STARTER_ABILITIES],
     conditionDefs: [...STARTER_CONDITIONS, ...SRD_CONDITIONS.filter((c) => !STARTER_CONDITIONS.some((s) => s.id === c.id))],
-    party: [...PARTY],
+    party: [...party],
+    packs: ['srd-characters'],
     assets: [...SHIPPED_MODELS],
-    weapons: [...DEMO_WEAPONS],
     startScene: HUB_ID,
   });
 }

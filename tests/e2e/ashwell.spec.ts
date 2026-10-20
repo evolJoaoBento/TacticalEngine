@@ -5,7 +5,8 @@ import type { Page } from '@playwright/test';
 import { expect, test } from './fixtures';
 
 /**
- * The Ashwell (`docs/ASHWELL.md`), Level 1 played through from the main menu: the Lantern & Lye, Mother Ketch, the
+ * The Ashwell (`docs/ASHWELL.md`), begun as a player begins it - at a camp, three of the company asked along, through
+ * the portal - and Level 1 played through: the Lantern & Lye, Mother Ketch, the
  * well; the Throat, Vane's page, the Wellrats and their takings; the Warden, his strongbox, the Sump Gate and the stair
  * down - and back up to Ketch, the quest done. The fights are begun by walking into them, and settled by the driver's
  * wounds rather than played out: what is tested is the level, not the rules, which have suites of their own.
@@ -130,14 +131,54 @@ async function talkTo(page: Page, id: string): Promise<void> {
 }
 const lastLine = (page: Page) => page.evaluate(() => window.__engine!.log().at(-1)?.text ?? '');
 
-/** Level 1, from the menu to the Market: Ketch heard, the Throat cleared, the gate opened and the stair taken. */
-async function levelOne(page: Page): Promise<void> {
+/**
+ * A camp made for Wren, a ranger, with the two cards New Game would have dealt her: this build's own, kept in step by
+ * `adventure-portal.test.ts` - Playwright cannot import the game's modules to make one.
+ */
+const CAMP = readFileSync(resolve('tests/fixtures/camp-wren.json'), 'utf8');
+
+/**
+ * The Ashwell begun at a camp: Wren's, Quim, Scarlet and Arty asked along - Violet stays away, Wren having her model -
+ * and the portal used, the Ashwell chosen. The game it opens is the party's own, and they go down as they were made.
+ */
+async function begin(page: Page): Promise<void> {
+  // The menu first, as a player comes: it is what tells the page who is signed in, whose games the Ashwell is kept among.
   await page.goto('/?menu');
-  await page.getByTestId('menu-load').click();
-  await page.getByTestId('menu-play-ashwell').click();
-  await expect(page).toHaveURL(/[?&]play&project=the-ashwell$/);
+  await expect(page.getByTestId('main-menu')).toBeVisible();
+  await page.goto('/');
+  await page.waitForFunction(() => (window.__engine?.frames ?? 0) > 5, null, { timeout: 60_000 });
+  expect(await page.evaluate((text) => window.__engine!.loadProjectText(text), CAMP)).toBe('');
+  await page.waitForFunction(() => window.__engine?.sceneId() === 'camp', null, { timeout: 60_000 });
+  for (const model of ['quim', 'scarlet', 'arty']) {
+    await page.evaluate((figure) => {
+      const a = window.__engine!;
+      a.approach(figure);
+      a.arrive();
+    }, `${model}-figure`);
+    await expect.poll(() => page.evaluate(() => window.__engine!.dialogueOptions())).toContain('Come with us.');
+    await page.evaluate(() => window.__engine!.answer({ kind: 'choose', index: 0 }));
+    await expect.poll(() => page.evaluate(() => window.__engine!.hasDialogue())).toBe(false);
+  }
+  expect(await page.evaluate(() => window.__engine!.party())).toEqual(['wren', 'quim', 'scarlet', 'arty']);
+  await page.screenshot({ path: 'test-results/ashwell-camp.png' });
+  await use(page, 'adventure-portal');
+  const portal = page.getByTestId('container');
+  await expect(portal).toHaveAttribute('data-container', 'adventure-portal');
+  await expect(portal.locator('[data-adventure]')).toHaveCount(1);
+  await page.screenshot({ path: 'test-results/ashwell-portal.png' });
+  await portal.locator('[data-adventure="the-ashwell"] [data-testid="adventure-begin"]').click();
+  await expect(page).toHaveURL(/[?&]play&project=the-ashwell-[a-z0-9]+$/);
   await page.waitForFunction(() => (window.__engine?.frames ?? 0) > 5, null, { timeout: 60_000 });
   await page.evaluate(() => window.__engine!.setDiceSpeed(0));
+  // The party that went through, as they were made: Wren with the cards she was dealt, her name on her card.
+  expect(await page.evaluate(() => window.__engine!.party())).toEqual(['wren', 'quim', 'scarlet', 'arty']);
+  expect((await page.evaluate(() => window.__engine!.loadout('wren'))).loadout).toEqual(expect.arrayContaining(['gifted-tracker', 'natures-tongue']));
+  await expect(page.locator('.hud-card[data-member="wren"]')).toContainText('Wren');
+}
+
+/** Level 1, from the camp to the Market: Ketch heard, the Throat cleared, the gate opened and the stair taken. */
+async function levelOne(page: Page): Promise<void> {
+  await begin(page);
 
   // The Lantern & Lye. The well will not take anybody who has not heard Ketch out.
   expect(await page.evaluate(() => window.__engine!.sceneId())).toBe('lantern-and-lye');
@@ -276,7 +317,7 @@ async function payTheBroker(page: Page): Promise<void> {
   after.forEach((marked, i) => expect(marked).toBeGreaterThan(before[i]!));
 }
 
-test('the Ashwell, Level 1: begun from the menu, Ketch heard, the Throat cleared, the gate opened and the stair taken into the Market', async ({ page }) => {
+test('the Ashwell, Level 1: begun through a camp’s portal, Ketch heard, the Throat cleared, the gate opened and the stair taken into the Market', async ({ page }) => {
   test.setTimeout(240_000);
   await levelOne(page);
   // The bone stair climbs back to the Sump, and the Sump's stair comes straight down again, the page read once.
@@ -289,6 +330,12 @@ test('the Ashwell, Level 1: begun from the menu, Ketch heard, the Throat cleared
   await expect.poll(() => scene(page)).toBe('ossuary-market');
   expect(await page.evaluate(() => window.__engine!.log().filter((line) => line.text.startsWith('Entry 4,113')).length)).toBe(pages);
   expect(await page.evaluate(() => window.__engine!.errors)).toEqual([]);
+  // A game of its own: Load Game lists it under the name of whoever leads the party, and has no Ashwell from the start.
+  const begun = new URL(page.url()).searchParams.get('project')!;
+  await page.goto('/?menu');
+  await page.getByTestId('menu-load').click();
+  await expect(page.locator(`[data-testid="menu-load-list"] [data-game="${begun}"] h2`)).toHaveText("The Ashwell (Wren's party)");
+  await expect(page.getByTestId('menu-play-ashwell')).toHaveCount(0);
 });
 
 test('the Ashwell, Level 2 paid for: the errand in the pit, the Guild\u2019s mark, a name of the party\u2019s own for the key, and back to Ketch', async ({ page }) => {
@@ -396,12 +443,13 @@ async function levelsThreeAndFour(page: Page): Promise<void> {
   await use(page, 'throne-stair');
   await drain(page);
   expect(await lastLine(page)).toBe('The stair is barred with white-hot iron. The Furnace has not been fed.');
-  const quim = await page.evaluate(() => window.__engine!.stressOf('kara').marked);
+  // The furnace offers each of the party's names; the first, let through, is Wren's.
+  const wren = await page.evaluate(() => window.__engine!.stressOf('wren').marked);
   await use(page, 'name-furnace');
   await drain(page);
   expect((await furnace(page))?.done).toContain('the-saint');
-  expect(await logged(page)).toContain('Quim writes, and feeds the page to the fire, and watches it go. Afterwards, Quim cannot remember the face of whoever first taught them to hold a sword.');
-  expect(await page.evaluate(() => window.__engine!.stressOf('kara').marked)).toBeGreaterThan(quim);
+  expect(await logged(page)).toContain('Wren writes, and feeds the page to the fire, and watches it go. Afterwards, Wren cannot remember the face of whoever first taught them to hold a sword.');
+  expect(await page.evaluate(() => window.__engine!.stressOf('wren').marked)).toBeGreaterThan(wren);
   await page.screenshot({ path: 'test-results/ashwell-furnace.png' });
   await use(page, 'throne-stair');
   await drain(page);

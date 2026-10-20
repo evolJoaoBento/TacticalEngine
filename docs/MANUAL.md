@@ -41,8 +41,8 @@ modders and test authors can drive the game through it, but nothing in the engin
 The page opens on the **main menu**:
 
 - **New Game** makes a character, card by card, and begins a camp of their own (below).
-- **Load Game** plays on: the Demo Vault from the start or from any save of it, **The Ashwell** (below)
-  from the start or from any save of it, and every game New Game began, from where it was left
+- **Load Game** plays on: the Demo Vault from the start or from any save of it, and every game you
+  began - a camp, or an adventure begun through a camp's portal - from where it was left
   (**Continue**) or from any save of it. Each game's saves are listed under it. A game is **played
   only** here: there is no editor, and `Ctrl+E` does nothing.
 - **Edit Game** is the app as it always was: the project with the editor, opening in edit mode.
@@ -54,8 +54,10 @@ started for the tests opens straight on the game; `?menu` opens the menu there.
 
 **The Ashwell** is the engine's own adventure: a grim dungeon under the drowned town of Hallowmere,
 five levels deep when it is done, of which the first is built (`docs/ASHWELL.md` has the whole of it).
-Choose **Load Game → The Ashwell → From the start**. You begin in the Lantern & Lye, the tavern built
-over the well, with four of the demo's company. Talk to **Mother Ketch** first - the well will not take
+Begin it at a camp: make a character with **New Game**, ask whoever you want along, and use the
+**portal** at the clearing's west edge; choose **The Ashwell** and **Begin**. You begin in the Lantern &
+Lye, the tavern built over the well, with the party that went through - SRD characters with the cards
+they were made with. Talk to **Mother Ketch** first - the well will not take
 you until you have - then use the well to climb down into the Throat. Level 1 is three rooms: the
 Throat itself, with the Wellrats' camp at the end of its flooded gallery; the Kennel, down the
 passage from the shaft; and the Sump, down the passage from the camp, where the Cistern Warden keeps
@@ -139,6 +141,12 @@ Ganja the warrior, each made as your character was, with their class's cards and
 model you took stays away. Walk up to one and talk: **Come with us** and they join the party and leave
 the fire; **What can you do?** has them say. Four is a party - asked fifth, one stays where they are. The
 game is kept in this browser, and its saves are its own, the company you took along with them.
+
+At the clearing's west edge stands a **portal**. Use it and it opens a window of the adventures there
+are - the Ashwell, for now - and **Begin** starts one with the party as it stands. It is a game of its
+own, kept in this browser beside the camp and named for whoever leads the party ("The Ashwell (Wren's
+party)"); the camp stays as it was, and you can go back to it from Load Game and begin again. An Ashwell
+begun from the menu by an older build is still listed, its saves with it.
 
 **Peer to Peer** plays a game with friends browser to browser, with no server between you
 (`docs/PEER.md`). Give your name, then either **Join** a game or host one of your games (or a save)

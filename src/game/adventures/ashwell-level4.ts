@@ -62,13 +62,16 @@ const HALL_ROWS = [
   '################',
 ];
 
-/** Who the furnace may take: each of the company, and the one thing the fire takes with their name. */
-const REMEMBERED: readonly { id: string; name: string; loses: string }[] = [
-  { id: 'kara', name: 'Quim', loses: 'the face of whoever first taught them to hold a sword' },
-  { id: 'finn', name: 'Violet', loses: 'the house they grew up in, and the colour of its door' },
-  { id: 'mira', name: 'Scarlet', loses: 'the sound of their mother’s voice' },
-  { id: 'arty', name: 'Arty', loses: 'why they ever came down the well' },
+/** What the furnace takes with a name: the first of the party loses the first, the second the second, and so on. */
+const LOSSES: readonly string[] = [
+  'the face of whoever first taught them to hold a sword',
+  'the house they grew up in, and the colour of its door',
+  'the sound of their mother’s voice',
+  'why they ever came down the well',
 ];
+
+/** Whose name the furnace may take: each of the party the adventure was begun with. */
+export type Remembered = readonly { id: string; name: string }[];
 
 /**
  * The Furnace Hall's last stair: shut until a name has been burnt; then, the first time, the end of Level 4 - Vane's
@@ -243,7 +246,7 @@ export function gallery(): SceneDoc {
   });
 }
 
-export function hall(): SceneDoc {
+export function hall(party: Remembered): SceneDoc {
   return sceneSchema.parse({
     id: HALL_ID,
     name: 'The Furnace Hall',
@@ -276,13 +279,13 @@ export function hall(): SceneDoc {
                 kind: 'choice',
                 title: 'The Name Furnace',
                 body: 'The stair down will open for one name, written on the blank page and fed to the fire. Whoever’s it is will lose something with it.',
-                options: REMEMBERED.map((member) => ({
+                options: party.map((member, at) => ({
                   label: `${member.name} writes their name.`,
                   effects: [
                     { kind: 'setFlag', flag: 'name-burnt' },
                     { kind: 'setFlag', flag: `burnt-${member.id}` },
                     { kind: 'markStress', amount: 3, target: { kind: 'entity', id: member.id } },
-                    { kind: 'log', text: `${member.name} writes, and feeds the page to the fire, and watches it go. Afterwards, ${member.name} cannot remember ${member.loses}.`, tone: 'narration' },
+                    { kind: 'log', text: `${member.name} writes, and feeds the page to the fire, and watches it go. Afterwards, ${member.name} cannot remember ${LOSSES[at % LOSSES.length]}.`, tone: 'narration' },
                   ],
                 })),
               },

@@ -47,11 +47,15 @@ import { inspection } from './inspect';
 import { abilitiesOf, abilityList, abilityTargets, loadoutView, pointTiles, shapeAt, type RestCallResult, type RestPlan, type RestResult, type SwapResult } from './demo-abilities';
 import { saveBlockedBy, serialiseSave, type LoadResult } from './save';
 import { openContainer, withinReach } from './prop-use';
+import { ADVENTURE_PORTAL, beginAdventure } from './adventure-portal';
+import { GameProjects } from './game-projects';
+import { browserStore } from './save-slots';
+import { openPage } from './open-page';
 import { hoverLine } from './hover';
 import { steerStep } from './steer';
 import type { Walking } from './land';
 import type { Drop } from './party-drop';
-import { carriedItems, containerView, hudMembers, journalEntries, talkingTo, talkingView } from './ui/play-views';
+import { carriedItems, containerView, hudMembers, journalEntries, portalView, talkingTo, talkingView } from './ui/play-views';
 import type { OpenContainer } from './ui/PlayPanel';
 import { DRAWN, KEPT_BY_HOST, type Wire } from './wire';
 import { talkingAside } from './talks';
@@ -448,6 +452,21 @@ export abstract class GameTable implements GameClient, LocalPowers {
     if (!reach(open)) {
       this.closeContainer();
       return null;
+    }
+    // The camp's portal: a chooser, holding nothing, so nothing is read - here or by the engine.
+    if (open === ADVENTURE_PORTAL) {
+      return portalView(this.demo, open, {
+        begin: (adventure) => {
+          const begun = beginAdventure(new GameProjects(browserStore()), adventure, this.demo.project.party);
+          if (begun !== null) return openPage(`play&project=${encodeURIComponent(begun)}`);
+          this.note('The adventure could not be begun: this browser has no room left to keep another game.', 'bad');
+          refresh();
+        },
+        close: () => {
+          this.closeContainer();
+          refresh();
+        },
+      });
     }
     // Drawing the window read what is in it, which makes a seller's state: the engine reads it too.
     this.did('readContainer', [open]);
