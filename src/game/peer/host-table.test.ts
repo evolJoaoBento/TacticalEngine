@@ -230,6 +230,16 @@ describe('a peer game kept by its host\'s page', () => {
     // Read whole by the host's page; begun, let go, everybody told.
     expect(host.ask({ op: 'offered', adventure: 'the-lichgate' }).ok?.['project']).toEqual(lichgate);
     expect(host.ask({ op: 'offered', adventure: 'nope' }).error).toBe('no such adventure offered');
+    // Taken back by whoever offered it, or the host, and nobody else; everybody told.
+    const ivy = guest(table, 'i', 'Ivy');
+    ivy.ask({ op: 'join' });
+    expect(ivy.ask({ op: 'withdraw', adventure: 'the-lichgate' }).error).toBe('only whoever offered it, or the host, takes it back');
+    expect(gus.ask({ op: 'withdraw', adventure: 'nope' }).error).toBe('no such adventure offered');
+    const ids = (told: unknown): string[] => ((told as { offers: { id: string }[] }).offers).map((offer) => offer.id);
+    expect(ids(gus.ask({ op: 'withdraw', adventure: 'the-lichgate' }).ok?.['table'])).toEqual(['kept']);
+    expect(ids((pushes(ivy).at(-1) as { table: unknown }).table)).toEqual(['kept']);
+    expect(ids(host.ask({ op: 'withdraw', adventure: 'kept' }).ok?.['table'])).toEqual([]);
+    expect(ids((pushes(gus).at(-1) as { table: unknown }).table)).toEqual([]);
     host.ask({ op: 'begin', project: { ...project, id: 'elsewhere' }, shipped: shippedContent(), table: { animated: false, askDefender: true } });
     expect(pushes(host).at(-1)).toMatchObject({ table: { offers: [] } });
     expect(pushes(gus).at(-1)).toMatchObject({ table: { offers: [] } });

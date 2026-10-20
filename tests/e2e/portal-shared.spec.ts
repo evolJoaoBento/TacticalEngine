@@ -145,9 +145,17 @@ test('a guest offers an adventure of their own at the portal, and the host begin
   await lichgate.getByTestId('adventure-offer').click();
   await expect(lichgate.getByTestId('adventure-offered')).toHaveText('Offered');
   await guest.screenshot({ path: 'test-results/portal-offered-guest.png' });
+  const offered = ours.locator('[data-adventure="the-lichgate"]');
+  await expect(offered).toHaveCount(1);
+
+  // Taken back: gone from the host's window; offered again, there once more.
+  await lichgate.getByTestId('adventure-withdraw').click();
+  await expect(lichgate.getByTestId('adventure-offer')).toBeVisible();
+  await expect(offered).toHaveCount(0);
+  await lichgate.getByTestId('adventure-offer').click();
+  await expect(lichgate.getByTestId('adventure-offered')).toHaveText('Offered');
 
   // Offered: on the host's window, after the host's own, saying who offered it - and begun from there.
-  const offered = ours.locator('[data-adventure="the-lichgate"]');
   await expect(offered.getByTestId('adventure-offered-by')).toHaveText(`Offered by ${guestName}.`);
   expect(await ours.locator('[data-adventure]').evaluateAll((rows) => rows.map((row) => row.getAttribute('data-adventure')))).toEqual(['the-ashwell', 'the-demo-vault', 'the-lichgate']);
   await page.screenshot({ path: 'test-results/portal-offered-host.png' });

@@ -493,6 +493,12 @@ export abstract class GameTable implements GameClient, LocalPowers {
               refresh();
             });
           },
+          withdraw: (adventure) => {
+            void wire?.withdraw(adventure).then((why) => {
+              if (why !== null) this.note(`The adventure could not be taken back: ${why.replace(/\.$/, '')}.`, 'bad');
+              refresh();
+            });
+          },
           close,
         }, host, offered);
       }

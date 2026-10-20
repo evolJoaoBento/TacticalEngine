@@ -694,6 +694,31 @@ async fn a_player_offers_an_adventure_of_their_own_and_the_host_begins_it() {
     tables.ask_on(host, "kara", json!({ "id": 8, "op": "offered", "adventure": "nope" }));
     assert_eq!(told(&mut to_host).await["error"], "no such adventure offered");
 
+    // Taken back by whoever offered it - or by the host - and nobody else; everybody told.
+    let (stranger, mut to_stranger) = tables.connect("mira");
+    tables.ask_on(stranger, "mira", json!({ "id": 1, "op": "join", "invite": opened["ok"]["invite"] }));
+    told(&mut to_stranger).await;
+    told(&mut to_host).await;
+    told(&mut to_guest).await;
+    tables.ask_on(stranger, "mira", json!({ "id": 2, "op": "withdraw", "adventure": "the-lichgate" }));
+    assert_eq!(told(&mut to_stranger).await["error"], "only whoever offered it, or the host, takes it back");
+    tables.ask_on(guest, "finn", json!({ "id": 9, "op": "withdraw", "adventure": "nope" }));
+    assert_eq!(told(&mut to_guest).await["error"], "no such adventure offered");
+    assert!(nothing_more(&mut to_host).await, "nothing told for a refusal");
+    tables.ask_on(guest, "finn", json!({ "id": 10, "op": "withdraw", "adventure": "the-lichgate" }));
+    let ids = |table: &Value| table["offers"].as_array().unwrap().iter().map(|offer| offer["id"].clone()).collect::<Vec<_>>();
+    assert_eq!(ids(&told(&mut to_guest).await["ok"]["table"]), vec![json!("kept")]);
+    assert_eq!(ids(&told(&mut to_host).await["table"]), vec![json!("kept")]);
+    assert_eq!(ids(&told(&mut to_stranger).await["table"]), vec![json!("kept")]);
+    tables.ask_on(host, "kara", json!({ "id": 10, "op": "withdraw", "adventure": "kept" }));
+    assert_eq!(ids(&told(&mut to_host).await["ok"]["table"]), Vec::<Value>::new());
+    told(&mut to_guest).await;
+    told(&mut to_stranger).await;
+    tables.ask_on(guest, "finn", json!({ "id": 11, "op": "offer", "project": lichgate, "blurb": "" }));
+    told(&mut to_guest).await;
+    told(&mut to_host).await;
+    told(&mut to_stranger).await;
+
     // Begun - whichever it is - the offers are let go, and everybody told, the host too.
     let mut elsewhere = fixture["projects"][0].clone();
     elsewhere["id"] = json!("elsewhere");
@@ -702,6 +727,7 @@ async fn a_player_offers_an_adventure_of_their_own_and_the_host_begins_it() {
     assert_eq!(told(&mut to_host).await["table"]["offers"], json!([]));
     assert!(told(&mut to_guest).await["begun"].is_object());
     assert_eq!(told(&mut to_guest).await["table"]["offers"], json!([]));
+    let _ = to_stranger;
     let _ = std::fs::remove_dir_all(&root);
 }
 

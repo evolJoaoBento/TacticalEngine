@@ -136,7 +136,7 @@ export function portalView(
   demo: Pick<DemoScene, 'scene' | 'project'>,
   id: string,
   choices: readonly AdventureChoice[],
-  acts: { begin(adventure: string): void; close(): void },
+  acts: { begin(adventure: string): void; close(): void; withdraw?(adventure: string): void },
   chooser?: string,
   offered: readonly string[] = [],
 ): OpenContainer {
@@ -162,6 +162,7 @@ export function portalView(
     })),
     ...(chooser === undefined ? {} : { chooser }),
     onBegin: acts.begin,
+    ...(acts.withdraw === undefined ? {} : { onWithdraw: acts.withdraw }),
     onTake: () => {},
     onClose: acts.close,
   };

@@ -50,6 +50,8 @@
 //!   (`offers: [{ id, name, blurb, by: { id, name }, ownParty? }]`, `ownParty` the names of one that keeps its party);
 //! - `{ id, op: "offered", adventure }` - an adventure offered, whole, for the host's page to begin it with:
 //!   `{ id, ok: { project } }`;
+//! - `{ id, op: "withdraw", adventure }` - an adventure offered taken back, by whoever offered it or the host:
+//!   `{ id, ok: { table } }`, every other page told the table;
 //!
 //! and `{ id, error }` for anything refused. Without an `id`, what the server **pushes** to every other page at
 //! the game: `{ push: { board, views, by, seq } }` after an intent that changed the board or gave something to draw,
@@ -449,7 +451,7 @@ fn play_thread(shared: Arc<Mutex<Shared>>, root: PathBuf) -> mpsc::Sender<Job> {
                 }
             };
             let op = job.message["op"].as_str().unwrap_or("").to_string();
-            if !matches!(op.as_str(), "open" | "seat" | "start" | "visibility" | "say" | "offer" | "offered") {
+            if !matches!(op.as_str(), "open" | "seat" | "start" | "visibility" | "say" | "offer" | "offered" | "withdraw") {
                 play_for(&mut slot, &shared, &job.account, &hooks);
             }
             let mut said = match op.as_str() {
@@ -459,6 +461,7 @@ fn play_thread(shared: Arc<Mutex<Shared>>, root: PathBuf) -> mpsc::Sender<Job> {
                 "say" => say(&shared, &job.account, &job.message, &root),
                 "offer" => offer(&shared, &job.account, &job.message, &root),
                 "offered" => offered(&shared, &job.message),
+                "withdraw" => withdraw(&shared, &job.account, &job.message, &root),
                 // A page that joined, or came back: where the game is, as for one resumed.
                 "join" => respond(&mut slot, &json!({ "op": "resume" }), &hooks),
                 _ => respond(&mut slot, &job.message, &hooks),
@@ -558,7 +561,7 @@ fn play_thread(shared: Arc<Mutex<Shared>>, root: PathBuf) -> mpsc::Sender<Job> {
                     // The adventures offered let go: everybody told the table, the one who began it too.
                     push(&held, None, &json!({ "table": table_of(&held, &root) }));
                 }
-                "join" | "seat" | "start" | "visibility" | "offer" if said["ok"].is_object() => push(&held, from, &json!({ "table": table_of(&held, &root) })),
+                "join" | "seat" | "start" | "visibility" | "offer" | "withdraw" if said["ok"].is_object() => push(&held, from, &json!({ "table": table_of(&held, &root) })),
                 "say" if said["ok"].is_object() => push(&held, from, &json!({ "chat": said["ok"]["line"] })),
                 _ => {}
             }
@@ -777,6 +780,17 @@ fn offered(shared: &Arc<Mutex<Shared>>, message: &Value) -> Value {
         Some((_, project)) => json!({ "ok": { "project": project } }),
         None => json!({ "error": "no such adventure offered" }),
     }
+}
+
+/// An adventure offered taken back: by whoever offered it, or by the host, who runs the table.
+fn withdraw(shared: &Arc<Mutex<Shared>>, account: &str, message: &Value, root: &Path) -> Value {
+    let mut held = shared.lock().expect("the game");
+    let Some(at) = held.offers.iter().position(|(said, _)| said["id"] == message["adventure"]) else { return json!({ "error": "no such adventure offered" }) };
+    if held.offers[at].0["by"] != account && held.host != account {
+        return json!({ "error": "only whoever offered it, or the host, takes it back" });
+    }
+    held.offers.remove(at);
+    json!({ "ok": { "table": table_of(&held, root) } })
 }
 
 /// The running of a game handed on, when its host has been gone longer than they may be: to the first member whose

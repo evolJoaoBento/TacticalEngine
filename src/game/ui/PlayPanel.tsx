@@ -104,6 +104,8 @@ export interface OpenContainer {
    * adventures listed the page's own, each offered to them (`onBegin`) or already.
    */
   chooser?: string;
+  /** On a page not the host's: one of its own adventures offered, taken back. */
+  onWithdraw?: (adventure: string) => void;
 }
 
 export interface PlayPanelProps {
@@ -442,7 +444,12 @@ function ContainerWindow({ container }: { container: OpenContainer }): preact.JS
                   Begin
                 </button>
               ) : adventure.offered === true ? (
-                <span className="panel-detail" data-testid="adventure-offered">Offered</span>
+                <span className="panel-actions">
+                  <span className="panel-detail" data-testid="adventure-offered">Offered</span>
+                  <button className="play-btn" data-testid="adventure-withdraw" title="Take it back" onClick={() => container.onWithdraw?.(adventure.id)}>
+                    Take back
+                  </button>
+                </span>
               ) : (
                 <button className="play-btn" data-testid="adventure-offer" title={`Offer it to ${container.chooser}`} onClick={() => container.onBegin?.(adventure.id)}>
                   Offer

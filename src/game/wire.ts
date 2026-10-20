@@ -457,6 +457,16 @@ export class Wire {
     return null;
   }
 
+  /** An adventure offered taken back (`withdraw`): `null` once the table has let it go, or why not. */
+  async withdraw(adventure: string): Promise<string | null> {
+    if (this.state !== 'in' && this.state !== 'parted' && this.state !== 'asked') return 'not at a game';
+    const said = await this.send({ op: 'withdraw', adventure });
+    const table = (said.ok as { table?: SharedTable } | undefined)?.table;
+    if (table === undefined) return said.error ?? 'it was not taken back';
+    this.setTable(table);
+    return null;
+  }
+
   /** An adventure offered at the table, whole, for the host to begin it with: `null` when it is not offered. */
   async offered(adventure: string): Promise<unknown> {
     if (this.state !== 'in' && this.state !== 'parted' && this.state !== 'asked') return null;

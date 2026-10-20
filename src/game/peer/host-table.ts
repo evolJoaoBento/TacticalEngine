@@ -15,8 +15,9 @@
  * - `begin` - the host's alone: the game built again over another project - an adventure a camp's portal begins -
  *   the table, its seats and its chat kept, the others pushed the board with the project (`begun`) to play on over,
  *   the adventures offered let go;
- * - `offer`, `offered` - an adventure of a player's own offered for the host to begin, a project the engine would
- *   open, the table saying it (`offers`); and one offered, whole, for the host's page to begin it with;
+ * - `offer`, `offered`, `withdraw` - an adventure of a player's own offered for the host to begin, a project the engine
+ *   would open, the table saying it (`offers`); one offered, whole, for the host's page to begin it with; and one taken
+ *   back, by whoever offered it or the host;
  * - `load` - the host's alone: the save read from the host's browser (`readSave`), loaded as `loadGameText`, who
  *   played whom in it seated again; `save` is refused - the host's page saves its own game, the guests' nothing,
  *   and what it keeps with the save of who played whom is the table's (`seating`).
@@ -318,7 +319,7 @@ export class HostTable {
     const effective = typeof message.op === 'string' ? message.op : '';
     this.watch(watcher, effective === 'open' || effective === 'join');
     const account = watcher.account;
-    if (!['open', 'seat', 'start', 'visibility', 'say', 'offer', 'offered'].includes(effective)) this.playFor(account);
+    if (!['open', 'seat', 'start', 'visibility', 'say', 'offer', 'offered', 'withdraw'].includes(effective)) this.playFor(account);
     let said: Answer;
     switch (effective) {
       case 'seat':
@@ -338,6 +339,9 @@ export class HostTable {
         break;
       case 'offered':
         said = this.offered(message);
+        break;
+      case 'withdraw':
+        said = this.withdraw(account, message);
         break;
       case 'join':
       case 'resume':
@@ -409,7 +413,7 @@ export class HostTable {
       // The adventures offered let go: everybody told the table, the one who began it too.
       this.push(null, { table: this.table() });
     }
-    if (['join', 'seat', 'start', 'visibility', 'offer'].includes(effective) && ok !== null) this.push(watcher, { table: this.table() });
+    if (['join', 'seat', 'start', 'visibility', 'offer', 'withdraw'].includes(effective) && ok !== null) this.push(watcher, { table: this.table() });
     if (effective === 'say' && ok !== null) this.push(watcher, { chat: ok['line'] });
     if (reseated) this.push(null, { table: this.table() });
   }
@@ -573,6 +577,15 @@ export class HostTable {
   private offered(message: Message): Answer {
     const kept = this.offers.find((offer) => offer.said.id === message['adventure']);
     return kept === undefined ? { error: 'no such adventure offered' } : { ok: { project: kept.project } };
+  }
+
+  /** An adventure offered taken back: by whoever offered it, or the host (`play.rs`, `withdraw`). */
+  private withdraw(account: string, message: Message): Answer {
+    const at = this.offers.findIndex((offer) => offer.said.id === message['adventure']);
+    if (at < 0) return { error: 'no such adventure offered' };
+    if (this.offers[at]!.said.by !== account && this.host !== account) return { error: 'only whoever offered it, or the host, takes it back' };
+    this.offers.splice(at, 1);
+    return { ok: { table: this.table() } };
   }
 
   private say(account: string, message: Message): Answer {
