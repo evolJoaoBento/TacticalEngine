@@ -448,6 +448,90 @@ describe('a map drawn as rows', () => {
   });
 });
 
+describe('Level 5, rebuilt', () => {
+  const project = ashwellProject();
+  const scene = (id: string) => project.scenes.find((s) => s.id === id)!;
+  const deco = (room: string, id: string) => scene(room).decos.find((d) => d.id === id)!;
+  const node = (id: string) => project.dialogues.find((d) => d.id === VANE_DIALOGUE)!.nodes.find((n) => n.id === id)!;
+  const all = (effects: readonly Effect[]): Effect[] => {
+    const found: Effect[] = [];
+    walkEffects(effects, (effect) => void found.push(effect));
+    return found;
+  };
+  const flagsRead = (effects: readonly Effect[]): string[] => all(effects).flatMap((effect) => (effect.kind === 'branch' && effect.when.kind === 'flag' ? [effect.when.flag] : []));
+  const pieces = (tile: string) => Object.values(scene(THRONE_ID).buildingTiles!).filter((piece) => piece.tile === tile);
+
+  it('is a room worth ending in: lamplit, shelved to the ceiling, the lectern up on a dais inside a ring of screens', () => {
+    expect(scene(THRONE_ID).light).toBe(0.5);
+    expect(pieces('shelf').length).toBeGreaterThan(30);
+    const raised = (at: { x: number; y: number }) => Object.values(scene(THRONE_ID).buildingTiles!).some((piece) => piece.x === at.x && piece.y === at.y && piece.shape === 'block' && piece.level === 0);
+    const vane = scene(THRONE_ID).encounters[0]!.adversaries.find((a) => a.id === 'orsolde-vane')!;
+    expect([raised(deco(THRONE_ID, 'the-ledger').position), raised(vane.position), raised(deco(THRONE_ID, 'the-burnt-page').position)]).toEqual([true, true, true]);
+    expect([pieces('counter').length, pieces('barrier').length]).toEqual([22, 0]);
+    // Low wooden screens, half a block: a ring to read inside, not a wall to fight behind.
+    expect(pieces('counter').every((piece) => piece.height === 0.5)).toBe(true);
+  });
+
+  it('has Vane write the room round him when it comes to a fight: the floor his page, every entry he finishes a wound, the Written out of the margins', () => {
+    expect(project.adversaries.find((a) => a.id === VANE_ID)!.features.map((f) => f.name)).toEqual(['Writes the Room', 'Out of the Margins']);
+    const writes = project.abilities.find((a) => a.id === 'vane-writes-the-room')!;
+    expect([writes.kind, writes.trigger, writes.uses, writes.cost]).toEqual(['reaction', 'partyRolled', { count: 1, per: 'scene' }, {}]);
+    expect(writes.effects[1]).toEqual({ kind: 'zone', zone: 'his-page', name: 'His Page', condition: 'vulnerable', at: 'actor', band: 'close', side: 'adversaries', onDeath: 'end' });
+    expect(writes.effects[2]).toMatchObject({ kind: 'countdown', start: '3', advance: 'standard', loop: 'reset', onDeath: 'end' });
+    const wound = writes.effects[2]!.kind === 'countdown' ? writes.effects[2]!.effects.find((e) => e.kind === 'damage') : undefined;
+    // The nearest of the party, from his chair: the party are his allies' opposite, and `allies` names the party.
+    expect(wound).toEqual({ kind: 'damage', dice: '2d6', type: 'magic', direct: true, target: { kind: 'allies', range: 'veryFar', nearest: 1 } });
+    const margins = project.abilities.find((a) => a.id === 'vane-out-of-the-margins')!;
+    expect([margins.trigger, margins.uses, margins.effects[0]]).toEqual(['tookHitPoints', { count: 2, per: 'scene' }, { kind: 'summon', adversary: INK_WRAITH_ID, count: '1', range: 'close' }]);
+    expect(project.adversaryModels[INK_WRAITH_ID]).toBe('briar-wraith');
+  });
+
+  it('gives the pen on the party\u2019s record - three things kept on the way down - or on their word, a Presence roll', () => {
+    expect(node('decide').choices!.find((c) => c.text === 'Give us the pen.')!.goto).toBe('pen-ask');
+    const ask = node('pen-ask');
+    expect(ask.onEnter![0]).toEqual({ kind: 'setVar', name: 'kept', value: 0 });
+    expect(flagsRead(ask.onEnter!)).toEqual(['annick-spared', 'returned-the-ring', 'mott-talked', 'found-our-own', 'freed-annicks-name', 'told-aud', 'choir-led-up', 'took-back-the-page', 'heard-of-ilsabet']);
+    for (const branch of ask.onEnter!.slice(1)) expect(branch.kind === 'branch' && branch.then[0]).toEqual({ kind: 'addVar', name: 'kept', by: 1 });
+    const [record, word, back] = ask.choices!;
+    expect([record!.available, record!.goto]).toEqual([{ kind: 'var', name: 'kept', op: '>=', value: 3 }, 'pen']);
+    expect(word!.check).toEqual({ trait: 'presence', difficulty: 16, gotoOnSuccess: 'pen', gotoOnFailure: 'not-yet' });
+    expect(back!.goto).toBe('decide');
+    expect(node('not-yet').choices!.map((c) => c.goto)).toEqual(['leave', 'refused']);
+  });
+
+  it('keeps the Furnace\u2019s page on his desk for whoever wrote it, and gives back what went with it', () => {
+    const page = deco(THRONE_ID, 'the-burnt-page').function!;
+    if (page.kind !== 'script') throw new Error('the page is no script');
+    const ids = project.party.map((sheet) => sheet.id);
+    expect(flagsRead(page.effects)).toEqual(ids.map((id) => `burnt-${id}`));
+    const first = page.effects[0]!;
+    expect(first.kind === 'branch' && first.then.slice(1)).toEqual([{ kind: 'clearStress', amount: 3, target: { kind: 'entity', id: ids[0] } }, { kind: 'setFlag', flag: 'took-back-the-page' }]);
+    expect(page.effects.at(-1)).toEqual({ kind: 'markUsed' });
+  });
+
+  it('reads Level 1 back: the first page torn down, and Ketch\u2019s word about his wife, whose entry every ending remembers', () => {
+    expect(flagsRead(node('greet').onEnter!)).toEqual(['read-vanes-page']);
+    const asked = node('greet').choices!.find((c) => c.goto === 'ilsabet')!;
+    expect(asked.available).toEqual({ kind: 'all', of: [{ kind: 'flag', flag: 'knows-vanes-name' }, { kind: 'not', of: { kind: 'flag', flag: 'heard-of-ilsabet' } }] });
+    expect(node('ilsabet').onEnter).toEqual([{ kind: 'setFlag', flag: 'heard-of-ilsabet' }]);
+    const pen = node('pen').choices![0]!.effects!;
+    const left = node('leave').choices![0]!.effects!;
+    const ledger = deco(THRONE_ID, 'the-ledger').function!;
+    const burnt = ledger.kind === 'script' ? all(ledger.effects).find((e) => e.kind === 'choice') : undefined;
+    const burning = burnt?.kind === 'choice' ? burnt.options[0]!.effects : [];
+    for (const [ending, effects] of [['pen', pen], ['left', left], ['burnt', burning]] as const) expect(flagsRead(effects), ending).toContain('heard-of-ilsabet');
+  });
+
+  it('pays every flag it sets: each is read somewhere, and nothing reads a flag nothing sets', () => {
+    const text = JSON.stringify(project);
+    const set = new Set([...text.matchAll(/"kind":"setFlag","flag":"([^"]+)"/g)].map((m) => m[1]!));
+    const read = new Set([...text.matchAll(/"kind":"flag","flag":"([^"]+)"/g)].map((m) => m[1]!));
+    expect([...set].filter((flag) => !read.has(flag))).toEqual([]);
+    expect([...read].filter((flag) => !set.has(flag))).toEqual([]);
+    expect(set.size).toBeGreaterThan(40);
+  });
+});
+
 describe('Level 4, rebuilt', () => {
   const project = ashwellProject();
   const scene = (id: string) => project.scenes.find((s) => s.id === id)!;

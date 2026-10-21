@@ -731,7 +731,10 @@ async function levelsThreeAndFour(page: Page): Promise<void> {
 
 }
 
-/** The whole way down, from the menu to the Throne: every level before the last, the Broker paid. */
+/**
+ * The whole way down, from the menu to the Throne: every level before the last, the Broker paid - and on Vane's
+ * desk, the page the Furnace took, taken back, and what went with Wren's name given back with it.
+ */
 async function toTheThrone(page: Page): Promise<void> {
   await levelOne(page);
   await toTheBroker(page);
@@ -740,6 +743,11 @@ async function toTheThrone(page: Page): Promise<void> {
   await levelsThreeAndFour(page);
   await page.waitForTimeout(500);
   await page.screenshot({ path: 'test-results/ashwell-throne.png' });
+  await use(page, 'the-burnt-page');
+  await drain(page);
+  // The page's line, and after it the Stress it clears - three Stress, not three Stresss.
+  expect(await logged(page)).toContain('Wren clears 3 Stress.');
+  expect(await logged(page)).toContain('Under an inkwell on Vane\u2019s desk is the page from the Furnace, Wren\u2019s name on it in Wren\u2019s own hand, scorched at the edges. Wren reads it, and it all comes back: the face of whoever first taught them to hold a sword.');
 }
 
 /** Ketch, after it is over: the word she has for how it ended. */
@@ -766,6 +774,10 @@ test('the Ashwell, Level 5 ended with the pen: Vane heard out, his pen taken, an
   expect(await page.evaluate(() => window.__engine!.dialogueOptions())).not.toContain('You took Ketch\u2019s name.');
   await choose(page, 'We have decided.');
   await choose(page, 'Give us the pen.');
+  // He reads the party's record back, and it is enough: the name read back, the Choir sent up, the page taken back.
+  await choose(page, 'Then you know what we kept.');
+  const kept = await logged(page);
+  for (const line of ['"...found the name they sold the Broker, in my Index, and read it back."', '"...sent the Choir up the well."', '"...took back the page the Furnace had, off my own desk."']) expect(kept).toContain(line);
   await choose(page, '[Take it.]');
   await drain(page);
   expect((await throne(page))?.done).toContain('hear-vane');
@@ -801,6 +813,25 @@ test('the Ashwell, Level 5 ended in fire: the ledger refused him, Vane and the W
   await drain(page);
   await expect.poll(() => page.evaluate(() => window.__engine!.inCombat()), { timeout: 15_000 }).toBe(true);
   expect((await page.evaluate(() => window.__engine!.adversaries())).sort()).toEqual(['orsolde-vane', 'the-written-1', 'the-written-2', 'the-written-3']);
+  // At the party's first roll he writes the room round him. Swung at whole first, as at the Index, so he stands to.
+  const writes = 'Vane takes up the pen again and writes the room. The floor round the lectern is a page now, and you are standing on his lines.';
+  for (let round = 0; round < 6 && !(await logged(page)).includes(writes); round++) {
+    await page.evaluate(() => {
+      const a = window.__engine!;
+      for (const member of a.party()) {
+        a.wound(member, 0);
+        a.select(member);
+        a.attack('orsolde-vane');
+        for (let n = 0; n < 20 && a.pendingKind() !== null; n++) a.answer({ kind: 'choose', index: 0 });
+      }
+    });
+    await drain(page);
+    if (!(await logged(page)).includes(writes) && (await page.evaluate(() => window.__engine!.inCombat()))) {
+      await page.evaluate(() => window.__engine!.endGmTurn());
+      await drain(page);
+    }
+  }
+  expect(await logged(page)).toContain(writes);
   await win(page);
   await use(page, 'the-ledger');
   await drain(page);

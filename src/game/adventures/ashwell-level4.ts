@@ -80,7 +80,7 @@ const HALL_FURNITURE: Readonly<Record<string, Furniture>> = {
 };
 
 /** What the furnace takes with a name: the first of the party loses the first, the second the second, and so on. */
-const LOSSES: readonly string[] = [
+export const LOSSES: readonly string[] = [
   'the face of whoever first taught them to hold a sword',
   'the house they grew up in, and the colour of its door',
   'the sound of their mother’s voice',

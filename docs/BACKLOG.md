@@ -107,7 +107,7 @@ room's shaders are not made again; each flame flickers its own way. Presentation
 scene menu (**☀**/**☾**, `editor/scene-edits.ts`); the driver counts the lamps lit (`lamps()`). Tests:
 `room-light.test.ts`, `scene-light.test.ts`, `scene.golden.test.ts` (`golden_scene.rs`), `editor-shell.spec.ts`.
 
-## The Ashwell's second pass — slices 1 to 4 of 5 done: Level 1, the Lantern, the Market, the Library and the Furnace
+## The Ashwell's second pass — done (all five slices, 21 October 2026)
 
 `docs/ASHWELL.md` ("The second pass"): an audit found the story strong and the play thin - flat rooms, one fight-room
 template, featureless stat blocks, one roll, flags nothing read. Slice 1 is lit rooms (above) and the kit
@@ -151,7 +151,21 @@ last stair reading back whose name was burnt (`burnt-<id>`) and what went with i
 older than it: a page standing a board back up read the ground again, laying a zone's condition the engine lays only
 when the fight settles; it no longer does (`refreshWorld(demo, false)` in `restoreFromBoard`). Tests: `ashwell.test.ts` (Level 4,
 rebuilt), `ashwell.spec.ts` (the Choir told, the valve by strength, the bellows and the silent hymn, the Choir sent
-up, the page). Next: slice 5, the Ledger Throne.
+up, the page).
+
+Slice 5 rebuilds the Throne (`ashwell-level5.ts`): a bigger room shelved to the ceiling, the lectern on a dais inside a
+ring of wooden screens; Vane's Writes the Room (a Vulnerable zone and a looping countdown of direct damage to the
+nearest, begun at the party's first roll) and Out of the Margins (a `tookHitPoints` summons of the Written, drawn
+through `adversaryModels`); the pen asked for by the party's record - nine deeds of keeping counted into a variable
+as he reads them back, three needed - or a Presence 16 roll; the Furnace's page on his desk, given back; Level 1's last
+two unread flags paid (`read-vanes-page`, `knows-vanes-name` and with it Ilsabet, whom every ending remembers); and a
+test that every flag the Ashwell sets is read, and every one it reads is set. The engine's log said "3 Stresss":
+`plural` no longer adds an s to a word ending in one (the two golden fixtures that recorded it corrected). Tests:
+`ashwell.test.ts` (Level 5, rebuilt), `ashwell.spec.ts` (the page taken back, the pen on the party's record, Vane
+writing the room).
+
+What is left for the Ashwell is play: a balance pass at the table, and models of its own for its people and its set
+pieces (Vane, the Saint, the Index, Ketch, the bell, the lectern, the valve - a list was drawn up for Meshy).
 
 ## Peer to peer: a shared game with no server — slice 1 done
 

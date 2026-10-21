@@ -18,12 +18,12 @@ import { DEMO_ITEMS, GOLD } from '../demo-items';
 import { SHIPPED_MODELS } from '../project-open';
 import { COMPANIONS } from '../camp-company';
 import { sheetFor } from '../new-character';
-import { ASHWELL_ID, HUB_ID, SUMP_KEY, GUILD_MARK, BONE_KEY, KINDLING, YOUR_PAGE, PALETTE, LINKED_SURFACES } from './ashwell-kit';
+import { ASHWELL_ID, HUB_ID, INK_WRAITH_ID, SUMP_KEY, GUILD_MARK, BONE_KEY, KINDLING, YOUR_PAGE, PALETTE, LINKED_SURFACES } from './ashwell-kit';
 import { hub, throat, kennel, sump, CISTERN_WARDEN, LAMP_MOTH, WARDEN_CARDS, WARDEN_ABILITIES, KETCH, NAILS, ANNICK, QUEST, LEVEL_ONE_ITEMS } from './ashwell-level1';
 import { market, pit, countingHouse, PIT_GHOUL, PIT_SEXTON, BELL_CALLED, BELL_CALLED_ID, BONE_BROKER, LEVEL_TWO_CARDS, LEVEL_TWO_ABILITIES, GRALE, SEXTON, CLERK, SELA, MARKET_QUEST_DEF } from './ashwell-level2';
 import { readingRoom, stacks, index, INK_WRAITH, UNDERTOW_INDEX, LEVEL_THREE_CARDS, LEVEL_THREE_ABILITIES, AUD, LIBRARY_QUEST_DEF } from './ashwell-level3';
 import { nave, gallery, hall, IRON_STOKER, BELLOWS_SAINT, LEVEL_FOUR_CARDS, LEVEL_FOUR_ABILITIES, FURNACE_CONDITIONS, ILSE, FURNACE_QUEST_DEF } from './ashwell-level4';
-import { throne, ORSOLDE_VANE, VANE, THRONE_QUEST_DEF } from './ashwell-level5';
+import { throne, ORSOLDE_VANE, LEVEL_FIVE_CARDS, LEVEL_FIVE_ABILITIES, VANE, THRONE_QUEST_DEF } from './ashwell-level5';
 
 export * from './ashwell-kit';
 
@@ -95,16 +95,17 @@ export function ashwellProject(party: readonly CharacterSheet[] = ASHWELL_PARTY)
     name: 'The Ashwell',
     terrainPalette: PALETTE,
     surfaces: LINKED_SURFACES,
-    scenes: [hub(), throat(), kennel(), sump(), market(), pit(), countingHouse(), readingRoom(), stacks(), index(), nave(), gallery(), hall(party), throne()],
+    scenes: [hub(), throat(), kennel(), sump(), market(), pit(), countingHouse(), readingRoom(), stacks(), index(), nave(), gallery(), hall(party), throne(party)],
     dialogues: [KETCH, NAILS, ANNICK, GRALE, SEXTON, CLERK, SELA, AUD, ILSE, VANE],
     items: [...DEMO_ITEMS.filter((item) => KEPT_ITEMS.has(item.id)), ...ITEMS, ...LEVEL_ONE_ITEMS],
     lootTables: LOOT,
     quests: [QUEST, MARKET_QUEST_DEF, LIBRARY_QUEST_DEF, FURNACE_QUEST_DEF, THRONE_QUEST_DEF],
     adversaries: [CISTERN_WARDEN, LAMP_MOTH, PIT_GHOUL, PIT_SEXTON, BELL_CALLED, BONE_BROKER, INK_WRAITH, UNDERTOW_INDEX, IRON_STOKER, BELLOWS_SAINT, ORSOLDE_VANE],
-    // What a feature summons has no placement to name its model: the bell's dead are drawn as the pit's ghouls are.
-    adversaryModels: { [BELL_CALLED_ID]: 'fen-lurker' },
-    cards: [...WARDEN_CARDS, ...LEVEL_TWO_CARDS, ...LEVEL_THREE_CARDS, ...LEVEL_FOUR_CARDS],
-    abilities: [...STARTER_ABILITIES, ...WARDEN_ABILITIES, ...LEVEL_TWO_ABILITIES, ...LEVEL_THREE_ABILITIES, ...LEVEL_FOUR_ABILITIES],
+    // What a feature summons has no placement to name its model: the bell's dead are drawn as the pit's ghouls are,
+    // and the Written Vane calls out of the margins as the Library's ink-wraiths.
+    adversaryModels: { [BELL_CALLED_ID]: 'fen-lurker', [INK_WRAITH_ID]: 'briar-wraith' },
+    cards: [...WARDEN_CARDS, ...LEVEL_TWO_CARDS, ...LEVEL_THREE_CARDS, ...LEVEL_FOUR_CARDS, ...LEVEL_FIVE_CARDS],
+    abilities: [...STARTER_ABILITIES, ...WARDEN_ABILITIES, ...LEVEL_TWO_ABILITIES, ...LEVEL_THREE_ABILITIES, ...LEVEL_FOUR_ABILITIES, ...LEVEL_FIVE_ABILITIES],
     conditionDefs: [...STARTER_CONDITIONS, ...SRD_CONDITIONS.filter((c) => !STARTER_CONDITIONS.some((s) => s.id === c.id)), ...FURNACE_CONDITIONS],
     party: [...party],
     packs: ['srd-characters'],

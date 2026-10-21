@@ -188,20 +188,31 @@ stair costs:** a party member's name, burnt, and with it something they remember
 
 ## Level 5 — The Ledger Throne (built)
 
-One scene. **Orsolde Vane** writes at his lectern inside a ring of reading screens, and the Written - three of his
-drowned and burnt, ink-wraiths - stand among the shelves; all of them on nobody's side, and Vane talks for all of them.
-He answers for what the party did on the way down: Ketch's name, if it was sold, and the Index, if it was burnt. Three
-endings, each the Ashwell's end (`ashwell-ended`), each written up and sending the party back to the Lantern, where
-Ketch has a word for it:
+One scene, lamplit and shelved to the ceiling: **Orsolde Vane** writes at his lectern up on a dais, inside a ring of
+low wooden reading screens, and the Written - three of his drowned and burnt, ink-wraiths - stand among the shelves;
+all of them on nobody's side, and Vane talks for all of them. On his desk, under an inkwell, is the page the Furnace
+took: whoever wrote their name on it reads it, and what went with the name comes back (and three Stress with it).
 
-- **The pen** (`ending-took-the-pen`): he gives it up, gladly; the party keeps the ledger now, taking it in turns, and
-  Ketch leaves the lamp lit by the rope.
+He answers for what the party did on the way down: Ketch's name, if it was sold; the Index, if it was burnt; the first
+page, torn down in the Throat (`read-vanes-page`), which nobody else ever reads; and, to those Ketch told about him
+(`knows-vanes-name`), his wife - **Ilsabet**, the first entry and the only one he never finished. Every ending
+remembers her if she was asked after. Three endings, each the Ashwell's end (`ashwell-ended`), each written up and
+sending the party back to the Lantern, where Ketch has a word for it:
+
+- **The pen** (`ending-took-the-pen`): asked for, he reads back the party's own entry - what they *kept* on the way
+  down: Annick spared, Tam's ring returned, Mott let off his rope, their own name read back, Annick's card torn out,
+  Aud's card read and told, the Choir sent up, the Furnace's page taken back, Ilsabet asked after. Three of those, and
+  the pen is theirs on their record; fewer, and it is their word against it (Presence 16), and he may refuse. Taken,
+  the party keeps the ledger now, taking it in turns, and Ketch leaves the lamp lit by the rope.
 - **Leaving him to it** (`ending-left-him`): the ash keeps coming up the well; Ketch keeps her slate.
 - **The ledger burnt** (`ending-burned`): the only way to a fight. Vane refuses, the Written stand up, and once they
   are down the ledger burns. The well stops breathing ash, Ketch's slate is clean and she does not know what it was
   for - and if it was her name the Broker took, she has it back.
 
-Vane is a tier-3 solo of the adventure's own (the Sallow Archivist).
+Vane is a tier-3 solo of the adventure's own (the Sallow Archivist). If it comes to a fight he **writes the room**: at
+the party's first roll the floor round him is his page (Vulnerable while on it), and he begins finishing their entries
+- a looping countdown (3), each time round 2d6 direct magic damage to whoever of them is nearest; and hurt, he calls
+the Written up **out of the margins**, twice.
 
 The design, as it was set down:
 
@@ -259,8 +270,13 @@ added.
    reaction), and once the Saint is past they go up the well (`remove` on each chorister). `burnt-<id>` and
    Ilse's *why* are read now - by the page at the foot of the stair, the Hymn and Ilse - and `choir-led-up` by that
    page and Ketch's slate. The page says the burnt page is on Vane's desk; what he does with it is slice 5's.
-5. **The Ledger Throne.** A room worth ending in; Vane's fight writing the room around him; the Pen reachable by what
+5. **The Ledger Throne** (done, 21 October 2026). A room worth ending in; Vane's fight writing the room around him; the Pen reachable by what
    the party did, not only by what it says; every flag paid.
+   *As built:* the room is half as big again, the dais raised, the screens wood; the fight a zone (Vulnerable) and a
+   looping countdown begun at the first roll, and a `tookHitPoints` summons. The pen is a count (`kept`, a variable set
+   afresh as he reads) of nine deeds, three asked; or a Presence roll. The burnt page comes back off his desk. And
+   `ashwell.test.ts` now holds the whole adventure to it: every flag it sets is read somewhere, and nothing reads a flag
+   nothing sets. The second pass is done.
 
 ## Building it, level by level
 
