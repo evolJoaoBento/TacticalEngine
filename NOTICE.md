@@ -30,12 +30,25 @@ own art, which `equipment.lock.json` names. The source is at
   Content under the DPCGL, and the attribution that licence requires is kept in `docs/CONTEXT.md`,
   which is the only place holding its wording. This licence covers the code that implements those
   rules; it does not reach the rules themselves, and nothing here relicenses them. That includes
-  the equipment catalogue (`src/engine/content/equipment/catalogue.json`): the stats and text of
-  the weapons, armour, items and consumables are Public Game Content under the DPCGL, not ours.
+  the equipment catalogue (`src/engine/content/equipment/catalogue.json`) and the character pack
+  (`src/engine/content/pack/shipped/srd-characters.json`): the stats and text of the weapons,
+  armour, items and consumables, and of the classes, subclasses, ancestries, communities and cards,
+  are Public Game Content under the DPCGL, not ours.
   Daggerheart is a trademark of Critical Role, LLC; this project is unaffiliated and unendorsed.
 
 - **Kreon**, the play UI's font: Copyright 2018 The Kreon Project Authors, used under the SIL Open
   Font License 1.1, which travels with it in `public/fonts/kreon/OFL.txt`.
+
+- **Basis Universal**, which compresses an imported material's maps for the GPU and transcodes them on the page: its
+  encoder (`ktx2-encoder`, MIT, bundling Binomial's build) and its transcoder (which comes with three.js) are both
+  under the Apache License 2.0, and builds of the game carry them. Their notice, as that licence asks:
+  "Basis Universal™ Supercompressed GPU Texture Compression Library. Copyright © 2016–2026 Binomial LLC. All rights
+  reserved except as granted under the Apache 2.0 license (https://github.com/BinomialLLC/basis_universal/blob/master/LICENSE).
+  "Basis Universal" is a trademark of Binomial LLC."
+
+- **Materials imported into a project.** A material an author imports (`docs/MANUAL.md`, "Surfaces") is carried in
+  their project, not distributed from here; ambientCG's are CC0, and the material's `source` keeps the credit anyway.
+  The test material in `tests/fixtures/tile-surface/` is drawn by `tools/make-tile-surface-fixture.mjs`: our own work.
 
 - **Card art.** `public/cards/` is ignored by git and nothing in it is distributed from here. Cards
   draw their own emblems when the directory is empty. (The equipment cards' pictures are not this

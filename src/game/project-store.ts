@@ -19,12 +19,17 @@
  */
 
 import { BOOT, PROJECT_URL, SAVE_HEADER, SAVE_URL, SAVES } from 'virtual:boot-project';
+import { withListedPacks } from './listed-packs';
+import { GameProjects } from './game-projects';
+import { browserStore } from './save-slots';
 import { migrateDocument } from '../engine/scene/migrate';
 import { projectSchema } from '../engine/scene/schema';
 import { hollowVaultMap } from './demo-map';
 import { buildDemoScene, buildProjectScene, type DemoScene } from './demo-scene';
+import { peerMode } from './peer/peer-play';
 
-export type BootSource = 'file' | 'missing' | 'invalid' | 'builtin';
+/** `game` is a game New Game began, opened from this browser (`game-projects.ts`): never saved over the default. */
+export type BootSource = 'file' | 'missing' | 'invalid' | 'builtin' | 'game';
 
 export interface Booted {
   demo: DemoScene;
@@ -41,9 +46,19 @@ export interface BootOptions {
   boot?: 'file' | 'builtin';
   /** Where to report why the file was not used, so the player is told rather than the demo quietly opening. */
   problems?: string[];
+  /** The games New Game began, for `?project=<id>`; the browser's own when left out. */
+  games?: GameProjects;
+  /** How a page joining a peer game meets its host and reads the project (`?peer=join`, `ui/PeerJoin.tsx`). */
+  peer?: () => Promise<unknown>;
 }
 
 const builtin = (): DemoScene => buildDemoScene(hollowVaultMap());
+
+/** Where a page joining another's game reads its project, with the invitation (`play.rs`, `GET /__play/join/<invite>`). */
+export const JOIN_URL = '/__play/join';
+
+/** Where the project kept beside a shared game's save is read (`saves.rs`, `GET /__saves/<id>/project`). */
+export const savedProjectUrl = (slot: string): string => `/__saves/${encodeURIComponent(slot)}/project`;
 
 /** Which way to open: what the address asks for, or what the server was started with. */
 export function bootMode(search: string, fallback: 'file' | 'builtin' = BOOT): 'file' | 'builtin' {
@@ -60,9 +75,48 @@ export async function bootDemo(options: BootOptions = {}): Promise<Booted> {
 
 async function open(options: BootOptions): Promise<Booted> {
   const search = options.search ?? globalThis.location?.search ?? '';
+  const fetcher = options.fetcher ?? ((url: string, init?: RequestInit) => fetch(url, init));
+  // A peer game joined (`?peer=join`): the host met by hand first, and the project read from them (`docs/PEER.md`).
+  if (options.peer !== undefined && peerMode(search) === 'join') {
+    try {
+      return fromText(JSON.stringify(await options.peer()), options, 'game');
+    } catch (failure) {
+      return { demo: builtin(), source: 'invalid', problem: `The game could not be joined (${reasonOf(failure)}), so the demo opened instead.` };
+    }
+  }
+  // Another's game, joined with its invitation: opened over the project it is played over, which the server keeps.
+  const invite = new URLSearchParams(search).get('join');
+  if (invite !== null) {
+    try {
+      const response = await fetcher(`${JOIN_URL}/${encodeURIComponent(invite)}`, { cache: 'no-store' });
+      if (!response.ok) return { demo: builtin(), source: 'invalid', problem: 'That invitation is to no game on the server now, so the demo opened instead.' };
+      const { project } = (await response.json()) as { project: unknown };
+      return fromText(JSON.stringify(project), options, 'game');
+    } catch (failure) {
+      return { demo: builtin(), source: 'invalid', problem: `The game could not be joined (${reasonOf(failure)}), so the demo opened instead.` };
+    }
+  }
+  // A shared game's save, opened over the project it was played over, which the server keeps beside it: another's
+  // camp, which this browser has not got.
+  const saved = new URLSearchParams(search).get('saved');
+  if (saved !== null) {
+    try {
+      const response = await fetcher(savedProjectUrl(saved), { cache: 'no-store' });
+      if (!response.ok) return { demo: builtin(), source: 'invalid', problem: 'That save keeps no game on the server, so the demo opened instead.' };
+      return fromText(await response.text(), options, 'game');
+    } catch (failure) {
+      return { demo: builtin(), source: 'invalid', problem: `The saved game could not be read (${reasonOf(failure)}), so the demo opened instead.` };
+    }
+  }
+  // A game New Game began is opened from the browser, whatever the server would open.
+  const game = new URLSearchParams(search).get('project');
+  if (game !== null) {
+    const text = (options.games ?? new GameProjects(browserStore())).read(game);
+    if (text === null) return { demo: builtin(), source: 'invalid', problem: `There is no game called "${game}" in this browser, so the demo opened instead.` };
+    return fromText(text, options, 'game');
+  }
   if (bootMode(search, options.boot ?? BOOT) === 'builtin') return { demo: builtin(), source: 'builtin', problem: null };
 
-  const fetcher = options.fetcher ?? ((url: string, init?: RequestInit) => fetch(url, init));
   let text: string;
   try {
     const response = await fetcher(PROJECT_URL, { cache: 'no-store' });
@@ -73,6 +127,11 @@ async function open(options: BootOptions): Promise<Booted> {
     return { demo: builtin(), source: 'invalid', problem: `The saved project could not be read (${reasonOf(failure)}), so the demo opened instead.` };
   }
 
+  return fromText(text, options, 'file');
+}
+
+/** A project's text, opened: migrated, checked, its packs laid; the demo, and why, when it will not. */
+function fromText(text: string, options: BootOptions, source: 'file' | 'game'): Booted {
   // Migrated before it is checked, the way a project opened by hand is: a file written by an
   // older build is brought up to date on the way in rather than refused.
   try {
@@ -82,7 +141,8 @@ async function open(options: BootOptions): Promise<Booted> {
       const where = issue === undefined ? '' : ` at ${issue.path.join('.')}`;
       return { demo: builtin(), source: 'invalid', problem: `The saved project would not load (${issue?.message ?? 'invalid'}${where}), so the demo opened instead. The file has been left as it is.` };
     }
-    return { demo: buildProjectScene(parsed.data, parsed.data.id), source: 'file', problem: null };
+    // The packs it lists are laid over it before anything reads it (`listed-packs.ts`).
+    return { demo: buildProjectScene(withListedPacks(parsed.data, options.problems), parsed.data.id), source, problem: null };
   } catch (failure) {
     return { demo: builtin(), source: 'invalid', problem: `The saved project would not load (${reasonOf(failure)}), so the demo opened instead. The file has been left as it is.` };
   }

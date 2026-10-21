@@ -19,6 +19,11 @@ export const userSettingsSchema = z.object({
    * logged, and still costs what it costs; only the prompt between the click and the dice goes.
    */
   autoRollJumps: z.boolean().default(false),
+  /**
+   * The light the room gives back (`engine/render/light-rig.ts`): a material's roughness and shading read fully. Off,
+   * the rig is the plain one it was - for a slow machine, or a taste for the flatter look.
+   */
+  reflections: z.boolean().default(true),
 });
 
 export type UserSettings = z.infer<typeof userSettingsSchema>;
@@ -50,6 +55,13 @@ export const USER_SETTINGS: readonly UserSettingDef[] = [
     section: 'Dice',
     name: 'Roll jumps automatically',
     about: 'Throw the dice for a jump at once, without the prompt. The roll is still made and logged, and the jump is drawn at once.',
+  },
+  {
+    kind: 'toggle',
+    key: 'reflections',
+    section: 'Look',
+    name: 'Reflected light',
+    about: 'Light the room gives back, so stone looks rough and polished things catch the light. Off is the flatter look, and a little lighter work for a slow machine.',
   },
 ];
 

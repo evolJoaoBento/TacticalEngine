@@ -1,0 +1,346 @@
+/**
+ * A peer game's table (`host-table.ts`): the host's page as the server, played by the very `.wasm` the page loads -
+ * who opens, who joins, who may act, what the others are told. Needs `npm run wasm`, and says so without it.
+ */
+
+import { describe, expect, it } from 'vitest';
+import { existsSync, readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { migrateDocument } from '../../engine/scene/migrate';
+import { projectSchema } from '../../engine/scene/schema';
+import { shippedContent } from '../shipped';
+import { WasmEngine } from '../wasm-engine';
+import { HostTable, CHAT_LONGEST } from './host-table';
+import type { Link } from './link';
+
+const here = dirname(fileURLToPath(import.meta.url));
+const WASM = resolve(here, '../../../public/wasm/engine.wasm');
+const built = existsSync(WASM);
+const project = projectSchema.parse(migrateDocument(JSON.parse(readFileSync(resolve(here, '../../../projects/default.json'), 'utf8'))));
+
+type Said = Record<string, unknown> & { id?: number; ok?: Record<string, unknown>; error?: string };
+
+/** A link the test holds the far end of: what the table sent, and a message sent to it. */
+interface Far {
+  link: Link;
+  heard: Said[];
+  ask(message: Record<string, unknown>): Said;
+  close(): void;
+}
+
+let ids = 0;
+
+function far(): Far {
+  let toTable: (text: string) => void = () => undefined;
+  let shut: () => void = () => undefined;
+  const heard: Said[] = [];
+  const link: Link = {
+    send: (text) => void heard.push(JSON.parse(text) as Said),
+    onText: (h) => {
+      toTable = h;
+    },
+    onClose: (s) => {
+      shut = s;
+    },
+    close: () => shut(),
+  };
+  return {
+    link,
+    heard,
+    ask(message) {
+      const id = ++ids;
+      toTable(JSON.stringify({ ...message, id }));
+      const said = heard.find((m) => m.id === id);
+      if (said === undefined) throw new Error(`no answer to ${JSON.stringify(message)}`);
+      return said;
+    },
+    close: () => shut(),
+  };
+}
+
+const pushes = (at: Far): Said[] => at.heard.filter((m) => m.id === undefined);
+
+async function opened(options: ConstructorParameters<typeof HostTable>[2] = {}): Promise<{ table: HostTable; host: Far; open: Said; party: string[] }> {
+  const engine = await WasmEngine.load(readFileSync(WASM));
+  const table = new HostTable(engine, { id: 'h', name: 'Hana' }, { now: () => 7, ...options });
+  const host = far();
+  table.attach(host.link, { id: 'h', name: 'Hana' }, true);
+  const open = host.ask({ op: 'open', project, shipped: shippedContent(), table: { animated: false, askDefender: true }, rng: 12345, lobby: true });
+  const board = open.ok?.['board'] as { replica: { sheets: { id: string }[] } };
+  return { table, host, open, party: board.replica.sheets.map((sheet) => sheet.id) };
+}
+
+function guest(table: HostTable, id = 'g', name = 'Gus'): Far {
+  const at = far();
+  table.attach(at.link, { id, name });
+  return at;
+}
+
+describe('a peer game kept by its host\'s page', () => {
+  if (!built) console.warn(`${WASM} is not built: \`npm run wasm\` builds it, and these are skipped until it is`);
+
+  it.skipIf(!built)('is opened by the host as a lobby, answered in the server\'s shapes', async () => {
+    const { open, party } = await opened();
+    expect(open.error).toBeUndefined();
+    expect(open.ok).toMatchObject({ seq: 0, you: 'h', invite: '', project: project.id, chat: [] });
+    expect(open.ok?.['table']).toMatchObject({ host: 'h', members: [{ id: 'h', name: 'Hana' }], seats: {}, started: false, here: ['h'] });
+    expect(typeof open.ok?.['game']).toBe('string');
+    expect(party.length).toBeGreaterThan(1);
+  });
+
+  it.skipIf(!built)('is opened by nobody but the host, and joined before anything else is asked of it', async () => {
+    const { table } = await opened();
+    const gus = guest(table);
+    expect(gus.ask({ op: 'open', project, shipped: shippedContent() }).error).toBe('only the host opens the game');
+    expect(gus.ask({ op: 'call', call: 'board', args: [] }).error).toBe('no game: open one');
+    expect((gus.ask({ op: 'project' }).ok as { project: { id: string } }).project.id).toBe(project.id);
+  });
+
+  it.skipIf(!built)('is joined: the guest stood where it is, the host told who came', async () => {
+    const { table, host } = await opened();
+    const gus = guest(table);
+    const joined = gus.ask({ op: 'join', invite: 'peer' });
+    expect(joined.ok).toMatchObject({ you: 'g', seq: 0, project: project.id });
+    expect(joined.ok?.['table']).toMatchObject({ members: [{ id: 'h' }, { id: 'g', name: 'Gus' }], here: ['g', 'h'] });
+    expect(pushes(host).at(-1)).toMatchObject({ table: { members: [{ id: 'h' }, { id: 'g' }] } });
+    gus.close();
+    expect(pushes(host).at(-1)).toMatchObject({ table: { here: ['h'] } });
+  });
+
+  it.skipIf(!built)('refuses what no page tells the game, and the tests\' hands to all but a host given them', async () => {
+    const { table, host } = await opened();
+    const gus = guest(table);
+    gus.ask({ op: 'join' });
+    expect(gus.ask({ op: 'call', call: 'restoreRng', args: [1] }).error).toBe('"restoreRng" is never told to the server\'s game');
+    expect(host.ask({ op: 'call', call: 'restoreSeating', args: [null] }).error).toBe('"restoreSeating" is never told to the server\'s game');
+    expect(gus.ask({ op: 'call', call: 'wound', args: ['x', 1] }).error).toBe('"wound" is the tests\' alone');
+    expect(host.ask({ op: 'call', call: 'wound', args: ['x', 1] }).error).toBe('"wound" is the tests\' alone');
+    const { host: trusted, party } = await opened({ testHands: true });
+    expect(trusted.ask({ op: 'call', call: 'markStress', args: [party[0], 1] }).error).toBeUndefined();
+  });
+
+  it.skipIf(!built)('seats a guest who takes a seat before the start, the host\'s word after; nobody plays until then', async () => {
+    const { table, host, party } = await opened();
+    const gus = guest(table);
+    gus.ask({ op: 'join' });
+    const [mine, theirs] = party as [string, string];
+    expect(gus.ask({ op: 'call', call: 'select', args: [mine] }).ok?.['answer']).toBe(false);
+    expect(gus.ask({ op: 'seat', character: mine, account: 'g' }).ok?.['table']).toMatchObject({ seats: { [mine]: 'g' } });
+    expect(pushes(host).at(-1)).toMatchObject({ table: { seats: { [mine]: 'g' } } });
+    expect(gus.ask({ op: 'start' }).error).toBe('only the host starts the game');
+    expect(host.ask({ op: 'start' }).ok?.['table']).toMatchObject({ started: true });
+    expect(gus.ask({ op: 'seat', character: theirs, account: 'g' }).error).toBe('only the host says who plays whom');
+    expect(gus.ask({ op: 'call', call: 'select', args: [theirs] }).ok?.['answer']).toBe(false);
+    expect(gus.ask({ op: 'call', call: 'select', args: [mine] }).ok?.['answer']).toBe(true);
+    expect(host.ask({ op: 'call', call: 'select', args: [mine] }).ok?.['answer']).toBe(false);
+    expect(host.ask({ op: 'call', call: 'select', args: [theirs] }).ok?.['answer']).toBe(true);
+    expect(host.ask({ op: 'seat', character: theirs, account: 'nobody' }).error).toBe('not at this game');
+  });
+
+  it.skipIf(!built)('pushes what an intent did to the others, numbered - each with their own selection - and a selection alone to nobody', async () => {
+    const { table, host, party } = await opened();
+    const gus = guest(table);
+    gus.ask({ op: 'join' });
+    const [mine, theirs] = party as [string, string];
+    gus.ask({ op: 'seat', character: mine, account: 'g' });
+    host.ask({ op: 'start' });
+    gus.ask({ op: 'call', call: 'select', args: [mine] });
+    const before = pushes(host).length;
+    const selected = host.ask({ op: 'call', call: 'select', args: [theirs] });
+    expect(selected.ok?.['seq']).toBe(4);
+    // A selection is each page's own: nothing on the board the others see changed.
+    expect(pushes(gus).filter((m) => m['push'] !== undefined)).toHaveLength(0);
+    const reach = host.ask({ op: 'ask', ask: 'reach' }).ok as { tiles: number[] };
+    const moved = host.ask({ op: 'call', call: 'moveSelectedTo', args: [reach.tiles.at(-1)] });
+    expect(moved.error).toBeUndefined();
+    const pushed = pushes(gus).find((m) => m['push'] !== undefined)?.['push'] as { by: string; seq: number; board: { replica: { party: { selected: string } } } };
+    expect(pushed).toMatchObject({ by: 'h', seq: moved.ok?.['seq'] });
+    expect(pushed.board.replica.party.selected).toBe(mine);
+    expect(pushes(host).length).toBe(before);
+  });
+
+  it.skipIf(!built)('begins another project at the host\'s word: the table kept, the others pushed the board and the project', async () => {
+    // The tests' hands, for a fight to begin in.
+    const { table, host, open, party } = await opened({ testHands: true });
+    const gus = guest(table);
+    gus.ask({ op: 'join' });
+    const [mine, theirs] = party as [string, string];
+    host.ask({ op: 'seat', character: theirs, account: 'g' });
+    host.ask({ op: 'start' });
+    gus.ask({ op: 'say', text: 'Through the portal?' });
+    // The host walks: the game is somewhere the one begun will not be.
+    const tileOf = (board: unknown, id: string): unknown => (board as { replica: { state: { entities: Record<string, { tile: number }> } } }).replica.state.entities[id]?.tile;
+    const from = tileOf(open.ok?.['board'], mine) as number;
+    const walked = host.ask({ op: 'call', call: 'moveSelectedTo', args: [from + 2] });
+    expect(tileOf(walked.ok?.['board'], mine)).not.toBe(from);
+    const elsewhere = { ...project, id: 'elsewhere' };
+    const begin = { op: 'begin', project: elsewhere, shipped: shippedContent(), table: { animated: false, askDefender: true } };
+    // Not the guest's.
+    const told = pushes(host).length;
+    expect(gus.ask(begin).error).toBe('only the host takes the party into an adventure');
+    expect(pushes(host).length).toBe(told);
+    // The host's: begun afresh, numbered as an intent, the host's own selection theirs.
+    const begun = host.ask(begin);
+    expect(begun.error).toBeUndefined();
+    expect(tileOf(begun.ok?.['board'], mine)).toBe(from);
+    expect(begun.ok?.['seq']).toBe((walked.ok?.['seq'] as number) + 1);
+    // The guest: the board with their own selection on it, and the project to play on over.
+    const pushed = pushes(gus).filter((told) => told['begun'] !== undefined).at(-1) as { push: { board: { replica: { party: { selected: unknown } } }; seq: number; by: string }; begun: { project: { id: string } } };
+    expect(pushed.begun.project.id).toBe('elsewhere');
+    expect([pushed.push.seq, pushed.push.by]).toEqual([begun.ok?.['seq'], 'h']);
+    expect(pushed.push.board.replica.party.selected).toBe(theirs);
+    // The same table: who plays whom and what was said kept, the project a guest's page boots with the new one.
+    const resumed = gus.ask({ op: 'resume' });
+    expect(resumed.ok).toMatchObject({ project: 'elsewhere', table: { seats: { [theirs]: 'g' }, started: true } });
+    expect((gus.ask({ op: 'project' }).ok as { project: { id: string } }).project.id).toBe('elsewhere');
+    expect((resumed.ok?.['chat'] as { text: string }[]).map((line) => line.text)).toEqual(['Through the portal?']);
+    expect(gus.ask({ op: 'call', call: 'select', args: [theirs] }).ok?.['answer']).toBe(true);
+    expect(gus.ask({ op: 'call', call: 'select', args: [mine] }).ok?.['answer']).toBe(false);
+    // A project that will not build leaves the game as it was, nobody pushed anything.
+    const quiet = pushes(gus).length;
+    expect(host.ask({ ...begin, project: { id: 'broken' } }).error).toBeDefined();
+    expect(pushes(gus).length).toBe(quiet);
+    expect(gus.ask({ op: 'resume' }).ok?.['project']).toBe('elsewhere');
+    // Nor mid-fight, when a save could not be made either.
+    expect(host.ask({ op: 'call', call: 'startEncounter', args: ['group-1'] }).error).toBeUndefined();
+    expect(host.ask({ ...begin, project: { ...elsewhere, id: 'mid-fight' } }).error).toMatch(/fight/);
+    expect(pushes(gus).length).toBe(quiet + 1);
+    expect(gus.ask({ op: 'resume' }).ok?.['project']).toBe('elsewhere');
+  });
+
+  it.skipIf(!built)('keeps the adventures a player offers for the host to begin, and lets them go once one is', async () => {
+    const { table, host } = await opened();
+    const gus = guest(table);
+    gus.ask({ op: 'join' });
+    host.ask({ op: 'start' });
+    expect(gus.ask({ op: 'offer', project: { id: 'notes', what: 'a shopping list' } }).error).toBe('that is not a project the engine can play');
+    expect(gus.ask({ op: 'offer', project: 'the-lichgate' }).error).toBe('no adventure offered');
+    const lichgate = JSON.parse(readFileSync(resolve(here, '../../../tests/fixtures/adventure-lichgate.json'), 'utf8')) as Record<string, unknown>;
+    const offered = gus.ask({ op: 'offer', project: lichgate, blurb: 'a'.repeat(400) });
+    const said = [{ id: 'the-lichgate', name: 'The Lichgate', blurb: 'a'.repeat(300), by: { id: 'g', name: 'Gus' } }];
+    expect((offered.ok?.['table'] as { offers: unknown }).offers).toEqual(said);
+    expect(pushes(host).at(-1)).toMatchObject({ table: { offers: said } });
+    // Offered again, in its own place; one that keeps its party says who.
+    gus.ask({ op: 'offer', project: lichgate, blurb: 'A churchyard.' });
+    const kept = gus.ask({ op: 'offer', project: { ...project, id: 'kept', fixedParty: true }, blurb: '' });
+    const offers = (kept.ok?.['table'] as { offers: { id: string; blurb: string; ownParty?: unknown }[] }).offers;
+    expect(offers.map((offer) => [offer.id, offer.blurb])).toEqual([['the-lichgate', 'A churchyard.'], ['kept', '']]);
+    expect(offers[1]!.ownParty).toEqual(project.party.map(({ id, name }) => ({ id, name })));
+    // Read whole by the host's page; begun, let go, everybody told.
+    expect(host.ask({ op: 'offered', adventure: 'the-lichgate' }).ok?.['project']).toEqual(lichgate);
+    expect(host.ask({ op: 'offered', adventure: 'nope' }).error).toBe('no such adventure offered');
+    // Taken back by whoever offered it, or the host, and nobody else; everybody told.
+    const ivy = guest(table, 'i', 'Ivy');
+    ivy.ask({ op: 'join' });
+    expect(ivy.ask({ op: 'withdraw', adventure: 'the-lichgate' }).error).toBe('only whoever offered it, or the host, takes it back');
+    expect(gus.ask({ op: 'withdraw', adventure: 'nope' }).error).toBe('no such adventure offered');
+    const ids = (told: unknown): string[] => ((told as { offers: { id: string }[] }).offers).map((offer) => offer.id);
+    expect(ids(gus.ask({ op: 'withdraw', adventure: 'the-lichgate' }).ok?.['table'])).toEqual(['kept']);
+    expect(ids((pushes(ivy).at(-1) as { table: unknown }).table)).toEqual(['kept']);
+    expect(ids(host.ask({ op: 'withdraw', adventure: 'kept' }).ok?.['table'])).toEqual([]);
+    expect(ids((pushes(gus).at(-1) as { table: unknown }).table)).toEqual([]);
+    host.ask({ op: 'begin', project: { ...project, id: 'elsewhere' }, shipped: shippedContent(), table: { animated: false, askDefender: true } });
+    expect(pushes(host).at(-1)).toMatchObject({ table: { offers: [] } });
+    expect(pushes(gus).at(-1)).toMatchObject({ table: { offers: [] } });
+  });
+
+  it.skipIf(!built)('says what is said at the table to the others, kept for whoever comes after', async () => {
+    const { table, host } = await opened();
+    const gus = guest(table);
+    gus.ask({ op: 'join' });
+    expect(gus.ask({ op: 'say', text: '  hello  ' }).ok).toEqual({ line: { from: 'g', name: 'Gus', text: 'hello', at: 7 } });
+    expect(pushes(host).at(-1)).toEqual({ chat: { from: 'g', name: 'Gus', text: 'hello', at: 7 } });
+    expect(gus.ask({ op: 'say', text: 'x'.repeat(CHAT_LONGEST + 1) }).error).toBe(`a line is ${CHAT_LONGEST} characters at most`);
+    expect(guest(table, 'k', 'Kit').ask({ op: 'join' }).ok?.['chat']).toHaveLength(1);
+  });
+
+  it.skipIf(!built)('loads the host\'s save alone, from the host\'s browser', async () => {
+    const saves = new Map<string, string>();
+    const { table, host } = await opened({ readSave: (slot) => (saves.has(slot) ? { text: saves.get(slot)! } : null) });
+    const gus = guest(table);
+    gus.ask({ op: 'join' });
+    expect(gus.ask({ op: 'load', slot: 's1' }).error).toBe('only the host loads a save into a game others are at');
+    expect(host.ask({ op: 'load', slot: 's1' }).error).toBe('no such save');
+    expect(host.ask({ op: 'save', slot: 's1' }).error).toBe("the host's page keeps this game's saves");
+  });
+
+  it.skipIf(!built)("gives a save who plays whom - the seats, those kept, and everybody's names", async () => {
+    const { table, host, party } = await opened();
+    const gus = guest(table);
+    gus.ask({ op: 'join' });
+    const [hers, his] = party as [string, string];
+    host.ask({ op: 'seat', character: hers, account: 'h' });
+    gus.ask({ op: 'seat', character: his, account: 'g' });
+    expect(table.seating()).toEqual({ seats: { [hers]: 'h', [his]: 'g' }, names: { h: 'Hana', g: 'Gus' } });
+  });
+
+  it.skipIf(!built)('seats everybody again from a save: by their id, by the name a new id goes by, and keeps the rest a seat until they come', async () => {
+    const saves = new Map<string, { text: string; seats: Record<string, string>; names: Record<string, string> }>();
+    // An evening played: Hana hosting, Gus and Kit seated, saved.
+    const first = await opened();
+    const [a, b, c] = first.party as [string, string, string];
+    const gus = guest(first.table, 'g1', 'Gus');
+    gus.ask({ op: 'join' });
+    const kit = guest(first.table, 'k1', 'Kit');
+    kit.ask({ op: 'join' });
+    first.host.ask({ op: 'seat', character: a, account: 'h' });
+    first.host.ask({ op: 'seat', character: b, account: 'g1' });
+    first.host.ask({ op: 'seat', character: c, account: 'k1' });
+    first.host.ask({ op: 'start' });
+    const text = (first.host.ask({ op: 'call', call: 'serialiseSave', args: [] }).ok as { answer: string }).answer;
+    saves.set('s1', { text, ...first.table.seating() });
+
+    // Another evening: every tab new, so every id; Hana hosts again as 'h2', Gus comes as 'g2' before the load.
+    const engine = await WasmEngine.load(readFileSync(WASM));
+    const table = new HostTable(engine, { id: 'h2', name: 'Hana' }, { readSave: (slot) => saves.get(slot) ?? null });
+    const host = far();
+    table.attach(host.link, { id: 'h2', name: 'Hana' }, true);
+    host.ask({ op: 'open', project, shipped: shippedContent(), table: { animated: false, askDefender: true }, rng: 12345, lobby: true });
+    const gus2 = guest(table, 'g2', ' gus ');
+    gus2.ask({ op: 'join' });
+    expect(gus2.ask({ op: 'load', slot: 's1' }).error).toBe('only the host loads a save into a game others are at');
+    expect(host.ask({ op: 'load', slot: 's1' }).error).toBeUndefined();
+    expect(table.table()).toMatchObject({ seats: { [a]: 'h2', [b]: 'g2' }, kept: { [c]: { id: 'k1', name: 'Kit' } } });
+    expect(pushes(gus2).at(-1)).toMatchObject({ table: { kept: { [c]: { name: 'Kit' } } } });
+    // Kit comes, with a tab of their own: their seat is theirs.
+    const kit2 = guest(table, 'k2', 'Kit');
+    kit2.ask({ op: 'join' });
+    expect(table.table()).toMatchObject({ seats: { [a]: 'h2', [b]: 'g2', [c]: 'k2' }, kept: {} });
+    // Saved again, it says who plays whom now.
+    expect(table.seating().seats).toEqual({ [a]: 'h2', [b]: 'g2', [c]: 'k2' });
+  });
+
+  it.skipIf(!built)("removes a guest at the host's word: their pages told and let go, their seats nobody's, the others told", async () => {
+    const { table, host, party } = await opened();
+    const gus = guest(table);
+    gus.ask({ op: 'join' });
+    let closed = 0;
+    const second = far();
+    table.attach({ ...second.link, close: () => void closed++ }, { id: 'g', name: 'Gus' });
+    second.ask({ op: 'join' });
+    const [his] = party as [string];
+    gus.ask({ op: 'seat', character: his, account: 'g' });
+    expect(table.isMember('g')).toBe(true);
+    expect(table.remove('h')).toBe(false);
+    expect(table.remove('nobody')).toBe(false);
+    expect(table.remove('g')).toBe(true);
+    expect(gus.heard.at(-1)).toEqual({ removed: true });
+    expect(closed).toBe(1);
+    expect(table.isMember('g')).toBe(false);
+    expect(table.table()).toMatchObject({ members: [{ id: 'h' }], seats: {} });
+    expect(pushes(host).at(-1)).toMatchObject({ table: { members: [{ id: 'h' }], seats: {} } });
+    // Nothing more of theirs is played: they are at no game.
+    expect(second.ask({ op: 'call', call: 'select', args: [his] }).error).toBe('no game: open one');
+    expect(table.isMember('h')).toBe(true);
+  });
+
+  it.skipIf(!built)('turns away a guest who says they are the host', async () => {
+    const { table } = await opened();
+    let closed = false;
+    const at = far();
+    table.attach({ ...at.link, close: () => void (closed = true) }, { id: 'h', name: 'Not Hana' });
+    expect(closed).toBe(true);
+    expect(table.table().members).toEqual([{ id: 'h', name: 'Hana' }]);
+  });
+});

@@ -38,6 +38,8 @@ import {
 } from '../session';
 import { MODELS } from '../../engine/render/procedural/registry';
 import { Inspector } from './Inspector';
+import { PickedCreature } from './CreatureEditor';
+import type { AdversaryDef } from '../../engine/content/types';
 import { TOOL_LABELS } from './ToolRail';
 import { PropFunctionEditor } from './PropFunctionEditor';
 import { SheetEditor } from './SheetEditor';
@@ -435,6 +437,7 @@ export function TerrainSide(props: {
                 key={material}
                 class={controller.state.buildMaterial === material ? 'ph-chip ph-on' : 'ph-chip'}
                 style={{ borderBottom: `3px solid ${BUILD_MATERIALS[material]}` }}
+                title="The tint a plain piece is drawn in. A piece drawn in an imported material takes its kind's colour instead, as far as the material's Tint says."
                 onClick={() => {
                   controller.set('buildMaterial', material);
                   props.onChange();
@@ -858,10 +861,16 @@ function CreatureInteraction(props: {
   );
 }
 
-/** Combat mode's side: the tool in hand, the selected creature, and which encounter placements go into. */
+/**
+ * Combat mode's side: the tool in hand, the creature picked to place - copied as a new one, and the
+ * project's own changed (`CreatureEditor.tsx`) - the selected creature, and which encounter placements
+ * go into.
+ */
 export function CombatSide(props: {
   session: EditorSession;
   controller: EditorController;
+  /** Every creature there is to place: the build's and the project's own. */
+  creatures: readonly AdversaryDef[];
   onChange: () => void;
 }): preact.JSX.Element {
   const { controller } = props;
@@ -872,6 +881,7 @@ export function CombatSide(props: {
     <aside class="ph-side ph-panel" data-testid="combat-side">
       <div class="ph-heading">{TOOL_LABELS[tool]}</div>
       <div class="ph-hint">{COMBAT_HINTS[tool] ?? ''}</div>
+      <PickedCreature session={props.session} controller={controller} creatures={props.creatures} onChange={props.onChange} />
       <SelectedCreature session={props.session} controller={controller} onChange={props.onChange} />
       <div class="ph-heading">Encounter</div>
       {scene.encounters.length === 0 ? (

@@ -1,0 +1,463 @@
+{
+ "about": "tools/your-models.ts run for the Rust port; written by tests/unit/your-models.golden.test.ts",
+ "fileOfUrl": [
+  {
+   "url": "/__models/u/bramble/imported/golem.glb",
+   "named": {
+    "account": "bramble",
+    "file": "golem.glb"
+   }
+  },
+  {
+   "url": "/__models/u/rt-a/imported/golem-2.glb",
+   "named": {
+    "account": "rt-a",
+    "file": "golem-2.glb"
+   }
+  },
+  {
+   "url": "/__models/u/under_score/imported/a1-b2-c3.glb",
+   "named": {
+    "account": "under_score",
+    "file": "a1-b2-c3.glb"
+   }
+  },
+  {
+   "url": "/__models/u/bramble/imported/../../accounts.json",
+   "named": null
+  },
+  {
+   "url": "/__models/u/../imported/golem.glb",
+   "named": null
+  },
+  {
+   "url": "/__models/u/bramble/imported/golem.gltf",
+   "named": null
+  },
+  {
+   "url": "/__models/u/bramble/imported/Golem.glb",
+   "named": null
+  },
+  {
+   "url": "/__models/u/bramble/imported/golem-.glb",
+   "named": null
+  },
+  {
+   "url": "/__models/u/bramble/imported/-golem.glb",
+   "named": null
+  },
+  {
+   "url": "/__models/u/Bramble/imported/golem.glb",
+   "named": null
+  },
+  {
+   "url": "/__models/u/ab/imported/golem.glb",
+   "named": null
+  },
+  {
+   "url": "/__models/u/aaaaaaaaaaaaaaaaaaaaaaaaa/imported/golem.glb",
+   "named": null
+  },
+  {
+   "url": "/__models/u/bramble/imported/golem.glb?x=1",
+   "named": null
+  },
+  {
+   "url": "/__models/u/bramble/imported/",
+   "named": null
+  },
+  {
+   "url": "/__models/u/bramble/golem.glb",
+   "named": null
+  },
+  {
+   "url": "/models/golem.glb",
+   "named": null
+  },
+  {
+   "url": "",
+   "named": null
+  }
+ ],
+ "import": [
+  {
+   "body": "{\"name\":\"g.glb\",\"data\":\"data:model/gltf-binary;base64,Z2xURgIAAAAB\"}",
+   "verdict": {
+    "ok": true,
+    "name": "g.glb",
+    "hex": "676c54460200000001"
+   }
+  },
+  {
+   "body": "{\"name\":\"g.glb\",\"data\":\"Z2xURgIAAAAB\"}",
+   "verdict": {
+    "ok": true,
+    "name": "g.glb",
+    "hex": "676c54460200000001"
+   }
+  },
+  {
+   "body": "{\"name\":\"g.glb\",\"data\":\"Z2x URg==\"}",
+   "verdict": {
+    "ok": true,
+    "name": "g.glb",
+    "hex": "676c5446"
+   }
+  },
+  {
+   "body": "{\"url\":\"/__models/u/violet/imported/wolf.glb\"}",
+   "verdict": {
+    "ok": true,
+    "url": {
+     "account": "violet",
+     "file": "wolf.glb"
+    }
+   }
+  },
+  {
+   "body": "{\"url\":\"/etc/passwd\"}",
+   "verdict": {
+    "ok": false,
+    "reason": "that is not a model in a player’s folder"
+   }
+  },
+  {
+   "body": "{\"url\":5,\"name\":\"g.glb\",\"data\":\"Z2xURgIAAAAB\"}",
+   "verdict": {
+    "ok": true,
+    "name": "g.glb",
+    "hex": "676c54460200000001"
+   }
+  },
+  {
+   "body": "{\"url\":null,\"name\":\"g.glb\",\"data\":\"Z2xURgIAAAAB\"}",
+   "verdict": {
+    "ok": true,
+    "name": "g.glb",
+    "hex": "676c54460200000001"
+   }
+  },
+  {
+   "body": "{\"name\":\"g.glb\"}",
+   "verdict": {
+    "ok": false,
+    "reason": "an import is a file’s name and its data"
+   }
+  },
+  {
+   "body": "{\"data\":\"Z2xURgIAAAAB\"}",
+   "verdict": {
+    "ok": false,
+    "reason": "an import is a file’s name and its data"
+   }
+  },
+  {
+   "body": "{\"name\":3,\"data\":\"Z2xURgIAAAAB\"}",
+   "verdict": {
+    "ok": false,
+    "reason": "an import is a file’s name and its data"
+   }
+  },
+  {
+   "body": "{}",
+   "verdict": {
+    "ok": false,
+    "reason": "an import is a file’s name and its data"
+   }
+  },
+  {
+   "body": "[]",
+   "verdict": {
+    "ok": false,
+    "reason": "an import is a file’s name and its data"
+   }
+  },
+  {
+   "body": "\"text\"",
+   "verdict": {
+    "ok": false,
+    "reason": "an import is a file’s name and its data"
+   }
+  },
+  {
+   "body": "7",
+   "verdict": {
+    "ok": false,
+    "reason": "an import is a file’s name and its data"
+   }
+  },
+  {
+   "body": "not json",
+   "verdict": {
+    "ok": false,
+    "reason": "not JSON"
+   }
+  },
+  {
+   "body": "",
+   "verdict": {
+    "ok": false,
+    "reason": "not JSON"
+   }
+  }
+ ],
+ "folder": {
+  "steps": [
+   {
+    "account": "bramble",
+    "name": "Stone Golem.glb",
+    "bytes": [
+     103,
+     108,
+     84,
+     70,
+     2,
+     0,
+     0,
+     0,
+     1
+    ],
+    "listing": null,
+    "model": {
+     "id": "stone-golem",
+     "file": "stone-golem.glb",
+     "url": "/__models/u/bramble/imported/stone-golem.glb",
+     "hash": "319709669655802302dcdc31a23aa8b6db5d9fd54bf5d0b9d520e5f874c77679"
+    },
+    "fresh": true
+   },
+   {
+    "account": "bramble",
+    "name": "another-name.glb",
+    "bytes": [
+     103,
+     108,
+     84,
+     70,
+     2,
+     0,
+     0,
+     0,
+     1
+    ],
+    "listing": "0123456789abcdef",
+    "model": {
+     "id": "stone-golem",
+     "file": "stone-golem.glb",
+     "url": "/__models/u/bramble/imported/stone-golem.glb",
+     "hash": "319709669655802302dcdc31a23aa8b6db5d9fd54bf5d0b9d520e5f874c77679",
+     "listing": "0123456789abcdef"
+    },
+    "fresh": false
+   },
+   {
+    "account": "bramble",
+    "name": "Stone Golem.glb",
+    "bytes": [
+     103,
+     108,
+     84,
+     70,
+     2,
+     0,
+     0,
+     0,
+     2
+    ],
+    "listing": null,
+    "model": {
+     "id": "stone-golem-2",
+     "file": "stone-golem-2.glb",
+     "url": "/__models/u/bramble/imported/stone-golem-2.glb",
+     "hash": "1192f1e600740db9167f4add10cb6ec03b4e6bed43bc8555aee3bb91f667566c"
+    },
+    "fresh": true
+   },
+   {
+    "account": "bramble",
+    "name": "stone_golem.GLB",
+    "bytes": [
+     103,
+     108,
+     84,
+     70,
+     2,
+     0,
+     0,
+     0,
+     3
+    ],
+    "listing": "fedcba9876543210",
+    "model": {
+     "id": "stone-golem-3",
+     "file": "stone-golem-3.glb",
+     "url": "/__models/u/bramble/imported/stone-golem-3.glb",
+     "hash": "0a258c7f43c1a66d89bfc4ab2c6d66cea4d5b7b530fbd2ba33cc97114983933f",
+     "listing": "fedcba9876543210"
+    },
+    "fresh": true
+   },
+   {
+    "account": "bramble",
+    "name": "x.glb",
+    "bytes": [
+     103,
+     108,
+     84,
+     70,
+     2,
+     0,
+     0,
+     0,
+     3
+    ],
+    "listing": "1111111111111111",
+    "model": {
+     "id": "stone-golem-3",
+     "file": "stone-golem-3.glb",
+     "url": "/__models/u/bramble/imported/stone-golem-3.glb",
+     "hash": "0a258c7f43c1a66d89bfc4ab2c6d66cea4d5b7b530fbd2ba33cc97114983933f",
+     "listing": "fedcba9876543210"
+    },
+    "fresh": false
+   },
+   {
+    "account": "bramble",
+    "name": "!!!.glb",
+    "bytes": [
+     103,
+     108,
+     84,
+     70,
+     2,
+     0,
+     0,
+     0,
+     4
+    ],
+    "listing": null,
+    "model": {
+     "id": "model",
+     "file": "model.glb",
+     "url": "/__models/u/bramble/imported/model.glb",
+     "hash": "3e84877023fe9074c95d66ac75d2928dcdbf5582b09941100d633b5ffef3fce7"
+    },
+    "fresh": true
+   },
+   {
+    "account": "bramble",
+    "name": "picture.png",
+    "bytes": [
+     137,
+     80,
+     78,
+     71
+    ],
+    "listing": null,
+    "refused": "a model is a binary glTF (.glb)"
+   },
+   {
+    "account": "../etc",
+    "name": "a.glb",
+    "bytes": [
+     103,
+     108,
+     84,
+     70,
+     2,
+     0,
+     0,
+     0,
+     5
+    ],
+    "listing": null,
+    "refused": "no such account"
+   },
+   {
+    "account": "Bramble",
+    "name": "a.glb",
+    "bytes": [
+     103,
+     108,
+     84,
+     70,
+     2,
+     0,
+     0,
+     0,
+     5
+    ],
+    "listing": null,
+    "refused": "no such account"
+   },
+   {
+    "account": "violet",
+    "name": "Stone Golem.glb",
+    "bytes": [
+     103,
+     108,
+     84,
+     70,
+     2,
+     0,
+     0,
+     0,
+     2
+    ],
+    "listing": null,
+    "model": {
+     "id": "stone-golem",
+     "file": "stone-golem.glb",
+     "url": "/__models/u/violet/imported/stone-golem.glb",
+     "hash": "1192f1e600740db9167f4add10cb6ec03b4e6bed43bc8555aee3bb91f667566c"
+    },
+    "fresh": true
+   }
+  ],
+  "files": [
+   {
+    "account": "bramble",
+    "models": [
+     {
+      "id": "stone-golem",
+      "file": "stone-golem.glb",
+      "url": "/__models/u/bramble/imported/stone-golem.glb",
+      "hash": "319709669655802302dcdc31a23aa8b6db5d9fd54bf5d0b9d520e5f874c77679",
+      "listing": "0123456789abcdef"
+     },
+     {
+      "id": "stone-golem-2",
+      "file": "stone-golem-2.glb",
+      "url": "/__models/u/bramble/imported/stone-golem-2.glb",
+      "hash": "1192f1e600740db9167f4add10cb6ec03b4e6bed43bc8555aee3bb91f667566c"
+     },
+     {
+      "id": "stone-golem-3",
+      "file": "stone-golem-3.glb",
+      "url": "/__models/u/bramble/imported/stone-golem-3.glb",
+      "hash": "0a258c7f43c1a66d89bfc4ab2c6d66cea4d5b7b530fbd2ba33cc97114983933f",
+      "listing": "fedcba9876543210"
+     },
+     {
+      "id": "model",
+      "file": "model.glb",
+      "url": "/__models/u/bramble/imported/model.glb",
+      "hash": "3e84877023fe9074c95d66ac75d2928dcdbf5582b09941100d633b5ffef3fce7"
+     }
+    ]
+   },
+   {
+    "account": "violet",
+    "models": [
+     {
+      "id": "stone-golem",
+      "file": "stone-golem.glb",
+      "url": "/__models/u/violet/imported/stone-golem.glb",
+      "hash": "1192f1e600740db9167f4add10cb6ec03b4e6bed43bc8555aee3bb91f667566c"
+     }
+    ]
+   }
+  ],
+  "indexFile": "[\n  {\n    \"id\": \"stone-golem\",\n    \"file\": \"stone-golem.glb\",\n    \"url\": \"/__models/u/bramble/imported/stone-golem.glb\",\n    \"hash\": \"319709669655802302dcdc31a23aa8b6db5d9fd54bf5d0b9d520e5f874c77679\",\n    \"added\": 1790000000000,\n    \"listing\": \"0123456789abcdef\"\n  },\n  {\n    \"id\": \"stone-golem-2\",\n    \"file\": \"stone-golem-2.glb\",\n    \"url\": \"/__models/u/bramble/imported/stone-golem-2.glb\",\n    \"hash\": \"1192f1e600740db9167f4add10cb6ec03b4e6bed43bc8555aee3bb91f667566c\",\n    \"added\": 1790000000000\n  },\n  {\n    \"id\": \"stone-golem-3\",\n    \"file\": \"stone-golem-3.glb\",\n    \"url\": \"/__models/u/bramble/imported/stone-golem-3.glb\",\n    \"hash\": \"0a258c7f43c1a66d89bfc4ab2c6d66cea4d5b7b530fbd2ba33cc97114983933f\",\n    \"listing\": \"fedcba9876543210\",\n    \"added\": 1790000000000\n  },\n  {\n    \"id\": \"model\",\n    \"file\": \"model.glb\",\n    \"url\": \"/__models/u/bramble/imported/model.glb\",\n    \"hash\": \"3e84877023fe9074c95d66ac75d2928dcdbf5582b09941100d633b5ffef3fce7\",\n    \"added\": 1790000000000\n  }\n]\n"
+ }
+}

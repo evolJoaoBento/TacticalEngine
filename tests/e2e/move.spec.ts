@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures';
 
 /**
  * Movement in a fight is a distance, spent along the line walked: a click past it walks as

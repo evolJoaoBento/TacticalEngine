@@ -23,6 +23,7 @@ export function modelNamesIn(project: ProjectDoc): Set<string> {
     else if (Array.isArray(value)) for (const item of value) walk(item);
     else if (value !== null && typeof value === 'object') for (const item of Object.values(value)) walk(item);
   };
-  for (const [key, value] of Object.entries(project)) if (key !== 'assets') walk(value);
+  // Nor the imported materials: they name no models, and their maps are megabytes of text.
+  for (const [key, value] of Object.entries(project)) if (key !== 'assets' && key !== 'surfaces') walk(value);
   return named;
 }

@@ -105,6 +105,16 @@ export function validateProject(
   checkItemUses(project, options, (severity, message, entity) => {
     problems.push({ severity, message, ...(entity === undefined ? {} : { entity }) });
   });
+  checkProjectPlans(project, (severity, message, entity) => {
+    problems.push({ severity, message, ...(entity === undefined ? {} : { entity }) });
+  });
+  checkCardsGiven(project, options, (severity, message, entity) => {
+    problems.push({ severity, message, ...(entity === undefined ? {} : { entity }) });
+  });
+  checkFixedParty(project, (severity, message) => problems.push({ severity, message }));
+  checkCompanionsJoining(project, (severity, message, entity) => {
+    problems.push({ severity, message, ...(entity === undefined ? {} : { entity }) });
+  });
   checkAbilitiesAndCode(project, options, (severity, message, entity) => {
     problems.push({ severity, message, ...(entity === undefined ? {} : { entity }) });
   });
@@ -118,6 +128,9 @@ export function validateProject(
     problems.push({ severity, message, ...(entity === undefined ? {} : { entity }) });
   });
   checkEmbeddedAssets(project, (severity, message, entity) => {
+    problems.push({ severity, message, ...(entity === undefined ? {} : { entity }) });
+  });
+  checkSurfaces(project, (severity, message, entity) => {
     problems.push({ severity, message, ...(entity === undefined ? {} : { entity }) });
   });
   checkJumpRules(project, options.knownConditions, (severity, message) => problems.push({ severity, message }));
@@ -234,8 +247,10 @@ function checkParty(
 ): void {
   const content = options.characterContent;
   if (content === undefined) return;
-  for (const sheet of project.party) {
-    const who = sheet.name || sheet.id;
+  // The companions too: each plays at the table once asked along, as the sheet written here.
+  const sheets = [...project.party.map((sheet) => ({ sheet, companion: false })), ...project.companions.map((sheet) => ({ sheet, companion: true }))];
+  for (const { sheet, companion } of sheets) {
+    const who = companion ? `Companion ${sheet.name || sheet.id}` : sheet.name || sheet.id;
     for (const issue of deriveCharacter(sheet, content, project.abilities).issues) {
       add('error', `${who}: ${issue.field} — ${issue.message}`, sheet.id);
     }
@@ -745,24 +760,112 @@ function checkItemUses(
   const dialogueIds = new Set(project.dialogues.map((d) => d.id));
   const tableIds = new Set(project.lootTables.map((t) => t.id));
   const itemIds = new Set(itemsFor(project).map((i) => i.id));
-  for (const item of project.items) {
-    const quests = questReferences(project, item.id, add);
-    walkEffects(item.use, (effect) => {
+  // An item's use, and a project plan's reward: the same checks, the one effect vocabulary.
+  const uses = (what: string, owner: string, effects: readonly Effect[]): void => {
+    const quests = questReferences(project, owner, add);
+    walkEffects(effects, (effect) => {
       quests.effect(effect);
       if (effect.kind === 'goto' && !sceneIds.has(effect.scene)) {
-        add('error', `Item "${item.id}" travels to scene "${effect.scene}", which does not exist.`, item.id);
+        add('error', `${what} "${owner}" travels to scene "${effect.scene}", which does not exist.`, owner);
       }
       if (effect.kind === 'startDialogue' && !dialogueIds.has(effect.dialogue)) {
-        add('error', `Item "${item.id}" starts conversation "${effect.dialogue}", which does not exist.`, item.id);
+        add('error', `${what} "${owner}" starts conversation "${effect.dialogue}", which does not exist.`, owner);
       }
       if (effect.kind === 'loot' && effect.table !== undefined && !tableIds.has(effect.table)) {
-        add('error', `Item "${item.id}" draws from loot table "${effect.table}", which does not exist.`, item.id);
+        add('error', `${what} "${owner}" draws from loot table "${effect.table}", which does not exist.`, owner);
       }
       if ((effect.kind === 'addItem' || effect.kind === 'removeItem') && !itemIds.has(effect.item)) {
-        add('error', `Item "${item.id}" refers to item "${effect.item}", which does not exist.`, item.id);
+        add('error', `${what} "${owner}" refers to item "${effect.item}", which does not exist.`, owner);
       }
     });
-    walkConditionsIn(item.use, quests.condition);
+    walkConditionsIn(effects, quests.condition);
+  };
+  for (const item of project.items) uses('Item', item.id, item.use);
+  for (const plan of project.projectPlans ?? []) uses('Project plan', plan.id, plan.reward);
+}
+
+/**
+ * Every effect list a project writes outside its cards: the things in its rooms (and their checks), its
+ * conversations (each node's arrival, each reply and its check), its items' uses and its project plans' rewards.
+ */
+function walkProjectEffects(project: ProjectDoc, visit: (effect: Effect) => void): void {
+  for (const scene of project.scenes) {
+    // Props with a function included: a quest step completed by a strongbox is completed.
+    for (const interactable of interactablesOf(scene)) {
+      walkEffects(interactable.effects, visit);
+      if (interactable.check !== undefined) walkCheck(interactable.check, visit);
+    }
+  }
+  for (const dialogue of project.dialogues) {
+    for (const node of dialogue.nodes) {
+      walkEffects(node.onEnter, visit);
+      for (const choice of node.choices ?? []) {
+        walkEffects(choice.effects, visit);
+        if (choice.check !== undefined) walkCheck(choice.check, visit);
+      }
+    }
+  }
+  for (const item of project.items) walkEffects(item.use, visit);
+  for (const plan of project.projectPlans ?? []) walkEffects(plan.reward, visit);
+}
+
+/**
+ * A "Give a card" effect naming a card there is not - checked against the project's cards and the content it is
+ * checked against, when there is that - or a receiver who is not in the party.
+ */
+function checkCardsGiven(
+  project: ProjectDoc,
+  options: ValidationOptions,
+  add: (severity: ProblemSeverity, message: string, entity?: string) => void,
+): void {
+  const packed = options.characterContent?.cards;
+  const cards = packed === undefined ? null : new Set([...project.cards.map((card) => card.id), ...packed.keys()]);
+  const party = new Set(project.party.map((sheet) => sheet.id));
+  walkProjectEffects(project, (effect) => {
+    if (effect.kind !== 'grantCard') return;
+    if (cards !== null && !cards.has(effect.card)) add('error', `A "Give a card" effect gives card "${effect.card}", which does not exist.`, effect.card);
+    if (effect.to !== undefined && !party.has(effect.to)) add('error', `A "Give a card" effect gives a card to "${effect.to}", who is not in the party.`, effect.to);
+  });
+}
+
+/** A project that keeps its party (`fixedParty`) with no party to keep: the portal's leader would go in alone. */
+function checkFixedParty(project: ProjectDoc, add: (severity: ProblemSeverity, message: string) => void): void {
+  if (project.fixedParty === true && project.party.length === 0) {
+    add('warning', 'The project keeps its party, but has none: begun at a camp\'s portal, whoever leads the party there goes in alone.');
+  }
+}
+
+/** A "Join the party" effect naming a companion the project has not got; a companion nothing asks along. */
+function checkCompanionsJoining(
+  project: ProjectDoc,
+  add: (severity: ProblemSeverity, message: string, entity?: string) => void,
+): void {
+  const companions = new Set(project.companions.map((sheet) => sheet.id));
+  const asked = new Set<string>();
+  walkProjectEffects(project, (effect) => {
+    if (effect.kind !== 'joinParty') return;
+    asked.add(effect.companion);
+    if (!companions.has(effect.companion)) add('error', `A "Join the party" effect names companion "${effect.companion}", who is not one of the project's companions.`, effect.companion);
+  });
+  for (const sheet of project.companions) {
+    if (!asked.has(sheet.id)) add('warning', `Companion "${sheet.id}" can never join: no "Join the party" effect names them.`, sheet.id);
+  }
+}
+
+/** A plan taught that the project has not got; a plan nothing teaches (`content/projects.ts`). */
+function checkProjectPlans(
+  project: ProjectDoc,
+  add: (severity: ProblemSeverity, message: string, entity?: string) => void,
+): void {
+  const plans = new Set((project.projectPlans ?? []).map((plan) => plan.id));
+  const taught = new Set<string>();
+  walkProjectEffects(project, (effect) => {
+    if (effect.kind !== 'learnPlan') return;
+    taught.add(effect.plan);
+    if (!plans.has(effect.plan)) add('error', `A "Teach a project plan" effect names plan "${effect.plan}", which does not exist.`, effect.plan);
+  });
+  for (const plan of project.projectPlans ?? []) {
+    if (!taught.has(plan.id)) add('warning', `Project plan "${plan.id}" is never taught by anything: no "Teach a project plan" effect names it.`, plan.id);
   }
 }
 
@@ -819,23 +922,7 @@ function checkQuests(
     }
     if (effect.kind === 'revealObjective') started.add(effect.quest);
   };
-  for (const scene of project.scenes) {
-    // Props with a function included: a quest step completed by a strongbox is completed.
-    for (const interactable of interactablesOf(scene)) {
-      walkEffects(interactable.effects, visit);
-      if (interactable.check !== undefined) walkCheck(interactable.check, visit);
-    }
-  }
-  for (const dialogue of project.dialogues) {
-    for (const node of dialogue.nodes) {
-      walkEffects(node.onEnter, visit);
-      for (const choice of node.choices ?? []) {
-        walkEffects(choice.effects, visit);
-        if (choice.check !== undefined) walkCheck(choice.check, visit);
-      }
-    }
-  }
-  for (const item of project.items) walkEffects(item.use, visit);
+  walkProjectEffects(project, visit);
   for (const quest of project.quests) {
     if (!started.has(quest.id)) {
       add('warning', `Quest "${quest.id}" is never started by anything.`, quest.id);
@@ -1172,6 +1259,28 @@ function checkEmbeddedAssets(
 }
 
 /**
+ * The imported materials kinds of tile are drawn in (`TileSurface`): one a kind names that the project has not got - it
+ * would draw as a plain box, which is a mistake with no other way of being seen; one a kind names beside a model, which
+ * the model wins; and how heavy they all are together, carried in the document as they are.
+ */
+export function checkSurfaces(
+  project: ProjectDoc,
+  add: (severity: ProblemSeverity, message: string, entity?: string) => void,
+): void {
+  const surfaces = new Set((project.surfaces ?? []).map((surface) => surface.id));
+  for (const kind of project.terrainPalette ?? []) {
+    if (kind.surface === undefined) continue;
+    if (!surfaces.has(kind.surface)) add('error', `Kind of tile "${kind.name || kind.id}" is drawn in surface "${kind.surface}", which the project does not have.`, kind.id);
+    else if (kind.model !== undefined) add('warning', `Kind of tile "${kind.name || kind.id}" is drawn with the model "${kind.model}"; its surface "${kind.surface}" is ignored.`, kind.id);
+  }
+  let bytes = 0;
+  for (const surface of project.surfaces ?? []) {
+    for (const url of Object.values(surface.maps ?? {})) bytes += Math.floor(((url.length - url.indexOf(',') - 1) * 3) / 4);
+  }
+  if (bytes >= EMBEDDED_WARN_BYTES) add('warning', `Imported materials are carried inside the project at ${(bytes / 1_048_576).toFixed(1)} MB; saving and loading will feel it.`);
+}
+
+/**
  * What creatures are drawn with, per type and per placement.
  *
  * Like the other model checks, this runs only when the caller says which ids the
@@ -1215,9 +1324,10 @@ function checkAdversaryModels(
   // A character picked out on the sheet, by the same rule: a party member drawn with
   // something nothing can supply stands as the magenta placeholder, which is the library's
   // honest answer and not one anybody means to ship.
-  for (const sheet of project.party) {
+  const sheets = [...project.party.map((sheet) => ({ sheet, who: '' })), ...project.companions.map((sheet) => ({ sheet, who: 'Companion ' }))];
+  for (const { sheet, who } of sheets) {
     if (sheet.model === undefined || resolvable(sheet.model)) continue;
-    add('warning', `"${sheet.name || sheet.id}" is drawn with "${sheet.model}", which nothing can supply.`, sheet.id);
+    add('warning', `${who}"${sheet.name || sheet.id}" is drawn with "${sheet.model}", which nothing can supply.`, sheet.id);
   }
 }
 

@@ -36,8 +36,222 @@ modders and test authors can drive the game through it, but nothing in the engin
 
 ## 2. Playing
 
-The page opens in **play mode** on the demo project's start scene. `Ctrl+E` (or `Cmd+E`)
-switches between play and edit at any time.
+### The main menu
+
+The page opens on the **main menu**:
+
+- **New Game** makes a character, card by card, and begins a camp of their own (below).
+- **Load Game** plays on: the Demo Vault from the start or from any save of it, and every game you
+  began - a camp, or an adventure begun through a camp's portal - from where it was left
+  (**Continue**) or from any save of it. Each game's saves are listed under it.
+- **Adventures** is what a camp's portal offers: the Ashwell, which is built in, and any adventure you
+  bring in - got from the **Store**, or imported. **Import from a file** takes a project file - one saved from Edit Game, or somebody else's -
+  checked as the editor checks a project it opens; a file that is not one is refused, and the menu says
+  why. An imported adventure is kept in this browser, with **Remove** beside it; games begun from it
+  stay when it goes. A game is **played
+  only** here: there is no editor, and `Ctrl+E` does nothing.
+- **Edit Game** is the app as it always was: the project with the editor, opening in edit mode.
+  `Ctrl+E` (or `Cmd+E`) switches between play and edit at any time.
+
+Each choice opens the page again with it in the address (`?edit`, `?play`, `?project=<id>`,
+`?load=<save>`), and **Main menu** at the foot of the settings (Esc) comes back to it. A server
+started for the tests opens straight on the game; `?menu` opens the menu there.
+
+**The Ashwell** is the engine's own adventure: a grim dungeon under the drowned town of Hallowmere,
+five levels deep when it is done, of which the first is built (`docs/ASHWELL.md` has the whole of it).
+Begin it at a camp: make a character with **New Game**, ask whoever you want along, and use the
+**portal** at the clearing's west edge; choose **The Ashwell** and **Begin**. You begin in the Lantern &
+Lye, the tavern built over the well, with the party that went through - SRD characters with the cards
+they were made with. Talk to **Mother Ketch** first - the well will not take
+you until you have - then use the well to climb down into the Throat. Level 1 is three rooms: the
+Throat itself, with the Wellrats' camp at the end of its flooded gallery; the Kennel, down the
+passage from the shaft; and the Sump, down the passage from the camp, where the Cistern Warden keeps
+the key to the gate over the stair down. Each room holds one fight, begun by walking into it. A chest
+that belongs to a fight's side will not open while that side is standing. The stair down ends the
+level and takes you on, through a door of bone, into **Level 2, the Ossuary Market**: a market of the
+dead, kept by the polite Quiet Guild. Nobody fights in the Market. Usher Grale, at the Guild's door,
+sets you an errand in the Charnel Pit below; done, he marks you, and the Counting House opens. There
+Sela Marrow, the Bone-Broker, sells the way down for a name - Mother Ketch's, one of your own (it
+costs every one of you Stress), or the dead Warden's if you can talk her into it - and you may refuse
+and take the key from her instead. Factor Dunmere's stall sells potions and gear for gold. The wet
+stair past the Bone Door ends Level 2 for now: back to the Lantern, a level higher, where Ketch has
+heard of the Guild - and, if it was her name you sold, has lost something she cannot place.
+
+The wet stair now goes on into **Level 3, the Drowned Library**: Aud Brennock's fire in the Reading Room
+(talk to her before you go deeper - she gives you her tinder), the ink-wraiths of the Wet Stacks, and
+the Index, where the party's own page is filed. Take it, and decide whether to burn the rest. The
+sealed stair below opens only to that page read aloud, and costs everyone a Stress. **Level 4, the
+Furnace of Names**, is below it: the Choir of Ash in their nave, the doors too hot to pass until the
+great valve in the Coal Gallery is turned, the Bellows Saint at the furnace - and then the furnace
+itself, which opens the last stair for one of you to write their name and lose a memory. The last
+stair goes down to **Level 5, the Ledger Throne**: one quiet room, and Orsolde Vane writing in his
+ledger. Talk to him - he will not fight you unless you make him - and decide: **take his pen** and
+keep the ledger yourselves, **leave him** to it and climb out, or **burn the ledger**, which he will
+fight to stop, the Written with him. Each ending is the Ashwell's last, and sends you back up to
+the Lantern, where Ketch has a word for each.
+
+**New Game** is played at a wooden table, one choice at a time. Each choice is a **deck** dealt face
+up, and only its top card shows. **Drag** cards off the top and put them down anywhere on the table to
+see what is under them, and move any of them about; **double-click the table** and they slide back
+into the deck (the tip along the bottom says so). **Click a card** and it is taken up and zoomed to
+the middle of the table to be read, the rest dimmed, with **Put back** and **Choose** under it (a
+click off it, or Esc, puts it back too). However long a card's words, all of them are on it - set
+small if they must be, which is what the zoom is for. Chosen, a **sleeve** - a hard-edged rectangle
+of clear plastic - slides up over it from the bottom of the screen and it is set in the row along the
+top of the table (everything that comes onto the table comes on from its left), the rest are swept
+away, and the next deck is dealt. **Click a card in the row** and it is zoomed the same way, with
+**Choose again**: its sleeve comes off, the table is cleared, and its deck comes back with that card on top - and what
+hung on it (a subclass, domain cards, a model) goes only if it no longer belongs.
+
+The decks, in order: **Ancestry** (the SRD's eighteen, each its two features); **Model** - who draws
+them: an ancestry's own models, named for it (`faun-female.glb`, `faun-male.glb`: the Fungril,
+Faerie, Faun and Ribbet have theirs), or the company's while it has none. The models are not a deck:
+they stand on the table as **miniatures**, seen from above, coming on from the left into a line, each
+casting its shadow on the wood and with its name on a plate at its feet. **Pick one up** and it lifts
+and leans as it is carried; let go and it stands where it was put. **Double-click** the bare table and
+they walk back into line. **Click** one and it is taken up close, facing you: **drag** left or right
+to turn it about its upright, and **Choose** it or **Put back** (or click the table, or Esc). Chosen -
+a mini is not sleeved - the row's box holds it as it is seen from above. **Community** (nine);
+**Class** (nine, with domains, Evasion, Hit Points and features); **Subclass** (the class's two, with
+their foundations); **Domain cards** - two, from the class's domains, one after the other from the
+same deck; a card marked **Text only** has no script yet, so it is kept in the loadout and does
+nothing in play. Then the **Traits**: a sheet with the six traits - each with what it is rolled for -
+and the starting spread, +2, +1, +1, +0, +0 and −1, as a token on each, laid where the class leans.
+**Drag** a token onto another trait and the two trade places, or **click** one and then the other; the
+spread stays the spread however they move. **Suggested for <class>** puts them back, and **Choose**
+sleeves the sheet into the row as a card of its own. Then the **Equipment**: the catalogue's own
+cards, as the binder and the shops draw them - first a deck of tier-1 primary weapons (a magic one
+only for a subclass that casts), then one of tier-1 armour, the class's suggestion on top of each; the
+two are set in the row as **Weapon** and **Armor**, and a class's second weapon comes along only when
+the weapon chosen leaves a hand free. The one trait that matters most - the one the
+subclass casts spells with, or where a class that casts none leans - is underlined, and the numbers
+are stickers, on the table and on the card in the row. Then the character's **sheet** - the very
+sheet the loadout shows in the game, worked out the same way: the class and level, HP, Stress, Armor
+and Light, the photograph, Evasion, Proficiency, the thresholds, the traits and the gear - with the
+**name** still to write on its name line, and **Begin** at its foot.
+Each choice in the row is named on a torn slip of paper under it. The table's grain is faint, in its own brown.
+
+The cards wear pictures when this machine has them, as the domain cards do in the game: the art in
+`public/cards/` (git-ignored - the pictures are not the repository's to publish, and a build leaves
+them out). An ancestry, community or subclass is named `ancestry-clank.jpg`, `community-highborne.jpg`,
+`subclass-stalwart.avif` and shows its illustration across the top of the card; a class,
+`class-guardian.avif`, hangs its banner from the card's top edge. Run `node tools/index-card-art.mjs`
+after adding files. Without them every card is its words, as on a fresh clone.
+
+Traits and starting gear are filled in for the class - a spread of +2 +1 +1 0 0 −1 on the traits it
+leans on, and a weapon and armour from the equipment - and can be changed in Edit Game. The camp is a
+clearing with a fire: the character just made is the party, and the rest of the company stands round
+the fire - Quim the guardian, Violet the rogue, Scarlet the wizard, Arty the ranger, Pint the seraph and
+Ganja the warrior, each made as your character was, with their class's cards and gear; the one whose
+model you took stays away. Walk up to one and talk: **Come with us** and they join the party and leave
+the fire; **What can you do?** has them say. Four is a party - asked fifth, one stays where they are. The
+game is kept in this browser, and its saves are its own, the company you took along with them.
+
+At the clearing's west edge stands a **portal**. Use it and it opens a window of the adventures there
+are - the Ashwell, the Demo Vault, and any you imported from the main menu's **Adventures** - and
+**Begin** starts one with the party as it stands, in place of whatever party the adventure was written with.
+An adventure written for a party of its own - the **Demo Vault**, whose cards and doors are its party's, or
+any project whose Party panel says **Keep this party** - is played by that party instead, with whoever
+leads yours going in with them, four in all at most; the window says who ("Played by its own party:
+Wren, Quim, Violet, Scarlet"), and the companions you asked along wait at the camp. Where your
+character's content and the adventure's define one thing by one id - the SRD's Human and the Demo
+Vault's - each keeps their own: yours goes in under an id of its own, so Scarlet is the vault's Human
+and you the SRD's, neither given the other's features. It is a game of its
+own, kept in this browser beside the camp and named for whoever leads the party ("The Ashwell (Wren's
+party)"); the camp stays as it was, and you can go back to it from Load Game and begin again. An Ashwell
+begun from the menu by an older build is still listed, its saves with it.
+
+**At a shared game** - a camp hosted for friends, on the server or peer to peer - the portal takes
+**everybody** through. Its window opens on every page; the host's lists the host's adventures and
+**Begin**, and the others' say who chooses - and list their own adventures, those they imported, each
+with **Offer**: offered, it is on the host's window too, after the host's own, saying who offered it
+("Offered by Gus"), and the host may begin it as one of their own. **Take back** withdraws an offer -
+the host may take any back too. What is offered is let go once an adventure is begun. Once the host begins one, every page at the table is in it
+together: the same game, the same invitation, who plays whom and what was said kept, the party that went
+through - the companions anybody asked along among them. Nobody's page opens again. The host's keeps
+the adventure among its games, and a save of it is everybody's, as any shared game's is. While the
+party is at the portal's window, it stays open as long as anybody's character is beside the portal.
+
+**Peer to Peer** plays a game with friends browser to browser, with no server between you
+(`docs/PEER.md`). Give your name, then either **Join** a game or host one of your games (or a save)
+from the list. Hosting opens the game as a lobby. Press **Invite a player** and send the code it writes
+to one friend. They paste it into the page **Join** opened and send back the reply their page writes.
+Paste that under the invitation and press **Connect**, and they are at the table. Invite each player
+with a code of their own. In the lobby the players take their seats and you press **Start**. From
+then on it plays as a game hosted on a server does. The game lives in your browser, so keep your
+page open while you play. Two players both behind strict networks (some phone networks and
+offices) may not be able to connect at all.
+
+If a player's connection drops, their page says it has lost the host, keeps playing on its own,
+and shows a code. They send it to you; paste it under **A player sent you a code?** in the
+settings (Escape) and press **Answer**, and send back the code that appears. Once they paste it,
+their game picks up where yours is, in the same seat. A player whose page was closed or reloaded
+does the same from the join screen with **No code? Write one for my host**.
+
+Your saves of a peer game remember who played which character. Host the game again from a save
+and the lobby keeps each player's character for them ("Kept for Gus"). They're seated in it as
+they join, as long as they use the same name as before.
+
+When the game is served by your own Rust server (`npm run dev`, or through the tunnel) and you are
+signed in, the lobby also shows **Send everybody this link**. A friend opens it, gives a name and
+presses **Join**. You see **Gus wants to join** at the top of your screen, with **Let in** and
+**Turn away**. Let them in and they're at the table, with no codes to pass back and forth. Turn
+them away and their page tells them so. If a player who's already at the table loses their
+connection or reloads the page, they come back on their own without asking you again. The codes
+are still there for anyone the link doesn't work for.
+
+To take a player out of the game, press **Remove** beside their name under **Your guests**, in the
+lobby or the settings (Escape). Their page tells them, and you play their characters. If they open
+the link again, you're asked again whether to let them in.
+
+### Accounts and the Store
+
+When the dev server is running (`npm run dev`), the menu first asks you to **sign in** - a name and a
+password - or **Make an account**. The accounts are kept by the game's Rust server, which the dev server
+builds and starts beside itself (it needs Rust installed - `rustup`; the first start builds it, a minute
+or two; see `docs/SERVER.md`). The first start makes **admin** (password `admin`). Signed in, the
+menu says who you are and has **Sign out**; your games and saves are **your own**: Load Game lists only
+the ones you made, and another player on this machine sees theirs. What was saved before there were
+accounts is admin's. Edit Game opens the shared project whoever is signed in. The accounts, the
+sessions and everything below live in `data/`, which git ignores - passwords are kept only as salted
+hashes. A built copy of the game, or the tests' server, keeps no accounts: its menu plays as nobody, as
+it always did.
+
+**Store** (on the menu, when signed in) is where art creators publish - a `.glb` model, a PNG, JPEG or
+WebP picture, or an **adventure** (a project file, which the server checks as the engine checks a project
+it opens) - and **show their work**. **Publish** takes a title, a description, the file, **how it was
+made** (Human made, AI Assisted or AI Generated), **Free** or **For sale**, and the work: **How I Made
+It** (a quick paragraph about the process - for AI Assisted, how the AI was used) and **Process Proof**
+(up to six pictures of the workspace, or drafts).
+
+The work is optional for a free listing, but until it is shown - How I Made It *and* at least one
+picture - the listing is **marked AI Generated** (a red tag reading *no work shown yet*), whatever it
+says it is, and there is nothing to vote on. Its creator can **Show your work** at any time: write How
+I Made It, add pictures, change how it was made, make it free or for sale. Once the work is shown the
+listing wears its claim - green Human made, yellow AI Assisted, red AI Generated - and reads
+**Human-Crafted Authenticity: 94% (45 Likes / 3 Dislikes)**, the share of votes that are likes, or *no
+votes yet*, above the process text and pictures. Believing the proof, **Like** it; seeing signs of AI
+or no real evidence, **Dislike** it - one vote, clicked again to take it back, never on your own.
+
+**For sale** needs the work shown and is never AI Generated: Human made and AI Assisted work can be
+for sale, AI Assisted on the strength of showing how the AI was used. There are no payments yet - a
+listing for sale says *payments open later*, and until then only its creator can **Get** it; a free
+one, anybody can. The creator, or admin, can **Take down** a listing.
+
+**Every model the engine has is in the Store**: each `.glb` in `public/models` is a free listing by
+*The engine*, claiming what its AI tag says (AI Generated unless it was marked otherwise) and marked AI
+until admin shows its work. It comes and goes with its file and cannot be taken down from the Store.
+**Get** on a model puts it into **your models** - your own folder on the server,
+`data/users/<you>/models/imported/` - and the listing then reads *In your models*; **Download** still
+saves the file. **Get** on a picture downloads it, as before. **Get** on an adventure keeps it in this
+browser's **Adventures** (the main menu's, beside those imported from a file), and every camp's portal
+offers it; the listing then reads *In your adventures*. **Download** saves its project file.
+
+**Your models** are under every project you open in the editor, as the engine's own models are, and
+the Models page lists them under *Your models* (*from the Store* when got there). A project you open -
+to play or to edit - brings the models it carries into your models on the fly: a file embedded in it,
+or one in another player's folder. The same file is kept once, however often it comes. A saved project
+keeps only the ones it uses, and a project that uses one draws it for whoever opens it.
 
 ### Controls
 
@@ -50,10 +264,10 @@ switches between play and edit at any time.
 | Right click (still) | Inspect what is under the pointer: a card with a character's pools, Evasion and gear, an adversary's tier, role, Difficulty and the cards its stat block prints, or an object's kind, state and the roll it asks for. On the way to use something or talk to somebody, it calls that off instead: whoever is walking stops where they have got to, and nothing is used or said | — |
 | `Escape` | Close the inspect card | — |
 | Mouse wheel | Zoom | Zoom; with `Ctrl` held and a placing tool in hand, a quarter tile of build level a notch |
-| `W A S D` / arrow keys | Pan (held; smooth) | — |
+| `W A S D` / arrow keys | Pan (held; smooth) - up to eight tiles from whoever is selected, and no further | — |
 | `Q` / `E` | Turn the camera | — |
 | `F` | Frame the selected character | — |
-| `Home` | Frame the whole room | — |
+| `Home` | Frame the whole room - drawn out, and still within eight tiles of whoever is selected | — |
 | `Tab` | Select the next party member (wraps); the camera slides over them | — |
 | `Space` / `Enter` | End the party's turn: the GM acts | — |
 | `Ctrl+Z` / `Ctrl+Shift+Z` | — | Undo / redo |
@@ -190,7 +404,8 @@ them.
 
 In a fight there is no initiative. The party acts until an action roll — an attack, a card's
 Spellcast Roll — comes up with Shadow or fails, which hands the spotlight to the GM; or until you
-press **Pass to GM** (or `Space` / `Enter`). On the GM's turn the GM spotlights one adversary
+press **End Turn** (or `Space` / `Enter`). A roll that hands it over leaves the key reading **GM's Turn**:
+press it (or `Space`) and the GM plays. On the GM's turn the GM spotlights one adversary
 free and spends a Shadow for each further one while Shadow lasts. A spotlighted adversary moves
 within Close range of the nearest party member and attacks; one held in place by Restrained
 spends its spotlight tearing free instead. Then the spotlight returns to the party. When the
@@ -269,7 +484,8 @@ you are still reading, both wait for **Accept** with it.
 button for it on the board. Escape already means "put that down" everywhere else, so it opens
 the settings only when there is nothing to put down: with the loadout open it shuts the loadout,
 with a card or a jump being aimed it calls that off, with a roll on the table it is the roll's.
-Escape again, **Close**, or a click outside the sheet puts it away. While it is up the keyboard
+Typing at the table's chat, it lets go of the box - what you typed is kept - and a second Escape
+opens the settings. Escape again, **Close**, or a click outside the sheet puts it away. While it is up the keyboard
 is its own: Tab walks its switches rather than the party.
 
 What it holds is yours rather than the campaign's. It is kept in this browser (`localStorage`),
@@ -281,6 +497,10 @@ Settings sit under headings, and there is room for more of both.
   logged and paid for. Off to begin with - and off, a jump you roll for by hand is not drawn
   until you have read the result and pressed **Accept**: the card holds the dice, and the
   character stands where they were until it is put away.
+- **Look → Reflected light** - the light the room gives back: stone and brick look rough and
+  matte, polished and wet things catch the light, and a material's shading and roughness read
+  fully. On to begin with. Off is the flatter look the game had before, and a little less work
+  for a slow machine.
 
 ### The hand
 
@@ -542,7 +762,9 @@ text is logged on arrival. Walking out abandons a fight.
 
 ### Saving
 
-Saves are named slots in the browser's `localStorage`. **Save** writes the quick slot
+Saves are named slots in the browser's `localStorage`, each game's its own: a save says which
+game it is of, the in-game **Load** lists only this game's, and each game has its own quick slot and
+autosave. **Save** writes the quick slot
 (overwritten each time); **Save as…** asks for a name and makes a new slot; **Load** opens the
 list — newest first, with where the party was — and each entry can be loaded or deleted. An
 **Autosave** slot is written whenever the party changes rooms. Both save buttons are greyed
@@ -592,7 +814,7 @@ the room the party is in; browsing scenes never moves the party or abandons thei
 | **Project ▾** | Save JSON · Load… · Import pack… · Export pack · Check (lists what the validator finds; a red badge counts errors) |
 | **Content ▾** | Party · Cards · Items & loot · Quests · Code · Models — each opens as a workspace under the bar; the back arrow before its title, or `Esc`, returns to the board |
 | **Inspector · Terrain · Encounters · Interaction** | The four modes, also on keys `1`–`4` |
-| **The scene button** (shows the room's name and size) ▾ | Every scene with its size; **▸** marks the one the project opens on and **●** the one the party is in. Click to edit it; **✎** renames, **▸** makes it the opening scene, **✕** deletes (refused for the opening scene or the last one); **+ New scene** adds a blank 12×10 room |
+| **The scene button** (shows the room's name and size) ▾ | Every scene with its size; **▸** marks the one the project opens on and **●** the one the party is in. Click to edit it; **✎** renames, **☀** sets how much light the room has (10 to 100% of daylight; empty is daylight, and the button turns to **☾** in a dim room, where its fires, braziers and torches light it, flickering), **▸** makes it the opening scene, **✕** deletes (refused for the opening scene or the last one); **+ New scene** adds a blank 12×10 room |
 | **Undo / Redo** | The same history as `Ctrl+Z` / `Ctrl+Shift+Z`; hover for what it would undo |
 | **▶ Play here / ▶ Play** | Play in this room from its spawns (Shift-click a tile to play from there), or go back to where the party is |
 
@@ -602,13 +824,31 @@ estimated. It takes no clicks, so the board stays reachable straight through it.
 `Esc` closes the nearest thing: a menu, the problem list, a workspace, a conversation, then the
 selection.
 
+### Art made with AI
+
+Wherever the editor shows a picture of a piece of art - the thumbnails in the Terrain and Encounters
+strips (tiles, props, creatures), the Models page, the card preview on the Cards page, and beside each
+tile with a model on the Tiles page - each piece of art carries a little tag in its corner: red **AI** for
+**AI Generated**, yellow **AI** for **AI Assisted**, green **Human** for **Human made**. Hovering AI art
+puts its words in the bottom-right corner - red for AI Generated, yellow for AI Assisted - faded, in a serif
+hand and on no background; art made by hand puts up nothing. Hovering a creature, prop or tile model on
+the editor's board does the same. **The game says so too**: in play, hovering a creature,
+a prop, an object or a tile's model on the board, a portrait in the party's cards or on a sheet, a card's
+picture (or the emblem it draws) or an equipment card puts up the same note; so do New Game's pictures,
+minis and the chosen mini's box. Only the card illustrations pulled from the game's printed material are **Human
+made** to start; everything else - every model, every equipment picture, a card's drawn emblem - is AI
+Generated. **Click the badge**, or **right-click any picture**, to change it to AI Generated, AI
+Assisted or Human made. The change is kept for that piece of art in **every project**, in
+`projects/art-provenance.json` (the dev server writes it; the file holds only what differs from the
+starting rule), so it is said once.
+
 ### The modes
 
 | Mode | Around the board | What a click or drag does |
 |---|---|---|
 | **Inspector** (1) | The selected thing's properties, on the right | Click a prop to see what it is drawn with, what it does and whether it is solid (an object from an older project is shown as it always was). Press on anything placed, a creature, a prop, an object or a party start, and drag to move it: it lifts off the ground, hangs under the pointer with its bottom swinging behind the way it goes, and drops with a bump where you let go, at the height it stood. It never lands on another of its kind (props stack), and a party start stays in the room; one undo puts it back. The editor draws a party start as the character who begins there - party member 1 on start 1, and round again if the party outnumbers the starts - in the model play gives them, rimmed in white; a start nobody fills is a blue pawn in a ring. Click a start and the side pane shows that character's sheet, the same form as the Party workspace, and an edit there is an edit to the party. An object with no model is a gold ring with a gem |
-| **Terrain** (2) | Tools on the left rail; **Tiles** and **Props** in the strip along the bottom; the tool's options on the right | Build stacked tiles anywhere (brush 1×1, 3×3, 5×5); erase tiles at a chosen level; raise/lower ground; place props; **Select** picks up a placed tile - the topmost on the cell - and carries it: the Z ladder goes to its level, the wheel lifts it while held, Alt turns it, and it lands where you let go, on top of whatever is there. One undo puts it back. With Select in hand the **Z ladder** stays out: it shows the height of the prop or tile Select last took hold of and raises or lowers it, a quarter tile a rung, each an undo step - or is the build plane when Select holds nothing. Kinds of tile are named for the model they are drawn with (Grass Ground, Stone Stairs, Stone Block, Stone Wall, Dirt Ground, Grass Dirt Ground; the three drawn with the stone block say which is which) |
-| **Encounters** (3) | Tools on the left rail; the SRD's creatures by tier in the strip, with a search; the encounter on the right | Place the picked creature in the encounter; press on a placed creature and drag to move it, as in the Inspector (Select carries party starts too); toggle trigger cells that start it; toggle party start tiles; erase a creature, then a trigger cell, then a party start (never the last one). The selected creature's panel ends with **Interaction**: None, **Friendly** (on nobody's side until its conversation says otherwise; clicking it in play talks) or **Threshold** (fights until a blow leaves it at or under the **% of Hit Points** given, 50 to start, then stops the fight to talk - once), and the **Conversation** it opens. Friendly and Threshold need a conversation to exist first. **Sells things** gives it a shop: what it is **Paid in** (gold to start), what it **Buys back at** (the share of a thing's worth it pays when the party sells, as a %: empty is 50, up to 100, 0 buys nothing), and a line for each thing it sells with a **price** and **how many** (empty is no end to them); its conversation opens the shop with **Open a shop** in a reply or a consequence node |
+| **Terrain** (2) | Tools on the left rail; **Tiles** and **Props** in the strip along the bottom; the tool's options on the right | Build stacked tiles anywhere (brush 1×1, 3×3, 5×5); erase tiles at a chosen level; raise/lower ground; place props; **Select** picks up a placed tile - the topmost on the cell - and carries it: the Z ladder goes to its level, the wheel lifts it while held, Alt turns it, and it lands where you let go, on top of whatever is there. One undo puts it back. With Select in hand the **Z ladder** stays out: it shows the height of the prop or tile Select last took hold of and raises or lowers it, a quarter tile a rung, each an undo step - or is the build plane when Select holds nothing. Kinds of tile are named for the model they are drawn with (Grass Ground, Stone Stairs, Stone Block, Stone Wall, Dirt Ground, Grass Dirt Ground; the three drawn with the stone block say which is which). A material's zip dropped on the strip is imported as four tiles of it (see **Surfaces**, below) |
+| **Encounters** (3) | Tools on the left rail; the SRD's creatures by tier in the strip, with a search; the encounter on the right | Place the picked creature in the encounter - **Copy as new** in the side makes a creature of the project's own from the one picked, drawn with its model and placed from the strip like any other, and a creature of the project's own has its whole stat block there to change (name, tier, role, Difficulty, Hit Points, Stress, thresholds, attack, to hit, range, damage and its type, description) and **Delete creature**; a change that would not leave a whole stat block is refused, and says why; press on a placed creature and drag to move it, as in the Inspector (Select carries party starts too); toggle trigger cells that start it; toggle party start tiles; erase a creature, then a trigger cell, then a party start (never the last one). The selected creature's panel ends with **Interaction**: None, **Friendly** (on nobody's side until its conversation says otherwise; clicking it in play talks) or **Threshold** (fights until a blow leaves it at or under the **% of Hit Points** given, 50 to start, then stops the fight to talk - once), and the **Conversation** it opens. Friendly and Threshold need a conversation to exist first. **Sells things** gives it a shop: what it is **Paid in** (gold to start), what it **Buys back at** (the share of a thing's worth it pays when the party sells, as a %: empty is 50, up to 100, 0 buys nothing), and a line for each thing it sells with a **price** and **how many** (empty is no end to them); its conversation opens the shop with **Open a shop** in a reply or a consequence node |
 | **Interaction** (4) | The conversations, on the left | Click one to open its graph |
 
 Opening a Terrain library tab chooses the placement action automatically: Tiles builds and Props
@@ -919,14 +1159,118 @@ journal says), and each step's id and text with a **hidden** box (the step stays
 journal until a `revealObjective` effect shows it or it is completed), **✕** (a quest keeps at
 least one) and **+ Step**.
 
+### Surfaces (imported materials)
+
+**Content → Tiles** has a **Surfaces** section at the top. Press **+ Surface** and pick a material's
+zip from [ambientCG](https://ambientcg.com) (for example `Bricks076_1K-JPG.zip`), or its images
+loose. You can also drop the zip on the Tiles page or on the Terrain strip. You get **four tiles
+made of that material**: a block, a wall, a floor slab and a staircase. They appear in the Terrain
+strip's Tiles tab with the block already picked, ready to stamp. One undo removes the material and
+all four tiles.
+
+The pieces are plain boxes; all the detail is in the material. Its height map makes the faces look
+carved (mortar sinks behind bricks, stones stand out) and catch the light, on walls and on floors
+seen at a slant alike. The texture runs on from one piece to the next, so a wall of many blocks
+looks like one wall, and a half-height wall shows half the texture rather than a squashed copy.
+
+What the importer reads, by the end of each file's name: **Color** (or basecolor, albedo,
+diffuse), **NormalGL** (or NormalDX, or normal), **Roughness**, **AmbientOcclusion**,
+**Displacement** (or height) and **Metalness**. Poly Haven's names (`_diff_1k`, `_nor_gl_1k`,
+`_rough_1k`, `_disp_1k`) work too. Only the colour map is required; without a height map the
+material is drawn flat, its normals still catching the light. Files it doesn't read (an opacity
+map, a preview, `.usdc` and `.mtlx` files) are listed after the import.
+
+**Or download one from [Poly Haven](https://polyhaven.com/textures)**, whose textures are all CC0 (free for any
+use, no credit needed). Under **+ Surface**, click the **Poly Haven id or link** box: it suggests 27 that suit a
+dungeon, a town or the wilds (castle brick, cobblestone, worn planks, thatch, forest ground, snow and more). Or paste
+any texture's id or its page's address - for `https://polyhaven.com/a/rock_wall_08` that is `rock_wall_08` - and press
+**Download** (or Enter). It comes in exactly as a zip would, four tiles and all, named as Poly Haven names it, its
+page saying where it came from, and its **Size** set from the real size of the patch it shows (a tile is taken as a
+metre, so a 2.5 m patch of bricks repeats every 2.5 tiles). An HDRI or a model on Poly Haven is not a texture, and
+says so. You can also download a texture's zip from its page (1K, JPG) and drop it here, as with ambientCG.
+
+The select beside **+ Surface** sets how big the maps are kept: 512 pixels, 1K (the default) or 2K.
+The importer compresses the maps for the graphics card (KTX2), so a 1K material takes about 4 MB of
+graphics memory rather than 16 MB, and many more fit before a computer or phone runs short. The first
+import of a session downloads the compressor (about 3 MB); after that a 1K material takes a few
+seconds to import and a 2K one about ten. If compressing fails, the material is imported
+uncompressed, and the import message says so and why. A material imported uncompressed (or before
+compression existed) says so on its page, with a **Compress** button that compresses it in place;
+one undo puts the old maps back. The material is carried in the project file, like an imported model: at 1K one is a few
+megabytes. **Check** warns when the project's materials pass 8 MB. Saving leaves out a material no tile
+is drawn in.
+
+**A material can be linked rather than carried.** Name a Poly Haven texture in the box and press **Link**
+instead of **Download**: it is downloaded and imported the same - four tiles, Poly Haven's name and
+Size - but the project keeps only its name (`"polyHaven": { "id": "castle_brick_07", "pixels": 1024 }`,
+at the size the select beside **+ Surface** says), and this browser keeps its maps. Any other browser
+that opens the project downloads, packs and compresses it the first time anything is drawn in it, and
+keeps it in turn, so the next time it is there at once. The project stays small however many materials
+it uses - the Ashwell is dressed this way. Until a linked material is in, and if it cannot be fetched
+(offline), its tiles are drawn in their kind's colour. Its page says it is linked and where its maps
+are - not asked for yet, being fetched and how far, in this browser, or why they would not come - and
+it weighs nothing in **Check**.
+
+Both buttons say how they are getting on as they go: downloading so many of the maps, packing them,
+compressing each. And while any linked material is being fetched for the board, a note at the top of
+the page, in play or in the editor, names it and says how far it has got, so a room drawn plain for a
+few seconds the first time is seen to be waiting for its textures.
+
+**The ground can be drawn in a material too.** On a material's page, **Ground drawn in it** lists
+your kinds of ground (Floor, Difficult Terrain and the rest); tick one and every cell of that kind is
+drawn in the material, continuous across the whole room. A kind of tile's own **Surface** select
+does the same. Where pieces are stacked on the ground, the pieces are what you see.
+
+Click a material to tune it, and the board redraws as you drag: **Size** (how many tiles one
+repeat of the texture covers - type an exact number in the box under the slider, anything from
+0.05 to 16, to match a reference), **Depth** (how far it reads into a face), **Normal strength**,
+**Roughness** and **Tint**. **✕** removes the material and its four tiles. A kind of tile you made
+yourself can be drawn in a material too, with its **Surface** select. Imported materials draw in
+play as well as in the editor.
+
+**A kind of tile can repeat its material at its own size.** On the kind's page, under **Surface**,
+**Repeat, in tiles** overrides the material's Size for that kind alone: the same bricks large on a
+wall and small on a floor. Leave it empty (it shows the material's own Size) to follow the
+material, so dragging the material's Size still moves every kind that hasn't set its own. It works
+on ground and pieces alike, and the strip's picture shows it.
+
+**Tint** colours a material. At 0 (where every material starts) it is its own colours. Raised, it
+takes the **Colour** of the kind of tile it is drawn on - and on the ground, a cell's own tint where
+the map has one - until at 1 the material's average colour *is* that colour, its bricks and mortar
+still there. A material's four tiles start with its own average as their colour, so tinting changes
+nothing until you give a kind another colour: one material can then be red brick on one kind and
+grey on another. The strip's pictures show the tint. A material imported before 18 October 2026
+doesn't know its average, so its tint darkens as it colours; import it again to fix that. The stone,
+wood and grass chips apply only to plain pieces.
+
 ### Models (glTF import)
 
-A **Models** section lists the project's imported models. **+ Model** opens a file picker for a
-`.glb`/`.gltf`; the file is read **into the project**, so one saved document carries its art with
+A **Models** section lists the project's imported models, with **+ Model** at the top of the page.
+**+ Model** opens a file picker for a `.glb`/`.gltf`; the file is read **into the project**, so one saved document carries its art with
 it and opens anywhere. The id comes from the file name, made unique if it is already taken, and the
 row reports the file by weight (`embedded · 2.4 MB`) rather than printing megabytes of encoded data.
 **✕** removes one. A model already sitting beside the app is still referenced by its path, and the
 row shows that path instead.
+
+**+ Model to the engine** adds a `.glb` to the engine itself rather than to this project: the dev
+server writes it into `public/models`, beside the build's own models, named for its file (`Stone
+Golem.glb` is `stone-golem`), and every project has it from then on - it is in this one at once,
+without a reload. It is never written over a model already there, and only a binary glTF is taken.
+`public/models` is not in git: to have the model on another machine, upload it with the others and
+lock it (`tools/lock-models.mjs`), and `npm run models` fetches it there. Lighten a heavy file first
+(`tools/lighten-model.py`).
+
+**Your models**, when you are signed in, lists the models in your own folder - got from the Store, or
+brought in by a project you opened - and whether this project has each. They are laid under every
+project you open without making it unsaved, and a save keeps only the ones something uses.
+
+A model the build ships (a file in `public/models`) has an **Ancestry**: which ancestry New Game offers
+it to. It is kept for **every project**, not this one - in `projects/model-ancestries.json`, which the
+dev server writes as soon as it is chosen - so a model given to the dwarves is a dwarf's in every new
+game from then on; the row says whether it was kept. It is not an edit: Ctrl+Z does not take it back,
+choosing again does. A model given none is still a faun's if its file is named `faun-...`, and an
+ancestry with no model of its own is offered the company's. (The tests' own server keeps nothing, and
+says so.)
 
 All fourteen of the built-in props have been **retired** for models in that folder: the pine is `tree-prop`,
 the dead tree `withering-tree-prop`, the barrel `barrel-prop`, the crate `crate-prop`, the brazier
@@ -998,6 +1342,19 @@ the project, so the document and the table never hold two different characters.
 and their pools refitted. Adding or removing a character changes the document but not a game
 already running: somebody standing in a fight is not something an edit should pull out from
 under it, so a new character joins when the project is next loaded.
+
+**Companions** are listed under the party: sheets written in the same form, waiting to be asked
+along by a **Join the party** effect - the company round a New Game's camp fire. **+ Companion**
+writes one and **✕** takes one out, the party untouched. A companion is not at the table when you
+press Play; they come when the effect asks them, as the panel last wrote them. One who has joined
+is in both lists under one id, and the two sheets are edited apart - the party's is the one
+playing. **Check** reads a companion's sheet as it reads the party's, its messages beginning
+*Companion*.
+
+**Keep this party**, under the party list, says the project is an adventure written for this party
+(`fixedParty`): begun at a camp's portal, these play it, with whoever leads the party there going in
+with them - four at most, the first of the list first - rather than the camp's party in their place.
+**Check** warns when it is ticked with nobody in the party.
 
 ### Cards
 
@@ -1124,6 +1481,17 @@ code they run -- as a pack file named for the project (`<project id>-pack.json`)
 in: no scenes, no party. Because the code goes with it, importing the file anywhere asks first. **Import pack…** reads it back, into this project or another. It is not a save,
 and the project is not marked saved.
 
+### The packs a project lists
+
+Under **Project ▾**, below Export pack, are the packs this build ships - **SRD characters**: every
+class, subclass, ancestry and community and every domain card, with what they run. A tick is a pack
+the project **lists**. A listed pack is laid over the project each time it opens - the project's own
+entry winning wherever it has one of the same id - and left out of the file when it is saved, so the
+file holds only what is the project's own and a pack's next version reaches it. A click lists a
+pack, or stops listing it and takes its entries out, as one undo step. An entry from a pack that is
+edited becomes the project's own, and is saved. A project listing a pack this build does not have
+opens without it, and says so. New Game's camps list SRD characters.
+
 ### Importing a pack
 
 **Import pack…** adds content somebody else wrote to the project being edited: classes, ancestries,
@@ -1152,6 +1520,11 @@ in turn, and a message says what each brought.
 What was imported is the project's own from then on: the Party panel offers its classes and cards,
 the Encounters strip its creatures, and the **Cards** workspace lists its abilities to edit. Save the
 project to keep it.
+
+A pack that defines a class, subclass, ancestry or community this build already has - the SRD's Human
+beside the starter's - and gives it features of its own replaces it whole: its characters have the pack's
+features for it and none of the starter's. A project that only adds a feature to one of the starter's
+(the Demo Vault's *Hold Fast* for the Sentinel) keeps the starter's beside it.
 
 **A pack to try it with.** The build carries one at `/packs/ember-spells.json` (in the repository,
 `public/packs/ember-spells.json`): open it, save it, and import it. Two ember spells, level 1, so an

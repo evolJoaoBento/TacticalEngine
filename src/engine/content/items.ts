@@ -21,6 +21,14 @@ import { effectSchema } from '../script/schema';
 export const itemKindSchema = z.enum(['key', 'consumable', 'weapon', 'armor', 'trinket']);
 export type ItemKind = z.infer<typeof itemKindSchema>;
 
+/**
+ * What a card with no picture is drawn with (`GearFace`): the kinds' own - a blade, a coat, a flask, a key, a pouch -
+ * and a scroll and a book besides, for the notes, letters and tomes a story hands the party. An item that names
+ * none is drawn with its kind's.
+ */
+export const itemGlyphSchema = z.enum(['weapon', 'armor', 'consumable', 'key', 'trinket', 'scroll', 'book']);
+export type ItemGlyph = z.infer<typeof itemGlyphSchema>;
+
 export const itemSchema = z.object({
   id: contentIdSchema,
   name: z.string().min(1),
@@ -46,6 +54,8 @@ export const itemSchema = z.object({
    * fetched, the card is drawn from what it says.
    */
   card: z.string().optional(),
+  /** What its card is drawn with when it has no picture (`itemGlyphSchema`); left out, its kind's. */
+  glyph: itemGlyphSchema.optional(),
   /**
    * What using it does, in the one effect vocabulary — a draught heals the
    * `actor`, a scroll starts a conversation. Empty means it cannot be used.

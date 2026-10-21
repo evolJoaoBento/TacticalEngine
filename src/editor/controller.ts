@@ -19,6 +19,9 @@ import { growthToReach, type Reach } from '../engine/scene/reshape';
 import { GrowScene } from './grow-scene';
 import type { Deco, Encounter, Interactable, Point, SceneDoc } from '../engine/scene/schema';
 import { addTerrainType, defaultPalette, removeTerrainType, setTerrainModel, updateTerrainType, type TileType } from './terrain-edits';
+import { importTileSurface, removeTileSurface, replaceSurfaceMaps, roomForSurface, updateTileSurface, type SurfaceChanges } from './surface-edits';
+import type { SurfaceKind } from '../engine/content/tile-surface-kit';
+import type { TileSurface } from '../engine/scene/schema';
 import {
   MODE_TOOLS,
   TERRAIN_TAB_TOOL,
@@ -884,6 +887,39 @@ export class EditorController {
 
   removeTile(terrainId: string): boolean {
     const changed = this.session.run(removeTerrainType(terrainId));
+    if (changed) this.onChange('terrain');
+    return changed;
+  }
+
+  /**
+   * An imported material and its four kinds of tile added, as one step (`surface-edits.ts`): `null` when they were, or
+   * why not - the palette full, or the ids taken since the import chose them.
+   */
+  importSurface(surface: TileSurface, kinds: readonly SurfaceKind[]): string | null {
+    const full = roomForSurface(this.session.project, kinds.length);
+    if (full !== null) return full;
+    if (!this.session.run(importTileSurface(surface, kinds))) return `A material or a kind of tile called "${surface.id}" is already in the project.`;
+    this.onChange('terrain');
+    return null;
+  }
+
+  /** A material tuned - its name, size, depth, normal strength or roughness - redrawn as it changes. */
+  updateSurface(id: string, changes: SurfaceChanges): boolean {
+    const changed = this.session.run(updateTileSurface(id, changes));
+    if (changed) this.onChange('terrain');
+    return changed;
+  }
+
+  /** A material's maps replaced by the same maps compressed for the GPU, redrawn. */
+  compressSurface(id: string, maps: TileSurface['maps']): boolean {
+    const changed = this.session.run(replaceSurfaceMaps(id, maps));
+    if (changed) this.onChange('terrain');
+    return changed;
+  }
+
+  /** A material removed, with every kind of tile drawn in it. */
+  removeSurface(id: string): boolean {
+    const changed = this.session.run(removeTileSurface(id));
     if (changed) this.onChange('terrain');
     return changed;
   }

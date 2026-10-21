@@ -1,4 +1,6 @@
-import { test, expect, type Page } from '@playwright/test';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { test, expect, type Page } from './fixtures';
 
 /**
  * The editor's authoring panels, clicked.
@@ -14,6 +16,7 @@ const PANELS = [
   { open: 'open-items', panel: 'item-panel', add: 'add-item', close: 'close-items' },
   { open: 'open-abilities', panel: 'ability-panel', add: 'add-ability', close: 'close-abilities' },
   { open: 'open-code', panel: 'code-panel', add: 'add-code', close: 'close-code' },
+  { open: 'open-projects', panel: 'projects-panel', add: 'add-plan', close: 'close-projects' },
 ] as const;
 
 async function editing(page: Page): Promise<string[]> {
@@ -189,6 +192,7 @@ test('a designer can add one of each thing, and the panel shows it', async ({ pa
     await page.waitForTimeout(150);
     const after = await body.innerText();
     if (after !== before) grew.push(panel);
+    if (panel === 'projects-panel') await page.screenshot({ path: 'test-results/editor-projects.png' });
     console.log(`${panel}:`, before.length, '->', after.length);
 
     await page.locator(`[data-testid="${close}"]`).click();
@@ -424,5 +428,136 @@ test("an item's worth is set in the Items panel, and emptied it is worth nothing
   await worth.fill('');
   await worth.blur();
   expect(await valueOf()).toBeUndefined();
+  // What its card is drawn with when it has no picture: chosen, and back to its kind's.
+  const glyphOf = () =>
+    page.evaluate(() => (JSON.parse(window.__engine!.exportProject()) as { items: { id: string; glyph?: string }[] }).items.find((item) => item.id === 'a-silver-ring')?.glyph);
+  await panel.locator('[data-testid="item-glyph"]').selectOption('book');
+  expect(await glyphOf()).toBe('book');
+  await panel.locator('[data-testid="item-glyph"]').selectOption('');
+  expect(await glyphOf()).toBeUndefined();
   expect(errors).toEqual([]);
+});
+
+test('+ Model is at the top of the Models page, and a shipped model is given an ancestry for every project', async ({ page }) => {
+  await editing(page);
+  await page.locator('[data-testid="open-content"]').click();
+  await page.locator('[data-testid="open-models"]').click();
+  await expect(page.getByTestId('models-panel')).toBeVisible();
+  // Adding one is where the page opens, above every model there is.
+  const add = (await page.getByTestId('add-model').boundingBox())!;
+  const first = (await page.locator('[data-asset]').first().boundingBox())!;
+  expect(add.y).toBeLessThan(first.y);
+
+  // What the file keeps is what the page shows: the fauns' own two are the fauns'.
+  await expect(page.getByTestId('asset-ancestry-faun-male')).toHaveValue('faun');
+  // Given one, it is sent to be kept for every project - standing in for the dev server here, since
+  // the tests' own server keeps nothing - and the page says it was kept.
+  const sent: unknown[] = [];
+  await page.route('**/__models/ancestry', async (route) => {
+    sent.push(route.request().postDataJSON());
+    await route.fulfill({ json: {} });
+  });
+  const pick = page.getByTestId('asset-ancestry-quim');
+  await pick.scrollIntoViewIfNeeded();
+  await expect(pick).toHaveValue('');
+  await pick.selectOption('dwarf');
+  const note = page.getByTestId('asset-ancestry-note-quim');
+  await expect(note).toContainText('Kept, for every project');
+  await expect(note).toContainText('Dwarf');
+  expect(sent).toEqual([{ model: 'quim', ancestry: 'dwarf' }]);
+  await page.screenshot({ path: 'test-results/models-ancestry.png' });
+
+  // The tests' server itself refuses, and the page says so rather than pretending.
+  await page.unroute('**/__models/ancestry');
+  await pick.selectOption('');
+  await expect(note).toContainText('Not kept');
+});
+
+test('+ Model to the engine sends the file to be written into public/models, and it is given an ancestry at once', async ({ page }) => {
+  await editing(page);
+  await page.locator('[data-testid="open-content"]').click();
+  await page.locator('[data-testid="open-models"]').click();
+  await expect(page.getByTestId('models-panel')).toBeVisible();
+  // The dev server writes the file; the tests' own server adds nothing, so it is stood in for here -
+  // the upload answered, and the file it would have written served.
+  const sent: { url: string; size: number }[] = [];
+  await page.route('**/__models/add**', async (route) => {
+    sent.push({ url: route.request().url(), size: route.request().postDataBuffer()?.length ?? 0 });
+    await route.fulfill({ json: { id: 'fox-engine', url: '/models/fox-engine.glb' } });
+  });
+  await page.route('**/models/fox-engine.glb', (route) => route.fulfill({ path: 'tests/fixtures/models/Fox.glb', contentType: 'model/gltf-binary' }));
+  await page.locator('[data-testid="add-engine-model"] input[type="file"]').setInputFiles('tests/fixtures/models/Fox.glb');
+  await expect(page.getByTestId('engine-model-note')).toContainText('Added to the engine as models/fox-engine.glb');
+  expect(sent).toHaveLength(1);
+  expect(sent[0]!.url).toContain('name=Fox.glb');
+  expect(sent[0]!.size).toBeGreaterThan(1000);
+  // In the project at once, and one of the engine's: it has an Ancestry to give it.
+  await expect(page.locator('[data-asset="fox-engine"]')).toBeVisible();
+  await expect(page.getByTestId('asset-ancestry-fox-engine')).toBeVisible();
+
+  // The tests' own server refuses, and the page says so.
+  await page.unroute('**/__models/add**');
+  await page.locator('[data-testid="add-engine-model"] input[type="file"]').setInputFiles('tests/fixtures/models/Fox.glb');
+  await expect(page.getByTestId('engine-model-note')).toContainText('Not added');
+});
+
+test('the company at a camp is in the Party panel, and a companion renamed there joins under that name', async ({ page }) => {
+  const errors = await editing(page);
+  page.on('dialog', (d) => void (d.type() === 'prompt' ? d.accept('Newcomer') : d.accept()));
+  // A camp New Game made for Wren (`tests/fixtures/camp-wren.json`, kept in step by `adventure-portal.test.ts`).
+  expect(await page.evaluate((text) => window.__engine!.loadProjectText(text), readFileSync(resolve('tests/fixtures/camp-wren.json'), 'utf8'))).toBe('');
+  await page.waitForFunction(() => window.__engine?.sceneId() === 'camp', null, { timeout: 60_000 });
+  await page.evaluate(() => window.__engine!.setMode('edit'));
+
+  await page.locator('[data-testid="open-content"]').click();
+  await page.locator('[data-testid="open-party"]').click();
+  const panel = page.getByTestId('party-panel');
+  await expect(panel.locator('[data-character]')).toHaveText(['Wren']);
+  await expect(panel.locator('[data-companion]')).toHaveText(['Quim', 'Scarlet', 'Arty', 'Pint', 'Ganja']);
+  await expect(panel).toContainText('A companion waits to be asked along');
+
+  // Quim's sheet, written in the same form as the party's: renamed, and a companion added and taken out again.
+  await panel.locator('[data-companion="quim"]').click();
+  await expect(panel.getByTestId('character-name')).toHaveValue('Quim');
+  await panel.getByTestId('character-name').fill('Quim Ironside');
+  await expect(panel.locator('[data-companion="quim"]')).toHaveText('Quim Ironside');
+  await panel.getByTestId('add-companion').click();
+  await expect(panel.locator('[data-companion]')).toHaveText(['Quim Ironside', 'Scarlet', 'Arty', 'Pint', 'Ganja', 'Newcomer']);
+  await expect(panel.getByTestId('character-name')).toHaveValue('Newcomer');
+  await panel.locator('[data-companion="newcomer"] + button').click();
+  await expect(panel.locator('[data-companion]')).toHaveCount(5);
+  await expect(panel.locator('[data-character]')).toHaveText(['Wren']);
+  await page.screenshot({ path: 'test-results/editor-companions.png' });
+  await page.getByTestId('close-party').click();
+
+  // Not at the table on Play - a companion waits to be asked - and asked, joins as the panel wrote them.
+  await page.evaluate(() => window.__engine!.setMode('play'));
+  expect(await page.evaluate(() => window.__engine!.party())).toEqual(['wren']);
+  await page.evaluate(() => {
+    const a = window.__engine!;
+    a.approach('quim-figure');
+    a.arrive();
+  });
+  await expect.poll(() => page.evaluate(() => window.__engine!.dialogueOptions())).toContain('Come with us.');
+  await page.evaluate(() => window.__engine!.answer({ kind: 'choose', index: 0 }));
+  await expect.poll(() => page.evaluate(() => window.__engine!.party())).toEqual(['wren', 'quim']);
+  expect((await page.evaluate(() => window.__engine!.log())).map((line) => line.text)).toContain('Quim Ironside joins the party.');
+  expect(errors, `console errors: ${errors.join(' | ')}`).toEqual([]);
+});
+
+test('a project keeps its party at the Party panel\u2019s word, and one undo lets the party that comes play it', async ({ page }) => {
+  const errors = await editing(page);
+  await page.locator('[data-testid="open-content"]').click();
+  await page.locator('[data-testid="open-party"]').click();
+  const kept = page.getByTestId('party-panel').getByTestId('fixed-party');
+  await expect(kept).not.toBeChecked();
+  const fixed = () => page.evaluate(() => (JSON.parse(window.__engine!.exportProject()) as { fixedParty?: boolean }).fixedParty);
+  expect(await fixed()).toBeUndefined();
+  await kept.check();
+  expect(await fixed()).toBe(true);
+  await page.screenshot({ path: 'test-results/editor-fixed-party.png' });
+  await page.locator('[data-testid="undo"]').click();
+  await expect(kept).not.toBeChecked();
+  expect(await fixed()).toBeUndefined();
+  expect(errors, `console errors: ${errors.join(' | ')}`).toEqual([]);
 });

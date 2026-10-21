@@ -22,7 +22,7 @@ import {
   updateItem,
   updateLootTable,
 } from '../session';
-import { itemSchema, lootTableSchema, type ItemDef, type LootTable } from '../../engine/content/items';
+import { itemSchema, lootTableSchema, type ItemDef, type ItemGlyph, type LootTable } from '../../engine/content/items';
 import type { QuestDef } from '../../engine/content/quests';
 import type { ContentPack } from '../../engine/content/pack/import';
 import { EffectList } from './EffectList';
@@ -49,6 +49,8 @@ function options(map: ReadonlyMap<string, { id: string; name: string }>): { id: 
 }
 
 const KINDS: readonly ItemDef['kind'][] = ['key', 'consumable', 'weapon', 'armor', 'trinket'];
+/** What a card with no picture can be drawn with, by name; "its kind's" when none is chosen. */
+const GLYPHS: readonly [ItemGlyph, string][] = [['weapon', 'a blade'], ['armor', 'a coat'], ['consumable', 'a flask'], ['key', 'a key'], ['trinket', 'a pouch'], ['scroll', 'a scroll'], ['book', 'a book']];
 
 const field: Record<string, string | number> = {
   padding: '3px 5px',
@@ -238,6 +240,26 @@ export function ItemPanel(props: ItemPanelProps): preact.JSX.Element {
                   {KINDS.map((kind) => (
                     <option key={kind} value={kind}>
                       {kind}
+                    </option>
+                  ))}
+                </select>,
+              )}
+              {labelled(
+                'drawn as',
+                <select
+                  style={{ ...field, width: '110px' }}
+                  data-testid="item-glyph"
+                  title="What its card shows when it has no picture"
+                  value={item.glyph ?? ''}
+                  onChange={(e) => {
+                    const glyph = (e.target as HTMLSelectElement).value;
+                    editItem({ glyph: glyph === '' ? undefined : (glyph as ItemGlyph) });
+                  }}
+                >
+                  <option value="">its kind's</option>
+                  {GLYPHS.map(([glyph, label]) => (
+                    <option key={glyph} value={glyph}>
+                      {label}
                     </option>
                   ))}
                 </select>,

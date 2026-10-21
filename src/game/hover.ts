@@ -14,6 +14,7 @@
 import type { Spot } from '../engine/grid/grid';
 import { previewStrike, previewWalk } from './movement';
 import type { DemoScene } from './demo-scene';
+import { hoverArt } from './art-provenance';
 
 /** The line to draw, or nothing to draw. */
 export interface HoverLine {
@@ -46,3 +47,25 @@ export function hoverLine(demo: DemoScene, ground: { tile: number; spot: Spot },
   if (under.objectOn(ground.tile) !== null) return null;
   return previewWalk(demo, ground.tile, ground.spot, from ?? undefined);
 }
+
+/** How often the board is asked what the pointer is over, for the note: a model of many triangles is not free to hit. */
+const ART_EVERY_MS = 100;
+let artAsked = 0;
+
+/**
+ * The note in the corner (`ui/AiNote.tsx`) for the art the pointer is over on the board: the model of
+ * the creature, prop, object or tile under it - asked of the view (`SceneView.artUnder`), at most every
+ * tenth of a second - or none, when the pointer has left the board (`null`).
+ */
+export function noteArtOnBoard(under: (() => string | null) | null, now: number = performance.now()): void {
+  if (under === null) {
+    artAsked = 0;
+    hoverArt(null);
+    return;
+  }
+  if (now - artAsked < ART_EVERY_MS) return;
+  artAsked = now;
+  const model = under();
+  hoverArt(model === null ? null : `model:${model}`);
+}
+

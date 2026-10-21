@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { blankScene } from './grid-from-scene';
-import { CURRENT_FORMAT_VERSION, contentIdSchema, effectSchema, projectSchema, sceneSchema } from './schema';
+import { CURRENT_FORMAT_VERSION, contentIdSchema, effectSchema, projectSchema, sceneSchema, tileSurfaceSchema } from './schema';
 
 const scene = (overrides: Record<string, unknown> = {}) => ({
   ...blankScene('room', 3, 2),
@@ -203,6 +203,16 @@ describe('projectSchema', () => {
     expect(projectSchema.safeParse(project({ formatVersion: 1 })).success).toBe(true);
   });
 
+  it('builds with the structures the project declares, whatever the page laid last', () => {
+    const tiles = { '1,1,0': { x: 1, y: 1, level: 0, shape: 'doorway', material: 'stone', rotation: 0 } };
+    const declared = [{ id: 'doorway', name: 'Doorway', atoms: [{ shape: 'wall' }] }];
+    expect(projectSchema.safeParse(project({ structureTypes: declared, scenes: [scene({ id: 'room', buildingTiles: tiles })] })).success).toBe(true);
+    const undeclared = projectSchema.safeParse(project({ scenes: [scene({ id: 'room', buildingTiles: tiles })] }));
+    expect(undeclared.success ? [] : undeclared.error.issues.map((i) => [i.path.join('.'), i.message])).toEqual([['scenes.0.buildingTiles.1,1,0', 'No structure called "doorway"']]);
+    // The engine's own four need no declaring.
+    expect(projectSchema.safeParse(project({ scenes: [scene({ id: 'room', buildingTiles: { '1,1,0': { ...tiles['1,1,0'], shape: 'stairs' } } })] })).success).toBe(true);
+  });
+
   it('defaults the per-type model map, so a project written before it is still a project', () => {
     expect(projectSchema.parse(project()).adversaryModels).toEqual({});
   });
@@ -282,5 +292,44 @@ describe('projectSchema', () => {
 
   it('requires at least one scene', () => {
     expect(projectSchema.safeParse(project({ scenes: [] })).success).toBe(false);
+  });
+
+  it('keeps imported materials, their tunings defaulted, and the surface a kind of tile is drawn in', () => {
+    const maps = { color: 'data:image/png;base64,AA', normalHeight: 'data:image/png;base64,AB', orm: 'data:image/png;base64,AC' };
+    const parsed = projectSchema.parse(project({ surfaces: [{ id: 'bricks', name: 'Bricks', maps, parallax: true }], terrainPalette: [{ id: 'bricks-wall', structure: 'wall', surface: 'bricks' }] }));
+    expect(parsed.surfaces).toEqual([{ id: 'bricks', name: 'Bricks', maps, parallax: true, size: 1, depth: 0.06, normalScale: 1, roughness: 1, tint: 0 }]);
+    expect(parsed.terrainPalette![0]!.surface).toBe('bricks');
+    // A kind's own repeat of it: kept, and held to what a material's may be.
+    expect(projectSchema.parse(project({ terrainPalette: [{ id: 'bricks-wall', surface: 'bricks', surfaceSize: 0.5 }] })).terrainPalette![0]!.surfaceSize).toBe(0.5);
+    expect(projectSchema.safeParse(project({ terrainPalette: [{ id: 'bricks-wall', surface: 'bricks', surfaceSize: 20 }] })).success).toBe(false);
+    expect(projectSchema.safeParse(project({ terrainPalette: [{ id: 'bricks-wall', surface: 'bricks', surfaceSize: 0 }] })).success).toBe(false);
+    // None given, none there: a project written before materials reads as it did.
+    expect(projectSchema.parse(project()).surfaces).toBeUndefined();
+    // A map missing, a tint or a depth past the most, a surface id that is no id.
+    expect(projectSchema.safeParse(project({ surfaces: [{ id: 'bricks', name: 'Bricks', maps: { color: 'x', orm: 'y' }, parallax: true }] })).success).toBe(false);
+    expect(projectSchema.safeParse(project({ surfaces: [{ id: 'bricks', name: 'Bricks', maps, parallax: true, tint: 1.5 }] })).success).toBe(false);
+    expect(projectSchema.safeParse(project({ surfaces: [{ id: 'bricks', name: 'Bricks', maps, parallax: true, depth: 0.5 }] })).success).toBe(false);
+    expect(projectSchema.safeParse(project({ terrainPalette: [{ id: 'x', surface: 'Bricks 076' }] })).success).toBe(false);
+  });
+
+  it('rejects two imported materials by one id', () => {
+    const maps = { color: 'a', normalHeight: 'b', orm: 'c' };
+    const bad = projectSchema.safeParse(project({ surfaces: [{ id: 'bricks', name: 'A', maps, parallax: false }, { id: 'bricks', name: 'B', maps, parallax: false }] }));
+    expect(bad.success ? [] : bad.error.issues.map((i) => [i.path.join('.'), i.message])).toEqual([['surfaces.1.id', 'duplicate surface id "bricks"']]);
+  });
+});
+
+describe('a material\u2019s maps', () => {
+  const base = { id: 'slate', name: 'Slate', parallax: true };
+  it('are carried, or fetched from a Poly Haven texture - one, not both and not neither', () => {
+    const maps = { color: 'c', normalHeight: 'n', orm: 'o' };
+    expect(tileSurfaceSchema.safeParse({ ...base, maps }).success).toBe(true);
+    expect(tileSurfaceSchema.parse({ ...base, polyHaven: { id: 'rock_wall_10' } }).polyHaven).toEqual({ id: 'rock_wall_10', pixels: 1024 });
+    for (const both of [{ ...base, maps, polyHaven: { id: 'rock_wall_10' } }, base]) {
+      const parsed = tileSurfaceSchema.safeParse(both);
+      expect(parsed.success).toBe(false);
+      expect(parsed.error?.issues[0]).toMatchObject({ path: ['maps'], message: 'A material has its maps or a Poly Haven texture to fetch them from: one, not both' });
+    }
+    expect(tileSurfaceSchema.safeParse({ ...base, polyHaven: { id: 'rock_wall_10', pixels: 4096 } }).success).toBe(false);
   });
 });

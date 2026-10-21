@@ -20,6 +20,8 @@ import { BUILD_MATERIALS, buildingParts, type BuildingTile } from '../scene/buil
 import type { SceneDoc } from '../scene/schema';
 import type { TerrainPalette } from '../grid/terrain';
 import { DEFAULT_LAYOUT } from './layout';
+import type { SurfaceLibrary } from './surface-library';
+import type { SurfaceMaterial } from './tile-surface';
 
 /** Tiles per chunk on each axis. One chunk is one draw call, so it sets the grain. */
 export const BUILD_CHUNK_SIZE = 16;
@@ -37,15 +39,25 @@ function keyOf(x: number, y: number, z: number): string {
   return `${x},${y},${z}`;
 }
 
-/** One cube of the world, with whatever pieces fall inside it and its GPU buffers. */
+/**
+ * One cube of the world, with whatever pieces fall inside it and its GPU buffers: a mesh for each look its pieces are
+ * drawn in - the plain box, or each imported material (`looks`, a piece's own beside it).
+ */
 interface Chunk {
   key: string;
   x: number;
   y: number;
   z: number;
   tiles: BuildingTile[];
+  /**
+   * Each piece's look: the imported material it is drawn in, with the repeat its kind sets when it sets one
+   * (`bricks@2`, `lookKey`), or `null` for the plain box.
+   */
+  looks: (string | null)[];
+  /** What the looks were drawn with when the chunk was built, so one whose materials changed is built again. */
+  signature: string;
   radius: number;
-  mesh?: InstancedMesh;
+  meshes?: InstancedMesh[];
   lod?: number;
 }
 /**
@@ -72,6 +84,21 @@ export interface BuildingStats {
   triangles: number;
   /** How many resident chunks are at each level of detail, nearest first. */
   lods: number[];
+  /** Instances drawn in an imported material rather than as plain boxes. */
+  textured: number;
+  /** Of those, the instances whose material's maps the GPU holds compressed. */
+  compressed: number;
+  /** The looks drawn in a material now, each once: a material's id, and `@` the repeat when a kind sets its own. */
+  looks: string[];
+}
+
+/** A look's name: the material, and the repeat a kind of tile sets in place of the material's own. */
+export const lookKey = (surface: string, size: number | undefined): string => (size === undefined ? surface : `${surface}@${size}`);
+
+/** A look's material and repeat, read back. */
+function lookParts(look: string): { surface: string; size: number | undefined } {
+  const at = look.indexOf('@');
+  return at < 0 ? { surface: look, size: undefined } : { surface: look.slice(0, at), size: Number(look.slice(at + 1)) };
 }
 
 /**
@@ -112,12 +139,25 @@ export class BuildingView {
   private offsetZ = 0;
   private tileCount = 0;
   private visibleCount = 0;
+  /** The imported materials kinds of tile are drawn in; none, and every piece is a plain box as it always was. */
+  private readonly surfaces: SurfaceLibrary | undefined;
+  /** What the last `sync` was given, to sync again when a material arrives. */
+  private last: { scene: SceneDoc; palette: TerrainPalette | undefined } | null = null;
+  private readonly unsubscribe: () => void = () => undefined;
 
-  constructor() {
+  constructor(options: { surfaces?: SurfaceLibrary } = {}) {
     this.root.name = 'building-tiles';
     this.guide.visible = false;
     this.preview.visible = false;
     this.root.add(this.guide, this.preview);
+    this.surfaces = options.surfaces;
+    // A material that lands, or is let go, changes what the chunks drawn in it look like: synced again, and those
+    // chunks - their signatures changed - built afresh.
+    if (this.surfaces !== undefined) {
+      this.unsubscribe = this.surfaces.onChange(() => {
+        if (this.last !== null) this.sync(this.last.scene, this.last.palette);
+      });
+    }
   }
 
   /**
@@ -127,8 +167,12 @@ export class BuildingView {
    * file up instead, and drawing both would leave a grey box inside every crate. Without a
    * palette nothing can be skipped, which is what a caller that has none wants - the
    * thumbnails and the tests draw every piece as a box on purpose.
+   *
+   * A piece whose kind names an imported material (`TerrainType.surface`) is drawn in it, once the library has its
+   * maps; until then it is the plain box in the kind's colour.
    */
   sync(scene: SceneDoc, palette?: TerrainPalette): void {
+    this.last = { scene, palette };
     this.needsWork = true;
     const next = new Map<string, Chunk>();
     const offsetX = (scene.width - 1) / 2;
@@ -148,18 +192,21 @@ export class BuildingView {
       const key = keyOf(x, y, z);
       let chunk = next.get(key);
       if (!chunk) {
-        chunk = { key, x, y, z, tiles: [], radius: CHUNK_RADIUS };
+        chunk = { key, x, y, z, tiles: [], looks: [], signature: '', radius: CHUNK_RADIUS };
         next.set(key, chunk);
       }
       chunk.tiles.push(tile);
+      chunk.looks.push(this.lookOf(tile, palette));
       chunk.radius = Math.max(chunk.radius, CHUNK_RADIUS + (tile.height ?? 1) - 1);
       this.tileCount++;
     }
-    // A chunk whose pieces are the very same objects still holds good buffers.
-    // `BuildingEdit` writes new tile objects rather than mutating, so identity
-    // is a sound test - which is why it must keep doing that.
+    for (const chunk of next.values()) chunk.signature = this.signatureOf(chunk, palette);
+    // A chunk whose pieces are the very same objects, drawn in the very same materials, still holds good buffers.
+    // `BuildingEdit` writes new tile objects rather than mutating, so identity is a sound test - which is why it must
+    // keep doing that.
     for (const [key, old] of this.chunks) {
-      if (!moved && sameTiles(next.get(key), old)) next.set(key, old);
+      const fresh = next.get(key);
+      if (!moved && sameTiles(fresh, old) && fresh!.signature === old.signature) next.set(key, old);
       else this.release(old);
     }
     this.chunks.clear();
@@ -236,55 +283,109 @@ export class BuildingView {
     }
   }
 
+  /**
+   * The look a piece is drawn in: the imported material its kind names - when the kind is drawn as a box, not with a
+   * model, and the project has that material - else `null`, the plain box.
+   */
+  private lookOf(tile: BuildingTile, palette: TerrainPalette | undefined): string | null {
+    if (this.surfaces === undefined || palette === undefined || tile.tile === undefined) return null;
+    const index = palette.indexOf(tile.tile);
+    const kind = index >= 0 ? palette.at(index) : undefined;
+    const surface = kind?.surface;
+    return surface !== undefined && this.surfaces.has(surface) ? lookKey(surface, kind!.surfaceSize) : null;
+  }
+
+  /**
+   * What a chunk's looks are drawn with now: each material, and whether - and which time - its maps are in; and the
+   * colour of each kind drawn in one, which its tint takes.
+   */
+  private signatureOf(chunk: Chunk, palette: TerrainPalette | undefined): string {
+    if (this.surfaces === undefined) return '';
+    const ids = [...new Set(chunk.looks.filter((look): look is string => look !== null))].sort().map((look) => [look, lookParts(look).surface] as const);
+    const kinds = [...new Set(chunk.tiles.filter((_, i) => chunk.looks[i] !== null).map((tile) => `${tile.tile}=${this.kindColorOf(tile, palette) ?? ''}`))].sort();
+    return [...ids.map(([look, id]) => `${look}:${this.surfaces!.statusOf(id)}:${this.surfaces!.generationOf(id)}`), ...kinds].join('|');
+  }
+
+  /** The material a look is drawn in at this level of detail, or nothing while its maps are not in. */
+  private materialOf(look: string, lod: number): SurfaceMaterial | null {
+    const { surface, size } = lookParts(look);
+    return this.surfaces?.materialFor(surface, lod === 2, size) ?? null;
+  }
+
+  /** The colour a piece's kind of tile is drawn in, if it says. */
+  private kindColorOf(tile: BuildingTile, palette: TerrainPalette | undefined): string | undefined {
+    const index = palette === undefined || tile.tile === undefined ? -1 : palette.indexOf(tile.tile);
+    return index < 0 ? undefined : palette!.at(index).color;
+  }
+
   private build(chunk: Chunk, lod: number): void {
-    const count = chunk.tiles.reduce((n, t) => n + buildingParts(t.shape, lod === 2).length, 0);
-    const mesh = new InstancedMesh(lod === 0 ? this.detailed : this.simple, this.material, count);
-    mesh.name = `building:${chunk.key}:lod${lod}`;
-    // The mesh carries the chunk's world position, so every instance matrix
-    // stays within one chunk of the origin and float32 keeps its precision.
-    mesh.position.set(
-      chunk.x * BUILD_CHUNK_SIZE - this.offsetX,
-      chunk.y * BUILD_CHUNK_SIZE + DEFAULT_LAYOUT.baseHeight,
-      chunk.z * BUILD_CHUNK_SIZE - this.offsetZ,
-    );
-    let i = 0;
-    for (const tile of chunk.tiles) {
-      const angle = tile.rotation * Math.PI / 2;
-      const sin = Math.sin(angle);
-      const cos = Math.cos(angle);
-      const tall = tile.height ?? 1;
-      for (const part of buildingParts(tile.shape, lod === 2)) {
-        const [x, y, z, sx, sy, sz] = part;
-        this.scratch.position.set(
-          tile.x - chunk.x * BUILD_CHUNK_SIZE + x * cos + z * sin,
-          tile.level - chunk.y * BUILD_CHUNK_SIZE + y * tall,
-          tile.y - chunk.z * BUILD_CHUNK_SIZE - x * sin + z * cos,
-        );
-        this.scratch.rotation.set(0, angle, 0);
-        this.scratch.scale.set(sx, sy * tall, sz);
-        this.scratch.updateMatrix();
-        mesh.setMatrixAt(i, this.scratch.matrix);
-        mesh.setColorAt(i, this.color.set(BUILD_MATERIALS[tile.material]));
-        i++;
+    // One mesh for each look: the plain box tinted piece by piece, and each material its pieces share.
+    const groups = new Map<string | null, number[]>();
+    chunk.tiles.forEach((_, i) => {
+      const look = chunk.looks[i] ?? null;
+      // A material whose maps are not in yet draws as the plain box, in its kind's colour, until they are.
+      const drawn = look !== null && this.materialOf(look, lod) !== null ? look : null;
+      groups.set(drawn, [...(groups.get(drawn) ?? []), i]);
+    });
+    const meshes: InstancedMesh[] = [];
+    for (const [look, indices] of groups) {
+      const material = look === null ? this.material : this.materialOf(look, lod)!;
+      const count = indices.reduce((n, i) => n + buildingParts(chunk.tiles[i]!.shape, lod === 2).length, 0);
+      const mesh = new InstancedMesh(lod === 0 ? this.detailed : this.simple, material, count);
+      mesh.name = `building:${chunk.key}:lod${lod}${look === null ? '' : `:${look}`}`;
+      // The mesh carries the chunk's world position, so every instance matrix
+      // stays within one chunk of the origin and float32 keeps its precision.
+      mesh.position.set(
+        chunk.x * BUILD_CHUNK_SIZE - this.offsetX,
+        chunk.y * BUILD_CHUNK_SIZE + DEFAULT_LAYOUT.baseHeight,
+        chunk.z * BUILD_CHUNK_SIZE - this.offsetZ,
+      );
+      let n = 0;
+      for (const i of indices) {
+        const tile = chunk.tiles[i]!;
+        const angle = tile.rotation * Math.PI / 2;
+        const sin = Math.sin(angle);
+        const cos = Math.cos(angle);
+        const tall = tile.height ?? 1;
+        // A piece in a material is its kind's colour, which the material takes as far as its tint says
+        // (`TileSurface.tint`). A plain box is its tint - or, waiting for its material's maps, its kind's colour.
+        const kind = chunk.looks[i] !== null ? this.kindColorOf(tile, this.last?.palette) : undefined;
+        this.color.set(look !== null ? kind ?? '#ffffff' : kind ?? BUILD_MATERIALS[tile.material]);
+        for (const part of buildingParts(tile.shape, lod === 2)) {
+          const [x, y, z, sx, sy, sz] = part;
+          this.scratch.position.set(
+            tile.x - chunk.x * BUILD_CHUNK_SIZE + x * cos + z * sin,
+            tile.level - chunk.y * BUILD_CHUNK_SIZE + y * tall,
+            tile.y - chunk.z * BUILD_CHUNK_SIZE - x * sin + z * cos,
+          );
+          this.scratch.rotation.set(0, angle, 0);
+          this.scratch.scale.set(sx, sy * tall, sz);
+          this.scratch.updateMatrix();
+          mesh.setMatrixAt(n, this.scratch.matrix);
+          mesh.setColorAt(n, this.color);
+          n++;
+        }
       }
+      mesh.instanceMatrix.needsUpdate = true;
+      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+      mesh.computeBoundingSphere();
+      mesh.castShadow = lod === 0;
+      mesh.receiveShadow = true;
+      this.root.add(mesh);
+      meshes.push(mesh);
     }
-    mesh.instanceMatrix.needsUpdate = true;
-    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-    mesh.computeBoundingSphere();
-    mesh.castShadow = lod === 0;
-    mesh.receiveShadow = true;
-    chunk.mesh = mesh;
+    chunk.meshes = meshes;
     chunk.lod = lod;
-    this.root.add(mesh);
     this.resident.add(chunk);
   }
 
   private release(chunk: Chunk): void {
-    if (chunk.mesh) {
-      this.root.remove(chunk.mesh);
-      chunk.mesh.dispose();
+    // Each mesh's own buffers: never the shared geometry, nor the materials, which are the view's or the library's.
+    for (const mesh of chunk.meshes ?? []) {
+      this.root.remove(mesh);
+      mesh.dispose();
     }
-    delete chunk.mesh;
+    delete chunk.meshes;
     delete chunk.lod;
     this.resident.delete(chunk);
   }
@@ -345,19 +446,34 @@ export class BuildingView {
       instances: 0,
       triangles: 0,
       lods: [0, 0, 0],
+      textured: 0,
+      compressed: 0,
+      looks: [],
     };
+    const looks = new Set<string>();
     for (const chunk of this.resident) {
-      const mesh = chunk.mesh!;
-      const perInstance = mesh.geometry.index?.count ?? mesh.geometry.getAttribute('position').count;
-      stats.instances += mesh.count;
-      stats.triangles += perInstance / 3 * mesh.count;
+      for (const mesh of chunk.meshes!) {
+        const perInstance = mesh.geometry.index?.count ?? mesh.geometry.getAttribute('position').count;
+        stats.instances += mesh.count;
+        stats.triangles += perInstance / 3 * mesh.count;
+        if (mesh.material !== this.material) {
+          stats.textured += mesh.count;
+          const color = (mesh.material as SurfaceMaterial).userData.surfaceUniforms?.tColor.value as { isCompressedTexture?: boolean } | undefined;
+          if (color?.isCompressedTexture === true) stats.compressed += mesh.count;
+          // `building:<chunk>:lod<n>:<look>`, the look last.
+          looks.add(mesh.name.split(':')[3]!);
+        }
+      }
       stats.lods[chunk.lod!]!++;
     }
+    stats.looks = [...looks].sort();
     return stats;
   }
 
   /** Let every buffer and every shared geometry go; the view is finished with. */
   dispose(): void {
+    this.unsubscribe();
+    this.last = null;
     for (const chunk of this.resident) this.release(chunk);
     this.chunks.clear();
     this.columns.clear();

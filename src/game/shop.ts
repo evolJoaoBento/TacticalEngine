@@ -16,7 +16,6 @@
 import { findFunction } from '../engine/scene/prop-functions';
 import type { Shop } from '../engine/scene/prop-function-schema';
 import type { DemoScene } from './demo-scene';
-import { nameOf, note } from './log';
 import { itemOf, itemsFor } from '../engine/content/equipment/catalogue';
 
 type Demo = Pick<DemoScene, 'project' | 'scene' | 'state' | 'party' | 'world' | 'log' | 'characters' | 'sheets'>;
@@ -67,30 +66,6 @@ export function purse(demo: Pick<DemoScene, 'world'>, shop: Shop): number {
   return held;
 }
 
-/**
- * Buy one of something: the price leaves the party's pack, the thing goes into it, and a limited
- * line has one fewer. Refused, with a word in the log, when the party cannot pay or it is gone.
- */
-export function buyFrom(demo: Demo, id: string, item: string): boolean {
-  const shop = shopOf(demo, id);
-  const line = shopContents(demo, id).find((candidate) => candidate.item === item);
-  if (shop === null || line === undefined) return false;
-  const currency = itemOf(demo.project, shop.currency)?.name ?? shop.currency;
-  if (!demo.world.hasItem(shop.currency, line.price)) {
-    note(demo, `Not enough ${currency.toLowerCase()} for ${line.name}: it costs ${line.price}.`, 'system');
-    return false;
-  }
-  if (line.price > 0) demo.world.removeItem(shop.currency, line.price);
-  demo.world.addItem(item, 1);
-  if (line.left !== null) {
-    const state = demo.state.interactable(id);
-    state.data[`bought:${item}`] = boughtOf(state.data, item) + 1;
-  }
-  const who = demo.party.selected;
-  note(demo, `${who === null ? 'The party' : nameOf(demo, who)} buys ${line.name} for ${line.price} ${currency.toLowerCase()}.`, 'success');
-  return true;
-}
-
 /** What a seller pays for its share of a worth - half unless it says - rounded down, and never nothing. */
 export const buyBackPrice = (worth: number, percent = 50): number =>
   worth <= 0 || percent <= 0 ? 0 : Math.max(1, Math.floor((worth * percent) / 100));
@@ -129,24 +104,4 @@ export function sellables(demo: Demo, id: string): SaleLine[] {
     lines.push({ item, name: itemOf(demo.project, item)?.name ?? item, held, price });
   }
   return lines;
-}
-
-/**
- * Sell one of something to a seller: it leaves the party pack, the seller's price for it goes in,
- * and a line with a count has one more on its shelf. Refused when the party carries none.
- */
-export function sellTo(demo: Demo, id: string, item: string): boolean {
-  const shop = shopOf(demo, id);
-  const line = sellables(demo, id).find((candidate) => candidate.item === item);
-  if (shop === null || line === undefined) return false;
-  demo.world.removeItem(item, 1);
-  demo.world.addItem(shop.currency, line.price);
-  if (shop.stock.find((stocked) => stocked.item === item)?.count !== undefined) {
-    const state = demo.state.interactable(id);
-    state.data[`bought:${item}`] = boughtOf(state.data, item) - 1;
-  }
-  const currency = itemOf(demo.project, shop.currency)?.name ?? shop.currency;
-  const who = demo.party.selected;
-  note(demo, `${who === null ? 'The party' : nameOf(demo, who)} sells ${line.name} for ${line.price} ${currency.toLowerCase()}.`, 'success');
-  return true;
 }

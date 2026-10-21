@@ -1,0 +1,19 @@
+[package]
+name = "tactical-hooks"
+version = "0.1.0"
+description = "Tactical Engine's project hooks run in QuickJS: the engine's Hooks, for the server (docs/SERVER.md, phase 2)"
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "hooks"
+
+[dependencies]
+engine = { package = "tactical-engine", path = "../engine" }
+# QuickJS, compiled from C: the reason hooks are a crate of their own, the engine building to wasm32.
+rquickjs = "0.9"
+serde_json = { version = "1", features = ["float_roundtrip", "preserve_order"] }
+
+[dev-dependencies]
+serde = "1"

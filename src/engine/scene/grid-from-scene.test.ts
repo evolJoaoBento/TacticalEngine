@@ -23,6 +23,18 @@ function sceneWith(terrainRows: string[][], heightRows: number[][]): SceneDoc {
   });
 }
 
+describe('paletteForProject', () => {
+  it('carries the surface a kind of tile is drawn in into the palette', () => {
+    const palette = paletteForProject({ terrainPalette: [{ id: 'grass', name: '', passable: true, cost: 1, providesCover: false, blocksSight: false }, { id: 'bricks-wall', name: 'Bricks Wall', passable: true, cost: 1, providesCover: true, blocksSight: false, structure: 'wall', surface: 'bricks' }], structureTypes: undefined });
+    expect(palette.at(palette.indexOf('bricks-wall')).surface).toBe('bricks');
+    expect('surface' in palette.at(palette.indexOf('grass'))).toBe(false);
+    // And its own repeat of it, when it sets one.
+    const sized = paletteForProject({ terrainPalette: [{ id: 'bricks-floor', name: '', passable: true, cost: 1, providesCover: false, blocksSight: false, structure: 'floor', surface: 'bricks', surfaceSize: 2.5 }], structureTypes: undefined });
+    expect(sized.at(sized.indexOf('bricks-floor')).surfaceSize).toBe(2.5);
+    expect('surfaceSize' in palette.at(palette.indexOf('bricks-wall'))).toBe(false);
+  });
+});
+
 describe('gridFromScene', () => {
   it('resolves terrain ids into palette indices and copies heights', () => {
     const scene = sceneWith(

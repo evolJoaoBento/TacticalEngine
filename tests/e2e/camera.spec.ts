@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from './fixtures';
 
 /**
  * The two gestures the mouse's third button and the wheel's modifier add: a middle drag
@@ -97,4 +97,31 @@ test('selecting another character from their card slides the camera over them', 
   const after = await camera(page);
   expect(after.yaw).toBeCloseTo(before.yaw);
   expect(after.distance).toBeCloseTo(before.distance);
+});
+
+test('in play the camera is on a leash to whoever is played; in the editor it goes where it is sent', async ({ page }) => {
+  await booted(page);
+  await page.evaluate(() => window.__engine!.setMode('play'));
+  const start = await camera(page);
+  const away = (a: { x: number; z: number }, b: { x: number; z: number }) => Math.hypot(a.x - b.x, a.z - b.z);
+  // Panned with the keys for long enough to cross any room: it runs out of leash, and stops.
+  await page.keyboard.down('d');
+  await page.waitForTimeout(2500);
+  const first = await camera(page);
+  await page.waitForTimeout(1500);
+  const second = await camera(page);
+  await page.keyboard.up('d');
+  expect(away(first.target, start.target)).toBeGreaterThan(1);
+  expect(away(second.target, first.target)).toBeLessThan(0.05);
+  // Eight tiles from them at most, wherever it started.
+  expect(away(second.target, start.target)).toBeLessThanOrEqual(16.01);
+
+  // The editor has nobody to be leashed to: the same keys, as long, carry it much further.
+  await page.evaluate(() => window.__engine!.setMode('edit'));
+  const edit = await camera(page);
+  await page.keyboard.down('d');
+  await page.waitForTimeout(2500);
+  await page.keyboard.up('d');
+  expect(away((await camera(page)).target, edit.target)).toBeGreaterThan(20);
+  expect(await page.evaluate(() => window.__engine!.errors)).toEqual([]);
 });

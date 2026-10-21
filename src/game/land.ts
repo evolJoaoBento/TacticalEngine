@@ -20,7 +20,6 @@
 import { worldToSpot, type TileLayout } from '../engine/render/layout';
 import type { Spot } from '../engine/grid/grid';
 import type { TileGrid } from '../engine/grid/grid';
-import type { Party } from '../engine/scene/party';
 
 /** As much of the view as landing needs: where the figures are, and the power to stop one. */
 export interface Walking {
@@ -34,23 +33,6 @@ export interface Walking {
 export function standingNow(view: Walking, id: string | null): Spot | null {
   if (id === null || !view.isGliding(id)) return null;
   return view.spotOf(id);
-}
-
-/**
- * Put every figure still walking down where it stands, and hand back who was landed.
- *
- * Nobody standing still is touched, so this is safe to call before any order: with no walk in
- * flight it does nothing at all and costs one map lookup a party member.
- */
-export function landWalkers(party: Party, view: Walking): string[] {
-  const landed: string[] = [];
-  for (const id of party.members()) {
-    if (!view.isGliding(id)) continue;
-    const at = view.spotOf(id);
-    if (at === null) continue;
-    if (party.landAt(id, at) && view.land(id, at)) landed.push(id);
-  }
-  return landed;
 }
 
 /** The spot a world position stands on, for a caller holding a position rather than a token. */

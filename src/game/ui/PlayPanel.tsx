@@ -19,6 +19,12 @@ import { SettingsModal } from './SettingsModal';
 import { GearFace } from './GearBinder';
 import type { GearCard } from '../gear';
 import './hud.css';
+import { ArtNote } from './AiNote';
+import { Players } from './Players';
+import { Lobby } from './Lobby';
+import { Chat } from './Chat';
+import { FriendsInPlay } from './FriendsInPlay';
+import { waitingOn } from '../shared-game';
 
 
 /**
@@ -57,6 +63,8 @@ export interface JournalQuest {
   summary: string;
   status: 'active' | 'completed' | 'failed';
   objectives: readonly { id: string; text: string; done: boolean }[];
+  /** A project plan learned rather than a quest: the work done on it, of all it takes (`content/projects.ts`). */
+  project?: { done: number; work: number };
 }
 
 /** What a right-click found: a card's worth of facts, no verbs. */
@@ -88,6 +96,16 @@ export interface OpenContainer {
   onSell?: (item: string) => void;
   onTake: (item: string) => void;
   onClose: () => void;
+  /** At the camp's portal: the adventures it offers, each begun with Begin (`adventure-portal.ts`). */
+  adventures?: readonly { id: string; name: string; blurb: string; party?: string; offeredBy?: string; offered?: boolean }[];
+  onBegin?: (adventure: string) => void;
+  /**
+   * At a shared game, on a page not the host's: who chooses the adventure, which takes everybody through - the
+   * adventures listed the page's own, each offered to them (`onBegin`) or already.
+   */
+  chooser?: string;
+  /** On a page not the host's: one of its own adventures offered, taken back. */
+  onWithdraw?: (adventure: string) => void;
 }
 
 export interface PlayPanelProps {
@@ -154,9 +172,12 @@ export function PlayPanel(props: PlayPanelProps): preact.JSX.Element | null {
   const talking = pending !== null && pending.kind === 'script' ? pending.dialogue : null;
   const asking = asked(pending);
   const choice = asking !== null && asking.kind === 'choice' ? asking : null;
+  const waiting = waitingOn(pending, props.nameOf);
 
   return (
     <div className="play panel">
+      {/* How the art under the pointer was made, in the corner: the board's, the cards', the portraits'. */}
+      <ArtNote />
       <RollStage
         rolls={props.rolls}
         millis={props.millis}
@@ -166,8 +187,11 @@ export function PlayPanel(props: PlayPanelProps): preact.JSX.Element | null {
         onAnswer={props.onAnswer}
         onDone={props.onRollDone}
       />
+      {/* A game opened for others to join, over the board until its host starts it. */}
+      <Lobby />
       <SettingsModal games={(close) => (
         <>
+          <Players />
           <div data-testid="save-row" className="panel-saves">
             <button
               type="button"
@@ -261,10 +285,11 @@ export function PlayPanel(props: PlayPanelProps): preact.JSX.Element | null {
         <div className="play-box panel-box is-fixed" data-testid="journal">
           <div className="play-eyebrow panel-heading">Journal</div>
           {props.journal.map((quest) => (
-            <div key={quest.id} className="panel-quest" data-quest={quest.id}>
+            <div key={quest.id} className="panel-quest" data-quest={quest.project === undefined ? quest.id : undefined} data-project={quest.project === undefined ? undefined : quest.id}>
               <div className={quest.status === 'completed' ? 'is-done' : quest.status === 'failed' ? 'panel-detail' : ''} style={quest.status === 'completed' ? { color: 'var(--play-muted)', textDecoration: 'line-through' } : undefined}>
                 {quest.name}
                 {quest.status === 'failed' ? ' — failed' : ''}
+                {quest.project === undefined ? '' : ` — project, ${quest.project.done} of ${quest.project.work}`}
               </div>
               {quest.status === 'active' ? (
                 <div className="panel-detail" style={{ fontSize: '12px' }}>
@@ -282,6 +307,12 @@ export function PlayPanel(props: PlayPanelProps): preact.JSX.Element | null {
       ) : null}
 
       {/* What the party carries is in the loadout now, as cards (`GearBinder.tsx`). */}
+
+      {/* The player's friends, and what they have written unread - the menu's, during a game (`FriendsInPlay.tsx`). */}
+      <FriendsInPlay />
+
+      {/* What is said at a shared game's table, once it has started; in its lobby before (`Chat.tsx`). */}
+      <Chat />
 
       {log.length > 0 ? (
         <div
@@ -334,6 +365,13 @@ export function PlayPanel(props: PlayPanelProps): preact.JSX.Element | null {
         </div>
       ) : null}
 
+      {/* A question put to a character another plays, at a shared game: whom it waits on, not its choices. */}
+      {waiting !== null && talking === null ? (
+        <div data-testid="waiting-on" className="play-box panel-box panel-detail">
+          {waiting}
+        </div>
+      ) : null}
+
       {pending === null && within !== null ? (
         <div>
           <button className="play-btn is-primary" onClick={() => props.onUse(within)} data-testid="use">
@@ -368,7 +406,59 @@ function ContainerWindow({ container }: { container: OpenContainer }): preact.JS
           You have {container.paidIn.held} {paid}.
         </div>
       )}
-      {container.lines.length === 0 ? (
+      {container.adventures !== undefined ? (
+        // The portal: an adventure chosen is a game of its own, begun with the party as it stands.
+        <>
+          {container.chooser !== undefined ? (
+            <div className="panel-prose" data-testid="adventure-chooser">
+              {container.chooser} chooses where it opens. Everybody at the table goes through together, the party as it stands.
+              {container.adventures.length === 0 ? null : ` Offer ${container.chooser} one of your own, and they may choose it.`}
+            </div>
+          ) : (
+            <>
+              <div className="panel-prose">Choose where it opens. The party goes through as it stands; the camp stays where it is.</div>
+              {container.adventures.length === 0 ? <div className="panel-prose" data-testid="adventures-none">No adventures yet.</div> : null}
+            </>
+          )}
+          {container.adventures.map((adventure) => (
+            <div key={adventure.id} className="panel-row" data-adventure={adventure.id}>
+              <span>
+                <b>{adventure.name}</b>
+                <br />
+                <span className="panel-detail">{adventure.blurb}</span>
+                {adventure.party === undefined ? null : (
+                  <>
+                    <br />
+                    <span className="panel-detail" data-testid="adventure-party">{adventure.party}</span>
+                  </>
+                )}
+                {adventure.offeredBy === undefined ? null : (
+                  <>
+                    <br />
+                    <span className="panel-detail" data-testid="adventure-offered-by">Offered by {adventure.offeredBy}.</span>
+                  </>
+                )}
+              </span>
+              {container.chooser === undefined ? (
+                <button className="play-btn is-primary" data-testid="adventure-begin" onClick={() => container.onBegin?.(adventure.id)}>
+                  Begin
+                </button>
+              ) : adventure.offered === true ? (
+                <span className="panel-actions">
+                  <span className="panel-detail" data-testid="adventure-offered">Offered</span>
+                  <button className="play-btn" data-testid="adventure-withdraw" title="Take it back" onClick={() => container.onWithdraw?.(adventure.id)}>
+                    Take back
+                  </button>
+                </span>
+              ) : (
+                <button className="play-btn" data-testid="adventure-offer" title={`Offer it to ${container.chooser}`} onClick={() => container.onBegin?.(adventure.id)}>
+                  Offer
+                </button>
+              )}
+            </div>
+          ))}
+        </>
+      ) : container.lines.length === 0 ? (
         <div className="panel-prose" data-testid="container-empty">{shop ? 'Sold out.' : 'Nothing left in it.'}</div>
       ) : shop ? (
         // A merchant's wares are cards on his table: each with its price, and how many are left.

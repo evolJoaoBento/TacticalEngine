@@ -59,7 +59,10 @@ export interface CharacterSheet {
   ancestryId?: string;
   communityId?: string;
   traits: Traits;
-  /** Multiplies weapon damage dice. Level 1 is 1. */
+  /**
+   * Multiplies weapon damage dice. Level 1 is 1, and each tier achievement adds one here; a
+   * Proficiency advancement is recorded in `levels` and counted where the sheet is derived.
+   */
   proficiency: number;
   primaryWeaponId?: string;
   secondaryWeaponId?: string;
@@ -123,7 +126,7 @@ export interface DerivedCharacter {
    * below; the rest are read at roll time against the scene.
    */
   modifiers: readonly AbilityModifier[];
-  /** Proficiency with every bonus folded in. */
+  /** Proficiency with every advancement and bonus folded in. What everything else reads. */
   proficiency: number;
   /** The sheet's traits with every recorded advancement folded in. */
   traits: Traits;
@@ -240,6 +243,7 @@ export function deriveCharacter(
   const proficiency = Math.max(
     1,
     sheet.proficiency +
+      grown.proficiency +
       modifiers
         .filter((m) => m.stat === 'proficiency' && m.when === undefined && m.perToken === undefined && m.requires !== 'meleeWeapon')
         .reduce((sum, m) => sum + m.bonus, 0),

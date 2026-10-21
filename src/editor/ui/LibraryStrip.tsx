@@ -11,9 +11,13 @@
 import { useState } from 'preact/hooks';
 import { filterLibrary, type LibraryItem, type LibraryTab } from '../library';
 import { Icon } from './icons';
+import { AiBadge, artMarkHandlers } from './AiMark';
+import type { ArtKey } from '../../game/art-provenance';
 
 /** What the strip needs to draw a mode's tabs and report a pick. */
 export interface LibraryStripProps {
+  /** Files dropped on the strip: a material's zip on the Terrain strip, imported as four tiles. */
+  onDropFiles?: (files: File[]) => void;
   activeTab?: string;
   onTab?: (tab: string) => void;
   tabs: readonly LibraryTab[];
@@ -27,6 +31,8 @@ export interface LibraryStripProps {
    * is of the body the board draws in place of a model the item does not have yet.
    */
   thumbnail?: (item: LibraryItem) => { url: string; standIn: boolean } | null;
+  /** The art an item's picture shows, for its AI badge (`AiMark.tsx`); none for a flat colour. */
+  artKey?: (item: LibraryItem) => ArtKey | null;
 }
 
 export function LibraryStrip(props: LibraryStripProps): preact.JSX.Element {
@@ -37,9 +43,9 @@ export function LibraryStrip(props: LibraryStripProps): preact.JSX.Element {
   const items = searching ? filterLibrary(props.tabs, query) : (tab?.items ?? []);
 
   const face = (item: LibraryItem): preact.JSX.Element | null => {
-    // A kind of tile is its model's picture when it names a model, over the colour it declares,
-    // which is what the card is when it names none - or while the picture is still being drawn.
-    if (item.swatch !== undefined && item.model === undefined) return null;
+    // A kind of tile is its model's picture when it names a model - or its material's, drawn in it - over the colour
+    // it declares, which is what the card is when it names neither, or while the picture is still being drawn.
+    if (item.swatch !== undefined && item.model === undefined && item.surface === undefined) return null;
     const picture = props.thumbnail?.(item) ?? null;
     if (picture === null) return item.swatch !== undefined ? null : <span class="ph-glyph">{item.label.slice(0, 1)}</span>;
     return (
@@ -55,7 +61,20 @@ export function LibraryStrip(props: LibraryStripProps): preact.JSX.Element {
   };
 
   return (
-    <footer class="ph-library ph-panel" data-testid={props.testId}>
+    <footer
+      class="ph-library ph-panel"
+      data-testid={props.testId}
+      onDragOver={props.onDropFiles === undefined ? undefined : (e) => e.preventDefault()}
+      onDrop={
+        props.onDropFiles === undefined
+          ? undefined
+          : (e) => {
+              e.preventDefault();
+              const files = [...(e.dataTransfer?.files ?? [])];
+              if (files.length > 0) props.onDropFiles!(files);
+            }
+      }
+    >
       <div class="ph-library-tabs">
         {props.tabs.map((t) => (
           <button
@@ -95,8 +114,9 @@ export function LibraryStrip(props: LibraryStripProps): preact.JSX.Element {
             title={item.detail === undefined ? item.label : `${item.label} · ${item.detail}`}
             onClick={() => { setTabId(item.tab); setQuery(''); props.onPick(item); }}
           >
-            <span class="ph-thumb" style={item.swatch === undefined ? undefined : { background: item.swatch }}>
+            <span class="ph-thumb" style={item.swatch === undefined ? undefined : { background: item.swatch }} {...artMarkHandlers(props.artKey?.(item) ?? null)}>
               {face(item)}
+              <AiBadge art={props.artKey?.(item) ?? null} />
             </span>
             <span class="ph-card-label">{item.label}</span>
             {item.detail === undefined ? null : <span class="ph-card-detail">{item.detail}</span>}

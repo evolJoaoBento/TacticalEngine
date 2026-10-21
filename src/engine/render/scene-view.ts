@@ -15,14 +15,12 @@
 import {
   AnimationAction,
   AnimationMixer,
-  AmbientLight,
   BoxGeometry,
   BufferAttribute,
   BufferGeometry,
   Color,
   DirectionalLight,
   Group,
-  HemisphereLight,
   InstancedMesh,
   Line,
   LineBasicMaterial,
@@ -34,14 +32,19 @@ import {
   Object3D,
   type Raycaster,
   Scene,
+  type Texture,
 } from 'three';
 import { NO_TILE, type Spot, type TileGrid } from '../grid/grid';
+import type { SurfaceLibrary } from './surface-library';
+import { paintGround, paintedGround } from './ground-surfaces';
+import { addLightRig, fitSun, setEnvironment, type LightRig } from './light-rig';
+import { RoomLight } from './room-light';
 import { advanceGlide, planGlide, type Glide } from './glide';
 import { TrajectoryLine, type AimedArc } from './trajectory-line';
 import { ReachRing } from './reach-ring';
 import type { Deco, SceneDoc } from '../scene/schema';
 import type { EntityState, SceneState } from '../scene/state';
-import { DEFAULT_LAYOUT, mapExtent, placementCentre, spotToWorld, standHeight, tileCenter, worldToSpot, type TileLayout } from './layout';
+import { DEFAULT_LAYOUT, placementCentre, spotToWorld, standHeight, tileCenter, worldToSpot, type TileLayout } from './layout';
 import { bandedLine, type PathPoint } from './path-bands';
 import { spanOf } from '../scene/deco-span';
 import { outlineTiles } from './tile-outline';
@@ -95,6 +98,7 @@ import { Reactions } from './reactions';
 import { ClickRipples } from './click-ripple';
 import { buildTerrainMesh, type TerrainMesh, type TerrainMeshOptions } from './terrain-mesh';
 import { drawsTileModel, redrawTileModels } from './tile-models';
+import { artUnder as artUnderRay, named } from './art-under';
 
 export interface SceneViewOptions extends TerrainMeshOptions {
   layout?: TileLayout;
@@ -270,6 +274,12 @@ export class SceneView {
   private selectionId: string | null = null;
   /** The sun, kept so its shadow map can be let go with the rest. */
   private sun: DirectionalLight | null = null;
+  private rig: LightRig | null = null;
+  /** The room's own light: the rig turned down, and what burns in it lit (`room-light.ts`). */
+  readonly roomLight = new RoomLight(this.root, this.scene, () => this.rig);
+  /** The imported materials kinds of ground may be drawn in (`setSurfaces`). */
+  private surfaces: SurfaceLibrary | null = null;
+  private unsubscribeSurfaces: () => void = () => undefined;
   /** How many tiles the overlay layers have room for; grows with the biggest room seen. */
   private maxHighlights: number;
   private highlightCount = 0;
@@ -386,7 +396,7 @@ export class SceneView {
    * where they were drawn, so the next `syncTokens` puts them down outright
    * rather than gliding them in from the other room's coordinates.
    */
-  rebind(grid: TileGrid, options: { tints?: readonly string[]; decos?: readonly Deco[]; objects?: readonly Interactable[] } = {}): void {
+  rebind(grid: TileGrid, options: { tints?: readonly string[]; decos?: readonly Deco[]; objects?: readonly Interactable[]; light?: number } = {}): void {
     this.settle();
     this.ripples.clear();
     this._grid = grid;
@@ -426,56 +436,25 @@ export class SceneView {
     this.tokenStanding.clear();
     this.setDecos(options.decos ?? []);
     this.setObjects(options.objects ?? []);
+    this.roomLight.light(options.light, this.lastDecos.map((deco, n) => ({ model: deco.model, at: this.decos[n]! })));
   }
 
-  /**
-   * The light rig: a sky over the room, a little ambient so nothing is black,
-   * and a sun that casts. The shadow is the depth cue that makes a wall read
-   * as standing on the floor rather than painted on it, and a token as
-   * standing rather than floating; its camera is fitted to the map so the
-   * whole room is inside it whatever the room's size.
-   */
+  /** The light rig (`light-rig.ts`): a sky, a little ambient, and a sun that casts, fitted to the room. */
   private addLights(): void {
-    // Warm, as a painted room is: a candle-coloured sky, a plum floor bounce, and an
-    // afternoon sun, which the toon ramp turns into flat lit and shaded sides.
-    this.scene.add(new AmbientLight(new Color('#fff1e0'), 0.42));
-    this.scene.add(new HemisphereLight(new Color('#ffe6c4'), new Color('#3d2c48'), 0.6));
-
-    const sun = new DirectionalLight(new Color('#ffe3b8'), 1.5);
-    sun.castShadow = true;
-    // 1024 is soft enough on a 22-tile room, and half the cost of the next
-    // size up on the software GL the browser suite runs on.
-    sun.shadow.mapSize.set(1024, 1024);
-    // Flat-shaded boxes lit at a low angle acne without a bias along the normal.
-    sun.shadow.normalBias = 0.03;
-    sun.shadow.bias = -0.0005;
-    this.sun = sun;
-    this.scene.add(sun);
-    // The light aims at its target, which lives at the origin unless it is in the scene.
-    this.scene.add(sun.target);
+    this.rig = addLightRig(this.scene);
+    this.sun = this.rig.sun;
     this.fitSun();
+  }
+
+  /** The light the room gives back (`roomEnvironment`), or none: the rig as it always was. */
+  setEnvironment(environment: Texture | null): void {
+    if (this.rig !== null) setEnvironment(this.scene, this.rig, environment);
+    this.roomLight.dim();
   }
 
   /** Put the sun where this room wants it, with its shadow camera round the whole room. */
   private fitSun(): void {
-    const sun = this.sun;
-    if (sun === null) return;
-    // Low enough that a wall throws a shadow you can see, high enough that
-    // the shadow does not cover the tile beside it: about fifty degrees up.
-    sun.position.set(
-      this.grid.width * 0.55,
-      Math.max(this.grid.width, this.grid.height) * 0.6,
-      this.grid.height * 0.5,
-    );
-    const extent = mapExtent(this.grid, this.layout);
-    const reach = extent.radius * 1.1;
-    sun.shadow.camera.left = -reach;
-    sun.shadow.camera.right = reach;
-    sun.shadow.camera.top = reach;
-    sun.shadow.camera.bottom = -reach;
-    sun.shadow.camera.near = 0.5;
-    sun.shadow.camera.far = extent.radius * 6;
-    sun.shadow.camera.updateProjectionMatrix();
+    if (this.sun !== null) fitSun(this.sun, this.grid, this.layout);
   }
 
   /** The sun, for a test of the rig or a caller that wants to move it. */
@@ -746,9 +725,9 @@ export class SceneView {
       this.assets.request(modelId);
       // Declared and on its way is not "missing": stand in without recording a miss.
       const spec = this.registry.has(modelId) ? this.registry.get(modelId) : placeholderSpec;
-      return buildModel(spec, this.resources, options);
+      return named(buildModel(spec, this.resources, options), modelId);
     }
-    return buildModel(this.registry.get(modelId), this.resources, options);
+    return named(buildModel(this.registry.get(modelId), this.resources, options), modelId);
   }
 
   /** Clone a loaded glTF scene, scaled and seated as its asset spec says. */
@@ -756,6 +735,7 @@ export class SceneView {
     const spec = this.assets!.spec(modelId)!;
     const group = new Group();
     group.name = `model:${modelId}`;
+    group.userData['model'] = modelId; // where a `token:` or `object:` rename cannot reach (`art-under.ts`)
     // SkeletonUtils handles skinned meshes; for a plain scene it is a deep clone.
     const clone = cloneSkeleton(template);
     clone.scale.setScalar(options.scale ?? spec.scale);
@@ -883,6 +863,7 @@ export class SceneView {
 
   /** Advance every playing clip and every moving token. `dt` in seconds. */
   tick(dt: number): void {
+    this.roomLight.tick(dt);
     this.advanceGlides(dt);
     this.reactions.advance(dt);
     this.ripples.tick(dt);
@@ -956,7 +937,21 @@ export class SceneView {
       ...(tints === undefined ? {} : { tints }),
     });
     for (const mesh of this.terrain.meshes) this.root.add(mesh);
+    paintGround(this.terrain, this.grid.palette, this.surfaces);
     this.tileModels = redrawTileModels(this.root, this.tileModels, this.grid, this.layout, (id, at) => this.build(id, at === undefined ? {} : { scale: at }), (group) => this.clipSets.delete(group));
+  }
+
+  /** Kinds of ground drawn in imported materials (`ground-surfaces.ts`): painted again as each lands, is tuned or goes. */
+  setSurfaces(library: SurfaceLibrary): void {
+    this.unsubscribeSurfaces();
+    this.surfaces = library;
+    this.unsubscribeSurfaces = library.onChange(() => paintGround(this.terrain, this.grid.palette, this.surfaces));
+    paintGround(this.terrain, this.grid.palette, this.surfaces);
+  }
+
+  /** The kinds of ground drawn in an imported material right now, by id. */
+  paintedGround(): string[] {
+    return paintedGround(this.terrain);
   }
 
   /** The model standing for an entity, if it has one. */
@@ -986,6 +981,11 @@ export class SceneView {
   /** Which doors are open, so the ones that changed swing (`render/door-swing.ts`). */
   setOpenings(ids: ReadonlySet<string>): void {
     this.swings.setOpen(ids);
+  }
+
+  /** Which things a script took away (`remove`): not drawn, until the room is drawn again without them gone. */
+  setGone(ids: ReadonlySet<string>): void {
+    for (const drawn of [...this.decos, ...this.objects]) drawn.visible = !ids.has(drawn.name.replace(/^object:/, ''));
   }
 
   /** How far a door is swung from its facing, in radians; null for a prop that is not a door. */
@@ -1195,13 +1195,18 @@ export class SceneView {
    */
   objectUnder(ray: Raycaster): string | null {
     // Scenery too: a tree in front of a chest is pointed at, not the chest.
-    const hit = ray.intersectObjects([...this.objects, ...this.decos], true).find((h) => h.object.visible);
+    const hit = ray.intersectObjects([...this.objects, ...this.decos].filter((drawn) => drawn.visible), true).find((h) => h.object.visible);
     if (hit === undefined) return null;
     const ground = ray.intersectObjects(this.terrain.drawn, false)[0];
     if (ground !== undefined && ground.distance < hit.distance) return null;
     let drawn: Object3D = hit.object;
     while (drawn.parent !== null && drawn.parent !== this.root) drawn = drawn.parent;
     return drawn.name.startsWith('object:') ? drawn.name.slice('object:'.length) : null;
+  }
+
+  /** The model the nearest creature, prop, object or tile model under a ray is made of (`art-under.ts`). */
+  artUnder(ray: Raycaster): string | null {
+    return artUnderRay(ray, [...[...this.tokens.values()].map((t) => t.group), ...this.authoredCreatures, ...this.objects, ...this.decos, ...this.tileModels], this.terrain.drawn, this.root);
   }
 
   /** Rim what the pointer is on: an object in white, a creature by bringing its line up. */
@@ -1231,7 +1236,7 @@ export class SceneView {
 
   /** The tile of the nearest authored thing drawn under a ray - a creature, a prop, a mark - unless ground hides it. */
   authoredUnder(ray: Raycaster): { x: number; y: number } | null {
-    const hit = ray.intersectObjects([...this.authoredCreatures, ...this.decos, ...this.objects, ...this.marks], true).find((h) => h.object.visible);
+    const hit = ray.intersectObjects([...this.authoredCreatures, ...this.decos, ...this.objects, ...this.marks].filter((drawn) => drawn.visible), true).find((h) => h.object.visible);
     const ground = ray.intersectObjects(this.terrain.drawn, false)[0];
     if (hit === undefined || (ground !== undefined && ground.distance < hit.distance)) return null;
     let drawn: Object3D = hit.object;

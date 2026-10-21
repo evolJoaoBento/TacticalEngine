@@ -55,6 +55,48 @@ describe('mergePack', () => {
     expect(STARTER_CHARACTERS.cards.get(shipped.id)?.name).toBe(shipped.name);
   });
 
+  describe("a thing the project defines anew, with features of its own", () => {
+    const human = STARTER_CHARACTERS.ancestries.get('human')!;
+    const starters = (cards: ReadonlyMap<string, { grant: { kind: string } & Record<string, unknown> }>, kind: string, key: string, id: string) =>
+      [...cards.values()].filter((card) => card.grant.kind === kind && card.grant[key] === id).map((card) => (card as unknown as { id: string }).id);
+    const feature = (id: string, grant: object) => ({ id, name: id, grant, text: '', features: [] }) as never;
+    const ofTheStarter = starters(STARTER_CHARACTERS.cards as never, 'ancestry', 'ancestryId', 'human');
+
+    it("is its own whole: the base's features for it are not added to the project's", () => {
+      expect(ofTheStarter.length).toBeGreaterThan(0);
+      const merged = mergePack(STARTER_CHARACTERS, { ancestries: [{ ...human }], cards: [feature('human-own', { kind: 'ancestry', ancestryId: 'human' })] });
+      expect(starters(merged.cards as never, 'ancestry', 'ancestryId', 'human')).toEqual(['human-own']);
+      // Every other ancestry's features as they were.
+      expect(merged.cards.size).toBe(STARTER_CHARACTERS.cards.size - ofTheStarter.length + 1);
+    });
+
+    it("keeps the base's when the project only adds a feature, or only redefines it, or redefines one of its own features", () => {
+      // A feature added to a thing the project does not define: the Demo Vault's Hold Fast for the starter's Sentinel.
+      const added = mergePack(STARTER_CHARACTERS, { cards: [feature('human-more', { kind: 'ancestry', ancestryId: 'human' })] });
+      expect(starters(added.cards as never, 'ancestry', 'ancestryId', 'human')).toEqual([...ofTheStarter, 'human-more']);
+      // Defined anew, with nothing of its own to give: the base's still given.
+      const renamed = mergePack(STARTER_CHARACTERS, { ancestries: [{ ...human, name: 'Folk' }] });
+      expect(starters(renamed.cards as never, 'ancestry', 'ancestryId', 'human')).toEqual(ofTheStarter);
+      // Defined anew, and one of the base's features rewritten: that one the project's, the others the base's still.
+      const first = STARTER_CHARACTERS.cards.get(ofTheStarter[0]!)!;
+      const rewritten = mergePack(STARTER_CHARACTERS, { ancestries: [{ ...human }], cards: [{ ...first, name: 'Rewritten' }] });
+      expect(starters(rewritten.cards as never, 'ancestry', 'ancestryId', 'human')).toEqual([ofTheStarter[0]]);
+      expect(rewritten.cards.get(first.id)!.name).toBe('Rewritten');
+      // In its place, as any card the project rewrites is.
+      expect([...rewritten.cards.keys()].indexOf(first.id)).toBe([...STARTER_CHARACTERS.cards.keys()].indexOf(first.id));
+    });
+
+    it('holds for a class, a subclass and a community as for an ancestry', () => {
+      for (const [list, kind, key] of [['classes', 'class', 'classId'], ['subclasses', 'subclass', 'subclassId'], ['communities', 'community', 'communityId']] as const) {
+        const [id, def] = [...(STARTER_CHARACTERS[list] as ReadonlyMap<string, object>)][0]!;
+        const theirs = starters(STARTER_CHARACTERS.cards as never, kind, key, id);
+        expect(theirs.length, list).toBeGreaterThan(0);
+        const merged = mergePack(STARTER_CHARACTERS, { [list]: [def], cards: [feature(`${id}-own`, { kind, [key]: id, ...(kind === 'subclass' ? { stage: 'foundation' } : {}) })] } as never);
+        expect(starters(merged.cards as never, kind, key, id), list).toEqual([`${id}-own`]);
+      }
+    });
+  });
+
   it('merges each kind of content independently', () => {
     const merged = mergePack(STARTER_CHARACTERS, { cards: [FIXTURE_CARD] });
     // Carrying a card says nothing about the rest, which stays as it was.

@@ -59,13 +59,12 @@ describe('Check over the building layer', () => {
 
   it('leaves an unknown structure to the schema, which refuses it first', () => {
     // There is deliberately no Check pass for an unknown shape. `validateProject` re-parses
-    // the document, `buildingTilesSchema` refuses a shape no structure declares, and
-    // `paletteForProject` refills the registry from the project being validated - so no
-    // document can reach a pass looking for one. A first draft had that pass; it was dead
-    // code, and this is what says so.
-    setStructures([{ id: 'doorway', name: 'Doorway', atoms: [{ shape: 'wall' }] }]);
-    const doc = project({ '1,1,0': piece({ shape: 'doorway' }) });
-    setStructures();
+    // the document, and `projectSchema` refuses a piece built of a structure neither the
+    // engine nor the project declares - so no document can reach a pass looking for one. A
+    // first draft had that pass; it was dead code, and this is what says so. The document is
+    // put together by hand because the schema would not let one be parsed into being.
+    const room = project({}).scenes[0]!;
+    const doc = { ...project({}), scenes: [{ ...room, buildingTiles: { '1,1,0': piece({ shape: 'doorway' }) } }] } as ProjectDoc;
     const said = messages(doc);
     expect(said.some((m) => m.includes('doorway'))).toBe(true);
     // The schema's words, not a pass of Check's own.

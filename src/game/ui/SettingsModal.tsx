@@ -6,7 +6,8 @@
  * already means "put that down" all over the game: it closes the loadout, cancels a card being
  * aimed, calls off a roll. So this listens first, in the capture phase, and looks at the page
  * before anything has reacted: if something Escape would close is on it, the key is that
- * thing's and this stays shut. Only an Escape with nothing to put down opens the settings, and
+ * thing's and this stays shut. So is one typed in a field - the table's chat, say (`typingIn`): it
+ * lets go of the keyboard. Only an Escape with nothing to put down opens the settings, and
  * while they are open Escape is theirs alone.
  *
  * Headings and rows come off `userSettingSections()`, and a row is drawn by its `kind`, so a
@@ -26,8 +27,8 @@ import { onUserSettings, setUserSetting, userSettingSections, userSettings, type
 /**
  * What Escape already closes when it is on the page. While any of these is, the key is not ours:
  * the loadout binder, a rest being chosen, a card or a jump being aimed, the facts about a
- * creature, a roll being asked for or read, a level being taken. A conversation and a shop are
- * not among them: Escape closes neither, so it opens the settings over them.
+ * creature, a roll being asked for or read, a level being taken, the friends. A conversation and a
+ * shop are not among them: Escape closes neither, so it opens the settings over them.
  */
 export const ESCAPE_IS_TAKEN = [
   '[data-testid="loadout-backdrop"]',
@@ -36,11 +37,26 @@ export const ESCAPE_IS_TAKEN = [
   '[data-testid="inspect"]',
   '.roll-backdrop',
   '[data-testid="level-up"]',
+  '[data-testid="friends-sheet"]',
 ].join(',');
 
 /** Whether an Escape pressed now belongs to something else on the page. */
 export function escapeIsTaken(root: ParentNode = document): boolean {
   return root.querySelector(ESCAPE_IS_TAKEN) !== null;
+}
+
+/** The kinds of `<input>` nobody types in: Escape on one of these is still the settings'. */
+const UNTYPED = ['checkbox', 'radio', 'button', 'submit', 'reset', 'range', 'color', 'file', 'image'];
+
+/**
+ * Whether a key pressed here is being typed: in a text field, a text area or anything editable. Escape typed is the
+ * field's - it lets go of the keyboard (`ChatBox.tsx`) - and opens no settings; another Escape, the field let go, does.
+ */
+export function typingIn(target: EventTarget | null): boolean {
+  const el = target as { tagName?: string; type?: string; isContentEditable?: boolean } | null;
+  if (el === null || typeof el.tagName !== 'string') return false;
+  if (el.isContentEditable === true || el.tagName === 'TEXTAREA') return true;
+  return el.tagName === 'INPUT' && !UNTYPED.includes((el.type ?? 'text').toLowerCase());
 }
 
 function Row(props: { def: UserSettingDef; settings: UserSettings }): preact.JSX.Element {
@@ -87,7 +103,7 @@ export function SettingsModal(props: SettingsModalProps = {}): preact.JSX.Elemen
         event.stopPropagation();
         event.preventDefault();
         setOpen(false);
-      } else if (!escapeIsTaken()) {
+      } else if (!typingIn(event.target) && !escapeIsTaken()) {
         event.stopPropagation();
         setOpen(true);
       }
@@ -134,6 +150,10 @@ export function SettingsModal(props: SettingsModalProps = {}): preact.JSX.Elemen
           </section>
         ))}
         <p className="settings-foot">Kept in this browser, for every campaign played in it.</p>
+        {/* Back to New Game, Load Game and Edit Game: the page opens again on the menu. */}
+        <button type="button" className="play-btn settings-menu" data-testid="to-main-menu" onClick={() => window.location.assign(`${window.location.pathname}?menu`)}>
+          Main menu
+        </button>
       </div>
     </div>
   );

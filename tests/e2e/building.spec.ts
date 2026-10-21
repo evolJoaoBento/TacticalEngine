@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures';
 
 test('Alt + mouse rotates placement without stamping or panning', async ({ page }) => {
   await page.goto('/');

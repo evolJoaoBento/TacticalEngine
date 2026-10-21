@@ -157,6 +157,23 @@ export class OrbitCamera {
   }
 
   /**
+   * Keep the target within `radius` of a point, along the ground: when it has strayed further - panned
+   * away, or the point walked off - it is drawn straight back to the edge of that circle, and when it
+   * is inside, left where it is. True when it had to be drawn back. The drawn pose eases after the
+   * goal, so a pan that runs into the leash slows to a stop rather than hitting a wall.
+   */
+  leash(point: { x: number; z: number }, radius: number): boolean {
+    const dx = this.goal.target.x - point.x;
+    const dz = this.goal.target.z - point.z;
+    const away = Math.hypot(dx, dz);
+    if (away <= radius) return false;
+    const keep = radius / away;
+    this.goal.target.x = point.x + dx * keep;
+    this.goal.target.z = point.z + dz * keep;
+    return true;
+  }
+
+  /**
    * Keep a point within `slack` of the target, along the ground, moving the
    * target as little as that takes and not at all when the point is already
    * close: a walking token stays in frame without the camera chasing every

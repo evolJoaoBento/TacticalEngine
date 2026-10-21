@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from './fixtures';
 import { openPack } from './pack';
 
 /**
@@ -136,6 +136,65 @@ test('a rest is taken from the panel, and puts something back', async ({ page })
   // A long rest puts everything back, which is the one rest with no dice in it.
   expect(rested.hp.marked).toBeLessThan(hurt.hp.marked);
   expect(rested.stress.marked).toBeLessThanOrEqual(hurt.stress.marked);
+  expect(errors, `console errors: ${errors.join(' | ')}`).toEqual([]);
+});
+
+test('after three short rests the panel offers only a long one, and a long rest begins the count again', async ({ page }) => {
+  const errors = await ready(page);
+  await throughTheCampaign(page);
+  const panel = page.locator('[data-testid="rest"]');
+  for (let n = 0; n < 3; n++) {
+    await page.locator('[data-testid="open-rest"]').click();
+    await expect(panel.getByTestId('rest-count')).toHaveText(`Short rests since the last long one: ${n} of 3.`);
+    await panel.getByTestId('take-rest').click();
+    await expect(panel).toHaveCount(0);
+  }
+  // The fourth must be long: short is not on offer.
+  await page.locator('[data-testid="open-rest"]').click();
+  await expect(panel.getByTestId('rest-count')).toHaveText('3 short rests since the last long one: this one must be long.');
+  await expect(panel.getByTestId('rest-short')).toBeDisabled();
+  await expect(panel.getByTestId('rest-long')).toBeChecked();
+  await page.screenshot({ path: 'test-results/rest-must-be-long.png' });
+  await panel.getByTestId('take-rest').click();
+  await expect(panel).toHaveCount(0);
+  await page.locator('[data-testid="open-rest"]').click();
+  await expect(panel.getByTestId('rest-count')).toHaveText('Short rests since the last long one: 0 of 3.');
+  await expect(panel.getByTestId('rest-short')).toBeEnabled();
+  expect(errors, `console errors: ${errors.join(' | ')}`).toEqual([]);
+});
+
+test('a project plan is learned, worked at on long rests through the panel, and its reward given', async ({ page }) => {
+  const errors = await ready(page);
+  await throughTheCampaign(page);
+  // The demo's example plan, taught by the smith's notes (unplaced: the test driver hands them over).
+  await page.evaluate(() => {
+    const a = window.__engine!;
+    a.giveItem('smiths-notes');
+    a.useItem('smiths-notes');
+  });
+  const project = page.locator('[data-testid="journal"] [data-project="husk-iron-blade"]');
+  await expect(project).toContainText('Husk-iron blade — project, 0 of 2');
+  const panel = page.locator('[data-testid="rest"]');
+  for (const n of [1, 2]) {
+    await page.locator('[data-testid="open-rest"]').click();
+    // Work on a project is a long rest's: not offered on a short one.
+    const first = panel.locator('[data-rest-member="kara"] [data-testid="move-0"]');
+    await expect(first.locator('option[value="workOnProject"]')).toHaveCount(0);
+    await panel.getByTestId('rest-long').click();
+    await first.selectOption('workOnProject');
+    await expect(panel.locator('[data-rest-member="kara"] [data-testid="project-0"]')).toContainText(`Husk-iron blade (${n - 1} of 2)`);
+    if (n === 2) await page.screenshot({ path: 'test-results/rest-project.png' });
+    await panel.getByTestId('take-rest').click();
+    await expect(panel).toHaveCount(0);
+  }
+  // Finished: the journal says so, the log tells it, and the blade is carried.
+  await expect(project).toContainText('Husk-iron blade — project, 2 of 2');
+  const log = await page.evaluate(() => window.__engine!.log().map((l) => l.text));
+  expect(log).toContain('Husk-iron blade is finished.');
+  expect(log).toContain('The husk-iron takes an edge at last.');
+  // And a card for the one who finished it: Quim, who worked the second rest.
+  expect(log.some((line) => line.endsWith('learns Unbroken.'))).toBe(true);
+  expect(await page.evaluate(() => window.__engine!.carried().map((i) => i.name))).toContain('Improved Longsword');
   expect(errors, `console errors: ${errors.join(' | ')}`).toEqual([]);
 });
 

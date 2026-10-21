@@ -1,0 +1,79 @@
+/**
+ * An imported material's shader (`tile-surface.ts`), with no WebGL: the chunks it replaces held to three's own shaders
+ * - a three release that renamed one would leave the material quietly flat, so that is a failure here - and what the
+ * patch writes, for the near material and the flat one.
+ */
+
+import { describe, expect, it } from 'vitest';
+import { Color, ShaderLib, Texture } from 'three';
+import { REPLACED, makeSurfaceMaterial, patchShader, tuneSurface, type ShaderLike, type SurfaceUniforms } from './tile-surface';
+
+const textures = () => ({ color: new Texture(), normalHeight: new Texture(), orm: new Texture() });
+const tuning = { size: 1, depth: 0.06, normalScale: 1, roughness: 1, tint: 0 };
+
+/** Three's standard shader, as `onBeforeCompile` is handed it. */
+const standard = (): ShaderLike => ({ uniforms: {}, vertexShader: ShaderLib.standard.vertexShader, fragmentShader: ShaderLib.standard.fragmentShader });
+
+describe('an imported material, drawn', () => {
+  it("replaces only chunks three's standard shaders have, each once", () => {
+    for (const chunk of REPLACED.vertex) expect(ShaderLib.standard.vertexShader.split(chunk).length - 1, chunk).toBe(1);
+    for (const chunk of REPLACED.fragment) expect(ShaderLib.standard.fragmentShader.split(chunk).length - 1, chunk).toBe(1);
+  });
+
+  it('writes the world position and the face, the projected maps, the normal, roughness, metalness and occlusion', () => {
+    const material = makeSurfaceMaterial(textures(), tuning, { parallax: true });
+    const shader = standard();
+    material.onBeforeCompile(shader as never, undefined as never);
+    expect(shader.vertexShader).toContain('vTmWorld = tmWorld.xyz;');
+    expect(shader.fragmentShader).toContain('#define TM_PARALLAX');
+    expect(shader.fragmentShader).toContain('uniform sampler2D tNormalHeight;');
+    for (const replaced of ['#include <map_fragment>', '#include <color_fragment>', '#include <roughnessmap_fragment>', '#include <metalnessmap_fragment>', '#include <normal_fragment_maps>', '#include <aomap_fragment>']) {
+      expect(shader.fragmentShader).not.toContain(replaced);
+    }
+    expect(shader.fragmentShader).toContain('textureGrad( tColor, tmUv, tmDx, tmDy )');
+    // The derivatives taken before the loop, never inside it.
+    expect(shader.fragmentShader.indexOf('vec2 tmDx = dFdx( tmUv );')).toBeLessThan(shader.fragmentShader.indexOf('for ( int i = 0; i < 32; i++ )'));
+    expect(shader.uniforms['uDepth']).toBe(material.userData.surfaceUniforms.uDepth);
+    expect(shader.uniforms['tColor']!.value).toBe(material.userData.surfaceUniforms.tColor.value);
+  });
+
+  it('keeps the flat material apart from the near one: no parallax, its own program', () => {
+    const near = makeSurfaceMaterial(textures(), tuning, { parallax: true });
+    const flat = makeSurfaceMaterial(textures(), tuning, { parallax: false });
+    const shader = standard();
+    flat.onBeforeCompile(shader as never, undefined as never);
+    expect(shader.fragmentShader).not.toContain('#define TM_PARALLAX');
+    expect(near.customProgramCacheKey()).not.toBe(flat.customProgramCacheKey());
+  });
+
+  it('is tuned in place: the uniforms the program was bound to change, nothing compiled again', () => {
+    const material = makeSurfaceMaterial(textures(), tuning, { parallax: true });
+    const uniforms: SurfaceUniforms = material.userData.surfaceUniforms;
+    const shader = standard();
+    patchShader(shader, uniforms, true);
+    tuneSurface(uniforms, { size: 2, depth: 0.1, normalScale: 0.5, roughness: 1.5, tint: 0.5, color: '#808080' });
+    expect([shader.uniforms['uSize']!.value, shader.uniforms['uDepth']!.value, shader.uniforms['uNormalScale']!.value, shader.uniforms['uRoughness']!.value, shader.uniforms['uTint']!.value]).toEqual([2, 0.1, 0.5, 1.5, 0.5]);
+    expect((shader.uniforms['uMean']!.value as Color).getHexString()).toBe('808080');
+  });
+
+  it('takes the colour it is drawn in as far as its tint says, measured against its own average', () => {
+    const material = makeSurfaceMaterial(textures(), { ...tuning, tint: 1, color: '#446688' }, { parallax: false });
+    const shader = standard();
+    material.onBeforeCompile(shader as never, undefined as never);
+    expect(shader.fragmentShader).not.toContain('#include <color_fragment>');
+    expect(shader.fragmentShader).toContain('vColor.rgb / max( uMean, vec3( 0.02 ) )');
+    // After the colour map is read, so it tints the map rather than the white under it.
+    expect(shader.fragmentShader.indexOf('vColor.rgb / max(')).toBeGreaterThan(shader.fragmentShader.indexOf('textureGrad( tColor'));
+    const uniforms = material.userData.surfaceUniforms;
+    expect(uniforms.uTint.value).toBe(1);
+    expect(uniforms.uMean.value.getHexString()).toBe('446688');
+    // Kept before averages were: the tint a plain multiply.
+    tuneSurface(uniforms, tuning);
+    expect([uniforms.uTint.value, uniforms.uMean.value.getHexString()]).toEqual([0, 'ffffff']);
+  });
+
+  it("reads the mesh's vertex colours only when asked: the ground's, never a piece's box", () => {
+    expect(makeSurfaceMaterial(textures(), tuning, { parallax: true }).vertexColors).toBe(false);
+    expect(makeSurfaceMaterial(textures(), tuning, { parallax: true, vertexColors: true }).vertexColors).toBe(true);
+  });
+});

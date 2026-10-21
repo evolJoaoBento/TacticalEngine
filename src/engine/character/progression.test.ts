@@ -1,12 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { FIXTURE_CONTENT } from '../../../tests/fixtures/characters';
-import { blankSheet, deriveCharacter, type CharacterSheet } from './sheet';
+import { attackProfile, blankSheet, deriveCharacter, type CharacterSheet } from './sheet';
 import {
   availableAdvancements,
   cardAllowed,
   domainsOf,
   levelUp,
   markedTraits,
+  progressionBonuses,
   subclassStage,
   tierOf,
   type LevelUpPlan,
@@ -151,6 +152,26 @@ describe('a legal level', () => {
     expect(after.sheet.proficiency).toBe(2);
     expect(after.experiences.map((e) => e.name)).toContain('Vault-born');
     expect(after.sheet.levels).toHaveLength(1);
+  });
+
+  it('counts the Proficiency box: +1 on top of the tier achievement, and the swing rolls it', () => {
+    const plain = climb(toFour(kara()), [toFive([{ kind: 'hitPoint' }, { kind: 'stress' }])]);
+    const trained = climb(toFour(kara()), [toFive([{ kind: 'proficiency' }])]);
+    // Levels 2 and 5 are tier achievements: the sheet itself reads 3 either way.
+    expect(plain.proficiency).toBe(3);
+    expect(trained.proficiency).toBe(3);
+    const derived = deriveCharacter(trained, content).character;
+    expect(deriveCharacter(plain, content).character.proficiency).toBe(3);
+    expect(derived.proficiency).toBe(4);
+    expect(attackProfile(derived).proficiency).toBe(4);
+    expect(progressionBonuses(trained).proficiency).toBe(1);
+  });
+
+  it('counts a Proficiency box a sheet recorded before the box counted', () => {
+    // Saved while `levelUp` dropped the box: the record is there and the sheet's number is not
+    // raised. Counting it where the sheet is derived puts it right without touching the save.
+    const saved = climb(toFour(kara()), [toFive([{ kind: 'proficiency' }])]);
+    expect(deriveCharacter(saved, content).character.proficiency).toBe(saved.proficiency + 1);
   });
 
   it('does not touch the sheet it was given', () => {

@@ -31,6 +31,11 @@ export interface LibraryItem {
    * be a row of Bs.
    */
   readonly model?: string;
+  /**
+   * The imported material a kind of tile is drawn in, with the structure it is: its card is a picture of that, over its
+   * colour while the material's maps are on their way.
+   */
+  readonly surface?: { readonly id: string; readonly structure: string; readonly color?: string | undefined; readonly size?: number | undefined };
 }
 
 /** One tab of the strip: a label over the cards it groups. */
@@ -61,6 +66,10 @@ export interface GroundType {
   readonly model?: string;
   /** The structure it is, if it is one. Marks the card as something that stacks. */
   readonly structure?: string;
+  /** The imported material it is drawn in, when it names one and no model. */
+  readonly surface?: string;
+  /** Its own repeat of that material, when it sets one: its card is drawn at it. */
+  readonly surfaceSize?: number;
 }
 
 /**
@@ -75,7 +84,7 @@ export interface GroundType {
  * Takes the types rather than a list of ids and a table of colours: a project can declare a
  * kind of tile, and a swatch looked up in a table the engine wrote would never have it.
  */
-export function tilesTab(types: readonly GroundType[]): LibraryTab {
+export function tilesTab(types: readonly GroundType[], surfaceNames: ReadonlyMap<string, string> = new Map()): LibraryTab {
   return {
     id: 'tiles',
     label: 'Tiles',
@@ -96,8 +105,10 @@ export function tilesTab(types: readonly GroundType[]): LibraryTab {
               label: type.name !== undefined && type.name !== '' ? type.name : titleCase(type.id),
               swatch: type.color ?? FALLBACK_SWATCH,
               ...(type.model === undefined ? {} : { model: type.model }),
-              // No "Stackable" detail any more: everything here stacks, so it said nothing.
-              keywords: ['building', 'structure', type.structure],
+              ...(type.model === undefined && type.surface !== undefined ? { surface: { id: type.surface, structure: type.structure, color: type.color, size: type.surfaceSize } } : {}),
+              // No "Stackable" detail any more: everything here stacks, so it said nothing. The material's name,
+              // so a search for "bricks" finds every kind drawn in it.
+              keywords: ['building', 'structure', type.structure, ...(type.surface === undefined ? [] : [type.surface, surfaceNames.get(type.surface) ?? ''])],
             },
           ],
     ),

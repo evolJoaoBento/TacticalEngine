@@ -47,9 +47,9 @@ export const buildingTileSchema = z.object({
   level: z.number().min(-BUILD_LIMIT).max(BUILD_LIMIT).multipleOf(0.25),
   height: z.number().min(0.25).max(16).multipleOf(0.25).optional(),
   /**
-    * Any structure the registry knows, not one of a fixed four: a project declares its
-    * own, so the list cannot live in the schema. `buildingTilesSchema` checks it against
-    * `isStructure`, which is where that question moved.
+    * Any structure the project knows, not one of a fixed four: a project declares its
+    * own, so the list cannot live in this schema. `projectSchema` checks it against the
+    * four and the project's own, which is the one place that knows both.
     */
   shape: z.string().min(1),
   /** Still an enum: there is no materials registry, and an unknown one would tint black. */
@@ -80,18 +80,17 @@ export function buildingKey(p: Pick<BuildingTile, 'x' | 'y' | 'level'>): string 
   return `${p.x},${p.y},${p.level}`;
 }
 
-/** Every piece in a scene, keyed by `buildingKey` with an optional `#n` for overlaps. */
+/**
+ * Every piece in a scene, keyed by `buildingKey` with an optional `#n` for overlaps.
+ *
+ * Whether each piece's structure exists is not asked here: a scene does not know which structures its
+ * project declares. It used to ask `isStructure`, which answers for whichever project last laid its
+ * ground, so a project building with a structure of its own was refused on a fresh page.
+ */
 export const buildingTilesSchema = z
   .record(z.string(), buildingTileSchema)
   .superRefine((tiles, ctx) => {
     for (const [key, tile] of Object.entries(tiles)) {
-      if (!isStructure(tile.shape)) {
-        ctx.addIssue({
-          code: 'custom',
-          path: [key],
-          message: `No structure called ${JSON.stringify(tile.shape)}`,
-        });
-      }
       const [cell, instance, ...extra] = key.split('#');
       const numbered = instance === undefined || /^[1-9][0-9]*$/.test(instance);
       if (cell === buildingKey(tile) && extra.length === 0 && numbered) continue;

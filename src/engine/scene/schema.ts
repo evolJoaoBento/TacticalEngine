@@ -15,7 +15,7 @@
  */
 
 import { z } from 'zod';
-import { BUILD_LIMIT, buildingTilesSchema, structureTypeSchema } from './building';
+import { BUILD_LIMIT, DEFAULT_STRUCTURES, buildingTilesSchema, structureTypeSchema } from './building';
 import { DECO_SPAN_MAX } from './deco-span';
 import { propFunctionSchema, shopSchema } from './prop-function-schema';
 import { itemSchema, lootTableSchema } from '../content/items';
@@ -23,6 +23,7 @@ import { abilitySchema } from '../content/abilities';
 import { characterSheetSchema } from '../character/sheet-schema';
 import { conditionDefSchema } from '../content/conditions';
 import { questSchema } from '../content/quests';
+import { projectPlanSchema } from '../content/projects';
 import { modelAssetSchema } from '../render/assets';
 import {
   adversaryDefSchema,
@@ -246,6 +247,12 @@ export const sceneSchema = z
     /** Visual fog wall inset from the edges, in tiles. */
     fogBand: z.number().int().positive().optional(),
     /**
+     * How much light the room has of its own (`render/room-light.ts`), from 0.1 to 1: absent, or 1, is the painted
+     * daylight every room has; less turns the sky, the sun and the ambient down that much, and what burns in the room -
+     * its fires and torches - lights it. Presentation only: the rules never read it.
+     */
+    light: z.number().min(0.1).max(1).optional(),
+    /**
      * How far the room has grown west and north since it was made, in tiles: where the cell
      * that was `0,0` is now. Nothing in the room reads it - every coordinate was moved when the
      * corner was - but a game already being played here holds tiles counted from the old corner,
@@ -323,7 +330,79 @@ export const terrainTypeSchema = z.object({
    * question is asked, the same move `buildingTileSchema.shape` made.
    */
   structure: z.string().min(1).optional(),
+  /**
+   * An imported material every piece of this kind is drawn in, by the id of one of the
+   * project's `surfaces`, when it is drawn as a box; a `model` wins.
+   */
+  surface: contentIdSchema.optional(),
+  /**
+   * How many tiles one repeat of that material covers on this kind, in place of the material's own `size`: the same
+   * bricks large on a wall and small on a floor. Absent means the material's.
+   */
+  surfaceSize: z.number().positive().max(16).optional(),
 });
+
+/**
+ * An imported material (`docs/MANUAL.md`, Surfaces): what an ambientCG zip, or a set of loose maps, became - three
+ * packed textures and how they are tuned. Importing one gives the project four kinds of tile drawn in it, a block, a
+ * wall, a floor slab and a staircase (`content/tile-surface-kit.ts`); a kind names it by `surface`.
+ *
+ * Called a surface, not a material, because `material` is a piece's stone, wood or grass tint
+ * (`BuildingTile.material`). Nothing rides in a map's alpha: a 2D canvas keeps premultiplied alpha, and would ruin the
+ * colour of every texel it made transparent.
+ */
+export const tileSurfaceSchema = z.object({
+  id: contentIdSchema,
+  name: z.string(),
+  /** Where it came from, for credits: "ambientCG Bricks076". Free text. */
+  source: z.string().optional(),
+  /** Its maps, carried in the project: what an import makes. Or none, and a texture to fetch them from (`polyHaven`). */
+  maps: z
+    .object({
+      /** The colour, sRGB. */
+      color: z.string().min(1),
+      /** Linear: red and green the normal's X and Y (OpenGL's way up), blue the height. */
+      normalHeight: z.string().min(1),
+      /** Linear: red the ambient occlusion, green the roughness, blue the metalness. */
+      orm: z.string().min(1),
+    })
+    .optional(),
+  /**
+   * A material linked rather than carried: a Poly Haven texture, by its id, fetched, packed and compressed the first
+   * time it is drawn and kept in the browser after (`editor/surface-import.ts`, `linkedSurfaceResolver`), its maps kept
+   * at most `pixels` on a side. A project of many materials stays small: an adventure ships them this way.
+   */
+  polyHaven: z
+    .object({
+      id: z.string().min(1),
+      pixels: z.number().int().min(256).max(2048).default(1024),
+    })
+    .optional(),
+  /** Whether it had a height map: without one it is drawn with no parallax at all. */
+  parallax: z.boolean(),
+  /** How many tiles one repeat of the texture covers. */
+  size: z.number().positive().max(16).default(1),
+  /** How deep the parallax reads, in tiles; 0 turns it off. */
+  depth: z.number().min(0).max(0.25).default(0.06),
+  normalScale: z.number().min(0).max(4).default(1),
+  /** What the roughness map is multiplied by. */
+  roughness: z.number().min(0).max(2).default(1),
+  /**
+   * How far it takes the colour it is drawn in - its kind's colour, or a cell's tint on the ground - from 0, its own
+   * colour, to 1, its average that colour (`render/tile-surface.ts`).
+   */
+  tint: z.number().min(0).max(1).default(0),
+  /** The average of its colour map, which a tint is measured against: kept at import. */
+  color: z.string().min(1).optional(),
+}).superRefine((surface, ctx) => {
+  // One way to its maps: carried, or fetched - not both, and not neither.
+  if ((surface.maps === undefined) === (surface.polyHaven === undefined)) {
+    ctx.addIssue({ code: 'custom', path: ['maps'], message: 'A material has its maps or a Poly Haven texture to fetch them from: one, not both' });
+  }
+});
+export type TileSurface = z.infer<typeof tileSurfaceSchema>;
+/** A material's three maps, packed: what it is drawn with, carried or fetched. */
+export type SurfaceMaps = NonNullable<TileSurface['maps']>;
 
 /**
  * A piece of logic in code the project carries. The body is a JavaScript
@@ -410,8 +489,18 @@ export const projectSchema = z
      * project written before quests existed is still a valid project.
      */
     quests: z.array(questSchema).default([]),
+    /**
+     * What the party can work at on a long rest once a `learnPlan` effect has taught it (`content/projects.ts`).
+     * Optional rather than defaulted: a project with none reads exactly as it did before there were plans.
+     */
+    projectPlans: z.array(projectPlanSchema).optional(),
     /** Imported models, by id. Content names them exactly as it names a procedural model. */
     assets: z.array(modelAssetSchema).default([]),
+    /**
+     * Imported materials, by id, which kinds of tile are drawn in (`TerrainType.surface`). Optional rather than
+     * defaulted: a project with none reads exactly as it did before there were any.
+     */
+    surfaces: z.array(tileSurfaceSchema).optional(),
     /**
      * What each adversary type is drawn with, by adversary id. A type with no
      * entry here falls back to the game's own map and then to the adversary id
@@ -447,6 +536,13 @@ export const projectSchema = z
     /** What a named condition does to its bearer. Defaulted, like abilities. */
     conditionDefs: z.array(conditionDefSchema).default([]),
     /**
+     * The shipped packs this project is played with, by name - `srd-characters`, the SRD's classes,
+     * ancestries, communities and cards. Laid over the project's own lists when it opens and left out
+     * when it is saved (`game/listed-packs.ts`), so the file holds what is the project's own and a
+     * pack's update reaches it. Defaulted: a project that lists nothing is played as it always was.
+     */
+    packs: z.array(z.string()).default([]),
+    /**
      * The party, as authored sheets. Everything mechanical is derived from the
      * class, ancestry and equipment a sheet names, so what is written down here
      * is the character rather than their numbers. Defaulted: a project written
@@ -454,6 +550,18 @@ export const projectSchema = z
      * falls back on the sheets it ships with.
      */
     party: z.array(characterSheetSchema).default([]),
+    /**
+     * Who may join the party during play (`joinParty`, `game/party_join.rs`): sheets written as the party's
+     * are, waiting to be asked - the company round a New Game's camp fire. Not in the party until one joins,
+     * and then in both: a companion already in the party cannot join it again.
+     */
+    companions: z.array(characterSheetSchema).default([]),
+    /**
+     * Whether the party is the adventure's own (`game/adventure-portal.ts`): begun at a camp's portal, it is played by
+     * this party and whoever leads the party there - four at most - not by the camp's party in its place. Optional: a
+     * project that says nothing is played by whichever party comes.
+     */
+    fixedParty: z.boolean().optional(),
     /**
      * The house rule for height: what a step is, who jumps how far, the roll it asks, what a
      * fall costs. Optional rather than defaulted, like `terrainPalette`: a project that says
@@ -470,6 +578,16 @@ export const projectSchema = z
         ctx.addIssue({ code: 'custom', path: ['scenes', i, 'id'], message: `duplicate scene id "${scene.id}"` });
       }
       ids.add(scene.id);
+    });
+
+    // Every piece built of a structure there is: the engine's four, and the project's own.
+    const structures = new Set([...DEFAULT_STRUCTURES, ...(project.structureTypes ?? [])].map((s) => s.id));
+    project.scenes.forEach((scene, i) => {
+      for (const [key, tile] of Object.entries(scene.buildingTiles ?? {})) {
+        if (!structures.has(tile.shape)) {
+          ctx.addIssue({ code: 'custom', path: ['scenes', i, 'buildingTiles', key], message: `No structure called ${JSON.stringify(tile.shape)}` });
+        }
+      }
     });
     const dialogueIds = new Set<string>();
     project.dialogues.forEach((dialogue, i) => {
@@ -489,12 +607,26 @@ export const projectSchema = z
       }
       seen.add(item.id);
     });
+    const planIds = new Set<string>();
+    (project.projectPlans ?? []).forEach((plan, i) => {
+      if (planIds.has(plan.id)) {
+        ctx.addIssue({ code: 'custom', path: ['projectPlans', i, 'id'], message: `duplicate project plan id "${plan.id}"` });
+      }
+      planIds.add(plan.id);
+    });
     const assetIds = new Set<string>();
     project.assets.forEach((asset, i) => {
       if (assetIds.has(asset.id)) {
         ctx.addIssue({ code: 'custom', path: ['assets', i, 'id'], message: `duplicate asset id "${asset.id}"` });
       }
       assetIds.add(asset.id);
+    });
+    const surfaceIds = new Set<string>();
+    (project.surfaces ?? []).forEach((surface, i) => {
+      if (surfaceIds.has(surface.id)) {
+        ctx.addIssue({ code: 'custom', path: ['surfaces', i, 'id'], message: `duplicate surface id "${surface.id}"` });
+      }
+      surfaceIds.add(surface.id);
     });
     const questIds = new Set<string>();
     project.quests.forEach((quest, i) => {
@@ -510,6 +642,13 @@ export const projectSchema = z
         ctx.addIssue({ code: 'custom', path: ['party', i, 'id'], message: `duplicate character id "${sheet.id}"` });
       }
       partyIds.add(sheet.id);
+    });
+    const companionIds = new Set<string>();
+    project.companions.forEach((sheet, i) => {
+      if (companionIds.has(sheet.id)) {
+        ctx.addIssue({ code: 'custom', path: ['companions', i, 'id'], message: `duplicate companion id "${sheet.id}"` });
+      }
+      companionIds.add(sheet.id);
     });
     project.abilities.forEach((ability, i) => {
       if (abilityIds.has(ability.id)) {

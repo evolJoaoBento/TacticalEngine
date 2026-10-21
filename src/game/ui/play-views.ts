@@ -14,17 +14,19 @@ import { inCombat } from '../moment';
 import { characterContentFor } from '../room';
 import type { HudMember } from './PartyHud';
 import type { JournalQuest, OpenContainer } from './PlayPanel';
-import { closeContainer, containerContents, openContainer, shopOpen, takeFromContainer } from '../prop-use';
+import { containerContents, openContainer, shopOpen } from '../prop-use';
 import { talkingAside } from '../talks';
 import { nameOf } from '../log';
-import { purse, sellTo, sellables, shopOf } from '../shop';
+import { waitingOn } from '../shared-game';
+import { purse, sellables, shopOf } from '../shop';
 import { interactablesOf } from '../../engine/scene/prop-functions';
 import type { Spot } from '../../engine/grid/grid';
 import type { TalkingView } from './Conversation';
 import { itemOf, itemsFor } from '../../engine/content/equipment/catalogue';
 import { gearCard } from '../gear';
+import { partyFor, type AdventureChoice } from '../adventure-portal';
 
-/** The journal: every quest the party has been given, joined to its words. */
+/** The journal: every quest the party has been given, joined to its words - and every project plan learned. */
 export function journalEntries(demo: DemoScene): JournalQuest[] {
   const entries: JournalQuest[] = [];
   for (const quest of demo.project.quests) {
@@ -40,6 +42,20 @@ export function journalEntries(demo: DemoScene): JournalQuest[] {
         // A hidden step stays out of the journal until revealed or done.
         .filter((o) => !o.hidden || progress.revealed.has(o.id) || progress.done.has(o.id))
         .map((o) => ({ id: o.id, text: o.text, done: progress.done.has(o.id) })),
+    });
+  }
+  // The project plans learned, after the quests: what each is, and how much of its work is done.
+  for (const [id, done] of demo.scenario.projects) {
+    const plan = (demo.project.projectPlans ?? []).find((p) => p.id === id);
+    if (plan === undefined) continue;
+    const finished = done >= plan.work;
+    entries.push({
+      id,
+      name: plan.name,
+      summary: plan.description,
+      status: finished ? 'completed' : 'active',
+      objectives: [{ id: 'work', text: finished ? 'Finished.' : `Worked at on a long rest: ${done} of ${plan.work} done.`, done: finished }],
+      project: { done, work: plan.work },
     });
   }
   // Active first; finished ones sink to the tail.
@@ -70,25 +86,29 @@ export function hudMembers(demo: DemoScene): HudMember[] {
       conditions: [...entity.conditions].map((c) => demo.world.conditionName(c)),
       canLevel: waiting.has(entity.id) && !inCombat(demo) && demo.pending === null && !aside.has(entity.id),
       gear: `${gearOf(demo, entity.id).weapon} · ${gearOf(demo, entity.id).armor}`,
+      model: sheet?.model ?? entity.id,
       group: demo.party.groupOf(entity.id).length > 1 ? groups.indexOf(demo.party.groupOf(entity.id)[0]!) : null,
       talking: aside.has(entity.id),
     };
   });
 }
 
+/** What the container window's buttons do: each an intent of the game's (`GameTable.containerView`). */
+export interface ContainerActs {
+  take(item: string): void;
+  sell(item: string): void;
+  close(): void;
+}
+
 /**
- * The container window, when one is open: its contents, and what Take and Close do.
- *
- * Shut when whoever opened it has walked out of reach, the way a real chest stops being in front
- * of you - otherwise a window left open would let the party empty a chest from across the room.
+ * The container window, when one is open: its contents, and what Take, Sell and Close do (`acts`). The game
+ * shuts it when whoever opened it has walked out of reach (`GameTable.containerView`), the way a real chest
+ * stops being in front of you - otherwise a window left open would let the party empty a chest from across
+ * the room.
  */
-export function containerView(demo: DemoScene, reach: (id: string) => boolean, refresh: () => void): OpenContainer | null {
+export function containerView(demo: DemoScene, acts: ContainerActs): OpenContainer | null {
   const id = openContainer(demo);
   if (id === null) return null;
-  if (!reach(id)) {
-    closeContainer(demo);
-    return null;
-  }
   const prop = demo.scene.decos.find((deco) => deco.id === id);
   // A shop says what it is paid in and how much of it the party has; a merchant is called by name.
   const shop = shopOf(demo, id);
@@ -101,19 +121,50 @@ export function containerView(demo: DemoScene, reach: (id: string) => boolean, r
       paidIn: { name: itemOf(demo.project, shop.currency)?.name ?? shop.currency, held: purse(demo, shop) },
       // What the party can sell back: the seller's own lines, for half.
       selling: sellables(demo, id).map((line) => ({ ...line, card: gearCard(demo, line.item) })),
-      onSell: (item: string) => {
-        sellTo(demo, id, item);
-        refresh();
-      },
+      onSell: acts.sell,
     }),
-    onTake: (item) => {
-      takeFromContainer(demo, id, item);
-      refresh();
-    },
-    onClose: () => {
-      closeContainer(demo);
-      refresh();
-    },
+    onTake: acts.take,
+    onClose: acts.close,
+  };
+}
+
+/**
+ * The camp portal's window (`adventure-portal.ts`): the adventures it offers, each begun by `begin`, and nothing to
+ * take. Read off nothing of the room's - the portal holds nothing - so drawing it changes no state anywhere.
+ */
+export function portalView(
+  demo: Pick<DemoScene, 'scene' | 'project'>,
+  id: string,
+  choices: readonly AdventureChoice[],
+  acts: { begin(adventure: string): void; close(): void; withdraw?(adventure: string): void },
+  chooser?: string,
+  offered: readonly string[] = [],
+): OpenContainer {
+  const prop = demo.scene.decos.find((deco) => deco.id === id);
+  const lead = demo.project.party[0];
+  // One that keeps its party says who plays it: its own, with whoever leads the party here (`partyFor`).
+  const keeps = (own: readonly { id: string; name: string }[]): string => {
+    const going = partyFor(true, own, lead === undefined ? [] : [lead]).map((sheet) => sheet.name);
+    return `Played by its own party: ${going.join(', ')}. The companions wait at the camp.`;
+  };
+  return {
+    id,
+    name: prop?.function?.kind === 'script' && prop.function.name !== undefined ? prop.function.name : 'The portal',
+    lines: [],
+    adventures: choices.map(({ id: adventure, name, blurb, ownParty, offeredBy }) => ({
+      id: adventure,
+      name,
+      blurb,
+      ...(ownParty === undefined ? {} : { party: keeps(ownParty) }),
+      ...(offeredBy === undefined ? {} : { offeredBy }),
+      // On a page that does not choose, its own adventures, each offered to whoever does or not yet.
+      ...(chooser === undefined ? {} : { offered: offered.includes(adventure) }),
+    })),
+    ...(chooser === undefined ? {} : { chooser }),
+    onBegin: acts.begin,
+    ...(acts.withdraw === undefined ? {} : { onWithdraw: acts.withdraw }),
+    onTake: () => {},
+    onClose: acts.close,
   };
 }
 
@@ -142,6 +193,9 @@ export function carriedItems(demo: Pick<DemoScene, 'project' | 'scenario'>): { i
 export function talkingView(demo: DemoScene): TalkingView | null {
   const pending = demo.pending;
   const view = pending !== null && pending.kind === 'script' ? (pending.dialogue?.view ?? null) : null;
+  // Somebody else's conversation, at a shared game: heard, not answered (`shared-game.ts`).
+  const waiting = waitingOn(pending, (id) => nameOf(demo, id));
+  if (view !== null && waiting !== null) return { ...view, held: waiting };
   return view === null || !shopOpen(demo) ? view : { ...view, held: 'Close the shop to go on.' };
 }
 

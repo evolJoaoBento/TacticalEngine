@@ -15,7 +15,7 @@ import { Icon } from './icons';
 /** Which of the top bar's dropdowns is open, or none. */
 export type Menu = 'project' | 'content' | 'scenes';
 /** The long-lived editors that open as a workspace under the bar. */
-export type Workspace = 'party' | 'cards' | 'items' | 'quests' | 'code' | 'models' | 'tiles';
+export type Workspace = 'party' | 'cards' | 'items' | 'quests' | 'projects' | 'code' | 'models' | 'tiles';
 
 interface ContentEntry {
   workspace: Workspace;
@@ -30,6 +30,7 @@ const WRITTEN: readonly ContentEntry[] = [
   { workspace: 'cards', label: 'Cards', testId: 'open-abilities', count: (s) => s.project.abilities.length },
   { workspace: 'items', label: 'Items & loot', testId: 'open-items', count: (s) => s.project.items.length },
   { workspace: 'quests', label: 'Quests', testId: 'open-quests', count: (s) => s.project.quests.length },
+  { workspace: 'projects', label: 'Projects', testId: 'open-projects', count: (s) => s.project.projectPlans?.length ?? 0 },
   { workspace: 'code', label: 'Code', testId: 'open-code', count: (s) => s.project.code.length },
   // The engine's four when a project declares none, which is what adding would write down.
   { workspace: 'tiles', label: 'Tiles', testId: 'open-tiles', count: (s) => s.project.terrainPalette?.length ?? DEFAULT_TERRAIN_TYPES.length },
@@ -64,6 +65,9 @@ export interface TopBarProps {
   onImportPack: (files: readonly File[]) => void;
   /** The project's content, written out as a pack file another project can import. */
   onExportPack: () => void;
+  /** The shipped packs a project can list, and whether this one does. */
+  packs?: readonly { id: string; name: string; description: string; listed: boolean }[];
+  onTogglePack?: (id: string) => void;
   onCheck: () => void;
   onUndo: () => void;
   onRedo: () => void;
@@ -171,6 +175,24 @@ export function TopBar(props: TopBarProps): preact.JSX.Element {
             >
               Export pack
             </button>
+            {/* The shipped packs this project is played with: laid over it when it opens, left out of
+                the file when it is saved. A tick is listed; a click lists it or stops. */}
+            {(props.packs ?? []).length === 0 ? null : <div class="ph-sep" />}
+            {(props.packs ?? []).map((pack) => (
+              <button
+                key={pack.id}
+                class="ph-item"
+                data-testid={`pack-${pack.id}`}
+                aria-pressed={pack.listed ? 'true' : 'false'}
+                title={`${pack.description}. ${pack.listed ? 'Listed: this project is played with it.' : 'Not listed.'}`}
+                onClick={() => {
+                  props.onMenu(null);
+                  props.onTogglePack?.(pack.id);
+                }}
+              >
+                {pack.listed ? '✓ ' : ''}{pack.name}
+              </button>
+            ))}
             <button
               class="ph-item"
               data-testid="check-project"

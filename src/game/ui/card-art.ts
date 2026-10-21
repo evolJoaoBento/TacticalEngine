@@ -164,6 +164,20 @@ export function artFor(cardId: string): CardArt {
   return resolveArt(cardId, currentIndex, currentImports?.get(cardId) ?? null);
 }
 
+/** The choices New Game deals that can wear a picture besides the domain cards. */
+export type ChoiceKind = 'ancestry' | 'community' | 'class' | 'subclass';
+
+/**
+ * A choice's picture, when there is one: a file in `public/cards/` named for its kind and id
+ * (`ancestry-clank.jpg`, `class-guardian.avif`) and so indexed as `ancestry-clank`. A class's is its
+ * banner; the others', their illustration. There is no emblem to fall back on - a choice without a
+ * picture is its words - so this is `null` when the directory has none, as on a fresh clone.
+ */
+export function choiceArtFor(kind: ChoiceKind, id: string): string | null {
+  const art = artFor(`${kind}-${id}`);
+  return art.kind === 'image' ? art.src : null;
+}
+
 /** Forget everything the app was told; tests start from nothing. */
 export function resetCardArt(): void {
   currentIndex = {};

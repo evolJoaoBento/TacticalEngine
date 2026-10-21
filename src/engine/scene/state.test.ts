@@ -49,6 +49,16 @@ describe('SceneState entities', () => {
   });
 });
 
+describe('a thing taken away', () => {
+  it('is read as gone without a record made for a thing nothing has happened to: the view asks of every thing', () => {
+    const state = makeState();
+    expect(state.isRemoved('figure')).toBe(false);
+    expect(Object.keys(state.snapshot().interactables)).toEqual([]);
+    state.removeInteractable('figure');
+    expect(state.isRemoved('figure')).toBe(true);
+  });
+});
+
 describe('where a creature stands', () => {
   it('stands at the centre of the tile it was added to, and moves to the centre of the next', () => {
     const state = makeState();
