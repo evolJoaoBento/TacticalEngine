@@ -269,7 +269,10 @@ async function levelOne(page: Page): Promise<void> {
   expect(await market(page)).toMatchObject({ status: 'active', done: ['reach-the-market'] });
 }
 
-/** Level 2 as far as the Broker: Grale's errand, the Charnel Pit's fight and its bell-rope, the mark and the Guild's door. */
+/**
+ * Level 2 as far as the Broker: Grale's errand, the Charnel Pit's fight - the Sexton ringing the bell at the party's first
+ * roll, and talked off his rope - and its bell-rope, the mark and the Guild's door.
+ */
 async function toTheBroker(page: Page): Promise<void> {
   await page.waitForTimeout(500);
   await page.screenshot({ path: 'test-results/ashwell-market.png' });
@@ -286,10 +289,15 @@ async function toTheBroker(page: Page): Promise<void> {
   await use(page, 'down-to-the-pit');
   await drain(page);
   await expect.poll(() => scene(page)).toBe('charnel-pit');
-  await fight(page, { x: 7, y: 3 });
+  await fight(page, { x: 8, y: 3 }, ['sexton-mott']);
+  const pit = await logged(page);
+  expect(pit).toContain('Mott leans his whole weight on the rope. Overhead, through the stone, the market bell begins to swing.');
+  // Talked off his rope, he stays on his ledge, on nobody's side.
+  expect(await page.evaluate(() => window.__engine!.adversaries())).not.toContain('sexton-mott');
   await use(page, 'bell-rope');
   await drain(page);
   expect((await market(page))?.done).toContain('clear-the-pit');
+  expect(await lastLine(page)).toBe('Knotted into the rope at the height of a man\u2019s hands is a strip of Guild paper, many times folded: ONE RINGING - ONE TOOTH - A.G. It is stamped with the Usher\u2019s seal.');
   await use(page, 'up-from-the-pit');
   await drain(page);
   await expect.poll(() => scene(page)).toBe('ossuary-market');
@@ -443,6 +451,56 @@ test('the Ashwell, Level 2 paid for: the errand in the pit, the Guild\u2019s mar
   expect(await lastLine(page)).toBe('A Guild clerk looks at your hand on the box until you take it off.');
   await payTheBroker(page);
   await downTheWetStair(page);
+  expect(await page.evaluate(() => window.__engine!.errors)).toEqual([]);
+});
+
+test('the Ashwell, Level 2\u2019s third way: a ring sold to the Guild, Grale caught and his purse refused, and his own name the Broker\u2019s price', async ({ page }) => {
+  test.setTimeout(300_000);
+  await levelOne(page);
+  // The clerk buys keepsakes: what the Guild does with them is sell them back up, and Ketch is good custom.
+  await page.evaluate(() => window.__engine!.giveItem('tams-ring', 1));
+  const gold = () => page.evaluate(() => window.__engine!.carried().find((c) => c.id === 'gold')?.quantity ?? 0);
+  const before = await gold();
+  await use(page, 'clerk-wenna');
+  await choose(page, 'Sell her the wedding band.');
+  await choose(page, '[Take the coin.]');
+  await drain(page);
+  expect(await gold()).toBe(before + 30);
+  expect((await page.evaluate(() => window.__engine!.carried().map((c) => c.id)))).not.toContain('tams-ring');
+  await use(page, 'the-market-bell');
+  await drain(page);
+  expect(await lastLine(page)).toContain('Nobody stands near it, and nobody looks at it.');
+
+  await toTheBroker(page);
+  await use(page, 'up-from-the-counting-house');
+  await drain(page);
+  await expect.poll(() => scene(page)).toBe('ossuary-market');
+  // The chit in the rope is Grale's: he pays for the ringing, and would pay for quiet.
+  await use(page, 'usher-grale');
+  await choose(page, 'Your sexton rings the bell. You pay him to.');
+  await choose(page, '[Leave it in his hand.]');
+  await drain(page);
+  expect(await gold()).toBe(before + 30);
+  await use(page, 'the-market-bell');
+  await drain(page);
+  expect(await lastLine(page)).toContain('its rope cut short');
+  await use(page, 'down-to-the-counting-house');
+  await drain(page);
+  await expect.poll(() => scene(page)).toBe('counting-house');
+
+  // Sela: Annick was spared above, so his is a living name now, not a dead man's - and Grale's is for sale.
+  await talkTo(page, 'sela-marrow');
+  const offered = await page.evaluate(() => window.__engine!.dialogueOptions());
+  expect(offered).toContain('Take Hob Annick\u2019s. He gave us his key; he can spare his name.');
+  expect(offered).not.toContain('Hob Annick is dead. Take his.');
+  await choose(page, 'Take Usher Grale\u2019s. He rings your pit bell for bone.');
+  await choose(page, '[Take the key.]');
+  await drain(page);
+  expect(await page.evaluate(() => window.__engine!.inCombat())).toBe(false);
+  expect((await market(page))?.done).toContain('the-broker');
+  // Vane's page below the Bone Door knows what the key cost.
+  await downTheWetStair(page);
+  expect(await logged(page)).toContain('Under it, newer ink: "They sold the Broker her own usher. Grale will be weighed by noon. I did not see that coming, and I see most things. I have given them a line of their own for it."');
   expect(await page.evaluate(() => window.__engine!.errors)).toEqual([]);
 });
 

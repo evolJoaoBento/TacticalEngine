@@ -86,17 +86,27 @@ Three scenes: the Market, where nobody fights; the Charnel Pit, down a passage e
 the Guild's door. The Sump's stair comes down into the Market the first time with Vane's page (the end of Level 1),
 and every time after without it; the Market's bone stair climbs back to the Sump.
 
-- **The Market** — stalls of stacked bone; **Factor Osk Dunmere**, who sells potions and gear and buys at two-fifths;
-  **Usher Grale** at the Guild's door, who sets the errand; Vane's page pinned to a stall with a finger bone.
-- **The Charnel Pit** — three Pit Ghouls (a stat block of the adventure's own, tier 2) and the Bone-Rats. The bell-rope
-  cannot be cut while they stand; cut, Grale marks the party, and the Guild's door opens to the mark.
-- **The Counting House** — **Sela Marrow, the Bone-Broker**, her two Bonecutters and her Tallyman, all talking, none
-  fighting. Her price for the Bone Door's key is a name: **Mother Ketch's** (and Ketch, back at the Lantern, cannot
-  remember her own); **one of the party's** (two Stress each, and none of them can say whose); or **Hob Annick's**,
-  a Presence 14 roll - the dead are cheap, and a failed roll insults her. **Refuse**, and she and all of hers turn at
-  once; her ledger-box gives the key over their bodies.
-- **The wet stair** — past the Bone Door, down into the flooded Library; for now Vane's page sends the party back up,
-  a level higher, and Ketch has something to say about the Guild.
+- **The Market** — aisles of plank stalls under walls of stacked bone, lit by lamps of yellow fat; the **market bell** in
+  a frame of thighbones over the pit's mouth in the middle; **Factor Osk Dunmere** up on his dais, who sells potions
+  and gear and buys at two-fifths; **Clerk Wenna**, who buys keepsakes - Tam Ketch's ring for thirty, Annick's token
+  for eight - and sells them back up to Hallowmere on market day (sold, the ring is on Ketch's thumb, bought back, and
+  her slate says so); **Usher Grale** at the Guild's door, who sets the errand; Vane's page pinned to a stall.
+- **The Charnel Pit** — bone drifts up the walls, black water in the middle, and on a raised ledge in the far corner
+  **Sexton Mott** on the bell-rope, with two Pit Ghouls (tier 2, who **Feed**: a bite that heals them) and the Bone-Rats.
+  At the party's first roll Mott rings the bell: **a looping countdown (4)** that every action roll swings, and every
+  time it comes round two **Risen Corpses** (minions) climb out of the heaps by the ledge. It stops when Mott falls -
+  or, at half his blood, when he lets go and says who pays him: Grale, a tooth a ringing, for the bone meal. Either
+  way the rope gives up the Usher's chit, and cut, Grale marks the party, and the Guild's door opens to the mark.
+- **The Counting House** — a dais behind a desk of jawbones, shelves of ledgers to the ceiling. **Sela Marrow, the
+  Bone-Broker** (Momentum, and **Call in the Debt**: two of hers spotlighted), her two Bonecutters and her Tallyman,
+  all talking, none fighting. Her price for the Bone Door's key is a name: **Mother Ketch's** (and Ketch, back at the
+  Lantern, cannot remember her own); **one of the party's** (two Stress each, and none of them can say whose); **Hob
+  Annick's** - a Presence 14 roll while he is dead, the dead being cheap, and a failed roll insults her; nothing at all
+  if the party spared him, since a living name is a real price; or, to those who know about the bell and did not take
+  Grale's purse for quiet, **Usher Grale's** - the third way Vane's page promised. **Refuse**, and she and all of hers
+  turn at once; her ledger-box gives the key over their bodies.
+- **The wet stair** — past the Bone Door, down into the flooded Library. Vane's page there says what the key cost:
+  whose name went into the ledger, or that the party took it by force.
 
 The design, as it was set down:
 
@@ -196,8 +206,12 @@ added.
    furnace, slab - a block or a rail, stretched to a height, in a texture of its own). The ledge that may give became
    the loose stone at the shaft's foot, which pays Vane's page; `read-vanes-page` is still read by nothing (the Throne's
    slice).
-2. **The Ossuary Market.** The bell as a countdown - ghouls up through the floor until the rope is cut; the stalls a
+2. **The Ossuary Market** (done, 21 October 2026). The bell as a countdown - ghouls up through the floor until the rope is cut; the stalls a
    market with a shape; Sela's price remembered below (who was named, and what it cost).
+   *As built:* the countdown is the Sexton's, a reaction to the party's first roll (a feature the GM would have to
+   spotlight him and pay a Shadow for came too late, or never); the dead it calls are minions, and the way to stop it is
+   to reach the ledge. Grale is the bell's paymaster, and his name the third way. `gave-our-own` and
+   `gave-annicks-name` are read by Vane's page below; what the Library does with them is slice 3's.
 3. **The Drowned Library.** Shelves as shelves, the reading platform raised out of the water, the Index hunting by name
    (a countdown that reads the party's own entries); pages to read for what they hide.
 4. **The Furnace of Names.** Heat as a hazard, the Choir as bystanders with a will, the valve as a test of strength,

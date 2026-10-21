@@ -17,7 +17,8 @@ import { buildProjectScene } from '../demo-scene';
 import { withListedPacks } from '../listed-packs';
 import { characterContentFor } from '../room';
 import { sheetFor } from '../new-character';
-import { ASHWELL_ID, ASHWELL_PARTY, AUD_DIALOGUE, BONE_KEY, BROKER_ID, COUNTING_ID, FURNACE_QUEST, GALLERY_ID, GUILD_MARK, HALL_ID, HUB_ID, INDEX_BOSS_ID, INDEX_ID, KENNEL_ID, KINDLING, LIBRARY_QUEST, MARKET_ID, MARKET_QUEST, NAVE_ID, PIT_ID, QUEST_ID, READING_ID, SAINT_ID, SELA_DIALOGUE, STACKS_ID, SUMP_ID, SUMP_KEY, THRONE_ID, THRONE_QUEST, THROAT_ID, VANE_DIALOGUE, VANE_ID, WARDEN_ID, YOUR_PAGE, ashwellProject, sceneFromRows } from './ashwell';
+import { ASHWELL_ID, ASHWELL_PARTY, AUD_DIALOGUE, BONE_KEY, BROKER_ID, COUNTING_ID, FURNACE_QUEST, GALLERY_ID, GHOUL_ID, GRALE_DIALOGUE, GUILD_MARK, HALL_ID, HUB_ID, INDEX_BOSS_ID, INDEX_ID, KENNEL_ID, KINDLING, LIBRARY_QUEST, MARKET_ID, MARKET_QUEST, NAVE_ID, PIT_ID, QUEST_ID, READING_ID, SAINT_ID, SELA_DIALOGUE, STACKS_ID, SUMP_ID, SUMP_KEY, THRONE_ID, THRONE_QUEST, THROAT_ID, VANE_DIALOGUE, VANE_ID, WARDEN_ID, YOUR_PAGE, ashwellProject, sceneFromRows } from './ashwell';
+import { BELL_CALLED_ID, CLERK_DIALOGUE, SEXTON_DIALOGUE, SEXTON_ID } from './ashwell-level2';
 
 /** Every effect the project can run: on its props, in its dialogues, in each branch of either. */
 function effectsOf(project: ProjectDoc): Effect[] {
@@ -447,6 +448,82 @@ describe('a map drawn as rows', () => {
   });
 });
 
+describe('Level 2, rebuilt', () => {
+  const project = ashwellProject();
+  const scene = (id: string) => project.scenes.find((s) => s.id === id)!;
+  const deco = (room: string, id: string) => scene(room).decos.find((d) => d.id === id)!;
+  const dialogue = (id: string) => project.dialogues.find((d) => d.id === id)!;
+  const choice = (id: string, node: string, text: string) => dialogue(id).nodes.find((n) => n.id === node)!.choices!.find((c) => c.text === text)!;
+  const flagsRead = (effects: readonly Effect[]): string[] => {
+    const read: string[] = [];
+    walkEffects(effects, (effect) => void (effect.kind === 'branch' && effect.when.kind === 'flag' && read.push(effect.when.flag)));
+    return read;
+  };
+
+  it('is lit low, by its lamps: the Market by fat, the pit nearly dark, the Counting House warm', () => {
+    expect([MARKET_ID, PIT_ID, COUNTING_ID].map((id) => scene(id).light)).toEqual([0.42, 0.24, 0.55]);
+    // Stacked bone, a furniture of its own, is the walls of the Market and the drifts in the pit.
+    for (const id of [MARKET_ID, PIT_ID]) expect(Object.values(scene(id).buildingTiles!).some((piece) => piece.tile === 'bones'), id).toBe(true);
+  });
+
+  it('has the Sexton ring the bell at the party\u2019s first roll: a looping countdown of four that calls two of the dead, until he falls or stops', () => {
+    const sexton = scene(PIT_ID).encounters[0]!.adversaries.find((a) => a.id === 'sexton-mott')!;
+    expect([sexton.adversary, sexton.interaction]).toEqual([SEXTON_ID, { kind: 'threshold', dialogue: SEXTON_DIALOGUE, percent: 50 }]);
+    expect(project.cards.find((c) => c.id === 'sexton-the-bell')!.grant).toEqual({ kind: 'adversary', adversaries: [SEXTON_ID] });
+    const bell = project.abilities.find((a) => a.id === 'sexton-the-bell')!;
+    expect([bell.kind, bell.trigger, bell.uses, bell.cost]).toEqual(['reaction', 'partyRolled', { count: 1, per: 'scene' }, {}]);
+    const countdown = bell.effects.find((e) => e.kind === 'countdown')!;
+    expect(countdown).toMatchObject({ start: '4', advance: 'standard', loop: 'reset', onDeath: 'end' });
+    const rung = countdown.kind === 'countdown' ? countdown.effects[0]! : undefined;
+    // Talked down, he has let go: the bell calls nobody after.
+    expect(rung).toMatchObject({ kind: 'branch', when: { kind: 'flag', flag: 'mott-talked' }, otherwise: [{ kind: 'summon', adversary: BELL_CALLED_ID, count: '2', range: 'close' }, { kind: 'log' }] });
+    expect(project.adversaries.find((a) => a.id === BELL_CALLED_ID)!.features.map((f) => f.name)).toEqual(['Minion (4)']);
+    expect(project.adversaryModels[BELL_CALLED_ID]).toBe('fen-lurker');
+    expect(dialogue(SEXTON_DIALOGUE).nodes.find((n) => n.id === 'stops')!.onEnter).toEqual([{ kind: 'setFlag', flag: 'mott-talked' }, { kind: 'setFlag', flag: 'knows-the-bell' }]);
+  });
+
+  it('gives the pit\u2019s ghouls a bite that feeds them, and the Broker momentum and her people at her call', () => {
+    expect(project.adversaries.find((a) => a.id === GHOUL_ID)!.features.map((f) => f.name)).toEqual(['Feed']);
+    expect(project.abilities.find((a) => a.id === 'ghoul-feed')!.effects[0]).toMatchObject({ kind: 'attack', range: 'melee', onHit: [{ kind: 'heal', amount: 1, target: { kind: 'actor' } }, { kind: 'log' }] });
+    expect(project.adversaries.find((a) => a.id === BROKER_ID)!.features.map((f) => f.name)).toEqual(['Momentum', 'Call in the Debt']);
+    const debt = project.abilities.find((a) => a.id === 'broker-call-in-the-debt')!;
+    expect([debt.cost, debt.effects.at(-1)]).toEqual([{ bad: 2 }, { kind: 'spotlight', count: '2' }]);
+  });
+
+  it('lets the bell be learned twice over - from Mott, or the chit in the rope - and Grale caught with it: his purse, or his name to the Broker', () => {
+    const rope = deco(PIT_ID, 'bell-rope').function!;
+    const cut: Effect[] = [];
+    if (rope.kind === 'script') walkEffects(rope.effects, (effect) => void cut.push(effect));
+    expect(cut).toContainEqual({ kind: 'setFlag', flag: 'knows-the-bell' });
+    expect(choice(GRALE_DIALOGUE, 'greet', 'Your sexton rings the bell. You pay him to.').available).toEqual({ kind: 'all', of: [{ kind: 'flag', flag: 'knows-the-bell' }, { kind: 'not', of: { kind: 'flag', flag: 'confronted-grale' } }] });
+    expect(choice(GRALE_DIALOGUE, 'bell', 'Take the purse.').effects).toEqual(expect.arrayContaining([{ kind: 'addItem', item: 'gold', quantity: 25 }, { kind: 'setFlag', flag: 'took-grales-purse' }]));
+    // His name is the Broker's to take only from those who know, and did not take his money for keeping quiet.
+    const grale = choice(SELA_DIALOGUE, 'terms', 'Take Usher Grale\u2019s. He rings your pit bell for bone.');
+    expect(grale.available).toMatchObject({ kind: 'all', of: [{ kind: 'not' }, { kind: 'flag', flag: 'knows-the-bell' }, { kind: 'not', of: { kind: 'flag', flag: 'took-grales-purse' } }] });
+    const given: Effect[] = [];
+    walkEffects(dialogue(SELA_DIALOGUE).nodes.find((n) => n.id === 'grale')!.onEnter!, (effect) => void given.push(effect));
+    expect(given).toEqual(expect.arrayContaining([{ kind: 'setFlag', flag: 'gave-grales-name' }, { kind: 'giveKey', key: BONE_KEY }]));
+  });
+
+  it('reads Annick back: a dead man\u2019s name for a roll, or a spared man\u2019s for nothing, and the Broker knows which', () => {
+    const dead = choice(SELA_DIALOGUE, 'terms', 'Hob Annick is dead. Take his.');
+    const living = choice(SELA_DIALOGUE, 'terms', 'Take Hob Annick\u2019s. He gave us his key; he can spare his name.');
+    expect(dead.available).toMatchObject({ kind: 'all', of: [{ kind: 'not' }, { kind: 'not', of: { kind: 'flag', flag: 'annick-spared' } }] });
+    expect([living.available, living.check]).toEqual([{ kind: 'all', of: [{ kind: 'not', of: expect.anything() }, { kind: 'flag', flag: 'annick-spared' }] }, undefined]);
+    expect(dialogue(SELA_DIALOGUE).nodes.find((n) => n.id === 'annick-living')!.onEnter).toEqual(expect.arrayContaining([{ kind: 'setFlag', flag: 'annick-named-living' }, { kind: 'giveKey', key: BONE_KEY }]));
+  });
+
+  it('sells keepsakes to the Guild - Tam\u2019s ring among them, which Ketch buys back - and Vane\u2019s page below knows what the key cost', () => {
+    const ring = dialogue(CLERK_DIALOGUE).nodes.find((n) => n.id === 'ring')!;
+    expect(ring.onEnter).toEqual([{ kind: 'removeItem', item: 'tams-ring', quantity: 1 }, { kind: 'addItem', item: 'gold', quantity: 30 }, { kind: 'setFlag', flag: 'sold-the-ring' }]);
+    const slate = deco(HUB_ID, 'ketchs-slate').function!;
+    expect(slate.kind === 'script' && flagsRead(slate.effects)).toContain('sold-the-ring');
+    const stair = deco(COUNTING_ID, 'library-stair').function!;
+    // Most particular first: a living man's name is also a name of Annick's.
+    expect(stair.kind === 'script' && flagsRead(stair.effects)).toEqual(['level-2-done', 'gave-grales-name', 'gave-ketchs-name', 'gave-our-own', 'annick-named-living', 'gave-annicks-name', 'broker-fought']);
+  });
+});
+
 describe('Level 1, rebuilt', () => {
   const project = ashwellProject();
   const scene = (id: string) => project.scenes.find((s) => s.id === id)!;
@@ -467,7 +544,7 @@ describe('Level 1, rebuilt', () => {
     const slate = deco(HUB_ID, 'ketchs-slate').function!;
     const read: string[] = [];
     if (slate.kind === 'script') walkEffects(slate.effects, (effect) => void (effect.kind === 'branch' && effect.when.kind === 'flag' && read.push(effect.when.flag)));
-    expect(read).toEqual(['gave-ketchs-name', 'returned-the-ring', 'annick-spared', 'ending-burned']);
+    expect(read).toEqual(['gave-ketchs-name', 'returned-the-ring', 'sold-the-ring', 'annick-spared', 'ending-burned']);
   });
 
   it('hides the Warden’s token behind a stone an Instinct roll finds, once; and Tam Ketch’s ring in the Kennel, for Ketch', () => {

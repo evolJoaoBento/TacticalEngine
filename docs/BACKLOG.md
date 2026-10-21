@@ -107,7 +107,7 @@ room's shaders are not made again; each flame flickers its own way. Presentation
 scene menu (**☀**/**☾**, `editor/scene-edits.ts`); the driver counts the lamps lit (`lamps()`). Tests:
 `room-light.test.ts`, `scene-light.test.ts`, `scene.golden.test.ts` (`golden_scene.rs`), `editor-shell.spec.ts`.
 
-## The Ashwell's second pass — slice 1 of 5 done: Level 1 and the Lantern
+## The Ashwell's second pass — slices 1 and 2 of 5 done: Level 1, the Lantern, and the Ossuary Market
 
 `docs/ASHWELL.md` ("The second pass"): an audit found the story strong and the play thin - flat rooms, one fight-room
 template, featureless stat blocks, one roll, flags nothing read. Slice 1 is lit rooms (above) and the kit
@@ -118,7 +118,16 @@ stone (Instinct 12, once) hiding Annick's token; Nails talking at 60%; Tam's rin
 the Sump's platform of doors, lamp moths (Minion (3)), the Warden Relentless (2) with Drag Under (his own card: a
 Close attack that Restrains) and a parley at 50% that spares him for the token or Nails's word; Entry 4,113 knowing
 which. Tests: `ashwell.test.ts` (the legend, each stair's turn, furniture; Level 1 rebuilt), `ashwell.spec.ts` (Nails
-and Annick talked down; Level 1's corners). Next: slice 2, the Ossuary Market.
+and Annick talked down; Level 1's corners).
+
+Slice 2 rebuilds the Market (`ashwell-level2.ts`): its three rooms drawn with stalls, walls and drifts of stacked bone
+(a new `Furniture` kind, `bones`), a dais and a ledge; the bell a looping countdown (4) the Sexton starts as a reaction
+to the party's first roll (`partyRolled`, so it costs no Shadow and waits for no spotlight), calling two Risen Corpses
+(Minion (4), drawn through `adversaryModels`) each time round, stopped by his fall or his parley at 50%; the Pit Ghouls'
+Feed and the Broker's Momentum and Call in the Debt; Clerk Wenna buying keepsakes (Tam's ring - Ketch's slate knows);
+Grale caught as the bell's paymaster, his purse or his name; Annick's name priced by whether he was spared; and Entry
+4,120 saying what the key cost. Tests: `ashwell.test.ts` (Level 2, rebuilt), `ashwell.spec.ts` (Mott talked off the
+rope; Level 2's third way). Next: slice 3, the Drowned Library.
 
 ## Peer to peer: a shared game with no server — slice 1 done
 
