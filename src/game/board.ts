@@ -152,6 +152,8 @@ export function restoreFromBoard(demo: DemoScene, board: BoardSnapshot): void {
   demo.rolls.length = 0;
   for (const { who, what, roll } of board.rolls) showRoll(demo, who, what, roll);
   // The world rebuilt over the state. Its pools are the board's - the game whose board it is derived them - and
-  // are not derived here again.
-  refreshWorld(demo);
+  // are not derived here again; nor is the ground read again. The engine lays a zone's condition on whoever stands
+  // in it when its fight settles, not on the step itself (`refresh_zones`): read here, a walk that fell short of
+  // the Saint into the Furnace's Breath would stand the page's game in a condition the server's has not laid yet.
+  refreshWorld(demo, false);
 }

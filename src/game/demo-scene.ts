@@ -599,9 +599,13 @@ export type SheetChange = Pick<
   'sheets' | 'characters' | 'project' | 'scenario' | 'pending' | 'encounter' | 'state' | 'world' | 'scene' | 'gmTurn' | 'log'
 >;
 
-/** Rebuild the script world after a sheet changed under it. */
+/**
+ * Rebuild the script world after a sheet changed under it - reading the ground again, unless `readGround` says the
+ * state is a board's, which says who bears what already.
+ */
 export function refreshWorld(
   demo: Pick<DemoScene, 'world' | 'state' | 'scenario' | 'characters' | 'project' | 'scene' | 'gmTurn'>,
+  readGround = true,
 ): void {
   demo.world = new SceneScriptWorld(
     demo.state,
@@ -611,7 +615,7 @@ export function refreshWorld(
   bindTurn(demo);
   // A rebuilt world reads the ground again: a save loaded back into the middle
   // of a fight has zones on the board and creatures standing in them.
-  demo.world.refreshZones();
+  if (readGround) demo.world.refreshZones();
 }
 
 export function buildDemoScene(map: LegacyMap, seed = 'demo'): DemoScene {

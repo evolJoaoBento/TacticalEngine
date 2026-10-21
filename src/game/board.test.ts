@@ -117,6 +117,60 @@ describe('a board stood back up', () => {
     // Questions open and conversations set aside among them: a board gives those back now too.
     expect(waiting).toBeGreaterThan(10);
   }, 300_000);
+
+  it.skipIf(!built)('stands a game back up with a zone’s condition borne as the board says, walked into or out of, not as the ground reads', async () => {
+    const base = projectSchema.parse(migrateDocument(JSON.parse(readFileSync(resolve(here, '../../projects/default.json'), 'utf8'))));
+    // A free floor tile two steps from the party's leader, to lay the ground from.
+    const probe = buildProjectScene(projectSchema.parse(clone(base)), 'zone-probe');
+    const taken = new Set([...probe.state.entitiesOf('party'), ...probe.state.entitiesOf('adversary')].map((e) => e.tile));
+    for (const deco of probe.scene.decos) taken.add(probe.grid.indexOf(Math.round(deco.position.x), Math.round(deco.position.y)));
+    const leader = probe.state.entity(probe.party.selected!)!.tile;
+    const free = (tile: number): boolean => probe.grid.isPassable(tile) && !taken.has(tile);
+    const distance = (a: number, b: number): number => Math.hypot(probe.grid.xOf(a) - probe.grid.xOf(b), probe.grid.yOf(a) - probe.grid.yOf(b));
+    const tiles = [...Array(probe.grid.size).keys()];
+    const stone = tiles.find((t) => free(t) && distance(t, leader) === 2)!;
+    const project = clone(base);
+    project.scenes.find((s) => s.id === probe.scene.id)!.decos.push({
+      id: 'ground-stone',
+      model: 'rock-prop',
+      position: { x: probe.grid.xOf(stone), y: probe.grid.yOf(stone) },
+      rotation: 0,
+      solid: true,
+      function: { kind: 'script', object: 'scripted', name: 'A stone', flavor: '', effects: [{ kind: 'zone', zone: 'test-ground', name: 'Test Ground', condition: 'vulnerable', at: 'actor', band: 'veryClose' }] },
+    } as ProjectDoc['scenes'][number]['decos'][number]);
+    const demo = buildProjectScene(projectSchema.parse(clone(project)), 'zone-walk');
+    const engine = await WasmEngine.load(readFileSync(WASM));
+    const game = new WasmGame(demo, engine, shippedContent());
+    const board = (): BoardSnapshot => engine.board() as BoardSnapshot;
+    const bearing = (): string[] => demo.party.members().filter((id) => (board().replica.state.entities as Record<string, { conditions: string[] }>)[id]!.conditions.includes('vulnerable'));
+    // The engine lays a zone's condition when its fight settles, not on the step (`refresh_zones`): a page that
+    // read the ground again as it stood a board back up would part from the game after any walk across an edge.
+    const steady = (when: string): void => {
+      const fresh = buildProjectScene(projectSchema.parse(clone(project)), `zone-fresh:${when}`);
+      restoreFromBoard(fresh, board());
+      expect(firstDifference(boardOf(fresh), board(), 'board'), when).toBeNull();
+    };
+
+    // Walked to, and used once the walk is drawn arriving: the zone laid round whoever used it.
+    expect(game.approachThenUse('ground-stone')).toBe('walking');
+    game.arrive();
+    game.arrived();
+    const walker = demo.party.selected!;
+    const anchor = (board().replica.scenario as { zones: { anchor: number }[] }).zones[0]!.anchor;
+    expect(bearing()).toContain(walker);
+    steady('laid');
+    // Out of it, the whole party behind, and back in: the page's game stands as the board says each time.
+    const away = tiles.find((t) => free(t) && distance(t, anchor) >= 8 && distance(t, anchor) <= 12)!;
+    expect(game.moveSelectedTo(away).moved).toBe(true);
+    game.arrive();
+    steady('walked out');
+    expect(game.moveSelectedTo(tiles.find((t) => free(t) && t !== anchor && distance(t, anchor) === 1)!).moved).toBe(true);
+    game.arrive();
+    steady('walked in');
+    // And the page's own game, filled from the board after each, says the same as the board.
+    expect(firstDifference(boardOf(demo), board(), 'board')).toBeNull();
+    expect(bearing().length).toBeGreaterThan(0);
+  });
 });
 
 describe('a board filled into the page\'s game', () => {
