@@ -103,6 +103,7 @@ export const FURNITURE = {
   furnace: { name: 'Furnace', texture: ['broken_brick_wall', 'Broken Brick Wall', 2], color: '#5a3b30', cover: true, sight: true },
   slab: { name: 'Stone Slab', texture: ['castle_wall_slates', 'Castle Wall Slates', 2], color: '#55555a', cover: true, sight: false },
   bones: { name: 'Stacked Bone', texture: ['marble_01', 'Marble', 1.5], color: '#c9bfa8', cover: true, sight: false },
+  drawers: { name: 'Catalogue Drawers', texture: ['raw_plank_wall', 'Raw Plank Wall', 2], color: '#4a3826', cover: true, sight: true },
 } as const satisfies Record<string, { name: string; texture: readonly [string, string, number]; color: string; cover: boolean; sight: boolean }>;
 
 /**

@@ -107,7 +107,7 @@ room's shaders are not made again; each flame flickers its own way. Presentation
 scene menu (**☀**/**☾**, `editor/scene-edits.ts`); the driver counts the lamps lit (`lamps()`). Tests:
 `room-light.test.ts`, `scene-light.test.ts`, `scene.golden.test.ts` (`golden_scene.rs`), `editor-shell.spec.ts`.
 
-## The Ashwell's second pass — slices 1 and 2 of 5 done: Level 1, the Lantern, and the Ossuary Market
+## The Ashwell's second pass — slices 1 to 3 of 5 done: Level 1, the Lantern, the Ossuary Market and the Drowned Library
 
 `docs/ASHWELL.md` ("The second pass"): an audit found the story strong and the play thin - flat rooms, one fight-room
 template, featureless stat blocks, one roll, flags nothing read. Slice 1 is lit rooms (above) and the kit
@@ -127,7 +127,18 @@ to the party's first roll (`partyRolled`, so it costs no Shadow and waits for no
 Feed and the Broker's Momentum and Call in the Debt; Clerk Wenna buying keepsakes (Tam's ring - Ketch's slate knows);
 Grale caught as the bell's paymaster, his purse or his name; Annick's name priced by whether he was spared; and Entry
 4,120 saying what the key cost. Tests: `ashwell.test.ts` (Level 2, rebuilt), `ashwell.spec.ts` (Mott talked off the
-rope; Level 2's third way). Next: slice 3, the Drowned Library.
+rope; Level 2's third way).
+
+Slice 3 rebuilds the Library (`ashwell-level3.ts`): shelves standing in the water (`S`, the kit's shelf), Aud's reading
+platform raised out of it, a moat round the Index and its cabinet of drawers on an island (a new `Furniture` kind,
+`drawers`, three blocks high), each room lit low; the Undertow Index's Reads You Aloud - a looping countdown (3) begun
+as a reaction to the party's first roll, reading their entry a line further each time round (an `addVar` and the
+flags of Levels 1 and 2) and asking an Instinct 14 reaction roll of all of them, a step faster with `gave-our-own`, a
+step slower with `knows-the-index`; the ink-wraiths' Pulled Under (Restrained); two pages to read for what they hide
+(a Knowledge 13 roll on a drifting page; the Kindlers' shelf, for a Stress, with Aud's own card); and the catalogue
+paying back the Market - the party's own name found and read back, Annick's card to tear out - and the sealed stair's
+page saying so. Tests: `ashwell.test.ts` (Level 3, rebuilt), `ashwell.spec.ts` (the Index reading the party, the name
+found, the page). Next: slice 4, the Furnace of Names.
 
 ## Peer to peer: a shared game with no server — slice 1 done
 

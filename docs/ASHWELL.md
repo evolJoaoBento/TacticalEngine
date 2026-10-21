@@ -118,13 +118,29 @@ price paid in the dead (their own, if they have none to spare). **What the stair
 
 ## Level 3 — The Drowned Library (built)
 
-Three scenes: the **Reading Room**, knee-deep, with no fight - **Aud Brennock**, the last of the Kindlers, feeding
-pages to a fire on a reading platform, who gives the party her tinder; the **Wet Stacks** and their ink-wraiths (a
-stat block of the adventure's own, tier 2), with a drowned reader's satchel that opens once the ink is still; and the
-**Index**, where the Undertow Index (a tier-2 solo of its own) guards the catalogue. Once it is down, the catalogue
-gives the party its own page - and, with Aud's tinder, may be burnt, every name in it with it. The sealed stair opens
-only to that page, read aloud: every one of them marks a Stress, and the way goes on down into the Furnace. Aud
-answers differently after, burnt or not.
+Three scenes:
+
+- **The Reading Room** — knee-deep black water between shelves, no fight. **Aud Brennock**, the last of the Kindlers,
+  feeds pages to a fire on a reading platform raised out of the water, and gives the party her tinder; told the Broker
+  has one of their names, she says where it went (the Index files whatever is given up, and a name read back by its
+  own people is theirs again). A **drifting page** hides a Kindler's note on the Index behind a Knowledge 13 roll -
+  keep out of its lamps, and it reads slower; a failed roll reads your own name instead, and marks a Stress.
+- **The Wet Stacks** — rows of shelves standing in the water, a dry walk down the middle, and a ledge with a drowned
+  reader's satchel that opens once the ink is still. The **ink-wraiths** (tier 2, of the adventure's own) **Pull
+  Under**: a Very Close attack that Restrains. Once they are down the **Kindlers' shelf** can be read, against Aud's
+  advice, for a Stress: the six the Index filed, and Aud's own card, not finished - "She will burn until the Index
+  does, and then she will stop." Told, Aud says it is the kindest thing he ever wrote.
+- **The Index** — a moat, and on an island up a short stair the catalogue, a cabinet of drawers taller than the walls.
+  The **Undertow Index** (a tier-2 solo of its own) **Reads You Aloud**: at the party's first roll, a looping countdown
+  (3) that every action roll turns; each time round it reads the next line of the party's own entry - what they did
+  to Annick, then the name they paid the Broker, then how they die - and every one of them rolls Instinct 14 or marks
+  a Stress. It reads a step faster with a name of theirs already filed (`gave-our-own`), a step slower for those who
+  read the drifting page. Once it is down the catalogue gives the party its own page; with it, the name they gave the
+  Broker, read back, two Stress each cleared; Annick's card, warm if he was spared, which those who sold it may tear
+  out; and Aud's line, if they read it. Then, with Aud's tinder, it may be burnt, every name in it with it.
+- **The sealed stair** opens only to that page, read aloud: every one of them marks a Stress, the page says what they
+  did in the Library (the name found, Annick's card, the Index burnt), and the way goes on down into the Furnace. Aud
+  answers differently after, burnt or not.
 
 The design, as it was set down:
 
@@ -212,8 +228,14 @@ added.
    spotlight him and pay a Shadow for came too late, or never); the dead it calls are minions, and the way to stop it is
    to reach the ledge. Grale is the bell's paymaster, and his name the third way. `gave-our-own` and
    `gave-annicks-name` are read by Vane's page below; what the Library does with them is slice 3's.
-3. **The Drowned Library.** Shelves as shelves, the reading platform raised out of the water, the Index hunting by name
+3. **The Drowned Library** (done, 21 October 2026). Shelves as shelves, the reading platform raised out of the water, the Index hunting by name
    (a countdown that reads the party's own entries); pages to read for what they hide.
+   *As built:* the Index's countdown is the Sexton's shape again - a reaction to the first roll, costing nothing - and
+   reads the entry a line further each time round (`index-read`, a variable), every one of the party rolling not to
+   flinch. The cabinet is a `Furniture` kind of its own, `drawers`, three blocks high. `gave-our-own`,
+   `gave-annicks-name` and `annick-named-living` are read in the catalogue, and the flags the Library sets
+   (`knows-the-index`, `read-auds-entry`, `found-our-own`, `freed-annicks-name`) are read in it too - by the Index, Aud,
+   the catalogue and the sealed stair's page.
 4. **The Furnace of Names.** Heat as a hazard, the Choir as bystanders with a will, the valve as a test of strength,
    the furnace filling its wall; the name burnt read back to the party at the bottom.
 5. **The Ledger Throne.** A room worth ending in; Vane's fight writing the room around him; the Pen reachable by what

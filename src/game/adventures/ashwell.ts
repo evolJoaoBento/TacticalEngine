@@ -21,7 +21,7 @@ import { sheetFor } from '../new-character';
 import { ASHWELL_ID, HUB_ID, SUMP_KEY, GUILD_MARK, BONE_KEY, KINDLING, YOUR_PAGE, PALETTE, LINKED_SURFACES } from './ashwell-kit';
 import { hub, throat, kennel, sump, CISTERN_WARDEN, LAMP_MOTH, WARDEN_CARDS, WARDEN_ABILITIES, KETCH, NAILS, ANNICK, QUEST, LEVEL_ONE_ITEMS } from './ashwell-level1';
 import { market, pit, countingHouse, PIT_GHOUL, PIT_SEXTON, BELL_CALLED, BELL_CALLED_ID, BONE_BROKER, LEVEL_TWO_CARDS, LEVEL_TWO_ABILITIES, GRALE, SEXTON, CLERK, SELA, MARKET_QUEST_DEF } from './ashwell-level2';
-import { readingRoom, stacks, index, INK_WRAITH, UNDERTOW_INDEX, AUD, LIBRARY_QUEST_DEF } from './ashwell-level3';
+import { readingRoom, stacks, index, INK_WRAITH, UNDERTOW_INDEX, LEVEL_THREE_CARDS, LEVEL_THREE_ABILITIES, AUD, LIBRARY_QUEST_DEF } from './ashwell-level3';
 import { nave, gallery, hall, IRON_STOKER, BELLOWS_SAINT, ILSE, FURNACE_QUEST_DEF } from './ashwell-level4';
 import { throne, ORSOLDE_VANE, VANE, THRONE_QUEST_DEF } from './ashwell-level5';
 
@@ -103,8 +103,8 @@ export function ashwellProject(party: readonly CharacterSheet[] = ASHWELL_PARTY)
     adversaries: [CISTERN_WARDEN, LAMP_MOTH, PIT_GHOUL, PIT_SEXTON, BELL_CALLED, BONE_BROKER, INK_WRAITH, UNDERTOW_INDEX, IRON_STOKER, BELLOWS_SAINT, ORSOLDE_VANE],
     // What a feature summons has no placement to name its model: the bell's dead are drawn as the pit's ghouls are.
     adversaryModels: { [BELL_CALLED_ID]: 'fen-lurker' },
-    cards: [...WARDEN_CARDS, ...LEVEL_TWO_CARDS],
-    abilities: [...STARTER_ABILITIES, ...WARDEN_ABILITIES, ...LEVEL_TWO_ABILITIES],
+    cards: [...WARDEN_CARDS, ...LEVEL_TWO_CARDS, ...LEVEL_THREE_CARDS],
+    abilities: [...STARTER_ABILITIES, ...WARDEN_ABILITIES, ...LEVEL_TWO_ABILITIES, ...LEVEL_THREE_ABILITIES],
     conditionDefs: [...STARTER_CONDITIONS, ...SRD_CONDITIONS.filter((c) => !STARTER_CONDITIONS.some((s) => s.id === c.id))],
     party: [...party],
     packs: ['srd-characters'],

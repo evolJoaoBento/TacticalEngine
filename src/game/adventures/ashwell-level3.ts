@@ -3,7 +3,7 @@
 import { sceneSchema, type ProjectDoc, type SceneDoc } from '../../engine/scene/schema';
 import type { AdversaryDef } from '../../engine/content/types';
 import type { Effect } from '../../engine/script/schema';
-import { COUNTING_ID, READING_ID, STACKS_ID, INDEX_ID, LIBRARY_QUEST, AUD_DIALOGUE, KINDLING, YOUR_PAGE, INK_WRAITH_ID, INDEX_BOSS_ID, NAVE_ID, FURNACE_QUEST, sceneFromRows, passage, afterTheFight, kindsOf } from './ashwell-kit';
+import { COUNTING_ID, READING_ID, STACKS_ID, INDEX_ID, LIBRARY_QUEST, AUD_DIALOGUE, KINDLING, YOUR_PAGE, INK_WRAITH_ID, INDEX_BOSS_ID, NAVE_ID, FURNACE_QUEST, sceneFromRows, passage, afterTheFight, kindsOf, type Furniture } from './ashwell-kit';
 
 // ---------------------------------------------------------------------------------------------------------------
 // Level 3: the Drowned Library
@@ -12,62 +12,86 @@ import { COUNTING_ID, READING_ID, STACKS_ID, INDEX_ID, LIBRARY_QUEST, AUD_DIALOG
 /**
  * Vane's first archive, flooded when the sea came up: shelves standing in black water, pages drifting. Three rooms.
  * The Reading Room, where nobody fights: the wet stair up to the Counting House, and the Kindlers' fire on a reading
- * platform, Aud Brennock feeding it pages. Down a passage, the Wet Stacks, where the ink-wraiths are. Below them, the
- * Index - the catalogue of everyone Vane has filed, which hunts by name - and past it the stair down, which opens only
- * to a party carrying its own page.
+ * platform raised out of the water, Aud Brennock feeding it pages. Down a passage, the Wet Stacks, where the
+ * ink-wraiths are. Below them, the Index - the catalogue of everyone Vane has filed, which hunts by name - and past it
+ * the stair down, which opens only to a party carrying its own page.
  */
 const READING_ROWS = [
   '####################',
-  '#...################',
+  '#....SSS~~~~~SSS~~~#',
   '#....~~~~~~~~~~~~~~#',
-  '#..c.~~#~~~#~~~#~~~#',
-  '#....~~~~~~~~~~~~~~#',
-  '#~~~~~~~~......~~~~#',
-  '#~~#~~~~~..c...~~#~#',
-  '#~~~~~~~~......~~~~#',
-  '#~~#~~~~~~~~~~~~~#~#',
-  '#~~~~~~~~~~~~~~~~~~#',
+  '#....~~SS~~~~~~SS~~#',
+  '#....~~SS~~~~~~SS~~#',
+  '#~~~~~~~~~^^^^^^~~~#',
+  '#~SS~~~~~/^^^^^^~~S#',
+  '#~SS~~~~~~^^^^^^~~S#',
+  '#~~~~~~~~~~~/~~~~~~#',
+  '#~SS~~SS~~~~~~~~...#',
   '#~~~~~~~~~~~~~~~...#',
   '################..##',
   '####################',
 ];
 
+/**
+ * Rows of shelves, waist-deep, with a dry walk along the north wall and down the middle; the satchel up on a ledge in
+ * the north-east corner, a step above the water.
+ */
 const STACKS_ROWS = [
   '################',
   '#######..#######',
   '#######..#######',
+  '#.........../^^#',
+  '#.SSS~SS..SS~SS#',
+  '#~~~~~~~..~~~~~#',
+  '#.SSS~SS..SS~SS#',
   '#..............#',
-  '#.##.##..##.##.#',
-  '#~~~~~~..~~~~~~#',
-  '#.##.##..##.##.#',
-  '#..............#',
-  '#.##.##..##.##.#',
+  '#.SSS~SS..SS~SS#',
   '#~~~~~~~~~~~~..#',
   '#############..#',
   '#############..#',
   '################',
 ];
 
+/** The Library's shelves, in the water and out of it, taller than a man. */
+const LIBRARY_FURNITURE: Readonly<Record<string, Furniture>> = {
+  S: { kind: 'shelf', shape: 'block', height: 1.5 },
+};
+
+/**
+ * A round room with a moat of black water, and in its middle, on an island of stone reached by a short stair from the
+ * south, the catalogue: a cabinet of a thousand small drawers, taller than a house.
+ */
 const INDEX_ROWS = [
   '################',
   '#######..#######',
   '#######..#######',
   '#..............#',
   '#..~~~~~~~~~~..#',
-  '#..~........~..#',
-  '#..~..cccc..~..#',
-  '#..~........~..#',
-  '#..~~~~..~~~~..#',
+  '#..~^^DDDD^^~..#',
+  '#..~^^DDDD^^~..#',
+  '#..~^^^^^^^^~..#',
+  '#..~~~~//~~~~..#',
   '#..............#',
   '#######..#######',
   '#######..#######',
   '################',
 ];
 
+const INDEX_FURNITURE: Readonly<Record<string, Furniture>> = {
+  D: { kind: 'drawers', shape: 'block', height: 3 },
+};
+
+/** What the party's page says has happened since, read off the flags its own deeds in the Library set. */
+const THE_ENTRY_SINCE: Effect[] = [
+  { kind: 'branch', when: { kind: 'flag', flag: 'found-our-own' }, then: [{ kind: 'log', text: 'At the foot of the page, newer ink: "They found the name they gave the Broker, filed under their own, and read it back. It was not the one any of them thought. I had hoped they would not look."', tone: 'narration' }] },
+  { kind: 'branch', when: { kind: 'flag', flag: 'freed-annicks-name' }, then: [{ kind: 'log', text: 'At the foot of the page, newer ink: "They tore Annick’s card out of my Index and carried it off in a shirt. Whatever he answers to now, it is not mine to write, nor the Guild’s."', tone: 'narration' }] },
+  { kind: 'branch', when: { kind: 'flag', flag: 'burned-the-index' }, then: [{ kind: 'log', text: 'At the foot of the page, newer ink, shakier than the rest: "They burnt my Index. I felt every card go."', tone: 'narration' }] },
+];
+
 /**
  * The sealed stair down from the Index, which opens to a party carrying its own page: the first time, the page read
- * aloud and the end of Level 3 - the quest done, a level gained - and the way into Level 4, its quest begun; every time
- * after, simply the way down to the Furnace.
+ * aloud - and what it says they did in the Library - and the end of Level 3, the quest done, a level gained, and the
+ * way into Level 4, its quest begun; every time after, simply the way down to the Furnace.
  */
 const FURNACE_STAIR: Effect[] = [
   {
@@ -81,11 +105,12 @@ const FURNACE_STAIR: Effect[] = [
         title: 'Your entry',
         paragraphs: [
           'The stair is sealed with a skin of wet paper, and it will not tear. It parts only when the page you took from the Index is held up to it and read aloud. So somebody reads it.',
-          'It is about all of you. It is in Vane\u2019s small square hand, and it is right about everything so far: the rope, the water, Annick, the name you paid the Broker. It goes on past today. It says how each of you dies. Each account stops mid-sentence, as if he had been called away.',
+          'It is about all of you. It is in Vane’s small square hand, and it is right about everything so far: the rope, the water, Annick, the name you paid the Broker. It goes on past today. It says how each of you dies. Each account stops mid-sentence, as if he had been called away.',
           'The paper parts. Below, the stair is warm and dry, and the air smells of hot iron, and somebody is singing.',
         ],
         button: 'Go down',
       },
+      ...THE_ENTRY_SINCE,
       { kind: 'markStress', amount: 1, target: { kind: 'party' } },
       { kind: 'completeQuest', quest: LIBRARY_QUEST },
       { kind: 'levelUp' },
@@ -101,8 +126,9 @@ export function readingRoom(): SceneDoc {
   return sceneSchema.parse({
     id: READING_ID,
     name: 'The Reading Room',
-    intro: 'The water stands knee-deep between the shelves, black and still, and pages turn slowly in it like leaves. On a reading platform in the middle of the room, somebody has lit a fire.',
-    ...sceneFromRows(READING_ROWS, kindsOf('library')),
+    intro: 'The water stands knee-deep between the shelves, black and still, and pages turn slowly in it like leaves. On a reading platform in the middle of the room, up out of the water, somebody has lit a fire.',
+    light: 0.3,
+    ...sceneFromRows(READING_ROWS, kindsOf('library'), LIBRARY_FURNITURE),
     spawns: [
       { x: 2, y: 2 },
       { x: 3, y: 2 },
@@ -142,11 +168,50 @@ export function readingRoom(): SceneDoc {
           ],
         },
       },
+      // A page to read for what it hides, against Aud's advice: a Kindler's note on the Index, or a line that notices.
+      {
+        id: 'drifting-page',
+        model: 'banner-prop',
+        position: { x: 6, y: 2 },
+        rotation: 0.4,
+        solid: true,
+        function: {
+          kind: 'trapped',
+          trait: 'knowledge',
+          difficulty: 13,
+          success: {
+            kind: 'script',
+            object: 'scripted',
+            name: 'A page, drifting',
+            effects: [
+              {
+                kind: 'story',
+                title: 'A page, drifting',
+                paragraphs: [
+                  'It is not Vane’s hand. On the back of one of his pages, in pencil, a Kindler has written small: "It reads by the light of what burns. It finds you by your name, and it finds your name by looking. Keep out of its lamps when you go in, and it has to squint." It is signed T.A.',
+                ],
+                button: 'Let it drift',
+              },
+              { kind: 'setFlag', flag: 'knows-the-index' },
+            ],
+          },
+          failure: {
+            kind: 'script',
+            object: 'scripted',
+            name: 'A page, drifting',
+            effects: [
+              { kind: 'markStress', amount: 1, target: { kind: 'actor' } },
+              { kind: 'log', text: 'You read a line before you can stop yourself - your own name, in Vane’s hand - and the page sinks. Up on the platform, Aud does not look round. "I said not to."', tone: 'bad' },
+            ],
+          },
+        },
+      },
       { id: 'aud-brennock', model: 'traveling-bard', position: { x: 13, y: 6 }, rotation: -Math.PI / 2, solid: true, function: { kind: 'interaction', dialogue: AUD_DIALOGUE } },
       { id: 'kindlers-fire', model: 'camp-fire-prop', position: { x: 12, y: 5 }, rotation: 0, solid: true },
       { model: 'fungril-male', position: { x: 10, y: 7 }, rotation: 0.6 },
       { model: 'crate-prop', position: { x: 14, y: 7 }, rotation: 0.2 },
       { model: 'standing-torch-prop', position: { x: 10, y: 5 }, rotation: 0 },
+      { model: 'wall-torch-prop', position: { x: 4, y: 1 }, rotation: 0 },
       passage('down-to-the-stacks', 'reading-stacks', { x: 16, y: 11 }, 0),
     ],
   });
@@ -157,7 +222,8 @@ export function stacks(): SceneDoc {
     id: STACKS_ID,
     name: 'The Wet Stacks',
     intro: 'Rows of shelves, waist-high in water, their books swollen shut. The ink has run out of them and hangs in the water in threads. The threads are moving against the current.',
-    ...sceneFromRows(STACKS_ROWS, kindsOf('library')),
+    light: 0.2,
+    ...sceneFromRows(STACKS_ROWS, kindsOf('library'), LIBRARY_FURNITURE),
     spawns: [
       { x: 8, y: 1 },
       { x: 8, y: 2 },
@@ -174,7 +240,7 @@ export function stacks(): SceneDoc {
         function: {
           kind: 'script',
           object: 'chest',
-          name: 'A drowned reader\u2019s satchel',
+          name: 'A drowned reader’s satchel',
           flavor: 'A leather satchel on a high shelf, above the water. Its owner is not far off, and is ink now.',
           repeatable: true,
           effects: afterTheFight(
@@ -188,7 +254,41 @@ export function stacks(): SceneDoc {
           ),
         },
       },
-      { model: 'withering-tree-prop', position: { x: 1, y: 3 }, rotation: 1.1 },
+      // The second page to read: the Kindlers the Index filed, and Aud's own card, not finished.
+      {
+        id: 'kindlers-shelf',
+        model: 'banner-prop',
+        position: { x: 1, y: 8 },
+        rotation: 0,
+        solid: true,
+        function: {
+          kind: 'script',
+          object: 'scripted',
+          name: 'The Kindlers’ shelf',
+          flavor: 'Seven cards tacked along the end of a shelf, above the water, each in Vane’s small square hand. Aud said not to read anything.',
+          repeatable: true,
+          effects: afterTheFight(
+            'the-stacks',
+            [
+              {
+                kind: 'story',
+                title: 'The Kindlers',
+                paragraphs: [
+                  'Corran Vey, who carried the oil. Tilda Ashe, who could read in the dark, and should not have. Bram and Wat Fenwick, brothers, filed together. Nell Cord, who went back for Bram. Old Pask, who gave no other name and did not need one.',
+                  'The seventh card is Aud Brennock’s, and it is not finished. Its last line is still wet: "She will burn until the Index does, and then she will stop."',
+                ],
+                button: 'Look away',
+              },
+              { kind: 'markStress', amount: 1, target: { kind: 'actor' } },
+              { kind: 'setFlag', flag: 'read-auds-entry' },
+              { kind: 'log', text: 'Out in the water, something turns over slowly, as if it had heard its name. Whoever read the cards marks a Stress.', tone: 'bad' },
+            ],
+            'Not with the ink moving between you and it.',
+          ),
+        },
+      },
+      { model: 'standing-torch-prop', position: { x: 1, y: 3 }, rotation: 0 },
+      { model: 'wall-torch-prop', position: { x: 14, y: 7 }, rotation: -Math.PI / 2 },
     ],
     encounters: [
       {
@@ -206,12 +306,39 @@ export function stacks(): SceneDoc {
   });
 }
 
+/** What the catalogue holds besides the party's page: what the party gave up above, filed. */
+const WHAT_IT_HOLDS: Effect[] = [
+  {
+    kind: 'branch',
+    when: { kind: 'flag', flag: 'gave-our-own' },
+    then: [
+      { kind: 'log', text: 'Behind your page is one card more, in the Broker’s square hand: the name you gave her, filed under your own. You read it aloud, all of you together, and it is somebody’s again. One of you laughs out loud, and none of you will say who.', tone: 'good' },
+      { kind: 'clearStress', amount: 2, target: { kind: 'party' } },
+      { kind: 'setFlag', flag: 'found-our-own' },
+    ],
+  },
+  {
+    kind: 'branch',
+    when: { kind: 'flag', flag: 'gave-annicks-name' },
+    then: [
+      {
+        kind: 'branch',
+        when: { kind: 'flag', flag: 'annick-named-living' },
+        then: [{ kind: 'log', text: 'Two drawers along: HOBART ANNICK, WELL-KEEPER. LIVING. Under it, in the Broker’s hand: Guild property. The card is warm.', tone: 'narration' }],
+        otherwise: [{ kind: 'log', text: 'Two drawers along: HOBART ANNICK, WELL-KEEPER. Under it, in the Broker’s hand: Guild property, by sale.', tone: 'narration' }],
+      },
+    ],
+  },
+  { kind: 'branch', when: { kind: 'flag', flag: 'read-auds-entry' }, then: [{ kind: 'log', text: 'Aud’s drawer stands open too, and you know the last line on her card without reading it: she will burn until the Index does, and then she will stop.', tone: 'narration' }] },
+];
+
 export function index(): SceneDoc {
   return sceneSchema.parse({
     id: INDEX_ID,
     name: 'The Index',
-    intro: 'A round room with a moat of black water, and in its middle a cabinet of a thousand small drawers, taller than a house. As you come in, every drawer slides open an inch, and something inside each one says a name.',
-    ...sceneFromRows(INDEX_ROWS, kindsOf('library')),
+    intro: 'A round room with a moat of black water, and on an island in its middle a cabinet of a thousand small drawers, taller than a house. As you come in, every drawer slides open an inch, and something inside each one says a name.',
+    light: 0.26,
+    ...sceneFromRows(INDEX_ROWS, kindsOf('library'), INDEX_FURNITURE),
     spawns: [
       { x: 8, y: 1 },
       { x: 8, y: 2 },
@@ -220,9 +347,9 @@ export function index(): SceneDoc {
       passage('up-from-the-index', 'stacks-index', { x: 7, y: 1 }, Math.PI),
       {
         id: 'catalogue-drawers',
-        model: 'pillar-prop',
-        position: { x: 9, y: 5 },
-        rotation: 0,
+        model: 'chest-prop',
+        position: { x: 10, y: 7 },
+        rotation: Math.PI,
         solid: true,
         function: {
           kind: 'script',
@@ -237,6 +364,7 @@ export function index(): SceneDoc {
               { kind: 'completeObjective', quest: LIBRARY_QUEST, objective: 'the-index' },
               { kind: 'revealObjective', quest: LIBRARY_QUEST, objective: 'read-your-page' },
               { kind: 'log', text: 'In the drawer with your names on it is a single page, folded once: yours. You take it.', tone: 'good' },
+              ...WHAT_IT_HOLDS,
               {
                 kind: 'choice',
                 title: 'The catalogue',
@@ -253,6 +381,14 @@ export function index(): SceneDoc {
                     ],
                   },
                   { label: 'Leave it.', effects: [{ kind: 'log', text: 'You shut the drawer with your names in it. The rest go on whispering.', tone: 'narration' }] },
+                  {
+                    label: 'Tear out Annick’s card, and leave the rest.',
+                    available: { kind: 'flag', flag: 'gave-annicks-name' },
+                    effects: [
+                      { kind: 'setFlag', flag: 'freed-annicks-name' },
+                      { kind: 'log', text: 'The card comes out of its drawer with a sound like a breath let go. You fold it into a shirt. The rest of the drawers go on whispering, a little louder, as if they had noticed.', tone: 'good' },
+                    ],
+                  },
                 ],
               },
             ],
@@ -279,6 +415,8 @@ export function index(): SceneDoc {
       },
       { model: 'standing-torch-prop', position: { x: 1, y: 3 }, rotation: 0 },
       { model: 'standing-torch-prop', position: { x: 14, y: 3 }, rotation: 0 },
+      { model: 'standing-torch-prop', position: { x: 1, y: 9 }, rotation: 0 },
+      { model: 'standing-torch-prop', position: { x: 14, y: 9 }, rotation: 0 },
     ],
     encounters: [
       {
@@ -316,10 +454,15 @@ export const INK_WRAITH: AdversaryDef = {
   attackRange: 'veryClose',
   attackDamage: { count: 1, sides: 8, modifier: 3, types: ['magic'] },
   experiences: [],
-  features: [],
+  features: [{ name: 'Pulled Under', kind: 'action', text: 'Spend a Shadow to make an attack against a creature within Very Close range. On a hit, the target takes the attack’s damage and is Restrained until they break free.', costsGmResource: true }],
 } as AdversaryDef;
 
-/** The Undertow Index: the catalogue of everyone Vane has filed, which hunts by name. A tier-2 solo, and the level's boss. */
+/**
+ * The Undertow Index: the catalogue of everyone Vane has filed, which hunts by name. A tier-2 solo, and the level's
+ * boss. At the party's first roll it begins to read their entry aloud - a looping countdown (3), every action roll
+ * turning the page, and every time it comes round the next line read and every one of them rolling not to flinch at
+ * their own names. It reads faster with a name of theirs already filed, and slower if they knew to keep from its lamps.
+ */
 export const UNDERTOW_INDEX: AdversaryDef = {
   id: INDEX_BOSS_ID,
   name: 'Undertow Index',
@@ -336,8 +479,121 @@ export const UNDERTOW_INDEX: AdversaryDef = {
   attackRange: 'close',
   attackDamage: { count: 2, sides: 8, modifier: 3, types: ['physical'] },
   experiences: [{ name: 'Knows your name', modifier: 3 }],
-  features: [],
+  features: [{ name: 'Reads You Aloud', kind: 'reaction', text: 'Reaction: the first time a PC makes an action roll in the Index, it begins to read the party’s entry aloud - a Loop Countdown (3) that ticks down whenever a PC makes an action roll. Each time it triggers, it reads the next line, and every PC makes an Instinct Reaction Roll (14); those who fail mark a Stress. It ends when the Index falls.', costsGmResource: false }],
 } as AdversaryDef;
+
+const READS_TEXT = 'Reaction: the first time a PC makes an action roll in the Index, it begins to read the party’s entry aloud - a Loop Countdown (3) that ticks down whenever a PC makes an action roll. Each time it triggers, it reads the next line, and every PC makes an Instinct Reaction Roll (14); those who fail mark a Stress. It ends when the Index falls.';
+const PULLED_TEXT = 'Spend a Shadow to make an attack against a creature within Very Close range. On a hit, the target takes the attack’s damage and is Restrained until they break free.';
+
+/** The line of the party's entry the Index reads, the first time round: what they did to Annick. */
+const FIRST_LINE: Effect[] = [
+  {
+    kind: 'branch',
+    when: { kind: 'flag', flag: 'annick-spared' },
+    then: [{ kind: 'log', text: 'The Index reads: "...and at the Sump they talked the keeper Annick down off his doors, and took his key out of his hand, and left him to wipe his gate."', tone: 'bad' }],
+    otherwise: [{ kind: 'log', text: 'The Index reads: "...and at the Sump they put the keeper Annick down among his doors, and took his key out of his box."', tone: 'bad' }],
+  },
+];
+
+/** The second time round: what they paid the Broker, the most particular first (as `WHAT_IT_COST` above). */
+const SECOND_LINES: readonly (readonly [string, string])[] = [
+  ['gave-grales-name', 'The Index reads: "...and paid the Broker with her own usher, and did not stay to watch him weighed."'],
+  ['gave-ketchs-name', 'The Index reads: "...and paid the Broker with Margery Ketch, who has buried more of them than anyone."'],
+  ['gave-our-own', 'The Index reads: "...and paid the Broker with one of their own, and do not know which, and I do." It says the name. None of you can hear it.'],
+  ['annick-named-living', 'The Index reads: "...and paid the Broker with the keeper they had spared that morning."'],
+  ['gave-annicks-name', 'The Index reads: "...and paid the Broker with a dead man, which is cheap, and clever."'],
+  ['broker-fought', 'The Index reads: "...and took the Broker’s key off her people, over her."'],
+];
+
+function secondLine(rest: readonly (readonly [string, string])[]): Effect[] {
+  const [first, ...others] = rest;
+  if (first === undefined) return [{ kind: 'log', text: 'The Index reads: "...and came down the wet stair into my Library."', tone: 'bad' }];
+  return [{ kind: 'branch', when: { kind: 'flag', flag: first[0] }, then: [{ kind: 'log', text: first[1], tone: 'bad' }], otherwise: secondLine(others) }];
+}
+
+/** Every time after: how they end, which it has not finished writing. */
+const LAST_LINE: Effect = { kind: 'log', text: 'The Index reads how one of you dies. It stops mid-sentence, and starts on another of you, nearer.', tone: 'bad' };
+
+/** The countdown the Index reads by: the next line of the party's entry each time round, and their own names in it. */
+function readsAloud(start: string): Effect {
+  return {
+    kind: 'countdown',
+    countdown: 'the-index-reads',
+    name: 'The reading',
+    start,
+    advance: 'standard',
+    loop: 'reset',
+    onDeath: 'end',
+    effects: [
+      { kind: 'addVar', name: 'index-read', by: 1 },
+      {
+        kind: 'branch',
+        when: { kind: 'var', name: 'index-read', op: '==', value: 1 },
+        then: FIRST_LINE,
+        otherwise: [{ kind: 'branch', when: { kind: 'var', name: 'index-read', op: '==', value: 2 }, then: secondLine(SECOND_LINES), otherwise: [LAST_LINE] }],
+      },
+      { kind: 'reactionRoll', difficulty: 14, trait: 'instinct', targets: { kind: 'party' }, onFail: [{ kind: 'markStress', amount: 1, target: { kind: 'hit' } }] },
+    ],
+  };
+}
+
+const KNOWS = { kind: 'flag', flag: 'knows-the-index' } as const;
+const OURS = { kind: 'flag', flag: 'gave-our-own' } as const;
+
+/** The features above that act, as the cards their stat blocks print, and what each does. */
+export const LEVEL_THREE_CARDS: ProjectDoc['cards'] = [
+  { id: 'wraith-pulled-under', name: 'Pulled Under', grant: { kind: 'adversary', adversaries: [INK_WRAITH_ID] }, text: PULLED_TEXT, features: [] },
+  { id: 'index-reads-you-aloud', name: 'Reads You Aloud', grant: { kind: 'adversary', adversaries: [INDEX_BOSS_ID] }, text: READS_TEXT, features: [] },
+] as ProjectDoc['cards'];
+
+type Ability = ProjectDoc['abilities'][number];
+
+export const LEVEL_THREE_ABILITIES: ProjectDoc['abilities'] = [
+  {
+    id: 'wraith-pulled-under',
+    name: 'Pulled Under',
+    source: { card: 'wraith-pulled-under' },
+    text: PULLED_TEXT,
+    cost: { bad: 1 },
+    target: { kind: 'creature', range: 'veryClose' },
+    inCombatOnly: true,
+    effects: [
+      {
+        kind: 'attack',
+        range: 'veryClose',
+        onHit: [
+          { kind: 'applyCondition', condition: 'restrained', target: { kind: 'hit' } },
+          { kind: 'log', text: 'The ink wraps round and pulls down, into the water, where the reading is.', tone: 'bad' },
+        ],
+      },
+    ],
+  } as Ability,
+  {
+    id: 'index-reads-you-aloud',
+    name: 'Reads You Aloud',
+    source: { card: 'index-reads-you-aloud' },
+    text: READS_TEXT,
+    // As the Sexton's bell: a reaction to the party's first roll, which costs the GM nothing and waits for no spotlight.
+    kind: 'reaction',
+    trigger: 'partyRolled',
+    cost: {},
+    uses: { count: 1, per: 'scene' },
+    target: { kind: 'self' },
+    inCombatOnly: true,
+    effects: [
+      { kind: 'log', text: 'Every drawer in the Index slides open at once, and it begins to read aloud. It is reading about you.', tone: 'bad' },
+      { kind: 'branch', when: OURS, then: [{ kind: 'log', text: 'It has one of your names already - the one you gave the Broker, filed - and it reads the faster for it.', tone: 'bad' }] },
+      { kind: 'branch', when: KNOWS, then: [{ kind: 'log', text: 'You keep out of the lamplight, as the Kindler’s page said, and it has to squint to read you.', tone: 'good' }] },
+      // Three, a step slower for those who knew to keep from its lamps, a step faster with a name of theirs filed.
+      {
+        kind: 'branch',
+        when: KNOWS,
+        then: [{ kind: 'branch', when: OURS, then: [readsAloud('3')], otherwise: [readsAloud('4')] }],
+        otherwise: [{ kind: 'branch', when: OURS, then: [readsAloud('2')], otherwise: [readsAloud('3')] }],
+      },
+    ],
+  } as Ability,
+];
 
 export const AUD: ProjectDoc['dialogues'][number] = {
   id: AUD_DIALOGUE,
@@ -355,6 +611,8 @@ export const AUD: ProjectDoc['dialogues'][number] = {
         { text: 'We are going deeper.', available: { kind: 'not', of: { kind: 'hasItem', item: KINDLING } }, goto: 'deeper' },
         { text: 'The Index is ash.', available: { kind: 'flag', flag: 'burned-the-index' }, goto: 'ash' },
         { text: 'We left the Index standing.', available: { kind: 'all', of: [{ kind: 'objectiveDone', quest: LIBRARY_QUEST, objective: 'the-index' }, { kind: 'not', of: { kind: 'flag', flag: 'burned-the-index' } }] }, goto: 'whole' },
+        { text: 'The Broker has one of our names.', available: { kind: 'all', of: [OURS, { kind: 'not', of: { kind: 'objectiveDone', quest: LIBRARY_QUEST, objective: 'the-index' } }] }, goto: 'filed' },
+        { text: 'We read your card, in the Stacks.', available: { kind: 'all', of: [{ kind: 'flag', flag: 'read-auds-entry' }, { kind: 'not', of: { kind: 'flag', flag: 'told-aud' } }] }, goto: 'entry' },
         { text: '[Leave her to the fire.]' },
       ],
     },
@@ -412,6 +670,24 @@ export const AUD: ProjectDoc['dialogues'][number] = {
         { speaker: 'Aud Brennock', text: 'Go on down. Don’t look back at me.' },
       ],
       choices: [{ text: '[Go.]' }],
+    },
+    {
+      id: 'filed',
+      lines: [
+        { speaker: 'Aud Brennock', text: 'Then it’s in the Index. Whatever’s given up down here ends up filed - that’s what the Guild sells it for.' },
+        { speaker: 'Aud Brennock', text: 'Find your drawer, when the thing’s down. Read it back. A name read aloud by its own people is theirs again. That’s the one thing he can’t stop.' },
+      ],
+      choices: [{ text: '[Leave her to the fire.]' }],
+    },
+    {
+      id: 'entry',
+      lines: [
+        { text: 'Aud feeds the fire a page before she answers.' },
+        { speaker: 'Aud Brennock', text: 'I read it the first night, before I knew better. "She will burn until the Index does, and then she will stop."' },
+        { speaker: 'Aud Brennock', text: 'It isn’t a threat. It’s the kindest thing he ever wrote. Don’t let it decide anything for you.' },
+      ],
+      onEnter: [{ kind: 'setFlag', flag: 'told-aud' }],
+      choices: [{ text: '[Leave her to the fire.]' }],
     },
   ],
 } as ProjectDoc['dialogues'][number];

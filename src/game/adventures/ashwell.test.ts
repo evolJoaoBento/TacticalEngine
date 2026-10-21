@@ -17,7 +17,7 @@ import { buildProjectScene } from '../demo-scene';
 import { withListedPacks } from '../listed-packs';
 import { characterContentFor } from '../room';
 import { sheetFor } from '../new-character';
-import { ASHWELL_ID, ASHWELL_PARTY, AUD_DIALOGUE, BONE_KEY, BROKER_ID, COUNTING_ID, FURNACE_QUEST, GALLERY_ID, GHOUL_ID, GRALE_DIALOGUE, GUILD_MARK, HALL_ID, HUB_ID, INDEX_BOSS_ID, INDEX_ID, KENNEL_ID, KINDLING, LIBRARY_QUEST, MARKET_ID, MARKET_QUEST, NAVE_ID, PIT_ID, QUEST_ID, READING_ID, SAINT_ID, SELA_DIALOGUE, STACKS_ID, SUMP_ID, SUMP_KEY, THRONE_ID, THRONE_QUEST, THROAT_ID, VANE_DIALOGUE, VANE_ID, WARDEN_ID, YOUR_PAGE, ashwellProject, sceneFromRows } from './ashwell';
+import { ASHWELL_ID, ASHWELL_PARTY, AUD_DIALOGUE, BONE_KEY, BROKER_ID, COUNTING_ID, FURNACE_QUEST, GALLERY_ID, GHOUL_ID, GRALE_DIALOGUE, GUILD_MARK, HALL_ID, HUB_ID, INDEX_BOSS_ID, INDEX_ID, INK_WRAITH_ID, KENNEL_ID, KINDLING, LIBRARY_QUEST, MARKET_ID, MARKET_QUEST, NAVE_ID, PIT_ID, QUEST_ID, READING_ID, SAINT_ID, SELA_DIALOGUE, STACKS_ID, SUMP_ID, SUMP_KEY, THRONE_ID, THRONE_QUEST, THROAT_ID, VANE_DIALOGUE, VANE_ID, WARDEN_ID, YOUR_PAGE, ashwellProject, sceneFromRows } from './ashwell';
 import { BELL_CALLED_ID, CLERK_DIALOGUE, SEXTON_DIALOGUE, SEXTON_ID } from './ashwell-level2';
 
 /** Every effect the project can run: on its props, in its dialogues, in each branch of either. */
@@ -445,6 +445,92 @@ describe('a map drawn as rows', () => {
     expect([at(1, 0, 0)?.tile, at(1, 0, 0.25)]).toEqual(['f', { x: 1, y: 0, level: 0.25, shape: 'block', material: 'stone', rotation: 0, tile: 'counter', height: 0.75 }]);
     expect(at(0, 1, 0.25)).toMatchObject({ shape: 'wall', tile: 'shelf', rotation: 2, height: 1.75 });
     expect(map.terrain).toEqual(['bedrock', 'bedrock', 'bedrock', 'bedrock']);
+  });
+});
+
+describe('Level 3, rebuilt', () => {
+  const project = ashwellProject();
+  const scene = (id: string) => project.scenes.find((s) => s.id === id)!;
+  const deco = (room: string, id: string) => scene(room).decos.find((d) => d.id === id)!;
+  const dialogue = (id: string) => project.dialogues.find((d) => d.id === id)!;
+  const all = (effects: readonly Effect[]): Effect[] => {
+    const found: Effect[] = [];
+    walkEffects(effects, (effect) => void found.push(effect));
+    return found;
+  };
+  const flagsRead = (effects: readonly Effect[]): string[] => all(effects).flatMap((effect) => (effect.kind === 'branch' && effect.when.kind === 'flag' ? [effect.when.flag] : []));
+  const catalogue = () => {
+    const fn = deco(INDEX_ID, 'catalogue-drawers').function!;
+    return fn.kind === 'script' ? all(fn.effects) : [];
+  };
+
+  it('is lit low, by the Kindlers\u2019 fire and the Index\u2019s lamps, with its shelves as shelves and a cabinet taller than a wall', () => {
+    expect([READING_ID, STACKS_ID, INDEX_ID].map((id) => scene(id).light)).toEqual([0.3, 0.2, 0.26]);
+    for (const id of [READING_ID, STACKS_ID]) expect(Object.values(scene(id).buildingTiles!).some((piece) => piece.tile === 'shelf'), id).toBe(true);
+    const drawers = Object.values(scene(INDEX_ID).buildingTiles!).filter((piece) => piece.tile === 'drawers');
+    expect(drawers).toHaveLength(8);
+    expect(drawers.every((piece) => piece.height === 3)).toBe(true);
+    // The reading platform is raised out of the water, and Aud and her fire are up on it.
+    const raised = (id: string, at: { x: number; y: number }) => Object.values(scene(id).buildingTiles!).some((piece) => piece.x === at.x && piece.y === at.y && piece.shape === 'block' && piece.level === 0);
+    expect(['aud-brennock', 'kindlers-fire'].map((id) => raised(READING_ID, deco(READING_ID, id).position))).toEqual([true, true]);
+    expect(raised(INDEX_ID, deco(INDEX_ID, 'catalogue-drawers').position)).toBe(true);
+  });
+
+  it('has the Index read the party\u2019s entry aloud at their first roll: a looping countdown, quicker with a name of theirs filed, slower for those who knew', () => {
+    expect(project.adversaries.find((a) => a.id === INDEX_BOSS_ID)!.features.map((f) => f.name)).toEqual(['Reads You Aloud']);
+    const reads = project.abilities.find((a) => a.id === 'index-reads-you-aloud')!;
+    expect([reads.kind, reads.trigger, reads.uses, reads.cost]).toEqual(['reaction', 'partyRolled', { count: 1, per: 'scene' }, {}]);
+    const counts = all(reads.effects).filter((effect) => effect.kind === 'countdown');
+    // Knowing, then a name filed: four ways, read in that order.
+    expect(counts.map((c) => c.kind === 'countdown' && c.start)).toEqual(['3', '4', '2', '3']);
+    for (const c of counts) expect(c).toMatchObject({ countdown: 'the-index-reads', advance: 'standard', loop: 'reset', onDeath: 'end' });
+    const rung = counts[0]!.kind === 'countdown' ? counts[0]!.effects : [];
+    // A line further each time round, and every one of them rolling not to flinch.
+    expect(rung[0]).toEqual({ kind: 'addVar', name: 'index-read', by: 1 });
+    expect(rung.at(-1)).toMatchObject({ kind: 'reactionRoll', difficulty: 14, trait: 'instinct', targets: { kind: 'party' }, onFail: [{ kind: 'markStress', amount: 1, target: { kind: 'hit' } }] });
+    expect(flagsRead(rung)).toEqual(['annick-spared', 'gave-grales-name', 'gave-ketchs-name', 'gave-our-own', 'annick-named-living', 'gave-annicks-name', 'broker-fought']);
+    expect(project.cards.find((c) => c.id === 'index-reads-you-aloud')!.grant).toEqual({ kind: 'adversary', adversaries: [INDEX_BOSS_ID] });
+  });
+
+  it('gives the ink-wraiths a pull into the water, which holds whoever it catches', () => {
+    expect(project.adversaries.find((a) => a.id === INK_WRAITH_ID)!.features.map((f) => f.name)).toEqual(['Pulled Under']);
+    const pulled = project.abilities.find((a) => a.id === 'wraith-pulled-under')!;
+    expect([pulled.cost, pulled.effects[0]]).toEqual([{ bad: 1 }, expect.objectContaining({ kind: 'attack', range: 'veryClose', onHit: [{ kind: 'applyCondition', condition: 'restrained', target: { kind: 'hit' } }, expect.objectContaining({ kind: 'log' })] })]);
+  });
+
+  it('hides things in pages: a Kindler\u2019s note on the Index behind a Knowledge roll, and Aud\u2019s own card on the Kindlers\u2019 shelf', () => {
+    const page = deco(READING_ID, 'drifting-page').function!;
+    if (page.kind !== 'trapped') throw new Error('the drifting page is no roll');
+    expect([page.trait, page.difficulty]).toEqual(['knowledge', 13]);
+    expect(page.success?.kind === 'script' && page.success.effects).toContainEqual({ kind: 'setFlag', flag: 'knows-the-index' });
+    expect(page.failure?.kind === 'script' && page.failure.effects[0]).toEqual({ kind: 'markStress', amount: 1, target: { kind: 'actor' } });
+    const shelf = deco(STACKS_ID, 'kindlers-shelf').function!;
+    expect(shelf.kind === 'script' && shelf.effects[0]).toMatchObject({ kind: 'branch', when: { kind: 'encounter', id: 'the-stacks', state: 'ended' } });
+    expect(shelf.kind === 'script' && all(shelf.effects)).toContainEqual({ kind: 'setFlag', flag: 'read-auds-entry' });
+    // Aud answers both: the name the Broker filed, and the card read.
+    const fire = dialogue(AUD_DIALOGUE).nodes.find((n) => n.id === 'fire')!.choices!;
+    expect(fire.map((c) => c.goto)).toEqual(['who', 'burning', 'deeper', 'ash', 'whole', 'filed', 'entry', undefined]);
+    expect(fire[6]!.available).toEqual({ kind: 'all', of: [{ kind: 'flag', flag: 'read-auds-entry' }, { kind: 'not', of: { kind: 'flag', flag: 'told-aud' } }] });
+    // Told once, she has said her piece.
+    expect(dialogue(AUD_DIALOGUE).nodes.find((n) => n.id === 'entry')!.onEnter).toEqual([{ kind: 'setFlag', flag: 'told-aud' }]);
+  });
+
+  it('pays back what the Market took: the party\u2019s own name found and read back, Annick\u2019s card to tear out, and Aud\u2019s line remembered', () => {
+    const found = catalogue();
+    const ours = found.find((effect) => effect.kind === 'branch' && effect.when.kind === 'flag' && effect.when.flag === 'gave-our-own');
+    expect(ours?.kind === 'branch' && ours.then).toEqual(expect.arrayContaining([{ kind: 'clearStress', amount: 2, target: { kind: 'party' } }, { kind: 'setFlag', flag: 'found-our-own' }]));
+    expect(flagsRead(found)).toEqual(expect.arrayContaining(['gave-our-own', 'gave-annicks-name', 'annick-named-living', 'read-auds-entry']));
+    const choice = found.find((effect) => effect.kind === 'choice');
+    if (choice?.kind !== 'choice') throw new Error('the catalogue offers no choice');
+    // Burning stays the first answer; tearing Annick's card out is for those who sold it.
+    expect(choice.options.map((o) => o.label)).toEqual(['Burn it.', 'Leave it.', 'Tear out Annick\u2019s card, and leave the rest.']);
+    expect(choice.options[2]!.available).toEqual({ kind: 'flag', flag: 'gave-annicks-name' });
+    expect(choice.options[2]!.effects).toContainEqual({ kind: 'setFlag', flag: 'freed-annicks-name' });
+  });
+
+  it('has the sealed stair\u2019s page read back what the party did in the Library', () => {
+    const stair = deco(INDEX_ID, 'furnace-stair').function!;
+    expect(stair.kind === 'script' && flagsRead(stair.effects)).toEqual(['level-3-done', 'found-our-own', 'freed-annicks-name', 'burned-the-index']);
   });
 });
 

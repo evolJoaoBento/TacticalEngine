@@ -505,14 +505,19 @@ test('the Ashwell, Level 2\u2019s third way: a ring sold to the Guild, Grale cau
 });
 
 /**
- * Levels 3 and 4, from the Library's foot to the Throne's door: Aud's tinder, the Stacks, the Index and the party's page
- * (and the catalogue burnt), the Choir, the valve, the Saint, and Quim's name for the furnace.
+ * Levels 3 and 4, from the Library's foot to the Throne's door: Aud's tinder, the Stacks and the Kindlers' cards, the
+ * Index reading the party aloud and their page - with the name they gave the Broker found in it, read back, and said so
+ * at the sealed stair - and the catalogue burnt; the Choir, the valve, the Saint, and Quim's name for the furnace.
  */
 async function levelsThreeAndFour(page: Page): Promise<void> {
   await page.waitForTimeout(500);
   await page.screenshot({ path: 'test-results/ashwell-reading-room.png' });
 
-  // Aud Brennock, by her fire: the tinder.
+  // Aud Brennock, by her fire: where the name the party gave the Broker went, and the tinder.
+  await use(page, 'aud-brennock');
+  await choose(page, 'The Broker has one of our names.');
+  await choose(page, '[Leave her to the fire.]');
+  await drain(page);
   await use(page, 'aud-brennock');
   await choose(page, 'We are going deeper.');
   await choose(page, '[Take the tinder.]');
@@ -528,12 +533,45 @@ async function levelsThreeAndFour(page: Page): Promise<void> {
   await use(page, 'drowned-satchel');
   await drain(page);
   expect((await library(page))?.done).toContain('clear-the-stacks');
+  // The Kindlers' cards, read against Aud's advice: hers is among them, and reading costs the reader.
+  await use(page, 'kindlers-shelf');
+  await drain(page);
+  expect(await lastLine(page)).toBe('Out in the water, something turns over slowly, as if it had heard its name. Whoever read the cards marks a Stress.');
 
   // The Index: the sealed stair will not open without the party's page; the catalogue gives it, and burns.
   await use(page, 'down-to-the-index');
   await drain(page);
   await expect.poll(() => scene(page)).toBe('index-vault');
-  await fight(page, { x: 7, y: 3 });
+  // At the party's first roll the Index begins to read them aloud, the faster for the name of theirs the Broker filed.
+  // Swung at whole first, as a party meets it: the driver's wounds would leave it a blow from down, and a blow that
+  // lands on the first roll fells it before it can answer.
+  const reading = 'Every drawer in the Index slides open at once, and it begins to read aloud. It is reading about you.';
+  await page.evaluate(() => {
+    const a = window.__engine!;
+    a.walkTo(7.5, 3.5);
+    a.arrive();
+  });
+  await expect.poll(() => page.evaluate(() => window.__engine!.inCombat()), { timeout: 15_000 }).toBe(true);
+  for (let round = 0; round < 6 && !(await logged(page)).includes(reading); round++) {
+    await page.evaluate(() => {
+      const a = window.__engine!;
+      for (const member of a.party()) {
+        a.wound(member, 0);
+        a.select(member);
+        a.attack('undertow-index');
+        for (let n = 0; n < 20 && a.pendingKind() !== null; n++) a.answer({ kind: 'choose', index: 0 });
+      }
+    });
+    await drain(page);
+    if (!(await logged(page)).includes(reading)) {
+      await page.evaluate(() => window.__engine!.endGmTurn());
+      await drain(page);
+    }
+  }
+  const read = await logged(page);
+  expect(read).toContain(reading);
+  expect(read).toContain('It has one of your names already - the one you gave the Broker, filed - and it reads the faster for it.');
+  await win(page);
   // (Tried after the fight: the driver's approach, with nothing drawn walking, crosses no trigger on its way.)
   await page.evaluate(() => {
     const a = window.__engine!;
@@ -547,6 +585,10 @@ async function levelsThreeAndFour(page: Page): Promise<void> {
   await use(page, 'catalogue-drawers');
   await drain(page);
   expect((await library(page))?.done).toContain('the-index');
+  // The name they gave the Broker is filed with their page, and read back; and Aud's card is remembered.
+  const filed = await logged(page);
+  expect(filed.some((text) => text.startsWith('Behind your page is one card more'))).toBe(true);
+  expect(filed.some((text) => text.startsWith('Aud\u2019s drawer stands open too'))).toBe(true);
   expect((await logged(page)).some((text) => text.startsWith('The cards go up like dry leaves.'))).toBe(true);
   expect((await page.evaluate(() => window.__engine!.carried())).some((c) => c.id === 'auds-tinder')).toBe(false);
   await page.screenshot({ path: 'test-results/ashwell-index.png' });
@@ -555,6 +597,10 @@ async function levelsThreeAndFour(page: Page): Promise<void> {
   await use(page, 'furnace-stair');
   await drain(page);
   await expect.poll(() => scene(page)).toBe('ash-nave');
+  // The page says what they did in the Library.
+  const entry = await logged(page);
+  expect(entry.some((text) => text.startsWith('At the foot of the page, newer ink: "They found the name they gave the Broker'))).toBe(true);
+  expect(entry).toContain('At the foot of the page, newer ink, shakier than the rest: "They burnt my Index. I felt every card go."');
   expect(await library(page)).toMatchObject({ status: 'completed' });
   expect(await furnace(page)).toMatchObject({ status: 'active', done: ['reach-the-furnace'] });
   await page.waitForTimeout(500);
