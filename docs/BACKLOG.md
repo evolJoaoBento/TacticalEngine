@@ -107,7 +107,7 @@ room's shaders are not made again; each flame flickers its own way. Presentation
 scene menu (**☀**/**☾**, `editor/scene-edits.ts`); the driver counts the lamps lit (`lamps()`). Tests:
 `room-light.test.ts`, `scene-light.test.ts`, `scene.golden.test.ts` (`golden_scene.rs`), `editor-shell.spec.ts`.
 
-## The Ashwell's second pass — slices 1 to 3 of 5 done: Level 1, the Lantern, the Ossuary Market and the Drowned Library
+## The Ashwell's second pass — slices 1 to 4 of 5 done: Level 1, the Lantern, the Market, the Library and the Furnace
 
 `docs/ASHWELL.md` ("The second pass"): an audit found the story strong and the play thin - flat rooms, one fight-room
 template, featureless stat blocks, one roll, flags nothing read. Slice 1 is lit rooms (above) and the kit
@@ -138,7 +138,20 @@ step slower with `knows-the-index`; the ink-wraiths' Pulled Under (Restrained); 
 (a Knowledge 13 roll on a drifting page; the Kindlers' shelf, for a Stress, with Aud's own card); and the catalogue
 paying back the Market - the party's own name found and read back, Annick's card to tear out - and the sealed stair's
 page saying so. Tests: `ashwell.test.ts` (Level 3, rebuilt), `ashwell.spec.ts` (the Index reading the party, the name
-found, the page). Next: slice 4, the Furnace of Names.
+found, the page).
+
+Slice 4 rebuilds the Furnace (`ashwell-level4.ts`): pews in the Nave, coal heaps (a new `Furniture` kind, `coal`) and
+chutes in the Gallery with the valve up on a platform, and the furnace filling the Hall's east wall, each lit by its
+fires; heat as a hazard - the door's Stress, the valve a Strength 13 roll tried until it turns (a `check` in the prop's
+script, only a success marking it used), and the Saint's Bellows, a zone of the adventure's own condition
+(`furnace-breath`, `onEnter` 1d6) laid round him as a reaction to the party's first roll; the Saint's Hymn, a
+`tookHitPoints` reaction healing him while the Choir sings; the Stokers' Into the Chute (`push`); the Choir told why they
+sing, or not, and sent up the well once the Saint is past (Ketch's slate knows); and the page at the foot of the
+last stair reading back whose name was burnt (`burnt-<id>`) and what went with it. Its server run found a parting
+older than it: a page standing a board back up read the ground again, laying a zone's condition the engine lays only
+when the fight settles; it no longer does (`refreshWorld(demo, false)` in `restoreFromBoard`). Tests: `ashwell.test.ts` (Level 4,
+rebuilt), `ashwell.spec.ts` (the Choir told, the valve by strength, the bellows and the silent hymn, the Choir sent
+up, the page). Next: slice 5, the Ledger Throne.
 
 ## Peer to peer: a shared game with no server — slice 1 done
 

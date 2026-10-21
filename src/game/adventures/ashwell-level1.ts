@@ -76,6 +76,7 @@ const SLATE: Effect[] = [
   { kind: 'branch', when: { kind: 'flag', flag: 'returned-the-ring' }, then: [{ kind: 'log', text: 'Halfway down, beside TAM KETCH, somebody has drawn a small careful ring.', tone: 'narration' }] },
   { kind: 'branch', when: { kind: 'flag', flag: 'sold-the-ring' }, then: [{ kind: 'log', text: 'Ketch is wearing a copper ring on her thumb, new. She bought it off the Guild’s pedlar on market day, for forty, and she has not said a word about it to you.', tone: 'bad' }] },
   { kind: 'branch', when: { kind: 'flag', flag: 'annick-spared' }, then: [{ kind: 'log', text: 'HOB ANNICK has been chalked again at the bottom, in a hand that is not Ketch’s: the Warden came up.', tone: 'good' }] },
+  { kind: 'branch', when: { kind: 'flag', flag: 'choir-led-up' }, then: [{ kind: 'log', text: 'Under the names, a column of tally marks in a dozen hands, and beside it in Ketch’s: THE CHOIR - CAME UP - FED.', tone: 'good' }] },
   { kind: 'branch', when: { kind: 'flag', flag: 'ending-burned' }, then: [{ kind: 'log', text: 'It has been wiped clean, edge to edge. A smear of chalk remains in one corner, as if somebody started a name and forgot it.', tone: 'narration' }] },
 ];
 

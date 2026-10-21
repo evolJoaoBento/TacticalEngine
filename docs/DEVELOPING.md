@@ -1022,6 +1022,17 @@ when the source changes; browser tests cover broken directory art, corrupt impor
   and grants a card to - so a project that rewrites the starter's Human gives its humans only its own features. To
   add one feature to the starter's, grant it without defining the thing again.
 
+- **An `encounter` condition sees only the room it is read in.** `{ kind: 'encounter', id, state: 'ended' }` asks
+  about the fights of the scene the party is standing in; asked from another room - a dialogue in the Ash Nave about
+  the Furnace Hall's fight - it is never true. Gate on what the fight's room leaves behind instead: a quest objective
+  completed there, or a flag (`ashwell-level4.ts`, Ilse's `after`).
+
+- **A zone's condition is laid when the fight settles, not on the step.** A walk (`walk_the_move`, `walk_selected`)
+  does not read the ground; `settle_fight` does, and the golden fights hold the engine to it. So a page standing a
+  board back up (`restoreFromBoard`) must not read it either (`refreshWorld(demo, false)`): it did, and a member who
+  closed in on the Bellows Saint without reaching him stood in the Furnace's Breath on the page and not on the server
+  - a parting only the server's run could see (`board.test.ts`, the zone walked into and out of).
+
 - **A project kept in the browser has no pack entries in it.** `GameProjects` (and a saved project file) stores a
   project without what its listed packs lay (`withoutPackEntries`); a page lays them again as it opens one
   (`withListedPacks`). Anything handed to a game played elsewhere - the server's, a peer host's table - is handed laid,

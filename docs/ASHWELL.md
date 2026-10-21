@@ -153,15 +153,30 @@ Index**, a catalogue that hunts by name. **What the stair costs:** a page of the
 
 ## Level 4 — The Furnace of Names (built)
 
-Three scenes: the **Ash Nave**, with no fight - the Choir of Ash in rows between the pews, **Precentor Ilse Grey**
-conducting, and the Furnace Door too hot to touch; the **Coal Gallery**, its iron Stokers (a tier-2 bruiser of the
-adventure's own) and the great valve that cools the door once they are down; and the **Furnace Hall**, where **Oswin
-Pell, the Bellows Saint** (a tier-2 solo of its own) works the bellows. Past him, the Name Furnace opens the last stair
-for one name: one of the four writes theirs, marks three Stress, and loses one thing they remember, said in the log -
-Quim the face of whoever taught them the sword, Violet their childhood house, Scarlet their mother's voice, Arty why
-they came down at all. The last stair ends the level with Vane, nervous, waiting behind a plain wooden door; back at
-the Lantern, Ketch counts the party twice. Vane's page on the pew tells why the Choir sings, and Ilse, asked, begs the
-party not to tell them.
+Three scenes:
+
+- **The Ash Nave** — no fight. The Choir of Ash in rows between the pews, **Precentor Ilse Grey** conducting, and the
+  Furnace Door at the end, red at the hinges: trying it before the valve is turned costs a Stress. Each chorister
+  answers when spoken to - singing on, eyes shut, or, once told, sitting silent. Vane's page on the pew tells why the
+  Choir sings (the Saint does not burn the ones who are singing, and draws on their song), and Ilse, asked, begs the
+  party not to tell them: **say nothing**, or **tell them** - the song stops, and the Saint has nothing to draw on.
+  Once the Saint is past (his fight won, and the furnace reached), Ilse **sends the Choir up the well** (telling them herself, if the party kept her
+  secret), and Ketch's slate, at the Lantern, chalks them in.
+- **The Coal Gallery** — low and black: coal chutes in the north corners, heaps of coal, and the great valve on a
+  platform at the far end. The iron **Stokers** (tier 2, of the adventure's own) shovel a creature **Into the Chute**
+  (knocked back to Close). Once they are down the valve is **a test of strength** (Strength 13), tried until it turns:
+  with Shadow it turns and blisters the hands on it (a Stress); a failure costs a Stress, or with Shadow a burn off the
+  chain (1d6).
+- **The Furnace Hall** — the furnace fills the east wall, floor to well above a man, a mouth of white light.
+  **Oswin Pell, the Bellows Saint** (a tier-2 solo of its own) has **The Bellows**: at the party's first roll the
+  furnace breathes out over the floor round him, ground that burns whoever comes into it (1d6) until he falls; and
+  **The Hymn**: hurt, he heals by the Choir's song coming through the doors, three times - unless they were told.
+  Past him the Name Furnace opens the last stair for one name: one of the four writes theirs, marks three Stress, and
+  loses one thing they remember, said in the log - Quim the face of whoever taught them the sword, Violet their
+  childhood house, Scarlet their mother's voice, Arty why they came down at all.
+- **The last stair** ends the level with Vane, nervous, waiting behind a plain wooden door; his page there says whose
+  name it was and what went with it (he has kept the page, on his desk), and whether the Choir went up. Back at the
+  Lantern, Ketch counts the party twice.
 
 The design, as it was set down:
 
@@ -236,8 +251,14 @@ added.
    `gave-annicks-name` and `annick-named-living` are read in the catalogue, and the flags the Library sets
    (`knows-the-index`, `read-auds-entry`, `found-our-own`, `freed-annicks-name`) are read in it too - by the Index, Aud,
    the catalogue and the sealed stair's page.
-4. **The Furnace of Names.** Heat as a hazard, the Choir as bystanders with a will, the valve as a test of strength,
+4. **The Furnace of Names** (done, 21 October 2026). Heat as a hazard, the Choir as bystanders with a will, the valve as a test of strength,
    the furnace filling its wall; the name burnt read back to the party at the bottom.
+   *As built:* the heat is the Furnace Door's Stress, the valve's burns, and the Saint's Bellows - a zone (`zone` with a
+   condition of the adventure's own, `furnace-breath`, whose `onEnter` burns) laid round him at the party's first
+   roll. The Choir's will is Ilse's choice made the party's: telling them silences the Hymn (a `tookHitPoints`
+   reaction), and once the Saint is past they go up the well (`remove` on each chorister). `burnt-<id>` and
+   Ilse's *why* are read now - by the page at the foot of the stair, the Hymn and Ilse - and `choir-led-up` by that
+   page and Ketch's slate. The page says the burnt page is on Vane's desk; what he does with it is slice 5's.
 5. **The Ledger Throne.** A room worth ending in; Vane's fight writing the room around him; the Pen reachable by what
    the party did, not only by what it says; every flag paid.
 

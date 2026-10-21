@@ -507,7 +507,8 @@ test('the Ashwell, Level 2\u2019s third way: a ring sold to the Guild, Grale cau
 /**
  * Levels 3 and 4, from the Library's foot to the Throne's door: Aud's tinder, the Stacks and the Kindlers' cards, the
  * Index reading the party aloud and their page - with the name they gave the Broker found in it, read back, and said so
- * at the sealed stair - and the catalogue burnt; the Choir, the valve, the Saint, and Quim's name for the furnace.
+ * at the sealed stair - and the catalogue burnt; the Choir told why they sing, the valve turned by strength, the Saint's
+ * bellows and his silent hymn, Wren's name for the furnace, the Choir sent up, and the page at the foot that knows it.
  */
 async function levelsThreeAndFour(page: Page): Promise<void> {
   await page.waitForTimeout(500);
@@ -615,12 +616,33 @@ async function levelsThreeAndFour(page: Page): Promise<void> {
   await choose(page, '[Go to the gallery.]');
   await drain(page);
   expect((await furnace(page))?.done).toContain('hear-the-choir');
+  // The pew page says why the Choir sings; told, they stop, and sit.
+  await use(page, 'fourth-page');
+  await drain(page);
+  await use(page, 'ilse-grey');
+  await choose(page, 'Why do they sing?');
+  await choose(page, 'They should know.');
+  await choose(page, '[Leave her.]');
+  await drain(page);
+  await use(page, 'chorister-1');
+  await drain(page);
+  expect(await lastLine(page)).toMatch(/^The chorister sits in the pew/);
   await use(page, 'down-to-the-gallery');
   await drain(page);
   await expect.poll(() => scene(page)).toBe('coal-gallery');
   await fight(page, { x: 7, y: 3 });
-  await use(page, 'great-valve');
-  await drain(page);
+  // The valve is a test of strength, tried until it turns: each failure costs a Stress or a burn.
+  for (let tries = 0; tries < 12 && !(await furnace(page))?.done.includes('turn-the-valve'); tries++) {
+    await page.evaluate(() => {
+      const a = window.__engine!;
+      for (const member of a.party()) {
+        a.wound(member, 0);
+        a.markStress(member, 0);
+      }
+    });
+    await use(page, 'great-valve');
+    await roll(page);
+  }
   expect((await furnace(page))?.done).toContain('turn-the-valve');
   await use(page, 'up-from-the-gallery');
   await drain(page);
@@ -633,7 +655,36 @@ async function levelsThreeAndFour(page: Page): Promise<void> {
   await use(page, 'into-the-furnace');
   await drain(page);
   await expect.poll(() => scene(page)).toBe('furnace-hall');
-  await fight(page, { x: 7, y: 3 });
+  // At the party's first roll the Saint breathes the furnace over the floor; and hurt, he listens for the Choir, which is
+  // silent. Swung at whole first, as at the Index, so he stands to answer.
+  const bellows = 'Oswin leans his whole weight on the bellows, singing, and the furnace breathes out across the floor.';
+  const silent = 'Oswin lifts his head to listen. The Nave is silent. Nothing comes.';
+  await page.evaluate(() => {
+    const a = window.__engine!;
+    a.walkTo(7.5, 3.5);
+    a.arrive();
+  });
+  await expect.poll(() => page.evaluate(() => window.__engine!.inCombat()), { timeout: 15_000 }).toBe(true);
+  for (let round = 0; round < 10 && !((await logged(page)).includes(bellows) && (await logged(page)).includes(silent)); round++) {
+    await page.evaluate(() => {
+      const a = window.__engine!;
+      for (const member of a.party()) {
+        a.wound(member, 0);
+        a.select(member);
+        a.attack('oswin-pell');
+        for (let n = 0; n < 20 && a.pendingKind() !== null; n++) a.answer({ kind: 'choose', index: 0 });
+      }
+    });
+    await drain(page);
+    if (await page.evaluate(() => window.__engine!.inCombat())) {
+      await page.evaluate(() => window.__engine!.endGmTurn());
+      await drain(page);
+    }
+  }
+  const breathed = await logged(page);
+  expect(breathed).toContain(bellows);
+  expect(breathed).toContain(silent);
+  await win(page);
   await page.evaluate(() => {
     const a = window.__engine!;
     a.walkTo(8.5, 10.5);
@@ -650,9 +701,30 @@ async function levelsThreeAndFour(page: Page): Promise<void> {
   expect(await logged(page)).toContain('Wren writes, and feeds the page to the fire, and watches it go. Afterwards, Wren cannot remember the face of whoever first taught them to hold a sword.');
   expect(await page.evaluate(() => window.__engine!.stressOf('wren').marked)).toBeGreaterThan(wren);
   await page.screenshot({ path: 'test-results/ashwell-furnace.png' });
+  // The Saint down, Ilse sends the Choir up the well.
+  await use(page, 'out-of-the-furnace');
+  await drain(page);
+  await expect.poll(() => scene(page)).toBe('ash-nave');
+  await use(page, 'ilse-grey');
+  await choose(page, 'Oswin Pell has stopped singing.');
+  await choose(page, '[Let them go.]');
+  await drain(page);
+  expect(await page.evaluate(() => window.__engine!.objectState('chorister-1').removed)).toBe(true);
+  await use(page, 'into-the-furnace');
+  await drain(page);
+  await expect.poll(() => scene(page)).toBe('furnace-hall');
+  await page.evaluate(() => {
+    const a = window.__engine!;
+    a.walkTo(8.5, 10.5);
+    a.arrive();
+  });
   await use(page, 'throne-stair');
   await drain(page);
-  expect((await logged(page)).some((text) => text.startsWith('Entry 11,040'))).toBe(true);
+  const foot = await logged(page);
+  expect(foot.some((text) => text.startsWith('Entry 11,040'))).toBe(true);
+  // Vane's page at the foot of the stair knows whose name it was, and what went with it, and that the Choir went up.
+  expect(foot).toContain('Under it, in the same hand: "Wren gave the Furnace their name, and with it the face of whoever first taught them to hold a sword. I have kept the page. It is on my desk, if Wren wants it back."');
+  expect(foot).toContain('And under that: "They sent the Choir up the well. I shall have to read by my own light now. I find I do not mind as much as I expected."');
   await expect.poll(() => scene(page)).toBe('ledger-throne');
   expect(await furnace(page)).toMatchObject({ status: 'completed' });
   expect(await throne(page)).toMatchObject({ status: 'active', done: ['reach-the-throne'] });

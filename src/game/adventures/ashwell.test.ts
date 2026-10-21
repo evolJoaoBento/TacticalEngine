@@ -17,7 +17,7 @@ import { buildProjectScene } from '../demo-scene';
 import { withListedPacks } from '../listed-packs';
 import { characterContentFor } from '../room';
 import { sheetFor } from '../new-character';
-import { ASHWELL_ID, ASHWELL_PARTY, AUD_DIALOGUE, BONE_KEY, BROKER_ID, COUNTING_ID, FURNACE_QUEST, GALLERY_ID, GHOUL_ID, GRALE_DIALOGUE, GUILD_MARK, HALL_ID, HUB_ID, INDEX_BOSS_ID, INDEX_ID, INK_WRAITH_ID, KENNEL_ID, KINDLING, LIBRARY_QUEST, MARKET_ID, MARKET_QUEST, NAVE_ID, PIT_ID, QUEST_ID, READING_ID, SAINT_ID, SELA_DIALOGUE, STACKS_ID, SUMP_ID, SUMP_KEY, THRONE_ID, THRONE_QUEST, THROAT_ID, VANE_DIALOGUE, VANE_ID, WARDEN_ID, YOUR_PAGE, ashwellProject, sceneFromRows } from './ashwell';
+import { ASHWELL_ID, ASHWELL_PARTY, AUD_DIALOGUE, BONE_KEY, BROKER_ID, COUNTING_ID, FURNACE_QUEST, GALLERY_ID, GHOUL_ID, GRALE_DIALOGUE, GUILD_MARK, HALL_ID, HUB_ID, ILSE_DIALOGUE, INDEX_BOSS_ID, INDEX_ID, INK_WRAITH_ID, KENNEL_ID, KINDLING, LIBRARY_QUEST, MARKET_ID, MARKET_QUEST, NAVE_ID, PIT_ID, QUEST_ID, READING_ID, SAINT_ID, SELA_DIALOGUE, STACKS_ID, STOKER_ID, SUMP_ID, SUMP_KEY, THRONE_ID, THRONE_QUEST, THROAT_ID, VANE_DIALOGUE, VANE_ID, WARDEN_ID, YOUR_PAGE, ashwellProject, sceneFromRows } from './ashwell';
 import { BELL_CALLED_ID, CLERK_DIALOGUE, SEXTON_DIALOGUE, SEXTON_ID } from './ashwell-level2';
 
 /** Every effect the project can run: on its props, in its dialogues, in each branch of either. */
@@ -448,6 +448,91 @@ describe('a map drawn as rows', () => {
   });
 });
 
+describe('Level 4, rebuilt', () => {
+  const project = ashwellProject();
+  const scene = (id: string) => project.scenes.find((s) => s.id === id)!;
+  const deco = (room: string, id: string) => scene(room).decos.find((d) => d.id === id)!;
+  const dialogue = (id: string) => project.dialogues.find((d) => d.id === id)!;
+  const node = (id: string, at: string) => dialogue(id).nodes.find((n) => n.id === at)!;
+  const all = (effects: readonly Effect[]): Effect[] => {
+    const found: Effect[] = [];
+    walkEffects(effects, (effect) => void found.push(effect));
+    return found;
+  };
+  const flagsRead = (effects: readonly Effect[]): string[] => all(effects).flatMap((effect) => (effect.kind === 'branch' && effect.when.kind === 'flag' ? [effect.when.flag] : []));
+  const pieces = (room: string, tile: string) => Object.values(scene(room).buildingTiles!).filter((piece) => piece.tile === tile);
+
+  it('is lit by its fires - the Nave warm, the Gallery black, the Hall white - with pews, coal, chutes and a furnace filling a wall', () => {
+    expect([NAVE_ID, GALLERY_ID, HALL_ID].map((id) => scene(id).light)).toEqual([0.4, 0.25, 0.6]);
+    expect(pieces(NAVE_ID, 'pew')).toHaveLength(24);
+    expect([pieces(GALLERY_ID, 'coal').length, pieces(GALLERY_ID, 'furnace').length]).toEqual([8, 4]);
+    // The furnace is the Hall's whole east wall, floor to well above a man.
+    const furnace = pieces(HALL_ID, 'furnace');
+    expect([furnace.length, new Set(furnace.map((piece) => piece.x)), furnace.every((piece) => piece.height === 2.5)]).toEqual([14, new Set([13, 14]), true]);
+  });
+
+  it('makes the heat a hazard: the door costs a Stress to try, and the valve is a test of strength, tried until it turns', () => {
+    const door = deco(NAVE_ID, 'furnace-door').function!;
+    expect(door.kind === 'script' && door.effects[0]!.kind === 'branch' && door.effects[0]!.otherwise?.[0]).toEqual({ kind: 'markStress', amount: 1, target: { kind: 'actor' } });
+    const valve = deco(GALLERY_ID, 'great-valve').function!;
+    if (valve.kind !== 'script' || valve.effects[0]!.kind !== 'branch') throw new Error('the valve is no branch');
+    const roll = valve.effects[0]!.then[0]!;
+    if (roll.kind !== 'check') throw new Error('the valve is no roll');
+    expect([roll.check.trait, roll.check.difficulty]).toEqual(['strength', 13]);
+    // Turned on any success, burnt on a success with Shadow; never used up by a failure, so it is tried again.
+    for (const turned of [roll.check.onCriticalSuccess, roll.check.onSuccessWithGood, roll.check.onSuccessWithBad]) expect(turned).toEqual(expect.arrayContaining([{ kind: 'setFlag', flag: 'valve-turned' }, { kind: 'markUsed' }]));
+    expect(roll.check.onSuccessWithBad![0]).toEqual({ kind: 'markStress', amount: 1, target: { kind: 'actor' } });
+    for (const failed of [roll.check.onFailureWithGood!, roll.check.onFailureWithBad!]) expect(failed.some((effect) => effect.kind === 'markUsed' || effect.kind === 'setFlag')).toBe(false);
+    expect(roll.check.onFailureWithBad![0]).toEqual({ kind: 'damage', dice: '1d6', type: 'magic' });
+    expect(valve.effects[0]!.then.some((effect) => effect.kind === 'markUsed')).toBe(false);
+  });
+
+  it('gives the Saint his bellows, breathing the furnace over the floor round him, and the Choir\u2019s hymn to heal by', () => {
+    expect(project.adversaries.find((a) => a.id === SAINT_ID)!.features.map((f) => f.name)).toEqual(['The Bellows', 'The Hymn']);
+    const bellows = project.abilities.find((a) => a.id === 'saint-the-bellows')!;
+    expect([bellows.kind, bellows.trigger, bellows.uses, bellows.cost]).toEqual(['reaction', 'partyRolled', { count: 1, per: 'scene' }, {}]);
+    expect(bellows.effects.at(-1)).toEqual({ kind: 'zone', zone: 'the-furnace-breath', name: 'The Furnace\u2019s Breath', condition: 'furnace-breath', at: 'actor', band: 'close', side: 'adversaries', onDeath: 'end' });
+    const breath = project.conditionDefs!.find((c) => c.id === 'furnace-breath')!;
+    expect(breath.onEnter?.effects.at(-1)).toEqual({ kind: 'damage', dice: '1d6', type: 'magic', target: { kind: 'target' } });
+    const hymn = project.abilities.find((a) => a.id === 'saint-the-hymn')!;
+    expect([hymn.kind, hymn.trigger, hymn.uses]).toEqual(['reaction', 'tookHitPoints', { count: 3, per: 'scene' }]);
+    expect(hymn.effects[0]).toMatchObject({ kind: 'branch', when: { kind: 'flag', flag: 'choir-silent' }, otherwise: [{ kind: 'heal', amount: 1, target: { kind: 'actor' } }, { kind: 'log' }] });
+    expect(project.adversaries.find((a) => a.id === STOKER_ID)!.features.map((f) => f.name)).toEqual(['Into the Chute']);
+    expect(project.abilities.find((a) => a.id === 'stoker-into-the-chute')!.effects[0]).toMatchObject({ kind: 'attack', range: 'melee', onHit: [{ kind: 'push', to: 'close', target: { kind: 'hit' } }, { kind: 'log' }] });
+  });
+
+  it('lets the Choir be told why they sing - silencing the hymn - or not, and led up the well once the Saint is down', () => {
+    const why = node(ILSE_DIALOGUE, 'why').choices!;
+    expect(why.map((c) => c.text)).toEqual(['[Say nothing.]', 'They should know.']);
+    expect(why[0]!.effects).toEqual([{ kind: 'setFlag', flag: 'kept-ilses-secret' }]);
+    expect(node(ILSE_DIALOGUE, 'told').onEnter).toEqual([{ kind: 'setFlag', flag: 'choir-silent' }]);
+    const choir = node(ILSE_DIALOGUE, 'choir').choices!;
+    expect(choir.map((c) => c.goto)).toEqual(['furnace', 'saint', 'valve', 'why', 'after', undefined]);
+    expect(choir[4]!.available).toEqual({ kind: 'all', of: [{ kind: 'objectiveDone', quest: FURNACE_QUEST, objective: 'the-saint' }, { kind: 'not', of: { kind: 'flag', flag: 'choir-led-up' } }] });
+    const after = node(ILSE_DIALOGUE, 'after').onEnter!;
+    const choristers = scene(NAVE_ID).decos.flatMap((d) => (d.id?.startsWith('chorister-') ? [d.id] : []));
+    expect(choristers).toHaveLength(8);
+    expect(after).toEqual(expect.arrayContaining([{ kind: 'setFlag', flag: 'choir-led-up' }, ...choristers.map((id) => ({ kind: 'remove', interactable: id }))]));
+    expect(flagsRead(after)).toEqual(['kept-ilses-secret']);
+    // Every one of them answers, singing or silent.
+    for (const id of choristers) {
+      const sings = deco(NAVE_ID, id).function!;
+      expect(sings.kind === 'script' && flagsRead(sings.effects), id).toEqual(['choir-silent']);
+    }
+    // Ketch's slate knows they came up.
+    const slate = deco(HUB_ID, 'ketchs-slate').function!;
+    expect(slate.kind === 'script' && flagsRead(slate.effects)).toContain('choir-led-up');
+  });
+
+  it('reads the name burnt back at the foot of the last stair, whoever\u2019s it was, and the Choir sent up', () => {
+    const stair = deco(HALL_ID, 'throne-stair').function!;
+    const ids = project.party.map((sheet) => sheet.id);
+    expect(stair.kind === 'script' && flagsRead(stair.effects)).toEqual(['name-burnt', 'level-4-done', ...ids.map((id) => `burnt-${id}`), 'choir-led-up']);
+    const read = stair.kind === 'script' ? all(stair.effects).filter((effect) => effect.kind === 'branch' && effect.when.kind === 'flag' && effect.when.flag === `burnt-${ids[1]}`) : [];
+    expect(read[0]?.kind === 'branch' && read[0].then[0]).toMatchObject({ kind: 'log', text: expect.stringContaining('and with it the house they grew up in') });
+  });
+});
+
 describe('Level 3, rebuilt', () => {
   const project = ashwellProject();
   const scene = (id: string) => project.scenes.find((s) => s.id === id)!;
@@ -630,7 +715,7 @@ describe('Level 1, rebuilt', () => {
     const slate = deco(HUB_ID, 'ketchs-slate').function!;
     const read: string[] = [];
     if (slate.kind === 'script') walkEffects(slate.effects, (effect) => void (effect.kind === 'branch' && effect.when.kind === 'flag' && read.push(effect.when.flag)));
-    expect(read).toEqual(['gave-ketchs-name', 'returned-the-ring', 'sold-the-ring', 'annick-spared', 'ending-burned']);
+    expect(read).toEqual(['gave-ketchs-name', 'returned-the-ring', 'sold-the-ring', 'annick-spared', 'choir-led-up', 'ending-burned']);
   });
 
   it('hides the Warden’s token behind a stone an Instinct roll finds, once; and Tam Ketch’s ring in the Kennel, for Ketch', () => {
