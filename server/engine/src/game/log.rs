@@ -129,8 +129,9 @@ fn absent(entry: &Value, key: &str) -> bool {
     entry.get(key).is_none_or(Value::is_null)
 }
 
+/// A count and its word, the word taking an s past one - unless it ends in one already: two Stress, not two Stresss.
 fn plural(count: &Value, word: &str) -> String {
-    format!("{} {word}{}", n(count), if count.as_f64() == Some(1.0) { "" } else { "s" })
+    format!("{} {word}{}", n(count), if count.as_f64() == Some(1.0) || word.ends_with('s') { "" } else { "s" })
 }
 
 fn list<'a>(value: &'a Value, key: &str) -> &'a [Value] {
