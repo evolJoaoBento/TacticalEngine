@@ -135,7 +135,7 @@ describe('the Ashwell, as a project', () => {
     const deco = (id: string) => scene(SUMP_ID).decos.find((d) => d.id === id)!;
     const gate = deco('sump-gate').function!;
     expect(gate.kind === 'script' && gate.requiresKey).toBe(SUMP_KEY);
-    // The key comes out of the Warden's strongbox, and only once his fight is over.
+    // The key comes out of the Warden's strongbox once his fight is over - or he gives it (`Level 1, rebuilt`).
     const box = deco('wardens-strongbox').function!;
     const given: Effect[] = [];
     if (box.kind === 'script') walkEffects(box.effects, (effect) => void given.push(effect));
@@ -425,5 +425,83 @@ describe('a map drawn as rows', () => {
   it('refuses a row of the wrong length, and a character not in the legend', () => {
     expect(() => sceneFromRows(['##', '#'])).toThrow('row 1 is 1 wide, not 2');
     expect(() => sceneFromRows(['#x'])).toThrow('"x" at 1,0 is not in the legend');
+  });
+
+  it('raises floor a block high, of the floor’s stone or of planks, and turns a stair to climb toward it', () => {
+    const map = sceneFromRows(['^/.', '...', './.', '.B.', './.', '...', '/^.'], { wall: 'w', floor: 'f', rubble: 'r', cover: 'c' });
+    const at = (x: number, y: number) => map.buildingTiles![buildingKey({ x, y, level: 0 })];
+    expect([at(0, 0)?.shape, at(0, 0)?.tile, at(1, 3)?.shape, at(1, 3)?.tile]).toEqual(['block', 'f', 'block', 'planks']);
+    // Each stair climbs toward the raised floor beside it: west, south, north, east.
+    expect([at(1, 0), at(1, 2), at(1, 4), at(0, 6)].map((piece) => [piece?.shape, piece?.rotation])).toEqual([['stairs', 3], ['stairs', 0], ['stairs', 2], ['stairs', 1]]);
+    expect(at(1, 0)?.tile).toBe('f');
+    expect(() => sceneFromRows(['./.'])).toThrow('the stair at 1,0 has nothing raised beside it');
+  });
+
+  it('lays boards on the floor, and stands a room’s furniture on it, a kind nobody walks through, stretched to its height', () => {
+    const map = sceneFromRows(['=K', 'S.'], { wall: 'w', floor: 'f', rubble: 'r', cover: 'c' }, { K: { kind: 'counter', shape: 'block', height: 0.75 }, S: { kind: 'shelf', shape: 'wall', height: 1.75, rotation: 2 } });
+    const at = (x: number, y: number, level: number) => map.buildingTiles![buildingKey({ x, y, level })];
+    expect(at(0, 0, 0)?.tile).toBe('planks');
+    expect([at(1, 0, 0)?.tile, at(1, 0, 0.25)]).toEqual(['f', { x: 1, y: 0, level: 0.25, shape: 'block', material: 'stone', rotation: 0, tile: 'counter', height: 0.75 }]);
+    expect(at(0, 1, 0.25)).toMatchObject({ shape: 'wall', tile: 'shelf', rotation: 2, height: 1.75 });
+    expect(map.terrain).toEqual(['bedrock', 'bedrock', 'bedrock', 'bedrock']);
+  });
+});
+
+describe('Level 1, rebuilt', () => {
+  const project = ashwellProject();
+  const scene = (id: string) => project.scenes.find((s) => s.id === id)!;
+  const deco = (room: string, id: string) => scene(room).decos.find((d) => d.id === id)!;
+  const placed = (room: string, id: string) => scene(room).encounters.flatMap((e) => e.adversaries).find((a) => a.id === id)!;
+  const dialogue = (id: string) => project.dialogues.find((d) => d.id === id)!;
+
+  it('is lit by what burns in it: the Lantern a low lamp, the cistern darker, the Kennel nearly black', () => {
+    expect([HUB_ID, THROAT_ID, KENNEL_ID, SUMP_ID].map((id) => scene(id).light)).toEqual([0.5, 0.3, 0.22, 0.3]);
+    for (const id of [HUB_ID, THROAT_ID, KENNEL_ID, SUMP_ID]) expect(scene(id).decos.some((d) => ['camp-fire-prop', 'standing-torch-prop', 'wall-torch-prop'].includes(d.model)), id).toBe(true);
+  });
+
+  it('gives the Lantern a shelf to buy from, a hearth to sleep by for five gold, and a slate that remembers', () => {
+    const shelf = deco(HUB_ID, 'ketchs-shelf').function!;
+    expect(shelf.kind === 'shop' && shelf.shop.stock.map((s) => s.item)).toEqual(['consumable-minor-health-potion', 'consumable-minor-stamina-potion', 'healing-draught']);
+    const hearth = deco(HUB_ID, 'the-hearth').function!;
+    expect(hearth.kind === 'script' && hearth.effects[0]).toMatchObject({ kind: 'branch', when: { kind: 'hasItem', item: 'gold', quantity: 5 } });
+    const slate = deco(HUB_ID, 'ketchs-slate').function!;
+    const read: string[] = [];
+    if (slate.kind === 'script') walkEffects(slate.effects, (effect) => void (effect.kind === 'branch' && effect.when.kind === 'flag' && read.push(effect.when.flag)));
+    expect(read).toEqual(['gave-ketchs-name', 'returned-the-ring', 'annick-spared', 'ending-burned']);
+  });
+
+  it('hides the Warden’s token behind a stone an Instinct roll finds, once; and Tam Ketch’s ring in the Kennel, for Ketch', () => {
+    const stone = deco(THROAT_ID, 'loose-stone').function!;
+    expect(stone).toMatchObject({ kind: 'trapped', trait: 'instinct', difficulty: 12, repeatable: false });
+    const chest = deco(KENNEL_ID, 'kennel-chest').function!;
+    expect(chest.kind === 'container' && chest.items.map((i) => i.item)).toContain('tams-ring');
+    const ring = dialogue('mother-ketch').nodes.find((n) => n.id === 'ring')!;
+    expect(ring.onEnter).toEqual(expect.arrayContaining([{ kind: 'removeItem', item: 'tams-ring', quantity: 1 }, { kind: 'setFlag', flag: 'returned-the-ring' }]));
+  });
+
+  it('has Nails talk at three fifths, and the Warden at half: shown his token, or told by her, he gives the key and is spared', () => {
+    expect(placed(THROAT_ID, 'nails').interaction).toEqual({ kind: 'threshold', dialogue: 'nails', percent: 60 });
+    expect(dialogue('nails').nodes.find((n) => n.id === 'annick')!.onEnter).toEqual([{ kind: 'setFlag', flag: 'nails-talked' }]);
+    expect(placed(SUMP_ID, 'hob-annick').interaction).toEqual({ kind: 'threshold', dialogue: 'hob-annick', percent: 50 });
+    const [spare, finish] = dialogue('hob-annick').nodes[0]!.choices!;
+    expect(spare!.available).toEqual({ kind: 'any', of: [{ kind: 'hasItem', item: 'keepers-token' }, { kind: 'flag', flag: 'nails-talked' }] });
+    expect(finish!.effects).toEqual([{ kind: 'setAttitude', attitude: 'hostile' }]);
+    expect(dialogue('hob-annick').nodes.find((n) => n.id === 'keeper')!.onEnter).toEqual(expect.arrayContaining([{ kind: 'giveKey', key: SUMP_KEY }, { kind: 'setFlag', flag: 'annick-spared' }]));
+    // And Vane's page below the gate knows which it was.
+    const stair = deco(SUMP_ID, 'stair-down').function!;
+    const read: string[] = [];
+    if (stair.kind === 'script') walkEffects(stair.effects, (effect) => void (effect.kind === 'branch' && effect.when.kind === 'flag' && read.push(effect.when.flag)));
+    expect(read).toContain('annick-spared');
+  });
+
+  it('gives the Warden a second spotlight and a chain that holds, and makes the lamp moths minions', () => {
+    const warden = project.adversaries.find((a) => a.id === WARDEN_ID)!;
+    expect(warden.features.map((f) => f.name)).toEqual(['Relentless (2)', 'Drag Under']);
+    const card = project.cards.find((c) => c.id === 'warden-drag-under')!;
+    expect(card.grant).toEqual({ kind: 'adversary', adversaries: [WARDEN_ID] });
+    const drag = project.abilities.find((a) => a.id === 'warden-drag-under')!;
+    expect(drag.effects[0]).toMatchObject({ kind: 'attack', range: 'close', onHit: [{ kind: 'applyCondition', condition: 'restrained', target: { kind: 'hit' } }, { kind: 'log' }] });
+    expect(project.adversaries.find((a) => a.id === 'lamp-moth')!.features.map((f) => f.name)).toEqual(['Minion (3)']);
+    expect(scene(SUMP_ID).encounters[0]!.adversaries.filter((a) => a.adversary === 'lamp-moth')).toHaveLength(2);
   });
 });

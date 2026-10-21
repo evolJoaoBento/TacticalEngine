@@ -39,6 +39,14 @@ tell the party exactly how the last ones died.
 
 - She starts the quest **Down the Ashwell** and gives each delve a reason.
 - The winch over the well is the way down to Level 1; the same rope is the way back.
+- **Her shelf** sells what keeps a party alive below - minor health and stamina potions at ten gold, two healing
+  draughts at twenty - and **the hearth** is a night on her floor for five: three Hit Points and two Stress back for
+  everyone, or, short of the coin, a line about what she does not keep for free.
+- **Her slate** by the door reads back what the party has done: Ketch's own name given at the Throne, Tam's ring
+  returned, Annick spared, the ledger burnt.
+
+It is a room with a shape (the second pass): a long counter of planks with shelves behind it, the well's ring in the
+middle, tables, the hearth in the corner - lit by the fire and two torches at half the light of day.
 
 ## Level 1 — The Throat (built)
 
@@ -48,19 +56,29 @@ paired across the scenes, so the party comes up where it went down. **Faction:**
 the dead's belongings and stayed, stripping whoever falls. **Boss:** **the Cistern Warden**, once the town's
 well-keeper, now the Wellrats' chief, armoured in rusted well-chain.
 
-- **The Shaft Foot** — where the rope ends, on a heap of what fell before. Vane's first page is nailed to the wall.
-- **The Long Gallery** — a channel of black water, waist-deep in the middle, shallow at the edges. Slow going.
-- **The Wellrat Camp** — a fire, stolen goods, and the Wellrats who keep it: cutters and a slinger.
+- **The Shaft Foot** — where the rope ends, on a raised heap of what fell before, a stair down off it. Vane's first page
+  is nailed to the wall, and it says Annick hid the proof of who he was at the shaft's foot: **a loose stone** there
+  is an Instinct roll (12), once - behind it, his **keeper's token**, or only wet stone.
+- **The Long Gallery** — a channel of black water across the cistern, a ledge of stone along one side broken in the
+  middle. Slow going, in sight of the camp.
+- **The Wellrat Camp** — a fire on a raised platform, stolen goods, and the Wellrats who keep it: cutters, a slinger,
+  and **Nails**, who keeps their count. Wounded past three fifths she drops her blade and talks: about Annick, what he
+  was, and what might make him remember.
 - **The Kennel** — where the Wellrats keep what they feed the dead to: rot-hounds, and something that waits in the
-  wet. A chest of what the hounds did not eat.
-- **The Sump** — the cistern's deepest chamber, where the Warden holds court with grave-moths in the lamp smoke.
-  His strongbox holds the key to the Sump Gate.
+  wet, in the darkest room of the level. A chest of what the hounds did not eat, and in it **Tam Ketch's ring** -
+  Ketch's husband, who went down the first winter. Brought back to her, she gives a healing draught, and the slate
+  remembers.
+- **The Sump** — the cistern's deepest chamber: a platform of stacked doors in the deep water, causeways of boards to
+  it, and the Warden on it with **lamp moths** (minions) in the smoke. **The Warden** is Relentless (2) and lashes with
+  **Drag Under**, his own card: a Close attack that Restrains. At half his blood he kneels: shown his token, or told
+  by Nails what he was, he remembers the keeping, gives the key and is spared (`annick-spared`); otherwise he dies on
+  his doors and his strongbox holds the key.
 - **The Sump Gate** — an iron grate over the stair down, locked with the Warden's key.
 - **The stair down** — to the Ossuary Market. For now it ends at bone, and the party climbs back with what they
   learned.
 
 **Vane's page:** *"They came down in good order. They checked the rope twice. The tall one was afraid of the water
-and did not say so. Entry 4,112."*
+and did not say so. Entry 4,112."* Entry 4,113, past the gate, knows whether Annick gave the key or had it taken.
 
 ## Level 2 — The Ossuary Market (built)
 
@@ -152,6 +170,40 @@ with the pen. He is old and small, and he will not fight unless the party makes 
 ledger (and every name in it is forgotten — Ketch's slate goes blank), take the pen (and keep the ledger), or leave
 him to it and climb out. **The fight, if it comes:** Vane writes the room around him, and every entry he finishes is
 a wound.
+
+## The second pass (begun 20 October 2026)
+
+The first pass built every level, end to end; an audit of it (20 October 2026) found the story strong and the play thin.
+Every room was flat and lit like an afternoon; seven of the eight fight rooms were one template, 16 wide, the fight
+waking one step past the door; the adventure's own eight stat blocks had no features; there was one roll in the whole
+of it (Sela's Presence 14); no trap, no secret, one optional room; the set pieces the intros promise - the platform of
+stacked doors, the reading platform, the cabinet taller than a house, the furnace that fills a wall - were a banner, a
+pillar and a camp fire; and five flags were set that nothing read (`read-vanes-page`, `gave-our-own`,
+`gave-annicks-name`, `burnt-<id>`, Ilse's *why*).
+
+The second pass rebuilds it a slice at a time, each judged on all three: **how it looks**, **what the level is about to
+play**, and **what the story pays back**. Ids, dialogue options and the props the spec drives are kept; what is new is
+added.
+
+1. **Lit rooms, and the kit** (done, 21 October 2026). An engine change of its own: a scene says how much light it has, and the torches, braziers
+   and fires in a dim one light it. Then the kit grows what a dungeon is made of - floors raised and sunk, a stair up to
+   them, water below the floor, structures of the adventure's own (shelves, pews, lecterns, a platform of doors, a
+   furnace) drawn in textures of their own - and **Level 1 and the Lantern** are rebuilt on it: an approach to the
+   Wellrats across the water, a ledge that may give, the Warden on his platform of doors with features of his own and
+   a parley at half his blood, the Kennel worth the detour; Ketch sells rope and oil and the Lantern is a place to rest.
+   *As built:* the kit's legend gained `^` raised floor, `B` a deck of planks, `/` a stair (turned toward whichever
+   neighbour is raised), `=` boards, and a room's own furniture by character (`Furniture`: counter, shelf, pew,
+   furnace, slab - a block or a rail, stretched to a height, in a texture of its own). The ledge that may give became
+   the loose stone at the shaft's foot, which pays Vane's page; `read-vanes-page` is still read by nothing (the Throne's
+   slice).
+2. **The Ossuary Market.** The bell as a countdown - ghouls up through the floor until the rope is cut; the stalls a
+   market with a shape; Sela's price remembered below (who was named, and what it cost).
+3. **The Drowned Library.** Shelves as shelves, the reading platform raised out of the water, the Index hunting by name
+   (a countdown that reads the party's own entries); pages to read for what they hide.
+4. **The Furnace of Names.** Heat as a hazard, the Choir as bystanders with a will, the valve as a test of strength,
+   the furnace filling its wall; the name burnt read back to the party at the bottom.
+5. **The Ledger Throne.** A room worth ending in; Vane's fight writing the room around him; the Pen reachable by what
+   the party did, not only by what it says; every flag paid.
 
 ## Building it, level by level
 

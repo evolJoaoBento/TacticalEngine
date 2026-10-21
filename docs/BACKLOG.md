@@ -107,6 +107,19 @@ room's shaders are not made again; each flame flickers its own way. Presentation
 scene menu (**☀**/**☾**, `editor/scene-edits.ts`); the driver counts the lamps lit (`lamps()`). Tests:
 `room-light.test.ts`, `scene-light.test.ts`, `scene.golden.test.ts` (`golden_scene.rs`), `editor-shell.spec.ts`.
 
+## The Ashwell's second pass — slice 1 of 5 done: Level 1 and the Lantern
+
+`docs/ASHWELL.md` ("The second pass"): an audit found the story strong and the play thin - flat rooms, one fight-room
+template, featureless stat blocks, one roll, flags nothing read. Slice 1 is lit rooms (above) and the kit
+(`ashwell-kit.ts`: `^` raised floor, `B` a deck, `/` a stair turned to the raise, `=` boards, a room's own `Furniture`
+in textures of its own), and Level 1 and the Lantern rebuilt on it (`ashwell-level1.ts`): Ketch's shelf (a shop), the
+hearth (a night for five gold), her slate reading four flags; the Throat's heap, gallery and raised camp, the loose
+stone (Instinct 12, once) hiding Annick's token; Nails talking at 60%; Tam's ring in the Kennel, returned to Ketch;
+the Sump's platform of doors, lamp moths (Minion (3)), the Warden Relentless (2) with Drag Under (his own card: a
+Close attack that Restrains) and a parley at 50% that spares him for the token or Nails's word; Entry 4,113 knowing
+which. Tests: `ashwell.test.ts` (the legend, each stair's turn, furniture; Level 1 rebuilt), `ashwell.spec.ts` (Nails
+and Annick talked down; Level 1's corners). Next: slice 2, the Ossuary Market.
+
 ## Peer to peer: a shared game with no server — slice 1 done
 
 `docs/PEER.md`. The host's page keeps the game (`src/game/peer/host-table.ts`, `play.rs`'s shared game in the

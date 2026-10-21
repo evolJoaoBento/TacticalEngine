@@ -19,7 +19,7 @@ import { SHIPPED_MODELS } from '../project-open';
 import { COMPANIONS } from '../camp-company';
 import { sheetFor } from '../new-character';
 import { ASHWELL_ID, HUB_ID, SUMP_KEY, GUILD_MARK, BONE_KEY, KINDLING, YOUR_PAGE, PALETTE, LINKED_SURFACES } from './ashwell-kit';
-import { hub, throat, kennel, sump, CISTERN_WARDEN, KETCH, QUEST } from './ashwell-level1';
+import { hub, throat, kennel, sump, CISTERN_WARDEN, LAMP_MOTH, WARDEN_CARDS, WARDEN_ABILITIES, KETCH, NAILS, ANNICK, QUEST, LEVEL_ONE_ITEMS } from './ashwell-level1';
 import { market, pit, countingHouse, PIT_GHOUL, BONE_BROKER, GRALE, SELA, MARKET_QUEST_DEF } from './ashwell-level2';
 import { readingRoom, stacks, index, INK_WRAITH, UNDERTOW_INDEX, AUD, LIBRARY_QUEST_DEF } from './ashwell-level3';
 import { nave, gallery, hall, IRON_STOKER, BELLOWS_SAINT, ILSE, FURNACE_QUEST_DEF } from './ashwell-level4';
@@ -96,12 +96,13 @@ export function ashwellProject(party: readonly CharacterSheet[] = ASHWELL_PARTY)
     terrainPalette: PALETTE,
     surfaces: LINKED_SURFACES,
     scenes: [hub(), throat(), kennel(), sump(), market(), pit(), countingHouse(), readingRoom(), stacks(), index(), nave(), gallery(), hall(party), throne()],
-    dialogues: [KETCH, GRALE, SELA, AUD, ILSE, VANE],
-    items: [...DEMO_ITEMS.filter((item) => KEPT_ITEMS.has(item.id)), ...ITEMS],
+    dialogues: [KETCH, NAILS, ANNICK, GRALE, SELA, AUD, ILSE, VANE],
+    items: [...DEMO_ITEMS.filter((item) => KEPT_ITEMS.has(item.id)), ...ITEMS, ...LEVEL_ONE_ITEMS],
     lootTables: LOOT,
     quests: [QUEST, MARKET_QUEST_DEF, LIBRARY_QUEST_DEF, FURNACE_QUEST_DEF, THRONE_QUEST_DEF],
-    adversaries: [CISTERN_WARDEN, PIT_GHOUL, BONE_BROKER, INK_WRAITH, UNDERTOW_INDEX, IRON_STOKER, BELLOWS_SAINT, ORSOLDE_VANE],
-    abilities: [...STARTER_ABILITIES],
+    adversaries: [CISTERN_WARDEN, LAMP_MOTH, PIT_GHOUL, BONE_BROKER, INK_WRAITH, UNDERTOW_INDEX, IRON_STOKER, BELLOWS_SAINT, ORSOLDE_VANE],
+    cards: [...WARDEN_CARDS],
+    abilities: [...STARTER_ABILITIES, ...WARDEN_ABILITIES],
     conditionDefs: [...STARTER_CONDITIONS, ...SRD_CONDITIONS.filter((c) => !STARTER_CONDITIONS.some((s) => s.id === c.id))],
     party: [...party],
     packs: ['srd-characters'],

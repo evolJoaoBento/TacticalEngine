@@ -43,12 +43,23 @@ async function drain(page: Page): Promise<void> {
   });
 }
 
+/** Every prompt waiting answered, a roll asked for rolled - not let pass - and its result read. */
+async function roll(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    const a = window.__engine!;
+    for (let n = 0; n < 20 && a.pendingKind() !== null; n++) {
+      const kind = a.pendingKind();
+      a.answer(kind === 'check' ? { kind: 'roll' } : kind === 'rolled' ? { kind: 'answered' } : { kind: 'choose', index: 0 });
+    }
+  });
+}
+
 /**
  * A fight begun by walking onto the cell that wakes it, and won: every adversary in it wounded to a blow from down by
  * the driver, then struck by whoever can reach, the room taking its turns between. Real blows, so the fight ends as one
  * does, and whatever waits on its end sees it end.
  */
-async function fight(page: Page, at: { x: number; y: number }): Promise<void> {
+async function fight(page: Page, at: { x: number; y: number }, talkers: readonly string[] = []): Promise<void> {
   // Rested first, as a party between fights would: ten fights end to end, with nobody resting, wear any four down.
   await page.evaluate(() => {
     const a = window.__engine!;
@@ -63,26 +74,31 @@ async function fight(page: Page, at: { x: number; y: number }): Promise<void> {
     a.arrive();
   }, at);
   await expect.poll(() => page.evaluate(() => window.__engine!.inCombat()), { timeout: 15_000 }).toBe(true);
-  await win(page);
+  await win(page, talkers);
 }
 
-/** The fight going on, won: every adversary wounded to a blow from down, then struck by whoever can reach. */
-async function win(page: Page): Promise<void> {
+/**
+ * The fight going on, won: every adversary wounded to a blow from down, then struck by whoever can reach. One who stops
+ * to talk at a threshold (`talkers`) is left four Hit Points, and struck first: a blow, not the driver's wound, is what
+ * brings a creature to its threshold, and from four any blow leaves it under its line, and standing to say so.
+ */
+async function win(page: Page, talkers: readonly string[] = []): Promise<void> {
   for (let round = 0; round < 40 && (await page.evaluate(() => window.__engine!.inCombat())); round++) {
-    await page.evaluate(() => {
+    await page.evaluate((talkers) => {
       const a = window.__engine!;
       // The party held up by the same hand: the levels the Ashwell grants are never taken here (the level-up panel
       // has its own tests), so a level-1 company is fighting tier-2 creatures, and what is tested is the level.
       for (const member of a.party()) a.wound(member, 0);
-      for (const foe of a.adversaries()) a.wound(foe, a.hitPoints(foe).max - 1);
+      for (const foe of a.adversaries()) a.wound(foe, a.hitPoints(foe).max - (talkers.includes(foe) ? 4 : 1));
+      const order = () => [...a.adversaries()].sort((x, y) => Number(talkers.includes(y)) - Number(talkers.includes(x)));
       for (const member of a.party()) {
-        const foe = a.adversaries()[0];
+        const foe = order()[0];
         if (foe === undefined) break;
         a.select(member);
         a.attack(foe);
         for (let n = 0; n < 20 && a.pendingKind() !== null; n++) a.answer({ kind: 'choose', index: 0 });
       }
-    });
+    }, talkers);
     await drain(page);
     if (await page.evaluate(() => window.__engine!.inCombat())) {
       await page.evaluate(() => window.__engine!.endGmTurn());
@@ -221,7 +237,10 @@ async function levelOne(page: Page): Promise<void> {
   await use(page, 'wellrat-takings');
   await drain(page);
   expect(await lastLine(page)).toBe('Not with the Wellrats watching you do it.');
-  await fight(page, { x: 22, y: 4 });
+  // Half way down the gallery the water carries the sound to the camp. Nails, at half, would sooner talk: she says what
+  // Annick was, and goes.
+  await fight(page, { x: 16, y: 2 }, ['nails']);
+  expect(await logged(page)).toContain('Nails picks up her tally-board and walks off into the dark the way you came, counting under her breath.');
   await use(page, 'wellrat-takings');
   await drain(page);
   expect((await quest(page))?.done).toContain('break-the-wellrats');
@@ -230,13 +249,12 @@ async function levelOne(page: Page): Promise<void> {
   await use(page, 'down-to-the-sump');
   await drain(page);
   await expect.poll(() => page.evaluate(() => window.__engine!.sceneId())).toBe('the-sump');
-  await fight(page, { x: 7, y: 3 });
-  await use(page, 'sump-gate');
-  await drain(page);
-  expect(await page.evaluate(() => window.__engine!.objectState('sump-gate').removed)).toBe(false);
+  // Annick, at four tenths, is told what he was - Nails said - and gives the key himself; his box is still his hoard.
+  await fight(page, { x: 8, y: 3 }, ['hob-annick']);
+  expect((await logged(page)).some((text) => text.includes('Gate’s that way. I’ll wipe it after you.'))).toBe(true);
+  expect((await quest(page))?.done).toContain('the-warden');
   await use(page, 'wardens-strongbox');
   await drain(page);
-  expect((await quest(page))?.done).toContain('the-warden');
   await use(page, 'sump-gate');
   await drain(page);
   expect(await page.evaluate(() => window.__engine!.objectState('sump-gate').removed)).toBe(true);
@@ -336,6 +354,83 @@ test('the Ashwell, Level 1: begun through a camp’s portal, Ketch heard, the Th
   await page.getByTestId('menu-load').click();
   await expect(page.locator(`[data-testid="menu-load-list"] [data-game="${begun}"] h2`)).toHaveText("The Ashwell (Wren's party)");
   await expect(page.getByTestId('menu-play-ashwell')).toHaveCount(0);
+});
+
+test('the Ashwell, Level 1\u2019s corners: a night by the hearth, Ketch\u2019s shelf, the stone at the shaft\u2019s foot, the Kennel\u2019s ring brought home, and the slate', async ({ page }) => {
+  test.setTimeout(240_000);
+  await begin(page);
+  await use(page, 'mother-ketch');
+  await expect.poll(() => page.evaluate(() => window.__engine!.dialogueOptions())).toContain('We are going down.');
+  await page.evaluate(() => window.__engine!.answer({ kind: 'choose', index: 2 }));
+  await page.evaluate(() => window.__engine!.answer({ kind: 'choose', index: 0 }));
+  await drain(page);
+
+  // A night by the hearth, for five gold: the party mended as far as a night goes.
+  await page.evaluate(() => {
+    const a = window.__engine!;
+    a.giveItem('gold', 5);
+    for (const member of a.party()) a.wound(member, 3);
+  });
+  const gold = () => page.evaluate(() => window.__engine!.carried().find((c) => c.id === 'gold')?.quantity ?? 0);
+  const before = await gold();
+  await use(page, 'the-hearth');
+  await drain(page);
+  expect(await lastLine(page)).toContain('You sleep in your boots, and wake stiff, and better.');
+  expect(await gold()).toBe(before - 5);
+  expect(await page.evaluate(() => window.__engine!.party().map((m) => window.__engine!.hitPoints(m).marked))).toEqual([0, 0, 0, 0]);
+  // Her shelf: a seller's window, potions and draughts.
+  await use(page, 'ketchs-shelf');
+  const shelf = page.getByTestId('container');
+  await expect(shelf).toHaveAttribute('data-container', 'ketchs-shelf');
+  await expect(shelf).toContainText('Healing draught');
+  await page.screenshot({ path: 'test-results/ashwell-lantern-shelf.png' });
+  await shelf.getByTestId('container-close').click();
+  await expect(page.getByTestId('container')).toHaveCount(0);
+
+  // Down, and the loose stone at the shaft's foot: an Instinct roll, once - the token behind it, or only wet stone.
+  await use(page, 'the-well');
+  await drain(page);
+  await expect.poll(() => scene(page)).toBe('the-throat');
+  await use(page, 'loose-stone');
+  await roll(page);
+  const stone = await lastLine(page);
+  const token = (await page.evaluate(() => window.__engine!.carried().map((c) => c.id))).includes('keepers-token');
+  expect(token ? stone : 'nothing', stone).toBe(token ? 'One stone in the wall is drier than the rest. Behind it, wrapped in oilcloth, a brass token on a thong: HALLOWMERE WELL - KEEPER.' : 'nothing');
+  if (!token) expect(stone).toBe('Wet stone, and more wet stone. Whatever was hidden here, it stays hidden.');
+
+  // The Kennel: its hounds and the thing in the wet, and among the bones in its chest, a ring.
+  await use(page, 'down-to-the-kennel');
+  await drain(page);
+  await expect.poll(() => scene(page)).toBe('the-kennel');
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: 'test-results/ashwell-kennel.png' });
+  await fight(page, { x: 3, y: 3 });
+  await use(page, 'kennel-chest');
+  await expect.poll(() => page.evaluate(() => window.__engine!.container()?.lines.map((line) => line.item) ?? [])).toContain('tams-ring');
+  expect(await page.evaluate(() => window.__engine!.take('tams-ring'))).toBe(true);
+  await use(page, 'up-from-the-kennel');
+  await drain(page);
+  await expect.poll(() => scene(page)).toBe('the-throat');
+  await use(page, 'rope-up');
+  await drain(page);
+  await expect.poll(() => scene(page)).toBe('lantern-and-lye');
+
+  // Ketch, given it back: a draught from under the bar, and the slate remembers.
+  await use(page, 'mother-ketch');
+  await choose(page, 'We found this in the Kennel.');
+  await choose(page, '[Leave her to it.]');
+  await drain(page);
+  const carried = await page.evaluate(() => window.__engine!.carried().map((c) => c.id));
+  expect(carried).not.toContain('tams-ring');
+  expect(carried).toContain('healing-draught');
+  await use(page, 'ketchs-slate');
+  await drain(page);
+  expect(await logged(page)).toContain('Halfway down, beside TAM KETCH, somebody has drawn a small careful ring.');
+  // And only once: given back, it is not offered again.
+  await use(page, 'mother-ketch');
+  await expect.poll(() => page.evaluate(() => window.__engine!.dialogueOptions())).toContain('We are going down.');
+  expect(await page.evaluate(() => window.__engine!.dialogueOptions())).not.toContain('We found this in the Kennel.');
+  expect(await page.evaluate(() => window.__engine!.errors)).toEqual([]);
 });
 
 test('the Ashwell, Level 2 paid for: the errand in the pit, the Guild\u2019s mark, a name of the party\u2019s own for the key, and back to Ketch', async ({ page }) => {
